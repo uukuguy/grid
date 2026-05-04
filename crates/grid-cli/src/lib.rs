@@ -14,6 +14,7 @@ use commands::{
 };
 
 pub mod commands;
+pub mod error;
 #[cfg(feature = "studio")]
 pub mod dashboard;
 pub mod output;

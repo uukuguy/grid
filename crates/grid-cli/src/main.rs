@@ -13,6 +13,7 @@ use grid_cli::commands::{
     handle_eval, handle_mcp, handle_memory, handle_root, handle_sandbox, handle_session,
     handle_skill, handle_tools, run_doctor, AppState, CompletionsCommands,
 };
+use grid_cli::error::{ExitCode, GridError};
 use grid_cli::output;
 use grid_cli::{Cli, Commands};
 
@@ -34,7 +35,7 @@ fn init_logging(verbose: bool) {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     dotenvy::dotenv().ok();
 
     let cli = Cli::parse();
@@ -43,18 +44,22 @@ async fn main() -> Result<()> {
     info!("Starting Grid CLI");
 
     let grid_root = if let Some(ref project_path) = cli.project {
-        grid_engine::GridRoot::with_project_dir(project_path)
-            .unwrap_or_else(|e| {
+        match grid_engine::GridRoot::with_project_dir(project_path) {
+            Ok(root) => root,
+            Err(e) => {
                 eprintln!("Error: {}", e);
-                std::process::exit(1);
-            })
+                std::process::exit(ExitCode::InvalidArg as i32);
+            }
+        }
     } else {
-        grid_engine::GridRoot::discover()
-            .unwrap_or_else(|e| {
+        match grid_engine::GridRoot::discover() {
+            Ok(root) => root,
+            Err(e) => {
                 tracing::warn!("Failed to discover GridRoot: {}, using defaults", e);
                 let wd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
                 grid_engine::GridRoot::with_working_dir(&wd).expect("GridRoot fallback failed")
-            })
+            }
+        }
     };
 
     if let Err(e) = grid_root.ensure_dirs() {
@@ -75,9 +80,24 @@ async fn main() -> Result<()> {
         quiet: cli.quiet,
     };
 
-    let state = AppState::with_grid_root(db_path.into(), output_config, grid_root).await?;
+    let state = match AppState::with_grid_root(db_path.into(), output_config, grid_root).await {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            let exit_code: ExitCode = GridError::other(e.to_string()).into();
+            std::process::exit(exit_code as i32);
+        }
+    };
 
-    match cli.command {
+    if let Err(e) = run_command(cli.command, &state).await {
+        eprintln!("Error: {}", e);
+        let exit_code: ExitCode = GridError::other(e.to_string()).into();
+        std::process::exit(exit_code as i32);
+    }
+}
+
+async fn run_command(command: Commands, state: &AppState) -> Result<()> {
+    match command {
         Commands::Run {
             resume,
             session,
@@ -95,7 +115,7 @@ async fn main() -> Result<()> {
                     add_dirs,
                     dual,
                 },
-                &state,
+                state,
             )
             .await?;
         }
@@ -110,27 +130,26 @@ async fn main() -> Result<()> {
                     session_id: session,
                     agent_id: agent,
                 },
-                &state,
+                state,
             )
             .await?;
         }
-        Commands::Agent { action } => handle_agent(action, &state).await?,
-        Commands::Session { action } => handle_session(action, &state).await?,
-        Commands::Memory { action } => handle_memory(action, &state).await?,
-        Commands::Tool { action } => handle_tools(action, &state).await?,
-        Commands::Mcp { action } => handle_mcp(action, &state).await?,
-        Commands::Config { action } => handle_config(action, &state).await?,
-        Commands::Auth { action } => commands::handle_auth(action, &state).await?,
-        Commands::Init => execute_init(&state).await?,
-        Commands::Doctor { repair } => run_doctor(repair, &state).await?,
+        Commands::Agent { action } => handle_agent(action, state).await?,
+        Commands::Session { action } => handle_session(action, state).await?,
+        Commands::Memory { action } => handle_memory(action, state).await?,
+        Commands::Tool { action } => handle_tools(action, state).await?,
+        Commands::Mcp { action } => handle_mcp(action, state).await?,
+        Commands::Config { action } => handle_config(action, state).await?,
+        Commands::Auth { action } => commands::handle_auth(action, state).await?,
+        Commands::Init => execute_init(state).await?,
+        Commands::Doctor { repair } => run_doctor(repair, state).await?,
         Commands::Completions { action } => match action {
             CompletionsCommands::Generate { shell } => generate_completions(shell)?,
         },
-        Commands::Skill { action } => handle_skill(action, &state).await?,
-        Commands::Root { action } => handle_root(action, &state).await?,
-        Commands::Sandbox { action } => handle_sandbox(action, &state).await?,
-        Commands::Eval { action } => handle_eval(action, &state).await?,
+        Commands::Skill { action } => handle_skill(action, state).await?,
+        Commands::Root { action } => handle_root(action, state).await?,
+        Commands::Sandbox { action } => handle_sandbox(action, state).await?,
+        Commands::Eval { action } => handle_eval(action, state).await?,
     }
-
     Ok(())
 }
