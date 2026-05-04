@@ -8,7 +8,7 @@ pub mod autocomplete;
 pub mod event;
 pub mod event_handler;
 pub mod formatters;
-pub mod key_handler;
+pub mod key_handlers;
 pub mod managers;
 pub mod overlays;
 pub mod render;
