@@ -32,6 +32,8 @@ pub enum ExitCode {
     RateLimited = 6,
     /// 7: Storage error
     StorageError = 7,
+    /// 73: Sync error (proto file mismatch, sync failures)
+    SyncError = 73,
 }
 
 impl From<ExitCode> for i32 {
@@ -57,6 +59,7 @@ impl fmt::Display for ExitCode {
             ExitCode::NetworkError => "5",
             ExitCode::RateLimited => "6",
             ExitCode::StorageError => "7",
+            ExitCode::SyncError => "73",
         };
         write!(f, "{}", s)
     }
@@ -75,6 +78,8 @@ pub enum GridError {
     RateLimited(String),
     /// Storage error
     StorageError(String),
+    /// Sync error (proto file mismatch)
+    SyncError(String),
     /// Generic error with message
     Other(String),
 }
@@ -87,6 +92,7 @@ impl fmt::Display for GridError {
             GridError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             GridError::RateLimited(msg) => write!(f, "Rate limited: {}", msg),
             GridError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+            GridError::SyncError(msg) => write!(f, "Sync error: {}", msg),
             GridError::Other(msg) => write!(f, "{}", msg),
         }
     }
@@ -102,6 +108,7 @@ impl From<GridError> for ExitCode {
             GridError::NetworkError(_) => ExitCode::NetworkError,
             GridError::RateLimited(_) => ExitCode::RateLimited,
             GridError::StorageError(_) => ExitCode::StorageError,
+            GridError::SyncError(_) => ExitCode::SyncError,
             GridError::Other(_) => ExitCode::General,
         }
     }
