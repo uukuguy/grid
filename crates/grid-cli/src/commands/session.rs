@@ -12,6 +12,7 @@ pub async fn handle_session(action: SessionCommands, state: &AppState) -> Result
         SessionCommands::Create { name } => create_session(name, state).await?,
         SessionCommands::Show { session_id } => show_session(session_id, state).await?,
         SessionCommands::Delete { session_id } => delete_session(session_id, state).await?,
+        SessionCommands::Kill { session_id, purge } => kill_session(session_id, purge, state).await?,
         SessionCommands::Export {
             session_id,
             format,
@@ -100,6 +101,43 @@ async fn delete_session(session_id: String, state: &AppState) -> Result<()> {
     } else {
         eprintln!("Session not found: {}", session_id);
     }
+    Ok(())
+}
+
+/// Kill a session with optional hard delete (purge)
+/// - Without --purge: soft-delete (mark session state as deleted, keep proto sync markers)
+/// - With --purge: hard-delete (remove session state AND proto sync markers from disk)
+async fn kill_session(session_id: String, purge: bool, state: &AppState) -> Result<()> {
+    let session_store = state.agent_runtime.session_store();
+    let sid = SessionId::from_string(&session_id);
+
+    // Check if session exists
+    if session_store.get_session(&sid).await.is_none() {
+        eprintln!("Session not found: {}", session_id);
+        return Err(anyhow::anyhow!("Session not found: {}", session_id));
+    }
+
+    // Hard delete: remove proto sync markers from disk
+    if purge {
+        let proto_dir = state.grid_root.project_data_dir().join("proto");
+        let proto_marker = proto_dir.join(format!("{}.sync", session_id));
+        if proto_marker.exists() {
+            std::fs::remove_file(&proto_marker)?;
+            println!("Purged proto sync marker: {}", proto_marker.display());
+        }
+    }
+
+    // Soft delete the session (marks as deleted, keeps proto sync markers)
+    if session_store.delete_session(&sid).await {
+        if purge {
+            println!("Purged session: {} (hard deleted)", session_id);
+        } else {
+            println!("Killed session: {} (soft deleted)", session_id);
+        }
+    } else {
+        eprintln!("Failed to delete session: {}", session_id);
+    }
+
     Ok(())
 }
 
@@ -229,6 +267,7 @@ fn html_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::SessionCommands;
     use grid_engine::session::SessionData;
     use grid_types::{ChatMessage, MessageRole, SandboxId, SessionId, UserId};
 
@@ -310,5 +349,37 @@ mod tests {
         // empty
         let html3 = export_html(&session, &[]);
         assert!(!html3.contains("class=\"user\""));
+    }
+
+    #[test]
+    fn test_session_commands_kill_soft_delete() {
+        // Test kill without purge flag (soft delete)
+        let cmd = SessionCommands::Kill {
+            session_id: "test-session".to_string(),
+            purge: false,
+        };
+        match cmd {
+            SessionCommands::Kill { session_id, purge } => {
+                assert_eq!(session_id, "test-session");
+                assert!(!purge);
+            }
+            _ => panic!("Expected Kill variant"),
+        }
+    }
+
+    #[test]
+    fn test_session_commands_kill_hard_delete() {
+        // Test kill with purge flag (hard delete)
+        let cmd = SessionCommands::Kill {
+            session_id: "test-session".to_string(),
+            purge: true,
+        };
+        match cmd {
+            SessionCommands::Kill { session_id, purge } => {
+                assert_eq!(session_id, "test-session");
+                assert!(purge);
+            }
+            _ => panic!("Expected Kill variant"),
+        }
     }
 }

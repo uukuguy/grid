@@ -72,11 +72,20 @@ pub enum SessionCommands {
         #[arg(value_name = "SESSION_ID")]
         session_id: String,
     },
-    /// Delete a session
+    /// Delete a session (soft delete - marks as deleted)
     Delete {
         /// Session ID
         #[arg(value_name = "SESSION_ID")]
         session_id: String,
+    },
+    /// Kill a session with optional hard delete
+    Kill {
+        /// Session ID
+        #[arg(value_name = "SESSION_ID")]
+        session_id: String,
+        /// Hard delete session and proto sync markers from disk
+        #[arg(long, short)]
+        purge: bool,
     },
     /// Export a session
     Export {
