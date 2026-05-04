@@ -9,7 +9,8 @@ use serde::Serialize;
 use std::path::Path;
 
 /// Run health diagnostics
-pub async fn run_doctor(repair: bool, state: &AppState) -> Result<()> {
+/// Returns Ok(true) if all checks pass, Ok(false) if any checks fail
+pub async fn run_doctor(repair: bool, state: &AppState) -> Result<bool> {
     let mut checks = Vec::new();
 
     // Check 1: Database connectivity
@@ -70,7 +71,7 @@ pub async fn run_doctor(repair: bool, state: &AppState) -> Result<()> {
         },
     };
     output::print_output(&out, &state.output_config);
-    Ok(())
+    Ok(fail_count == 0)
 }
 
 // ── Types ─────────────────────────────────────────────────────

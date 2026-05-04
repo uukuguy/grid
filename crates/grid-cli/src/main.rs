@@ -142,7 +142,9 @@ async fn run_command(command: Commands, state: &AppState) -> Result<()> {
         Commands::Config { action } => handle_config(action, state).await?,
         Commands::Auth { action } => commands::handle_auth(action, state).await?,
         Commands::Init => execute_init(state).await?,
-        Commands::Doctor { repair } => run_doctor(repair, state).await?,
+        Commands::Doctor { repair } => {
+            let _ = run_doctor(repair, state).await?;
+        }
         Commands::Completions { action } => match action {
             CompletionsCommands::Generate { shell } => generate_completions(shell)?,
         },
