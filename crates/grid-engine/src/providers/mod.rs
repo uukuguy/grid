@@ -2,6 +2,7 @@ pub mod anthropic;
 pub mod capabilities;
 pub mod chain;
 pub mod config;
+pub mod deepseek;
 pub mod defaults;
 pub mod error_classifier;
 pub mod metering_provider;
@@ -14,6 +15,7 @@ pub mod traits;
 pub mod usage_recorder;
 
 pub use anthropic::create_provider as create_anthropic_provider;
+pub use deepseek::create_deepseek_provider;
 pub use capabilities::{
     Capability, CapabilityKey, CapabilitySet, CapabilityStore, ProbeOutcome, ProbeStrategy,
 };
@@ -34,7 +36,7 @@ pub use usage_recorder::{UsageRecorderProvider, UsageStats};
 
 /// Create a provider by name.
 ///
-/// Supported providers: "anthropic", "openai".
+/// Supported providers: "anthropic", "openai", "deepseek".
 /// Falls back to Anthropic if the name is unrecognized.
 ///
 /// If `base_url` is `None`, the provider defaults table is consulted to
@@ -52,6 +54,7 @@ pub fn create_provider(
 
     match provider_name {
         "openai" => create_openai_provider(api_key, resolved_url),
+        "deepseek" => create_deepseek_provider(api_key, resolved_url),
         _ => create_anthropic_provider(api_key, resolved_url),
     }
 }

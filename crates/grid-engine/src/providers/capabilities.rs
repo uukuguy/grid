@@ -97,6 +97,18 @@ fn static_baseline(key: &CapabilityKey) -> CapabilitySet {
         };
     }
 
+    // DeepSeek direct — deepseek-chat honors OpenAI tool_choice contract.
+    // deepseek-reasoner is rejected at provider construction (Phase 5.3 deferred)
+    // so it never reaches the capability lookup with a real request.
+    if key.provider == "deepseek"
+        && (key.base_url.contains("api.deepseek.com") || key.base_url.is_empty())
+        && key.model.starts_with("deepseek-chat")
+    {
+        return CapabilitySet {
+            tool_choice: Capability::Supported,
+        };
+    }
+
     // Anthropic direct — native tool_choice support since claude-3.
     if key.provider == "anthropic"
         && (key.base_url.contains("api.anthropic.com") || key.base_url.is_empty())
