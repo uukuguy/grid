@@ -90,10 +90,10 @@ pub async fn execute_ask(opts: AskOptions, state: &AppState) -> Result<()> {
     // Stream events until Done/Completed
     let started = std::time::Instant::now();
 
-    if matches!(state.output_config.format, OutputFormat::Json) {
-        collect_json_output(&mut rx, started).await
-    } else {
-        stream_text_output(&mut rx, state.output_config.quiet).await
+    match state.output_config.format {
+        OutputFormat::Json => collect_json_output(&mut rx, started).await,
+        OutputFormat::StreamJson => stream_json_output(&mut rx).await,
+        OutputFormat::Text => stream_text_output(&mut rx, state.output_config.quiet).await,
     }
 }
 
@@ -155,6 +155,113 @@ async fn stream_text_output(
             }
             Ok(AgentEvent::Completed(_)) => {
                 println!();
+                break;
+            }
+            Ok(_) => {} // ignore other event variants
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("Skipped {} events", n);
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+        }
+    }
+    Ok(())
+}
+
+/// Streaming JSON output mode — emit JSON chunks as events arrive.
+async fn stream_json_output(
+    rx: &mut tokio::sync::broadcast::Receiver<AgentEvent>,
+) -> Result<()> {
+    use std::io::Write;
+    let mut text_parts: Vec<String> = Vec::new();
+    let mut pending_tools: HashMap<String, (String, serde_json::Value)> = HashMap::new();
+
+    loop {
+        match rx.recv().await {
+            Ok(AgentEvent::TextDelta { text }) => {
+                text_parts.push(text.clone());
+                let chunk = serde_json::json!({
+                    "type": "content_block_delta",
+                    "delta": { "type": "text_delta", "text": text }
+                });
+                println!("{}", chunk);
+                std::io::stdout().flush().ok();
+            }
+            Ok(AgentEvent::ThinkingDelta { text }) => {
+                let chunk = serde_json::json!({
+                    "type": "thinking_delta",
+                    "thinking": text
+                });
+                println!("{}", chunk);
+                std::io::stdout().flush().ok();
+            }
+            Ok(AgentEvent::ToolStart {
+                tool_id,
+                tool_name,
+                input,
+            }) => {
+                pending_tools.insert(tool_id.clone(), (tool_name.clone(), input.clone()));
+                let chunk = serde_json::json!({
+                    "type": "tool_use",
+                    "name": tool_name,
+                    "input": input,
+                    "id": tool_id
+                });
+                println!("{}", chunk);
+                std::io::stdout().flush().ok();
+            }
+            Ok(AgentEvent::ToolResult {
+                tool_id,
+                tool_name,
+                output,
+                success,
+            }) => {
+                let (name, args) = pending_tools
+                    .remove(&tool_id)
+                    .unwrap_or_else(|| (tool_name.clone(), serde_json::Value::Null));
+                let chunk = serde_json::json!({
+                    "type": "tool_result",
+                    "name": name,
+                    "input": args,
+                    "output": output,
+                    "success": success,
+                    "id": tool_id
+                });
+                println!("{}", chunk);
+                std::io::stdout().flush().ok();
+            }
+            Ok(AgentEvent::RetryingMalformedToolCall { attempt, max_attempts, reason }) => {
+                let chunk = serde_json::json!({
+                    "type": "retry",
+                    "attempt": attempt,
+                    "max_attempts": max_attempts,
+                    "reason": reason
+                });
+                eprintln!("{}", chunk);
+            }
+            Ok(AgentEvent::Error { message }) => {
+                let chunk = serde_json::json!({
+                    "type": "error",
+                    "error": message
+                });
+                println!("{}", chunk);
+                break;
+            }
+            Ok(AgentEvent::Done) => {
+                let text = text_parts.join("");
+                let chunk = serde_json::json!({
+                    "type": "content_block",
+                    "text": text
+                });
+                println!("{}", chunk);
+                break;
+            }
+            Ok(AgentEvent::Completed(_)) => {
+                let text = text_parts.join("");
+                let chunk = serde_json::json!({
+                    "type": "content_block",
+                    "text": text
+                });
+                println!("{}", chunk);
                 break;
             }
             Ok(_) => {} // ignore other event variants
