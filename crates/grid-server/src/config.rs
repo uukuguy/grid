@@ -416,6 +416,19 @@ impl Config {
                     config.provider.model = Some(model);
                 }
             }
+            "deepseek" => {
+                if let Ok(api_key) = std::env::var("DEEPSEEK_API_KEY") {
+                    if !api_key.is_empty() {
+                        config.provider.api_key = Some(api_key);
+                    }
+                }
+                if let Ok(url) = std::env::var("DEEPSEEK_BASE_URL") {
+                    config.provider.base_url = Some(url);
+                }
+                if let Ok(model) = std::env::var("DEEPSEEK_MODEL_NAME") {
+                    config.provider.model = Some(model);
+                }
+            }
             _ => {
                 // Default to anthropic
                 if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
