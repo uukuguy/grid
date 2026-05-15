@@ -5,7 +5,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::app_state::TuiState;
+use crate::tui::app_state::TuiState;
 
 /// Handle keys in Vim insert mode.
 ///
@@ -150,10 +150,7 @@ pub fn handle_vim_insert_key(state: &mut TuiState, key: KeyEvent) {
             state.autocomplete.update(&text_before);
         }
         // Ctrl shortcuts that work in insert mode
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
-            // Pass through to normal handler via special handling
-            state.vim.ctrl_c_pending = true;
-        }
+        // (Ctrl+C is handled at the top-level dispatcher / interrupt_manager — not here)
         (KeyModifiers::CONTROL, KeyCode::Char('a')) => {
             state.input_cursor = 0;
         }

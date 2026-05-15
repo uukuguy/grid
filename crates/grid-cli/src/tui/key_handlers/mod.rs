@@ -29,7 +29,7 @@ pub mod vim_normal;
 pub use common::{compute_scroll_amount, open_external_editor};
 pub use slash_commands::execute_slash_command;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyEvent, KeyModifiers};
 
 use crate::tui::app_state::TuiState;
 

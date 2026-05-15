@@ -4,7 +4,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::app_state::{OverlayMode, TuiState};
+use crate::tui::app_state::{OverlayMode, TuiState};
 
 /// Handle keys when an overlay is active.
 ///

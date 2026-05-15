@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use super::app_state::TuiState;
+use crate::tui::app_state::TuiState;
 
 const SCROLL_AMOUNTS: [u16; 3] = [3, 6, 12];
 const SCROLL_ACCEL_WINDOW_MS: u128 = 200;

@@ -167,7 +167,7 @@ async fn run_conversation_loop(
             state.dirty = true; // assume dirty; render will check
             match event {
                 event::AppEvent::Key(key) => {
-                    key_handler::handle_key(state, key).await;
+                    key_handlers::handle_key(state, key).await;
                 }
                 event::AppEvent::MouseScroll { up, .. } => {
                     // Mouse scroll always controls conversation area
@@ -221,7 +221,7 @@ async fn run_conversation_loop(
         while let Some(event) = event_handler.try_next() {
             match event {
                 event::AppEvent::Key(key) => {
-                    key_handler::handle_key(state, key).await;
+                    key_handlers::handle_key(state, key).await;
                 }
                 event::AppEvent::MouseScroll { up, .. } => {
                     if up {

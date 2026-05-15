@@ -3,9 +3,9 @@
 //! Handles keyboard events in the main input/chat mode including:
 #![doc = "- Text input (character, backspace, delete)"]
 #![doc = "- Cursor movement (arrows, home/end)"]
-#_[doc = "- Message submission (Enter)"]
-#_[doc = "- Scroll control (up/down, page up/down)"]
-#_[doc = "- Ctrl shortcuts for common operations"]
+#![doc = "- Message submission (Enter)"]
+#![doc = "- Scroll control (up/down, page up/down)"]
+#![doc = "- Ctrl shortcuts for common operations"]
 //!
 //! This is the default mode when no overlays or special modes are active.
 
@@ -13,7 +13,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use grid_engine::agent::AgentMessage;
 use grid_types::message::ChatMessage;
 
-use super::app_state::{OverlayMode, TuiState};
+use crate::tui::app_state::{OverlayMode, TuiState};
 use super::common::compute_scroll_amount;
 use super::slash_commands::execute_slash_command;
 
@@ -183,7 +183,7 @@ pub async fn handle_normal_key(state: &mut TuiState, key: KeyEvent) {
         // ── Ctrl+Y: copy last assistant response to clipboard ──
         (KeyModifiers::CONTROL, KeyCode::Char('y')) => {
             if let Some(text) = state.last_assistant_response_text() {
-                if super::app_state::TuiState::copy_to_clipboard(&text) {
+                if crate::tui::app_state::TuiState::copy_to_clipboard(&text) {
                     // Brief visual feedback — could add a toast/notification later
                     state.dirty = true;
                 }
@@ -459,7 +459,7 @@ pub async fn handle_normal_key(state: &mut TuiState, key: KeyEvent) {
         // ── Escape: vim normal → dismiss autocomplete → cancel streaming → clear input → reset scroll ──
         (KeyModifiers::NONE, KeyCode::Esc) => {
             // Vim: Escape enters normal mode (if vim enabled and in insert/visual)
-            if state.vim.enabled && state.vim.mode != super::widgets::figures::VimMode::Normal {
+            if state.vim.enabled && state.vim.mode != crate::tui::widgets::figures::VimMode::Normal {
                 state.vim.enter_normal();
                 state.dirty = true;
                 return;

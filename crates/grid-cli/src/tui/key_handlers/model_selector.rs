@@ -4,7 +4,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::app_state::TuiState;
+use crate::tui::app_state::TuiState;
 
 /// Handle keys when model selector is visible.
 ///

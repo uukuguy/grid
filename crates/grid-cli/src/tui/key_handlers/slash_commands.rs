@@ -6,7 +6,7 @@
 use grid_engine::agent::AgentMessage;
 use grid_types::message::ChatMessage;
 
-use super::app_state::{OverlayMode, TuiState};
+use crate::tui::app_state::{OverlayMode, TuiState};
 
 /// Execute a TUI-local slash command. Returns `true` if handled locally.
 pub async fn execute_slash_command(state: &mut TuiState, input: &str) {
