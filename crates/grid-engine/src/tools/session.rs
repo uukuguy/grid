@@ -13,10 +13,9 @@ use dashmap::DashMap;
 use serde_json::{json, Value};
 
 use super::traits::Tool;
-use crate::agent::events::AgentEvent;
 use crate::agent::executor::AgentMessage;
 use crate::agent::runtime::SessionEntry;
-use grid_types::{ContentBlock, MessageRole, RiskLevel, SessionId, ToolContext, ToolOutput, ToolProgress, ToolSource};
+use grid_types::{RiskLevel, SessionId, ToolContext, ToolOutput, ToolProgress, ToolSource};
 
 // ─── Tool descriptions ───
 
@@ -61,60 +60,23 @@ Sub-sessions start with zero context — they cannot see your conversation. Writ
 session_create(prompt: "Investigate all token-counting code in crates/octo-engine/src/context/. List each function's location, parameters, and return value. Under 200 words.")
 "#;
 
-const SESSION_MESSAGE_DESCRIPTION: &str = r#"Send a message to a sub-session and wait for its reply.
+const SESSION_MESSAGE_DESCRIPTION: &str = r#"Send a message to a running sub-session.
 
-This tool BLOCKS until the sub-session finishes its turn (i.e. emits a
-Completed event) and returns the sub-session's final response text.
-
-Your plain text output is NOT visible to other sessions — you must use
-this tool to communicate with sub-sessions.
+Your plain text output is NOT visible to other sessions — you must use this tool to communicate with sub-sessions.
 
 ## Usage
 - Use the session name or ID as the `to` field
 - Message content is plain text
-- The returned string is the sub-session's reply — use it directly,
-  no need to poll session_status afterwards
 
-## Timeout
-If the sub-session does not complete within 120 seconds the tool returns
-an error indicating timeout. The sub-session itself is NOT killed — you
-can retry session_message or session_stop it explicitly.
-
-## Anti-patterns
-- Do NOT call session_status in a loop after session_message — this
-  tool already waits for completion
-- Do NOT call sleep between session_message and reading its result
+## Notes
+- The sub-session processes the message on its next turn
+- Do not guess sub-session output before it returns results
 "#;
 
-const SESSION_STATUS_DESCRIPTION: &str = r#"Check whether a sub-session is alive and list active sessions.
+const SESSION_STATUS_DESCRIPTION: &str = r#"Check the status of one or all sessions.
 
-Returns session ID, active flag, uptime, and idle time. Use this to:
-- Check whether a session exists before targeting it with session_stop
-- Get an overview of all active sub-sessions
-
-Do NOT use this to poll for completion of a session_message — that tool
-already blocks until the sub-session finishes its turn.
+Returns session ID, active status, and creation time. Use this to check if a sub-session is still running before sending messages or to get an overview of all active sessions.
 "#;
-
-/// Pull the last assistant message's text out of an AgentLoopResult's
-/// final_messages, joining all Text content blocks.
-fn extract_final_assistant_text(messages: &[grid_types::ChatMessage]) -> String {
-    messages
-        .iter()
-        .rev()
-        .find(|m| m.role == MessageRole::Assistant)
-        .map(|m| {
-            m.content
-                .iter()
-                .filter_map(|b| match b {
-                    ContentBlock::Text { text } => Some(text.as_str()),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("")
-        })
-        .unwrap_or_default()
-}
 
 const SESSION_STOP_DESCRIPTION: &str = r#"Stop and clean up a running sub-session.
 
@@ -334,71 +296,27 @@ impl Tool for SessionMessageTool {
             .ok_or_else(|| anyhow::anyhow!("Missing required parameter: message"))?;
 
         let session_id = SessionId::from_string(to);
-        let entry = match self.sessions.get(&session_id) {
-            Some(e) => e,
-            None => {
-                return Ok(ToolOutput::error(format!(
-                    "Session not found: {to}. Use session_status to check active sessions."
-                )));
+        match self.sessions.get(&session_id) {
+            Some(entry) => {
+                match entry
+                    .handle
+                    .send(AgentMessage::UserMessage {
+                        content: message.to_string(),
+                        channel_id: "session_message".to_string(),
+                    })
+                    .await
+                {
+                    Ok(_) => Ok(ToolOutput::success(format!(
+                        "Message delivered to session {to}."
+                    ))),
+                    Err(e) => Ok(ToolOutput::error(format!(
+                        "Failed to deliver message to session {to}: {e}"
+                    ))),
+                }
             }
-        };
-
-        // Subscribe BEFORE sending so we don't miss the Completed event
-        // for fast turns.
-        let mut rx = entry.handle.subscribe();
-
-        if let Err(e) = entry
-            .handle
-            .send(AgentMessage::UserMessage {
-                content: message.to_string(),
-                channel_id: "session_message".to_string(),
-            })
-            .await
-        {
-            return Ok(ToolOutput::error(format!(
-                "Failed to deliver message to session {to}: {e}"
-            )));
-        }
-
-        // Drain events until the sub-session completes or times out.
-        // 120s is the same upper bound as the OpenAI HTTP timeout; one
-        // model turn should fit comfortably under it.
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
-        loop {
-            let recv = tokio::time::timeout_at(deadline, rx.recv()).await;
-            match recv {
-                Err(_) => {
-                    return Ok(ToolOutput::error(format!(
-                        "session_message timed out after 120s waiting for session {to} to complete. \
-                         The session is still running — session_stop {to} to terminate it."
-                    )));
-                }
-                Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => {
-                    return Ok(ToolOutput::error(format!(
-                        "Session {to} closed before producing a response."
-                    )));
-                }
-                Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
-                    // Slow consumer; keep going.
-                    continue;
-                }
-                Ok(Ok(AgentEvent::Error { message })) => {
-                    return Ok(ToolOutput::error(format!(
-                        "Session {to} reported error: {message}"
-                    )));
-                }
-                Ok(Ok(AgentEvent::EmergencyStopped(reason))) => {
-                    return Ok(ToolOutput::error(format!(
-                        "Session {to} was emergency-stopped: {}",
-                        reason.unwrap_or_else(|| "no reason given".to_string())
-                    )));
-                }
-                Ok(Ok(AgentEvent::Completed(result))) => {
-                    let text = extract_final_assistant_text(&result.final_messages);
-                    return Ok(ToolOutput::success(text));
-                }
-                Ok(Ok(_)) => continue, // ignore intermediate events
-            }
+            None => Ok(ToolOutput::error(format!(
+                "Session not found: {to}. Use session_status to check active sessions."
+            ))),
         }
     }
 
@@ -751,16 +669,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_message_returns_assistant_reply() {
-        let (sessions, _rx_messages) = make_test_sessions();
-        // Grab the broadcast sender so the test can simulate a Completed event
-        // from the sub-session.
-        let btx = sessions
-            .get(&SessionId::from_string("test-session-1"))
-            .unwrap()
-            .handle
-            .broadcast_tx
-            .clone();
+    async fn test_session_message_success() {
+        let (sessions, _rx) = make_test_sessions();
         let tool = SessionMessageTool::new(sessions);
         let ctx = ToolContext {
             sandbox_id: grid_types::SandboxId::new(),
@@ -768,103 +678,13 @@ mod tests {
             working_dir: std::path::PathBuf::from("/tmp"),
             path_validator: None,
         };
-
-        // Fire Completed shortly after execute() subscribes.
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            let result = crate::agent::events::AgentLoopResult {
-                rounds: 1,
-                tool_calls: 0,
-                stop_reason: crate::agent::events::NormalizedStopReason::EndTurn,
-                input_tokens: 10,
-                output_tokens: 5,
-                final_messages: vec![grid_types::ChatMessage {
-                    role: MessageRole::Assistant,
-                    content: vec![ContentBlock::Text {
-                        text: "hi from sub-session".into(),
-                    }],
-                }],
-            };
-            let _ = btx.send(AgentEvent::Completed(result));
-        });
-
         let result = tool
-            .execute(json!({"to": "test-session-1", "message": "hello"}), &ctx)
+            .execute(
+                json!({"to": "test-session-1", "message": "hello"}),
+                &ctx,
+            )
             .await
             .unwrap();
-        assert_eq!(result.content, "hi from sub-session");
-    }
-
-    #[tokio::test]
-    async fn test_session_message_propagates_error_event() {
-        let (sessions, _rx_messages) = make_test_sessions();
-        let btx = sessions
-            .get(&SessionId::from_string("test-session-1"))
-            .unwrap()
-            .handle
-            .broadcast_tx
-            .clone();
-        let tool = SessionMessageTool::new(sessions);
-        let ctx = ToolContext {
-            sandbox_id: grid_types::SandboxId::new(),
-            user_id: grid_types::UserId::from_string("user1"),
-            working_dir: std::path::PathBuf::from("/tmp"),
-            path_validator: None,
-        };
-
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            let _ = btx.send(AgentEvent::Error {
-                message: "model rejected request".into(),
-            });
-        });
-
-        let result = tool
-            .execute(json!({"to": "test-session-1", "message": "hello"}), &ctx)
-            .await
-            .unwrap();
-        assert!(result.content.contains("model rejected request"));
-    }
-
-    #[test]
-    fn test_extract_final_assistant_text_picks_last_assistant() {
-        let messages = vec![
-            grid_types::ChatMessage {
-                role: MessageRole::User,
-                content: vec![ContentBlock::Text {
-                    text: "u1".into(),
-                }],
-            },
-            grid_types::ChatMessage {
-                role: MessageRole::Assistant,
-                content: vec![ContentBlock::Text {
-                    text: "early reply".into(),
-                }],
-            },
-            grid_types::ChatMessage {
-                role: MessageRole::User,
-                content: vec![ContentBlock::Text {
-                    text: "u2".into(),
-                }],
-            },
-            grid_types::ChatMessage {
-                role: MessageRole::Assistant,
-                content: vec![ContentBlock::Text {
-                    text: "final reply".into(),
-                }],
-            },
-        ];
-        assert_eq!(extract_final_assistant_text(&messages), "final reply");
-    }
-
-    #[test]
-    fn test_extract_final_assistant_text_empty_for_no_assistant() {
-        let messages = vec![grid_types::ChatMessage {
-            role: MessageRole::User,
-            content: vec![ContentBlock::Text {
-                text: "u1".into(),
-            }],
-        }];
-        assert_eq!(extract_final_assistant_text(&messages), "");
+        assert!(result.content.contains("delivered"));
     }
 }
