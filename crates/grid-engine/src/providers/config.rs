@@ -23,10 +23,15 @@ impl Default for ProviderConfig {
                 std::env::var("OPENAI_BASE_URL").ok(),
                 std::env::var("OPENAI_MODEL_NAME").ok(),
             ),
+            "deepseek" => (
+                std::env::var("DEEPSEEK_API_KEY").ok(),
+                std::env::var("DEEPSEEK_BASE_URL").ok(),
+                std::env::var("DEEPSEEK_MODEL_NAME").ok(),
+            ),
             _ => (
                 std::env::var("ANTHROPIC_API_KEY").ok(),
                 std::env::var("ANTHROPIC_BASE_URL").ok(),
-                None,
+                std::env::var("ANTHROPIC_MODEL_NAME").ok(),
             ),
         };
         Self {

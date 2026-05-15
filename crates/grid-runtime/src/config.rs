@@ -39,13 +39,15 @@ impl RuntimeConfig {
 
         // LLM provider configuration — follows .env conventions.
         // Env vars: LLM_PROVIDER, OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_NAME,
-        //           ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL_NAME.
+        //           ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL_NAME,
+        //           DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL_NAME.
         // Missing required vars → panic with a clear message. No fallback.
         let provider = std::env::var("LLM_PROVIDER")
-            .expect("LLM_PROVIDER is required (e.g. \"openai\" or \"anthropic\")");
+            .expect("LLM_PROVIDER is required (e.g. \"openai\", \"anthropic\", or \"deepseek\")");
 
         let (api_key_var, base_url_var, model_var) = match provider.as_str() {
             "anthropic" => ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL_NAME"),
+            "deepseek" => ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL_NAME"),
             _ => ("OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL_NAME"),
         };
 

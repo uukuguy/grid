@@ -955,6 +955,13 @@ impl AgentRuntime {
         &self.provider
     }
 
+    /// The resolved default model name (e.g. `"deepseek-chat"`, `"gpt-4o"`).
+    /// Sourced from `ProviderConfig.model`, which reads provider-specific
+    /// env vars (`{PROVIDER}_MODEL_NAME`) via `ProviderConfig::default()`.
+    pub fn default_model(&self) -> &str {
+        &self.default_model
+    }
+
     /// Shared capability matrix. Harness looks up (provider, model, base_url)
     /// to decide whether to arm provider-specific features like
     /// `tool_choice=Required` at runtime.
