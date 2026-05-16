@@ -124,7 +124,7 @@ Items acknowledged and carried forward from previous milestone close:
 | ADR | NEW-E2 — F3 reports 29 missing `enforcement.trace` items | 🟡 advisory, mapped to Phase 5.5 (WATCH-06) | Phase 4a session-04-26 audit | 5.5 |
 | ADR | NEW-E3 — ADR-V2-019 still Proposed, blocks on D142+D143 | 🟡 advisory, mapped to Phase 5.4 (WATCH-07, after WATCH-04 closes) | Phase 4a session-04-26 audit | 5.4 |
 | ADR/Functional | NEW-E4 — ADR-V2-016 实现漂移:D87 Fix 2 强制 tool_choice=Required 续航 在 TUI 对话场景误命中 (deepseek-chat × web_search 反复执行)。需 `ExecutionMode { Conversational, LongWorkflow }` + ADR-V2-026 retroactive supersede。RFC 草稿:`.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` | 🟠 P1, mapped to Phase 5.3 (WATCH-08) | 2026-05-16 deepseek shakedown | 5.3 |
-| Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | 🟠 P1 (提优先级), mapped to Phase 5.2 (CLI-04) | Phase 4a review | 5.2 |
+| Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | ✅ **CLOSED** 2026-05-04 (commits `92b7710`+`cfcffd6`) — split into 10 files, INVARIANTS.md SoT + verifier @ 7176b4b | Phase 4a review | 5.2 (closed) |
 | Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.1) | Phase 4a review | v3.2+ |
 | Tech-debt | D-batch (~40 P3 / housekeeping items 跨 D8..D80) | 🟡 P3, 单日 batch sweep 待安排 (NOT in v3.1) | 累积自 Phase 0 → 3.6 | v3.2+ |
 | Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 (读 `user_version` → 跑 ALTER → 写 `user_version` 之间无锁), 多进程同 db 文件并发 migrate 会重现 `duplicate column name: user_id`。production race, 单进程 grid-cli 不触发 | 🟡 P2, mapped to Phase 5.4 (SERVER hardening) | 2026-05-16 NEW-A1 forensics | 5.4 |
@@ -134,10 +134,58 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-16 (DeepSeek shakedown + ExecutionMode RFC + implementation)
-Stopped at: Phase 5.2 9/19 tasks done; ExecutionMode gate shipped (f1999fb)
-Resume file: .planning/phases/05.2-cli-hardening/05.2-01-PLAN.md
-Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
+Last session: 2026-05-17 (Phase 5.2 closure — T-01.14 + T-01.19 + studio test bug fixes)
+Stopped at: **Phase 5.2 19/19 ✅ COMPLETE**; ready for `/gsd-discuss-phase 5.3`
+Resume file: `.planning/phases/05.2-cli-hardening/05.2-01-SUMMARY.md` (closure record) + this STATE.md
+Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `ccaf36e`)
+
+Prior session: 2026-05-16 (DeepSeek shakedown + ExecutionMode RFC + implementation; 9/19 → 16/19)
+Detailed narrative of both sessions preserved below.
+
+### What 2026-05-17 session delivered
+
+2 commits (`a312761`, `ccaf36e`) — closes Phase 5.2 at 19/19.
+
+**Phase 5.2 closure** (T-01.14 + T-01.19 sub-plan from `616ad89`):
+
+- **`a312761` fix(grid-cli/tui-tests): repair pre-existing studio test bugs blocking T-01.14/19** —
+  3 latent test-only bugs since 2026-05-04 key_handler split (`92b7710`).
+  None affected production. Fixed because they blocked
+  `cargo test -p grid-cli --features studio`:
+  1. 5 wrong `super::super::` paths in `vim_normal.rs` + `vim_insert.rs`
+     (need one more `super::` to reach `tui::widgets::figures::VimMode`)
+  2. `test_dollar_goes_to_end` missing SHIFT modifier (real `$` = Shift+4)
+  3. `test_x_deletes_character` wrong cursor expectation (test bug, impl
+     matches real vim semantics — cursor only retreats on EOL overshoot)
+
+- **`ccaf36e` test(grid-cli): T-01.14 + T-01.19 close Phase 5.2 at 19/19** —
+  - `tests/key_handler_integration.rs` — 3 cross-mode integration tests
+    locking INVARIANTS.md asymmetry items #4 (Esc cascade), #5 (slash
+    overlay reuse), #8 (ModelSelector dual nav)
+  - `tests/cli_integration.rs` — 5 CLI smoke tests via `CARGO_BIN_EXE_grid`
+    (ask --help / invalid sub / missing arg / doctor exit codes / NO_COLOR)
+  - `tests/common/mod.rs` — shared `fresh_state()` / `key()` / `ctrl()` helpers
+  - `TuiState::new_for_test` `#[cfg(test)]` → `#[doc(hidden)]` (external
+    integration tests need visibility across compilation-unit boundary)
+  - PLAN T-01.14/19 marked ✅; STATE → COMPLETE; SUMMARY.md written
+  - **New deferred NEW-A3** filed: `kill_session` returns exit 1, should be
+    4 per `EXIT_SESSION_NOT_FOUND`. P2, mapped to Phase 5.4.
+
+**Test counts after closure**:
+- `cargo test -p grid-cli` (default features): 147/147 PASS
+- `cargo test -p grid-cli --features studio`: **575/575 PASS**
+- `cargo check --workspace`: clean
+- `scripts/check-key-handler-invariants.sh`: PASS
+
+**Key lessons**:
+- External integration tests need `#[doc(hidden)]`, NOT `#[cfg(test)]`,
+  when a helper crosses compilation-unit boundaries.
+- Studio-feature lib tests had latent bugs because nobody ran them between
+  2026-05-04 and 2026-05-17. Add `--features studio` to CI matrix or
+  accept the drift.
+- PLAN spec drift is normal at execution time. T-01.16 wrote
+  "EXIT_SESSION (71)" but the catalog has `SessionNotFound = 4`. Smoke
+  tests are how you catch this. File a deferred, don't retrofit.
 
 ### What 2026-05-16 session delivered
 
