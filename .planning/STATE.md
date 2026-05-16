@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.2 mid-execution (9/19 tasks) — paused for deepseek-chat shakedown + ExecutionMode design
-last_updated: "2026-05-16T09:00:00.000Z"
-last_activity: 2026-05-16 -- DeepSeek provider + ExecutionMode gate landed; Phase 5.2 still 9/19
+stopped_at: Phase 5.2 14/19 — Path B quick wins (T-01.1/2 ledger-fix + INVARIANTS.md 10-file revision) + NEW-A1 SQLite test race surfaced + flagged for next session
+last_updated: "2026-05-16T11:00:00.000Z"
+last_activity: 2026-05-16 -- INVARIANTS.md revised to 10 files / 98 bindings, T-01.1/2 marked ✅, NEW-A1 SQLite test race surfaced as Phase 5.2 close blocker
 progress:
   total_phases: 6
   completed_phases: 2
@@ -167,29 +167,48 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 1. `/clear`
 2. `/gsd-resume-work` — STATE frontmatter + this section drives recovery
 3. Likely next action options:
-   - **Continue Phase 5.2**: T-01.1/2/7/13/14/15/18/19 still ⏳ (10 tasks of 19)
+   - **Continue Phase 5.2**: T-01.14/15/18/19 ⏳ + NEW-A1 SQLite test race (blocks verify-phase, P1, est 30min-2h)
    - **Jump to Phase 5.3 plan-phase**: ExecutionMode RFC is intake; would let TUI×tool-call regression test stay green and start ADR-V2-026 work
    - **Verify deepseek end-to-end locally**: shell `unset DEEPSEEK_API_KEY` (was 9993...), check `grid` TUI status bar shows `deepseek-chat`, ask "查 5月16日 国际要闻" and confirm only ONE web_search call
 
-### Phase 5.2 task ledger (9/19 done, 10/19 pending)
+### Phase 5.2 task ledger (14/19 done, 5/19 pending — revised 2026-05-16 audit)
 
 | Task | Status | Commit |
 |---|---|---|
-| T-01.1 audit dead `grid` subcommands | ⏳ | — |
-| T-01.2 `grid ask` stub | ⏳ | — |
+| T-01.1 audit dead `grid` subcommands | ✅ (audit pass = no-op, 16/16 wired) | _pending — same commit as INVARIANTS revision_ |
+| T-01.2 `grid ask` stub | ✅ (super-set: full impl, `ask.rs` 270+ LOC) | (in repo prior to session) |
 | T-01.3 register `grid ask` in main.rs | ✅ | (in repo prior to session) |
 | T-01.4 exit code constants | ✅ | bb68e8d |
 | T-01.5 wire exit codes | ✅ | (in main.rs prior to session) |
 | T-01.6 streaming JSON output | ✅ | **ac90121** (this session) |
-| T-01.7 capture INVARIANTS.md before refactor | ✅ (retroactive back-fill) | e1cbed6 |
-| T-01.8-12 TUI key_handler split + studio build fix | ✅ | 92b7710 + **cfcffd6** (this session) |
-| T-01.13 unit tests for each mode file (≥21) | ⏳ | — |
-| T-01.14 integration tests (≥2) | ⏳ | — |
-| T-01.15 INVARIANTS.md completeness verify | ⏳ | — |
+| T-01.7 capture INVARIANTS.md before refactor | ✅ (retroactive, 98 bindings × 10 files) | e1cbed6 + _pending revision_ |
+| T-01.8-12 TUI key_handler split + studio build fix | ✅ (actual: 10 files, not 7 per PLAN) | 92b7710 + **cfcffd6** (this session) |
+| T-01.13 unit tests for each mode file (≥21) | ✅ **far exceeded** (130 tests across 10 files) | (cumulative pre-Phase-5.2 + during) |
+| T-01.14 integration tests (≥2) | ⏳ (file `crates/grid-cli/tests/key_handler_integration.rs` does not exist) | — |
+| T-01.15 INVARIANTS.md completeness verify | ⏳ (script needed: row→test mapping assertion) | — |
 | T-01.16 `session kill --purge` | ✅ | b14fca7 |
 | T-01.17 `grid doctor` expansion | ✅ | e6bb575 + 3b361da |
 | T-01.18 proto-cli-sync-check.sh | ⏳ | — |
 | T-01.19 CLI integration tests | ⏳ | — |
+
+**Phase 5.2 progress: 14/19 (74%).** Remaining: T-01.14, T-01.15, T-01.18, T-01.19, **+ NEW-A1 blocker below**.
+
+### NEW-A1 blocker (uncovered by 2026-05-16 audit, BLOCKS Phase 5.2 verify-phase)
+
+`cargo test -p grid-cli --lib` currently produces **137 PASSED / 10 FAILED**.
+All 10 failures are in `repl::slash::tests::test_cmd_*`, root cause:
+
+> `failed to create test AppState: internal error: Failed to open database: Rusqlite("duplicate column name: user_id")`
+
+Tests pass individually but fail under parallel execution — classic SQLite
+test-fixture race where multiple threads attempt schema migration against
+the same/shared db handle. **Affected tests pass cleanly with `--test-threads=1`**;
+this is a fixture-isolation bug, not a regression in production code path.
+
+- **Impact:** Phase 5.2 verify-phase cannot claim "all tests pass" until fixed.
+- **Triage:** root cause likely in `crates/grid-cli/src/repl/slash.rs:1001` AppState test setup; affects `repl::slash::tests::test_cmd_{agents_collab_mode, agents_dual_mode, agents_no_collab, collab_log, collab_status_dual, compact_*, delegate_*, exit, help, memory_*}`.
+- **Priority:** P1 (BLOCKS 5.2 close). Estimated work: 30 min - 2 h depending on whether fix is `:memory:` db isolation or `tokio::sync::Mutex` around migration.
+- **Defer rationale:** isolated bug deserving its own short session with a focused diagnosis, not a closing nail in this session.
 
 ### Pending Phase 5.3 inputs
 

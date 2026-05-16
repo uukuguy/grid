@@ -6,32 +6,45 @@
 > specified T-01.7 to capture the key→action mapping table **before** the
 > `tui/key_handler.rs` split. The split landed first in commits `92b7710`
 > (initial split) and `cfcffd6` (studio build follow-up). This file captures
-> the post-refactor invariants from the 5 source files; the bindings table
-> below is the source-of-truth for T-01.13 (unit tests ≥ 21) and T-01.15
-> (completeness verification).
+> the post-refactor invariants from **all 10 source files** in the
+> `tui/key_handlers/` directory; the bindings table below is the
+> source-of-truth for T-01.13 (unit tests ≥ 21) and T-01.15 (completeness
+> verification).
+>
+> **2026-05-16 revision:** First pass covered only 5 files (`mod.rs`,
+> `normal.rs`, `slash_commands.rs`, `vim_normal.rs`, `vim_insert.rs`) under
+> the wrong assumption that the other 5 (`approval.rs`, `overlay.rs`,
+> `model_selector.rs`, `history_search.rs`, `common.rs`) were thin
+> dispatcher delegates. They are not — 4 of the 5 own real key-binding
+> logic for 20 additional bindings. Total now: **98 distinct bindings** in
+> 10 files (`common.rs` is helpers only, no `KeyCode` matches).
 >
 > The state-invariants section (originally written 2026-05-04) is kept intact
 > below — it documents cursor/mutex/mode-transition rules that complement
 > the binding table.
 
-## Files in scope
+## Files in scope (10 modules)
 
-| File | LOC | Role |
-|------|-----|------|
-| `mod.rs` | 568 | Dispatcher — priority routing + Global bindings |
-| `normal.rs` | 776 | Default REPL editing + scroll + autocomplete + slash-trigger |
-| `slash_commands.rs` | 290 | `/`-prefixed commands evaluated when Enter is pressed in slash-overlay |
-| `vim_normal.rs` | 222 | Vim normal-mode navigation/edit |
-| `vim_insert.rs` | 274 | Vim insert-mode editing |
+| File | LOC | Role | Tests |
+|------|-----|------|-------|
+| `mod.rs` | 568 | Dispatcher — priority routing + Global bindings | 46 |
+| `normal.rs` | 776 | Default REPL editing + scroll + autocomplete + slash-trigger | 20 |
+| `slash_commands.rs` | 290 | `/`-prefixed commands evaluated when Enter is pressed in slash-overlay | 9 |
+| `vim_normal.rs` | 222 | Vim normal-mode navigation/edit | 14 |
+| `vim_insert.rs` | 274 | Vim insert-mode editing | 10 |
+| `approval.rs` | 172 | Tool-approval dialog (y/n/a) | 5 |
+| `overlay.rs` | 135 | Generic overlay close + Ctrl+D/E/A toggle | 4 |
+| `model_selector.rs` | 113 | Model picker popup (j/k + ↑/↓ + Enter/Esc) | 10 |
+| `history_search.rs` | 138 | Reverse-incremental Ctrl+R search | 8 |
+| `common.rs` | 145 | Helpers (`compute_scroll_amount`, `open_external_editor`, `is_ctrl_c`) — no `KeyCode` matches | 4 |
 
-Total: **2130 LOC, 78 distinct bindings.**
+Total: **2833 LOC across 10 files, 98 distinct bindings + 4 delegated handler entries, 130 test functions.**
 
-Note: actual on-disk module is `tui/key_handlers/` (plural) and contains 5
-files — the PLAN anticipated 7. `vim_normal.rs` + `vim_insert.rs` together
-cover what the PLAN called `vim.rs`. `search.rs` / `selector.rs` /
-`overlay.rs` / `approval.rs` / `common.rs` were not extracted; their
-dispatch is still in `mod.rs` and delegates into other modules
-(`tui/overlays/`, `tui/managers/`, `tui/widgets/`).
+Note: the PLAN anticipated 7 files (`mod`/`normal`/`vim`/`search`/`selector`/`overlay`/`approval`/`common`).
+Actual layout: `vim_normal.rs` + `vim_insert.rs` cover what the PLAN called `vim.rs`;
+`search.rs` and `selector.rs` were not extracted (functionality landed under
+`history_search.rs` and `model_selector.rs` respectively). All 10 files own
+real key-handler logic except `common.rs` (pure helpers).
 
 ## Dispatcher priority (mod.rs)
 
@@ -128,13 +141,43 @@ intentionally summarized in the binding table rather than enumerated.
 | 73 | SlashCommands | `/compact` | Compact conversation context | Sends `AgentMessage::CompactHistory` |
 | 74 | SlashCommands | `/custom_*` | Execute custom command from `~/.grid/commands/` | Template expansion; sent to agent |
 | 75 | SlashCommands | `/unknown` | Show error message | "Unknown command" response |
-| 76 | Overlay | Esc | Close current overlay | Delegated to `overlay::handle_overlay_key()` |
-| 77 | ApprovalMode | (depends on overlay type) | Tool approval dialog handling | Delegated to `approval::handle_approval_key()` |
-| 78 | ModelSelector | (selector-state-specific) | Model selection navigation/confirm | Delegated to `model_selector::handle_model_selector_key()` |
-| 79 | HistorySearch | (Ctrl+R active) | Navigate search results | Delegated to `history_search::handle_history_search_key()` |
+| 76 | Approval | y / Y | Approve tool execution | Clears `pending_approval`; calls `gate.respond(tool_id, true)` |
+| 77 | Approval | a / A | Always approve (future: persist preference) | Clears `pending_approval`; calls `gate.respond(tool_id, true)` |
+| 78 | Approval | n / N | Deny tool execution | Clears `pending_approval`; calls `gate.respond(tool_id, false)` |
+| 79 | Approval | Esc | Deny (alias for n/N) | Clears `pending_approval`; calls `gate.respond(tool_id, false)` |
+| 80 | Approval | Ctrl+C | Handle cancellation | Calls `interrupt_manager.handle_ctrl_c()`; sets `running = false` if handled |
+| 81 | Overlay | Esc | Close overlay | Sets `state.overlay = OverlayMode::None` |
+| 82 | Overlay | Ctrl+D | Toggle agent debug overlay | Toggles between `AgentDebug` and `None` |
+| 83 | Overlay | Ctrl+E | Toggle eval overlay | Toggles between `Eval` and `None` |
+| 84 | Overlay | Ctrl+A | Toggle session picker overlay | Toggles between `SessionPicker` and `None` |
+| 85 | Overlay | Ctrl+C | Handle cancellation | Calls `interrupt_manager.handle_ctrl_c()`; comment notes "overlays handle own keys in T3" |
+| 86 | ModelSelector | Up | Previous model in list | Calls `state.model_selector.prev()`; sets `dirty = true` |
+| 87 | ModelSelector | k | Previous model (vim-style alias of Up) | Calls `state.model_selector.prev()`; sets `dirty = true` |
+| 88 | ModelSelector | Down | Next model in list | Calls `state.model_selector.next()`; sets `dirty = true` |
+| 89 | ModelSelector | j | Next model (vim-style alias of Down) | Calls `state.model_selector.next()`; sets `dirty = true` |
+| 90 | ModelSelector | Enter | Confirm selection | Calls `state.model_selector.confirm()`; sets `state.model_name`; sets `dirty` |
+| 91 | ModelSelector | Esc | Cancel selection (close selector) | Sets `state.model_selector.visible = false` |
+| 92 | ModelSelector | Alt+P | Cancel selection (alias of Esc) | Sets `state.model_selector.visible = false` |
+| 93 | HistorySearch | Char (printable) | Append char to search query | Pushes to query; resets `match_index`; searches entries |
+| 94 | HistorySearch | Backspace | Remove last char from query | Pops from query; re-searches entries |
+| 95 | HistorySearch | Ctrl+R | Advance to next match (cycle) | Calls `state.history_search.next_match()`; re-searches |
+| 96 | HistorySearch | Esc | Cancel search | Calls `state.history_search.deactivate()` |
+| 97 | HistorySearch | Enter | Accept matched text into input buffer | Copies `matched_text` to `input_buffer`; deactivates search |
 
-Total: 78 distinct bindings + 4 delegated overlay/selector handlers (rows
-76–79 each cover multiple sub-keys evaluated outside this module).
+Total: **98 distinct bindings across 10 files** (`common.rs` contributes 0
+key bindings — pure helpers). 2 bindings (rows 84 + 5) share a key (`Ctrl+A`)
+across `Overlay` and `Normal` modes — the dispatcher priority resolves this.
+
+## `common.rs` helpers (no `KeyCode` matches)
+
+- `compute_scroll_amount(state, direction_up) → u16` — 3/6/12-line scroll
+  acceleration with 200ms window; resets on direction change. Called from
+  `normal.rs` Up/Down (rows 23-24) and PageUp/PageDown (rows 27-28).
+- `open_external_editor(text) → Result<String, io::Error>` — launches
+  `$EDITOR` (fallback `vi`) on temp file; exits raw/alt-screen, edits,
+  re-enters; returns trimmed result. Called from `normal.rs` Ctrl+X (row 17).
+- `is_ctrl_c(key: &KeyEvent) → bool` — Ctrl+C detector. Called by
+  `mod.rs` dispatcher before mode-specific handlers (row 1 — Global).
 
 ## Cross-mode asymmetries (lock-in regression targets)
 
@@ -142,9 +185,12 @@ Total: 78 distinct bindings + 4 delegated overlay/selector handlers (rows
 2. **VimNormal owns word navigation** (`w`/`b`) and **visual mode** (`v`); **VimInsert does not**.
 3. **Normal mode Up/Down has 3-way branching** (autocomplete → history → scroll); **Vim modes do not check autocomplete on Up/Down** (Tab is the only autocomplete entry in VimInsert).
 4. **Streaming-cancel Esc** has priority over input-clear Esc in Normal mode; the cascade order in row 34 is fixed.
-5. **Slash overlay reuses overlay toggles**: `/debug` ≡ Ctrl+D (row 3), `/eval` ≡ Ctrl+E with empty input (row 4), `/sessions` ≡ Ctrl+A with empty input (row 5). A test breaking one must break both surfaces.
+5. **Slash overlay reuses overlay toggles**: `/debug` ≡ Ctrl+D (rows 3 + 82), `/eval` ≡ Ctrl+E with empty input (rows 4 + 83), `/sessions` ≡ Ctrl+A with empty input (rows 5 + 84). A test breaking one must break both surfaces.
 6. **Ctrl+Shift+O is an alias of Alt+O** for macOS terminals where Alt is intercepted (rows 9 + 10 must stay equivalent).
 7. **Newline bindings are 4-way redundant** (rows 20–22 + Ctrl+J) to accommodate terminals that swallow Shift+Enter or Alt+Enter.
+8. **ModelSelector dual navigation** (rows 86-89): `↑/k` AND `↓/j` are explicit aliases — both vim and arrow-key users must work. Tests must lock both paths.
+9. **Approval mode is the most aggressive Esc handler** (row 79): Esc = deny (not cancel). This is intentional fail-safe behavior; do not unify with Overlay/HistorySearch Esc semantics.
+10. **Overlay Ctrl+D/E/A toggles are stateful** (rows 82-84): each binding toggles its mode against `None`, so pressing twice round-trips. Do not change to one-way "open" semantics.
 
 ## Test-coverage targets
 
@@ -152,14 +198,42 @@ Per Phase 5.2 PLAN T-01.13 (unit tests ≥ 21) and T-01.15 (completeness
 verification), each row above should map to at least one unit test in the
 appropriate per-file test module:
 
+- Row 1 (Global Ctrl+C) → `tui/key_handlers/mod.rs` tests (dispatcher-level)
 - Rows 2–34 → `tui/key_handlers/normal.rs` tests
 - Rows 35–49 → `tui/key_handlers/vim_normal.rs` tests
 - Rows 50–64 → `tui/key_handlers/vim_insert.rs` tests
 - Rows 65–75 → `tui/key_handlers/slash_commands.rs` tests
-- Rows 76–79 → integration tests at `crates/grid-cli/tests/key_handler_integration.rs` (T-01.14 target)
+- Rows 76–80 → `tui/key_handlers/approval.rs` tests
+- Rows 81–85 → `tui/key_handlers/overlay.rs` tests
+- Rows 86–92 → `tui/key_handlers/model_selector.rs` tests
+- Rows 93–97 → `tui/key_handlers/history_search.rs` tests
 
-Asymmetry items 1–7 should each be locked by at least one dedicated test so
+Cross-mode transitions (e.g. Normal → VimNormal via Esc, slash overlay
+dismissal, Approval auto-close on respond) → `crates/grid-cli/tests/key_handler_integration.rs`
+(T-01.14 target — file does not exist yet).
+
+Asymmetry items 1–10 should each be locked by at least one dedicated test so
 future edits cannot silently break the contract.
+
+**Current test inventory** (130 tests across the 10 files; rough mapping to
+binding rows, not 1:1):
+
+| File | Test count | Approx. row coverage |
+|------|-----------|----------------------|
+| `mod.rs` | 46 | dispatch priority + Global Ctrl+C (row 1) |
+| `normal.rs` | 20 | rows 2-34 (33 bindings, ~60% direct coverage) |
+| `vim_normal.rs` | 14 | rows 35-49 (15 bindings, ~93% direct coverage) |
+| `vim_insert.rs` | 10 | rows 50-64 (15 bindings, ~67% direct coverage) |
+| `slash_commands.rs` | 9 | rows 65-75 (11 bindings, ~82% direct coverage) |
+| `approval.rs` | 5 | rows 76-80 (5 bindings, 100% direct coverage) |
+| `overlay.rs` | 4 | rows 81-85 (5 bindings, ~80%) |
+| `model_selector.rs` | 10 | rows 86-92 (7 bindings, ~143% — multiple aliases tested) |
+| `history_search.rs` | 8 | rows 93-97 (5 bindings, ~160%) |
+| `common.rs` | 4 | 3 helpers (rows are footnotes, not bindings) |
+
+PLAN T-01.13 target (≥ 21 unit tests) is **far exceeded** — the audit pivot
+for Phase 5.2 closure is T-01.15 (verify every binding row has a test) and
+T-01.14 (write integration tests for cross-mode transitions).
 
 ---
 
