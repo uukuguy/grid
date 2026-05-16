@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.2 context gathered
-last_updated: "2026-05-04T15:21:40.367Z"
-last_activity: 2026-05-04 -- Phase 05.2 execution started
+stopped_at: Phase 5.2 mid-execution (9/19 tasks) — paused for deepseek-chat shakedown + ExecutionMode design
+last_updated: "2026-05-16T09:00:00.000Z"
+last_activity: 2026-05-16 -- DeepSeek provider + ExecutionMode gate landed; Phase 5.2 still 9/19
 progress:
   total_phases: 6
   completed_phases: 2
@@ -132,27 +132,71 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-02T10:16:29.634Z
-Stopped at: Phase 5.2 context gathered
-Resume file: .planning/phases/05.2-cli-hardening/05.2-CONTEXT.md
-Local commits ahead of origin: 14 (Phase 5.0 + 5.1 unpushed; user controls push timing)
-Decisions snapshot: see PROJECT.md Key Decisions table + ADR-V2-024 Accepted (commit `f497eef`) + ROADMAP.md §Granularity 备注
+Last session: 2026-05-16 (DeepSeek shakedown + ExecutionMode RFC + implementation)
+Stopped at: Phase 5.2 9/19 tasks done; ExecutionMode gate shipped (f1999fb)
+Resume file: .planning/phases/05.2-cli-hardening/05.2-01-PLAN.md
+Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 
-**Resume 路径 (next session — milestone v3.1 ready to plan):**
+### What 2026-05-16 session delivered
 
-1. `/clear` (用户在 Claude Code 中执行)
-2. `/gsd-resume-work` — 自动读 STATE.md frontmatter, 恢复 milestone v3.1 ready-to-plan 上下文
-3. Next steps:
-   - `/gsd-plan-phase 5.0` — 启动 Phase 5.0 (Hook Envelope Baseline) plan-phase
-   - 然后顺序进入 5.1 → 5.2 → 5.3 → 5.4 → 5.5
-   - milestone close 在 Phase 5.5 末尾通过 `/gsd-complete-milestone` 触发
+11 commits total (`ac90121..b66e6ed..cedf810`), grouped:
 
-**GSD plumbing tracer-bullet 验证结果 (Phase 4.0 success criterion #5 ✅):**
+**Phase 5.2 task progress** (`ac90121`):
+- T-01.6 streaming JSON output for `grid ask` ✅
+- Note: cumulative 5.2 tasks done = 9/19 (T-01.3/4/5/6/8/9/10/11/12/16/17 from this and prior sessions)
 
-- discuss → research → patterns → plan → plan-checker → execute → verifier 全链路一次过
-- 0 iteration loops (plan-checker / verifier 都首次 PASS)
-- 0 deviation 在 executor 期间触发
-- atomic-commit-per-task 实测命中 (4 cleanup + 1 SUMMARY)
-- review_protocol 三档 (4 skip + 1 gsd-standard + 0 superpowers) 反映 doc-only 性质准确
-- T5 zero-diff dry-run 行为符合 OQ3 决议
+**DeepSeek end-to-end support** (4 commits — `25a8534`, `bf74d0a`, `cfcffd6`, `6535c37`):
+- `crates/grid-engine/src/providers/deepseek.rs` — dedicated provider, deepseek-chat only; deepseek-reasoner explicitly rejected (Phase 5.3 D-item)
+- Env plumbing in `providers/config.rs` + `grid-runtime/config.rs` + `grid-server/config.rs` — `LLM_PROVIDER=deepseek` end-to-end
+- `grid-cli/tui/mod.rs` status bar reads `agent_runtime.default_model()` (single source of truth)
+- Workspace passes `cargo check` and `make build-studio` cleanly
+
+**Agent loop ExecutionMode gate** (RFC + implementation — `3b4e686`, `f1999fb`):
+- Fixed: TUI 主会话 + deepseek-chat + tool call → 反复执行 (D87 Fix 2 误激活)
+- New `AgentLoopConfig.execution_mode { Conversational, LongWorkflow }`, default Conversational
+- `grid-runtime/main.rs` sets LongWorkflow at startup — EAASP byte-identical
+- 1 new regression test (`test_conversational_mode_no_forced_continuation`); full lib suite 1569/1569 PASS
+- RFC: `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` + STATE NEW-E4
+
+**One mid-session revert** (`3fcd2e7` → `815bba6`): tried to make session_message synchronous; broke fire-and-forget team-collab semantic + caused duplicate prompt injection. Reverted same session. Recorded in commit message as anti-pattern.
+
+**Housekeeping** (`b66e6ed`, `cedf810`): `.gitignore` for `.claude/worktrees/` + `.codegraph/`; committed 4 stranded `.planning/` files (Phase 5.2 plan + Phase 5.0 historical research).
+
+### Resume path (next session)
+
+1. `/clear`
+2. `/gsd-resume-work` — STATE frontmatter + this section drives recovery
+3. Likely next action options:
+   - **Continue Phase 5.2**: T-01.1/2/7/13/14/15/18/19 still ⏳ (10 tasks of 19)
+   - **Jump to Phase 5.3 plan-phase**: ExecutionMode RFC is intake; would let TUI×tool-call regression test stay green and start ADR-V2-026 work
+   - **Verify deepseek end-to-end locally**: shell `unset DEEPSEEK_API_KEY` (was 9993...), check `grid` TUI status bar shows `deepseek-chat`, ask "查 5月16日 国际要闻" and confirm only ONE web_search call
+
+### Phase 5.2 task ledger (9/19 done, 10/19 pending)
+
+| Task | Status | Commit |
+|---|---|---|
+| T-01.1 audit dead `grid` subcommands | ⏳ | — |
+| T-01.2 `grid ask` stub | ⏳ | — |
+| T-01.3 register `grid ask` in main.rs | ✅ | (in repo prior to session) |
+| T-01.4 exit code constants | ✅ | bb68e8d |
+| T-01.5 wire exit codes | ✅ | (in main.rs prior to session) |
+| T-01.6 streaming JSON output | ✅ | **ac90121** (this session) |
+| T-01.7 capture INVARIANTS.md before refactor | ⏳ (must-have, back-fill needed) | — |
+| T-01.8-12 TUI key_handler split + studio build fix | ✅ | 92b7710 + **cfcffd6** (this session) |
+| T-01.13 unit tests for each mode file (≥21) | ⏳ | — |
+| T-01.14 integration tests (≥2) | ⏳ | — |
+| T-01.15 INVARIANTS.md completeness verify | ⏳ | — |
+| T-01.16 `session kill --purge` | ✅ | b14fca7 |
+| T-01.17 `grid doctor` expansion | ✅ | e6bb575 + 3b361da |
+| T-01.18 proto-cli-sync-check.sh | ⏳ | — |
+| T-01.19 CLI integration tests | ⏳ | — |
+
+### Pending Phase 5.3 inputs
+
+- `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` (RFC) → ExecutionMode implementation already landed; ADR-V2-026 supersede-V2-016 still TBD
+- STATE Deferred Items table — NEW-E4 (this RFC), D109/D136 (other 5.3 watchlist items)
+
+### Local environment caveat (user side, not code)
+
+User shell environment has `DEEPSEEK_API_KEY=9993...` (some other key) which wins over `.env`'s `sk-...` because CredentialResolver priority is `Vault > env > yaml > .env`. **User must `unset DEEPSEEK_API_KEY`** (and grep ~/.zshrc to find the source) before deepseek-chat will authenticate correctly. This is a shell-state issue, not a Grid bug. (See `crates/grid-engine/src/secret/resolver.rs:56-84`.)
 - 结论: GSD 体系在本仓库 brownfield 适配良好,Phase 5 复用同套
