@@ -175,13 +175,13 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 
 | Task | Status | Commit |
 |---|---|---|
-| T-01.1 audit dead `grid` subcommands | ✅ (audit pass = no-op, 16/16 wired) | _pending — same commit as INVARIANTS revision_ |
+| T-01.1 audit dead `grid` subcommands | ✅ (audit pass = no-op, 16/16 wired) | ac0cfb5 |
 | T-01.2 `grid ask` stub | ✅ (super-set: full impl, `ask.rs` 270+ LOC) | (in repo prior to session) |
 | T-01.3 register `grid ask` in main.rs | ✅ | (in repo prior to session) |
 | T-01.4 exit code constants | ✅ | bb68e8d |
 | T-01.5 wire exit codes | ✅ | (in main.rs prior to session) |
 | T-01.6 streaming JSON output | ✅ | **ac90121** (this session) |
-| T-01.7 capture INVARIANTS.md before refactor | ✅ (retroactive, 98 bindings × 10 files) | e1cbed6 + _pending revision_ |
+| T-01.7 capture INVARIANTS.md before refactor | ✅ (retroactive, 98 bindings × 10 files) | e1cbed6 + ac0cfb5 |
 | T-01.8-12 TUI key_handler split + studio build fix | ✅ (actual: 10 files, not 7 per PLAN) | 92b7710 + **cfcffd6** (this session) |
 | T-01.13 unit tests for each mode file (≥21) | ✅ **far exceeded** (130 tests across 10 files) | (cumulative pre-Phase-5.2 + during) |
 | T-01.14 integration tests (≥2) | ⏳ (file `crates/grid-cli/tests/key_handler_integration.rs` does not exist) | — |
