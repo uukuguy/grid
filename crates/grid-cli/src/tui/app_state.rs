@@ -288,7 +288,12 @@ impl TuiState {
     }
 
     /// Create TuiState with in-memory-only history (for tests).
-    #[cfg(test)]
+    ///
+    /// Used by unit tests inside this crate and by integration tests in
+    /// `crates/grid-cli/tests/` (Phase 5.2 T-01.14). Differs from `new()`
+    /// only in that it skips file-backed history and the initial git
+    /// refresh — no production code path should reach this.
+    #[doc(hidden)]
     pub fn new_for_test(
         session_id: SessionId,
         handle: AgentExecutorHandle,
