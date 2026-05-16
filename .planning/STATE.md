@@ -167,10 +167,46 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 
 1. `/clear`
 2. `/gsd-resume-work` — STATE frontmatter + this section drives recovery
-3. Likely next action options:
-   - **Continue Phase 5.2**: T-01.14/15/18/19 ⏳ (NEW-A1 ✅ closed this session, no longer blocking)
-   - **Jump to Phase 5.3 plan-phase**: ExecutionMode RFC is intake; would let TUI×tool-call regression test stay green and start ADR-V2-026 work
-   - **Verify deepseek end-to-end locally**: shell `unset DEEPSEEK_API_KEY` (was 9993...), check `grid` TUI status bar shows `deepseek-chat`, ask "查 5月16日 国际要闻" and confirm only ONE web_search call
+3. **Recommended next action: Phase 5.2 closure sub-plan** (T-01.14 + T-01.19)
+
+   These two tasks share a single non-trivial gap: there's no
+   `crates/grid-cli/tests/` directory yet, no AppState test harness for
+   integration tests, no provider mock for `grid ask` end-to-end. PLAN
+   T-01.13's 21-test target is met by unit tests; T-01.14/19 are about
+   **cross-mode integration** and **CLI smoke tests** that genuinely need
+   real `AppState`. Treat as one sub-plan with infra-then-tests pattern:
+
+   - **Step 1 (infra, ~45 min):** scaffold `crates/grid-cli/tests/` with
+     a shared `common/` module that boots a minimal AppState in a
+     per-test tempdir (apply NEW-A1 lesson: per-test isolation upfront).
+     Decide on provider mock strategy — easiest is a trait-mocking layer
+     around the `Provider` trait that returns canned responses; harder
+     but more honest is wire-replay via `wiremock`. Recommendation: trait
+     mock for first pass since `grid-cli` shouldn't care about HTTP shape.
+   - **Step 2 (T-01.14, ~30 min):** ≥2 integration tests covering
+     cross-mode transitions documented in INVARIANTS.md asymmetry items
+     1-10. Start with the heaviest invariants: Normal→VimNormal Esc
+     cascade (item 4) and slash overlay reuse (item 5).
+   - **Step 3 (T-01.19, ~60 min):** 5 CLI smoke tests per PLAN spec
+     (`grid ask --help`, `grid ask invalid-sub` exit=2, `session kill`
+     soft vs `--purge` hard, `grid doctor` exit codes, `NO_COLOR=1`
+     produces zero ANSI). Reuse Step 1's common harness.
+   - **Step 4 (close ~15 min):** mark T-01.14/19 ✅ in PLAN + STATE,
+     run `make check + cargo test -p grid-cli` end-to-end, ship the
+     verify-phase commit, advance to `/gsd-discuss-phase 5.3`.
+
+   **Don't try to also close NEW-A2 (production migrate() race) in this
+   sub-plan** — that's correctly mapped to Phase 5.4 server hardening
+   per DEFERRED LEDGER. Separate concern.
+
+4. **Alternative action: Phase 5.3 plan-phase** if 5.2 closure can wait
+   - ExecutionMode RFC is intake; ADR-V2-026 supersede-V2-016 still TBD
+   - Watchlist items D109 / D136 also belong in 5.3
+
+5. **Local environment caveat (still valid):** shell
+   `DEEPSEEK_API_KEY=9993...` wins over `.env`'s `sk-...` per
+   CredentialResolver priority (Vault > env > yaml > .env). `unset` it
+   before deepseek e2e tests (`crates/grid-engine/src/secret/resolver.rs:56-84`).
 
 ### Phase 5.2 task ledger (16/19 done, 3/19 pending — revised 2026-05-16 audit)
 
