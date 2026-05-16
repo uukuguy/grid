@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.2 14/19 — Path B quick wins (T-01.1/2 ledger-fix + INVARIANTS.md 10-file revision) + NEW-A1 SQLite test race surfaced + flagged for next session
-last_updated: "2026-05-16T11:00:00.000Z"
-last_activity: 2026-05-16 -- INVARIANTS.md revised to 10 files / 98 bindings, T-01.1/2 marked ✅, NEW-A1 SQLite test race surfaced as Phase 5.2 close blocker
+stopped_at: Phase 5.2 14/19 — NEW-A1 SQLite test race RESOLVED (147/147 PASS), NEW-A2 production race deferred
+last_updated: "2026-05-16T12:00:00.000Z"
+last_activity: 2026-05-16 -- NEW-A1 fixed via per-test tempdir in repl/slash.rs make_test_state, grid-cli lib suite 147/147 PASS
 progress:
   total_phases: 6
   completed_phases: 2
@@ -127,6 +127,7 @@ Items acknowledged and carried forward from previous milestone close:
 | Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | 🟠 P1 (提优先级), mapped to Phase 5.2 (CLI-04) | Phase 4a review | 5.2 |
 | Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.1) | Phase 4a review | v3.2+ |
 | Tech-debt | D-batch (~40 P3 / housekeeping items 跨 D8..D80) | 🟡 P3, 单日 batch sweep 待安排 (NOT in v3.1) | 累积自 Phase 0 → 3.6 | v3.2+ |
+| Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 (读 `user_version` → 跑 ALTER → 写 `user_version` 之间无锁), 多进程同 db 文件并发 migrate 会重现 `duplicate column name: user_id`。production race, 单进程 grid-cli 不触发 | 🟡 P2, mapped to Phase 5.4 (SERVER hardening) | 2026-05-16 NEW-A1 forensics | 5.4 |
 
 > 这些 Deferred 的 SSOT 仍是 `docs/design/EAASP/DEFERRED_LEDGER.md`(GSD 例外保留),本表只为 STATE.md 单 view 摘要。Phase 5 Mapping 列由 ROADMAP.md Coverage 表 反向回填, 关闭时 SSOT 双向更新 (LEDGER + ROADMAP)。
 
@@ -167,7 +168,7 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 1. `/clear`
 2. `/gsd-resume-work` — STATE frontmatter + this section drives recovery
 3. Likely next action options:
-   - **Continue Phase 5.2**: T-01.14/15/18/19 ⏳ + NEW-A1 SQLite test race (blocks verify-phase, P1, est 30min-2h)
+   - **Continue Phase 5.2**: T-01.14/15/18/19 ⏳ (NEW-A1 ✅ closed this session, no longer blocking)
    - **Jump to Phase 5.3 plan-phase**: ExecutionMode RFC is intake; would let TUI×tool-call regression test stay green and start ADR-V2-026 work
    - **Verify deepseek end-to-end locally**: shell `unset DEEPSEEK_API_KEY` (was 9993...), check `grid` TUI status bar shows `deepseek-chat`, ask "查 5月16日 国际要闻" and confirm only ONE web_search call
 
@@ -193,22 +194,29 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 
 **Phase 5.2 progress: 14/19 (74%).** Remaining: T-01.14, T-01.15, T-01.18, T-01.19, **+ NEW-A1 blocker below**.
 
-### NEW-A1 blocker (uncovered by 2026-05-16 audit, BLOCKS Phase 5.2 verify-phase)
+### NEW-A1 ✅ RESOLVED (2026-05-16, this session)
 
-`cargo test -p grid-cli --lib` currently produces **137 PASSED / 10 FAILED**.
-All 10 failures are in `repl::slash::tests::test_cmd_*`, root cause:
+`cargo test -p grid-cli --lib` **147 PASSED / 0 FAILED**.
 
-> `failed to create test AppState: internal error: Failed to open database: Rusqlite("duplicate column name: user_id")`
+**Root cause:** `repl/slash.rs:994-1001` `make_test_state` used a per-process
+tempdir (`/tmp/octo-test-{pid}`) so all 10 parallel test threads shared the
+same SQLite file. Each thread independently ran `migrate()` from
+`grid-engine/src/db/mod.rs`. `migrate()` reads `user_version` PRAGMA, runs
+non-idempotent `ALTER TABLE ADD COLUMN user_id` (`migrations.rs:212`), then
+bumps `user_version`. Threads 2-N all saw `user_version = 0` at read time
+(before thread 1's bump) and tried to re-add the column → 10× duplicate-column
+panic.
 
-Tests pass individually but fail under parallel execution — classic SQLite
-test-fixture race where multiple threads attempt schema migration against
-the same/shared db handle. **Affected tests pass cleanly with `--test-threads=1`**;
-this is a fixture-isolation bug, not a regression in production code path.
+**Fix:** Per-test unique tempdir via `AtomicU64` counter in `make_test_state`.
+Each test now gets `/tmp/grid-cli-slash-test-{pid}-{counter}/test.db`.
+Surgical 1-function patch; no new dependencies.
 
-- **Impact:** Phase 5.2 verify-phase cannot claim "all tests pass" until fixed.
-- **Triage:** root cause likely in `crates/grid-cli/src/repl/slash.rs:1001` AppState test setup; affects `repl::slash::tests::test_cmd_{agents_collab_mode, agents_dual_mode, agents_no_collab, collab_log, collab_status_dual, compact_*, delegate_*, exit, help, memory_*}`.
-- **Priority:** P1 (BLOCKS 5.2 close). Estimated work: 30 min - 2 h depending on whether fix is `:memory:` db isolation or `tokio::sync::Mutex` around migration.
-- **Defer rationale:** isolated bug deserving its own short session with a focused diagnosis, not a closing nail in this session.
+**Spawned follow-up D-item (NEW-A2):** `migrate()` itself has a production
+race — two processes calling `migrate()` against the same db file
+simultaneously can hit the same bug. Lower priority (single-process grid-cli
+is the dominant deployment) but should be wrapped in a `BEGIN EXCLUSIVE`
+transaction + re-check `user_version` inside the txn. Filed under §Deferred
+Items for Phase 5.4 (server hardening) or later.
 
 ### Pending Phase 5.3 inputs
 

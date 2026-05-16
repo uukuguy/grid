@@ -992,8 +992,21 @@ mod tests {
     }
 
     /// Build a minimal `AppState` for testing slash commands.
+    ///
+    /// Each call gets its own unique db file under a process-local temp dir
+    /// (named with a counter), so parallel `cargo test` threads don't race
+    /// on migration `ALTER TABLE ADD COLUMN` statements against the same db.
+    /// See NEW-A1 in .planning/STATE.md.
     async fn make_test_state() -> AppState {
-        let tmp_dir = std::env::temp_dir().join(format!("octo-test-{}", std::process::id()));
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "grid-cli-slash-test-{}-{}",
+            std::process::id(),
+            id
+        ));
         let _ = std::fs::create_dir_all(&tmp_dir);
         let db_path = tmp_dir.join("test.db");
         AppState::new(db_path, crate::output::OutputConfig::default())
