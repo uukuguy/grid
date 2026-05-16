@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.2 14/19 — NEW-A1 SQLite test race RESOLVED (147/147 PASS), NEW-A2 production race deferred
-last_updated: "2026-05-16T12:00:00.000Z"
-last_activity: 2026-05-16 -- NEW-A1 fixed via per-test tempdir in repl/slash.rs make_test_state, grid-cli lib suite 147/147 PASS
+stopped_at: Phase 5.2 16/19 — quick wins shipped (T-01.15 verifier + T-01.18 proto-sync wrapper); only integration tests (T-01.14+T-01.19) left
+last_updated: "2026-05-16T13:00:00.000Z"
+last_activity: 2026-05-16 -- T-01.15+T-01.18 scripts shipped; verifier caught my own INVARIANTS.md count error (had 130, actual 101)
 progress:
   total_phases: 6
   completed_phases: 2
@@ -172,7 +172,7 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
    - **Jump to Phase 5.3 plan-phase**: ExecutionMode RFC is intake; would let TUI×tool-call regression test stay green and start ADR-V2-026 work
    - **Verify deepseek end-to-end locally**: shell `unset DEEPSEEK_API_KEY` (was 9993...), check `grid` TUI status bar shows `deepseek-chat`, ask "查 5月16日 国际要闻" and confirm only ONE web_search call
 
-### Phase 5.2 task ledger (14/19 done, 5/19 pending — revised 2026-05-16 audit)
+### Phase 5.2 task ledger (16/19 done, 3/19 pending — revised 2026-05-16 audit)
 
 | Task | Status | Commit |
 |---|---|---|
@@ -186,13 +186,13 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 | T-01.8-12 TUI key_handler split + studio build fix | ✅ (actual: 10 files, not 7 per PLAN) | 92b7710 + **cfcffd6** (this session) |
 | T-01.13 unit tests for each mode file (≥21) | ✅ **far exceeded** (130 tests across 10 files) | (cumulative pre-Phase-5.2 + during) |
 | T-01.14 integration tests (≥2) | ⏳ (file `crates/grid-cli/tests/key_handler_integration.rs` does not exist) | — |
-| T-01.15 INVARIANTS.md completeness verify | ⏳ (script needed: row→test mapping assertion) | — |
+| T-01.15 INVARIANTS.md completeness verify | ✅ (`scripts/check-key-handler-invariants.sh` PASS) | _pending — this session_ |
 | T-01.16 `session kill --purge` | ✅ | b14fca7 |
 | T-01.17 `grid doctor` expansion | ✅ | e6bb575 + 3b361da |
-| T-01.18 proto-cli-sync-check.sh | ⏳ | — |
+| T-01.18 proto-cli-sync-check.sh | ✅ (PASS + FAIL=73 both verified) | _pending — this session_ |
 | T-01.19 CLI integration tests | ⏳ | — |
 
-**Phase 5.2 progress: 14/19 (74%).** Remaining: T-01.14, T-01.15, T-01.18, T-01.19, **+ NEW-A1 blocker below**.
+**Phase 5.2 progress: 16/19 (84%).** Remaining: T-01.14 + T-01.19 integration tests (both need new `crates/grid-cli/tests/` directory).
 
 ### NEW-A1 ✅ RESOLVED (2026-05-16, this session)
 

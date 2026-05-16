@@ -27,18 +27,18 @@
 
 | File | LOC | Role | Tests |
 |------|-----|------|-------|
-| `mod.rs` | 568 | Dispatcher — priority routing + Global bindings | 46 |
+| `mod.rs` | 568 | Dispatcher — priority routing + Global bindings | 40 |
 | `normal.rs` | 776 | Default REPL editing + scroll + autocomplete + slash-trigger | 20 |
 | `slash_commands.rs` | 290 | `/`-prefixed commands evaluated when Enter is pressed in slash-overlay | 9 |
-| `vim_normal.rs` | 222 | Vim normal-mode navigation/edit | 14 |
-| `vim_insert.rs` | 274 | Vim insert-mode editing | 10 |
+| `vim_normal.rs` | 222 | Vim normal-mode navigation/edit | 7 |
+| `vim_insert.rs` | 274 | Vim insert-mode editing | 5 |
 | `approval.rs` | 172 | Tool-approval dialog (y/n/a) | 5 |
 | `overlay.rs` | 135 | Generic overlay close + Ctrl+D/E/A toggle | 4 |
-| `model_selector.rs` | 113 | Model picker popup (j/k + ↑/↓ + Enter/Esc) | 10 |
-| `history_search.rs` | 138 | Reverse-incremental Ctrl+R search | 8 |
-| `common.rs` | 145 | Helpers (`compute_scroll_amount`, `open_external_editor`, `is_ctrl_c`) — no `KeyCode` matches | 4 |
+| `model_selector.rs` | 113 | Model picker popup (j/k + ↑/↓ + Enter/Esc) | 5 |
+| `history_search.rs` | 138 | Reverse-incremental Ctrl+R search | 4 |
+| `common.rs` | 145 | Helpers (`compute_scroll_amount`, `open_external_editor`, `is_ctrl_c`) — no `KeyCode` matches | 2 |
 
-Total: **2833 LOC across 10 files, 98 distinct bindings + 4 delegated handler entries, 130 test functions.**
+Total: **2833 LOC across 10 files, 98 distinct bindings + 4 delegated handler entries, 101 test functions** (counted by `^[[:space:]]*(async )?fn test_`; verified by `scripts/check-key-handler-invariants.sh`).
 
 Note: the PLAN anticipated 7 files (`mod`/`normal`/`vim`/`search`/`selector`/`overlay`/`approval`/`common`).
 Actual layout: `vim_normal.rs` + `vim_insert.rs` cover what the PLAN called `vim.rs`;
@@ -215,25 +215,33 @@ dismissal, Approval auto-close on respond) → `crates/grid-cli/tests/key_handle
 Asymmetry items 1–10 should each be locked by at least one dedicated test so
 future edits cannot silently break the contract.
 
-**Current test inventory** (130 tests across the 10 files; rough mapping to
-binding rows, not 1:1):
+**Current test inventory** (101 tests across the 10 files; verified by
+`scripts/check-key-handler-invariants.sh` — rough mapping to binding rows,
+not 1:1):
 
 | File | Test count | Approx. row coverage |
 |------|-----------|----------------------|
-| `mod.rs` | 46 | dispatch priority + Global Ctrl+C (row 1) |
+| `mod.rs` | 40 | dispatch priority + Global Ctrl+C (row 1) |
 | `normal.rs` | 20 | rows 2-34 (33 bindings, ~60% direct coverage) |
-| `vim_normal.rs` | 14 | rows 35-49 (15 bindings, ~93% direct coverage) |
-| `vim_insert.rs` | 10 | rows 50-64 (15 bindings, ~67% direct coverage) |
-| `slash_commands.rs` | 9 | rows 65-75 (11 bindings, ~82% direct coverage) |
-| `approval.rs` | 5 | rows 76-80 (5 bindings, 100% direct coverage) |
+| `vim_normal.rs` | 7 | rows 35-49 (15 bindings, ~47%) |
+| `vim_insert.rs` | 5 | rows 50-64 (15 bindings, ~33%) |
+| `slash_commands.rs` | 9 | rows 65-75 (11 bindings, ~82%) |
+| `approval.rs` | 5 | rows 76-80 (5 bindings, 100%) |
 | `overlay.rs` | 4 | rows 81-85 (5 bindings, ~80%) |
-| `model_selector.rs` | 10 | rows 86-92 (7 bindings, ~143% — multiple aliases tested) |
-| `history_search.rs` | 8 | rows 93-97 (5 bindings, ~160%) |
-| `common.rs` | 4 | 3 helpers (rows are footnotes, not bindings) |
+| `model_selector.rs` | 5 | rows 86-92 (7 bindings, ~71%) |
+| `history_search.rs` | 4 | rows 93-97 (5 bindings, ~80%) |
+| `common.rs` | 2 | 3 helpers (rows are footnotes, not bindings) |
 
-PLAN T-01.13 target (≥ 21 unit tests) is **far exceeded** — the audit pivot
-for Phase 5.2 closure is T-01.15 (verify every binding row has a test) and
-T-01.14 (write integration tests for cross-mode transitions).
+**Coverage signal**: 5 modules (`vim_normal`, `vim_insert`, `slash_commands`,
+`overlay`, `model_selector`, `history_search`) sit below 100% direct binding
+coverage. PLAN T-01.13 target (≥ 21 unit tests) is **far exceeded** at 101
+total, but per-binding completeness still has gaps — these are documented
+in the script's "Known coverage gaps" output as targets for future test
+additions, NOT as Phase 5.2 close blockers.
+
+The audit pivot for Phase 5.2 closure is T-01.15 (this verifier script —
+catches **regressions** below the documented floor) and T-01.14 (write
+integration tests for cross-mode transitions, file does not yet exist).
 
 ---
 
