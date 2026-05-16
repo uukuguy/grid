@@ -159,9 +159,9 @@ mod tests {
     #[test]
     fn test_i_enters_insert_mode() {
         let mut state = make_test_state();
-        assert_eq!(state.vim.mode, super::super::widgets::figures::VimMode::Normal);
+        assert_eq!(state.vim.mode, super::super::super::widgets::figures::VimMode::Normal);
         handle_vim_normal_key(&mut state, make_key(KeyCode::Char('i')));
-        assert_eq!(state.vim.mode, super::super::widgets::figures::VimMode::Insert);
+        assert_eq!(state.vim.mode, super::super::super::widgets::figures::VimMode::Insert);
     }
 
     #[test]
@@ -171,7 +171,7 @@ mod tests {
         state.input_cursor = 0;
         handle_vim_normal_key(&mut state, make_key(KeyCode::Char('a')));
         assert_eq!(state.input_cursor, 1);
-        assert_eq!(state.vim.mode, super::super::widgets::figures::VimMode::Insert);
+        assert_eq!(state.vim.mode, super::super::super::widgets::figures::VimMode::Insert);
     }
 
     #[test]
@@ -199,7 +199,10 @@ mod tests {
         state.input_cursor = 2;
         handle_vim_normal_key(&mut state, make_key(KeyCode::Char('x')));
         assert_eq!(state.input_buffer, "helo");
-        assert_eq!(state.input_cursor, 1);
+        // After deletion at cursor 2, buffer is "helo" (len 4). Vim semantics:
+        // cursor only retreats if it would land past end-of-buffer; here 2 < 4
+        // so it stays. Matches INVARIANTS.md row 45 ("moves cursor back if at end").
+        assert_eq!(state.input_cursor, 2);
     }
 
     #[test]
@@ -216,7 +219,15 @@ mod tests {
         let mut state = make_test_state();
         state.input_buffer = "hello".to_string();
         state.input_cursor = 2;
-        handle_vim_normal_key(&mut state, make_key(KeyCode::Char('$')));
+        // `$` on US keyboards = Shift+4 — KeyEvent carries SHIFT modifier.
+        // Handler at line 75 matches `KeyModifiers::SHIFT, KeyCode::Char('$')`.
+        let evt = KeyEvent {
+            code: KeyCode::Char('$'),
+            modifiers: KeyModifiers::SHIFT,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+        handle_vim_normal_key(&mut state, evt);
         assert_eq!(state.input_cursor, 5);
     }
 }

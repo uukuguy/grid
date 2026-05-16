@@ -235,9 +235,9 @@ mod tests {
     #[test]
     fn test_escape_enters_normal_mode() {
         let mut state = make_test_state();
-        assert_eq!(state.vim.mode, super::super::widgets::figures::VimMode::Insert);
+        assert_eq!(state.vim.mode, super::super::super::widgets::figures::VimMode::Insert);
         handle_vim_insert_key(&mut state, make_key(KeyCode::Esc));
-        assert_eq!(state.vim.mode, super::super::widgets::figures::VimMode::Normal);
+        assert_eq!(state.vim.mode, super::super::super::widgets::figures::VimMode::Normal);
     }
 
     #[test]
