@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
-status: completed
+status: executing
 stopped_at: Phase 5.2 context gathered
-last_updated: "2026-05-02T10:16:29.637Z"
-last_activity: 2026-05-02 -- Phase 5.1 verified 4/4 must-haves PASSED
+last_updated: "2026-05-04T15:21:40.367Z"
+last_activity: 2026-05-04 -- Phase 05.2 execution started
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 2
+  total_plans: 3
   completed_plans: 2
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -21,14 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 05.1 — runtime-tier-adr
+**Current focus:** Phase 05.2 — cli-hardening
 
 ## Current Position
 
-Phase: 5.1 of 5.5 (Runtime Tier ADR + Contract Test Parametrization) — COMPLETE ✅
+Phase: 05.2 (cli-hardening) — EXECUTING
+Plan: 1 of 1
 Next phase: 5.2 (CLI Hardening) — ready to plan
-Status: Phase 5.1 complete; awaiting next-phase decision
-Last activity: 2026-05-02 -- Phase 5.1 verified 4/4 must-haves PASSED
+Status: Executing Phase 05.2
+Last activity: 2026-05-04 -- Phase 05.2 execution started
 
 Progress: [▓▓▓░░░░░░░] 33% (2/6 milestone phases complete — 5.0 + 5.1)
 
@@ -122,6 +123,7 @@ Items acknowledged and carried forward from previous milestone close:
 | Contract | NEW-D2 — test_chunk_type_contract.py 仅 3 tests,not 7-runtime parametric | 🟠 P1, mapped to Phase 5.1 (WATCH-05) | Phase 4a project review | 5.1 |
 | ADR | NEW-E2 — F3 reports 29 missing `enforcement.trace` items | 🟡 advisory, mapped to Phase 5.5 (WATCH-06) | Phase 4a session-04-26 audit | 5.5 |
 | ADR | NEW-E3 — ADR-V2-019 still Proposed, blocks on D142+D143 | 🟡 advisory, mapped to Phase 5.4 (WATCH-07, after WATCH-04 closes) | Phase 4a session-04-26 audit | 5.4 |
+| ADR/Functional | NEW-E4 — ADR-V2-016 实现漂移:D87 Fix 2 强制 tool_choice=Required 续航 在 TUI 对话场景误命中 (deepseek-chat × web_search 反复执行)。需 `ExecutionMode { Conversational, LongWorkflow }` + ADR-V2-026 retroactive supersede。RFC 草稿:`.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` | 🟠 P1, mapped to Phase 5.3 (WATCH-08) | 2026-05-16 deepseek shakedown | 5.3 |
 | Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | 🟠 P1 (提优先级), mapped to Phase 5.2 (CLI-04) | Phase 4a review | 5.2 |
 | Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.1) | Phase 4a review | v3.2+ |
 | Tech-debt | D-batch (~40 P3 / housekeeping items 跨 D8..D80) | 🟡 P3, 单日 batch sweep 待安排 (NOT in v3.1) | 累积自 Phase 0 → 3.6 | v3.2+ |
