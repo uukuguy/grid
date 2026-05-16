@@ -45,9 +45,13 @@ data-platform/*.db-wal
 .claude-flow/
 .claude/memory.db
 .claude/skills/
+.claude/worktrees/
 .swarm/
 eval_output/
 .octo/
+
+# Codegraph local DB (large binary, regenerable from source)
+.codegraph/
 
 # Root-level temp tests only (crates/*/tests/ are real integration tests, must be committed).
 # Exception: tests/contract/ is the EAASP v2.0 cross-runtime contract suite
