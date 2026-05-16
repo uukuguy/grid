@@ -1449,7 +1449,13 @@ async fn run_agent_loop_inner(
         // See: `docs/design/EAASP/AGENT_LOOP_ROOT_CAUSE_ANALYSIS.md` for the
         // full story. Modelled after hermes intermediate-ack but moved from
         // prompt-layer to API-layer enforcement.
-        if stop_reason == StopReason::EndTurn
+        // 2026-05-16 RFC: only run D87 Fix 2 in LongWorkflow mode.
+        // REPL/Conversational callers (grid-cli TUI, grid-server WS, `grid ask`)
+        // must NOT have their natural-language reply hijacked into a forced
+        // tool_choice=Required continuation. See
+        // `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md`.
+        if config.execution_mode == super::loop_config::ExecutionMode::LongWorkflow
+            && stop_reason == StopReason::EndTurn
             && tool_uses.is_empty()
             && total_tool_calls > 0
             && workflow_continuation_count < MAX_WORKFLOW_CONTINUATIONS

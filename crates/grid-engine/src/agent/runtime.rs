@@ -253,6 +253,14 @@ pub struct AgentRuntime {
     /// `Arc<AtomicBool>`: cancelling session A does not affect session B.
     /// See `docs/design/EAASP/AGENT_LOOP_PATTERNS_TO_ADOPT.md` #10.
     pub(crate) session_interrupts: SessionInterruptRegistry,
+
+    /// 2026-05-16 RFC: process-global execution mode hint forwarded into
+    /// each spawned `AgentExecutor`. grid-runtime sets `LongWorkflow` at
+    /// startup; grid-cli / grid-server leave the default `Conversational`.
+    /// Reads happen on the (sync) executor spawn path; writes are rare
+    /// (typically once at process startup).
+    pub(crate) execution_mode:
+        StdMutex<super::loop_config::ExecutionMode>,
 }
 
 impl AgentRuntime {
@@ -600,6 +608,7 @@ impl AgentRuntime {
             agent_handles: DashMap::new(),
             session_stop_hooks: DashMap::new(),
             session_interrupts: SessionInterruptRegistry::new(),
+            execution_mode: StdMutex::new(super::loop_config::ExecutionMode::default()),
             catalog,
             provider,
             tools: Arc::new(StdMutex::new(tools)),
@@ -960,6 +969,23 @@ impl AgentRuntime {
     /// env vars (`{PROVIDER}_MODEL_NAME`) via `ProviderConfig::default()`.
     pub fn default_model(&self) -> &str {
         &self.default_model
+    }
+
+    /// 2026-05-16 RFC: opt this AgentRuntime into LongWorkflow mode.
+    /// All sessions spawned after this call will get the new mode
+    /// (already-running executors are NOT retroactively switched —
+    /// per-turn `AgentLoopConfig` is built from executor fields, so the
+    /// change takes effect on the next session spawn).
+    ///
+    /// grid-runtime calls this once at startup with
+    /// `ExecutionMode::LongWorkflow`. grid-cli / grid-server / `grid ask`
+    /// leave the default `Conversational`.
+    pub fn set_execution_mode(&self, mode: super::loop_config::ExecutionMode) {
+        let mut guard = self
+            .execution_mode
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        *guard = mode;
     }
 
     /// Shared capability matrix. Harness looks up (provider, model, base_url)
@@ -1561,6 +1587,15 @@ impl AgentRuntime {
         executor.set_tool_choice_supported(
             tool_choice_cap == crate::providers::Capability::Supported,
         );
+
+        // 2026-05-16 RFC: forward process-global ExecutionMode into the
+        // per-session executor so the harness can gate D87 Fix 2 forced
+        // continuation by REPL vs LongWorkflow context.
+        let mode = *self
+            .execution_mode
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        executor.set_execution_mode(mode);
 
         // D130: create the session/turn token tree and wire it into the executor.
         // The session_cancellation_token() is returned to the caller so it can

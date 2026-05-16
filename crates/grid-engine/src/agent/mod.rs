@@ -77,7 +77,7 @@ pub use executor::{AgentExecutor, AgentExecutorHandle, AgentMessage};
 pub use harness::run_agent_loop;
 pub use interrupt::SessionInterruptRegistry;
 pub use loop_::AgentLoop;
-pub use loop_config::AgentLoopConfig;
+pub use loop_config::{AgentLoopConfig, ExecutionMode};
 pub use manifest_loader::AgentManifestLoader;
 pub use queue::{MessageQueue, QueueKind, QueueMode};
 pub use router::{AgentProfile, AgentRouter, RouteAlternative, RouteResult};

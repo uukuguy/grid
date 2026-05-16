@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tonic::transport::Server;
 use tracing::info;
 
+use grid_engine::agent::ExecutionMode;
 use grid_engine::providers::{Capability, CapabilityKey, ProbeStrategy};
 use grid_engine::{AgentCatalog, AgentRuntime, AgentRuntimeConfig, ProviderConfig, TenantContext};
 use grid_runtime::config::RuntimeConfig;
@@ -76,6 +77,12 @@ async fn main() -> anyhow::Result<()> {
     let engine_runtime = AgentRuntime::new(catalog, runtime_config, Some(tenant_context))
         .await
         .map_err(|e| anyhow::anyhow!("Failed to build AgentRuntime: {}", e))?;
+
+    // 2026-05-16 RFC: grid-runtime serves EAASP non-interactive skill
+    // execution — opt into LongWorkflow so D87 Fix 2 forced continuation
+    // remains active. Conversational callers (grid-cli, grid-server)
+    // never come through this code path.
+    engine_runtime.set_execution_mode(ExecutionMode::LongWorkflow);
 
     // ── Provider capability probing (Step 4) ──────────────────────────────
     // Default strategy is Eager: probe the configured provider/model now,

@@ -26,7 +26,7 @@ use async_trait::async_trait;
 use futures_util::stream::{self, StreamExt};
 use serde_json::json;
 
-use grid_engine::agent::{run_agent_loop, AgentConfig, AgentEvent, AgentLoopConfig};
+use grid_engine::agent::{run_agent_loop, AgentConfig, AgentEvent, AgentLoopConfig, ExecutionMode};
 use grid_engine::providers::{CompletionStream, Provider};
 use grid_engine::tools::{Tool, ToolRegistry};
 use grid_types::{
@@ -267,6 +267,12 @@ async fn test_d87_multi_step_workflow_no_early_exit() {
         // (it ignores the field entirely and just returns the next scripted
         // turn). Explicitly enable so the harness arms the continuation.
         .tool_choice_supported(true)
+        // 2026-05-16 RFC: this test exercises the EAASP-style non-interactive
+        // skill execution path; LongWorkflow is required for D87 Fix 2 to
+        // arm the forced continuation. Without this the harness now
+        // (correctly, in the Conversational default) treats text-only
+        // EndTurn as a legitimate completion.
+        .execution_mode(ExecutionMode::LongWorkflow)
         .agent_config(AgentConfig {
             enable_typing_signal: false,
             enable_parallel: false,
@@ -389,5 +395,101 @@ async fn test_d87_single_tool_workflow_still_works() {
             .iter()
             .any(|e| matches!(e, AgentEvent::Completed { .. })),
         "Loop should complete normally"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 2026-05-16 RFC regression: Conversational mode must NOT force continuation
+// ---------------------------------------------------------------------------
+
+/// REPL/Conversational mode regression: when the same mock provider that
+/// triggers D87 Fix 2 in LongWorkflow is used in **Conversational** mode,
+/// the harness must accept the LLM's text-only EndTurn as a legitimate
+/// completion (it's the natural-language reply to the user). It must NOT
+/// arm `tool_choice=Required` and force the LLM to call another tool.
+///
+/// This locks the user-visible behavior reported on 2026-05-16:
+/// > "TUI 对话中查询被重复调用 websearch 工具"
+///
+/// In LongWorkflow mode the same provider script causes 3 tool calls
+/// (see `test_d87_multi_step_workflow_no_early_exit`). In Conversational
+/// mode it must cause exactly 1 — the first one before the LLM tries
+/// to wrap up.
+#[tokio::test]
+async fn test_conversational_mode_no_forced_continuation() {
+    let provider = Arc::new(MultiStepProvider {
+        call_count: AtomicU32::new(0),
+    });
+
+    let mut registry = ToolRegistry::new();
+    registry.register(ReadDataTool);
+    registry.register(SearchHistoryTool);
+    registry.register(WriteResultTool);
+    let registry = Arc::new(registry);
+
+    let config = AgentLoopConfig::builder()
+        .provider(provider)
+        .tools(registry)
+        .model("mock-model".into())
+        .max_tokens(1024)
+        .max_iterations(10)
+        .force_text_at_last(false)
+        // tool_choice support is irrelevant when execution_mode gates the
+        // whole D87 Fix 2 block — set true to prove the gate is the
+        // binding constraint, not capability.
+        .tool_choice_supported(true)
+        // The fix under test: this should suppress D87 Fix 2.
+        .execution_mode(ExecutionMode::Conversational)
+        .agent_config(AgentConfig {
+            enable_typing_signal: false,
+            enable_parallel: false,
+            ..AgentConfig::default()
+        })
+        .build();
+
+    let messages = vec![ChatMessage::user(
+        "Read the device data and tell me what you found.",
+    )];
+
+    let events: Vec<AgentEvent> = run_agent_loop(config, messages).collect().await;
+
+    let tool_starts: Vec<&str> = events
+        .iter()
+        .filter_map(|e| match e {
+            AgentEvent::ToolStart { tool_name, .. } => Some(tool_name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    // Only the first tool call (read_data) — the LLM's follow-up text-only
+    // turn ("I have read the data. Do you want me to: ...") must be
+    // accepted as a legitimate end of turn. NO forced continuation.
+    assert_eq!(
+        tool_starts,
+        vec!["read_data"],
+        "Conversational mode forced a continuation. Got tool calls: {:?}. \
+         This means D87 Fix 2's tool_choice=Required path was armed in a \
+         REPL-style conversation, which is exactly the 2026-05-16 bug \
+         report. Check the execution_mode gate in harness.rs:1452.",
+        tool_starts
+    );
+
+    // No WorkflowContinuation events should have fired.
+    let workflow_continuations = events
+        .iter()
+        .filter(|e| matches!(e, AgentEvent::WorkflowContinuation { .. }))
+        .count();
+    assert_eq!(
+        workflow_continuations, 0,
+        "Conversational mode emitted {} WorkflowContinuation event(s); \
+         expected 0.",
+        workflow_continuations
+    );
+
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::Completed { .. })),
+        "Loop should complete normally on the LLM's text-only EndTurn"
     );
 }

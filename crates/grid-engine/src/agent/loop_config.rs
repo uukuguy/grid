@@ -36,6 +36,36 @@ use super::CancellationToken;
 /// metrics, chaining). Receives the final `AgentLoopResult` by reference.
 pub type CompletionCallback = Arc<dyn Fn(&AgentLoopResult) + Send + Sync>;
 
+/// Execution mode for the agent loop.
+///
+/// Different callers want fundamentally different behavior when the LLM
+/// emits an EndTurn with no `tool_use` after at least one tool was called:
+///
+/// * **Conversational** (REPL-style): the LLM is wrapping up a turn with
+///   a natural-language reply; the next turn will be driven by an external
+///   caller (user input via TUI / WS / `grid ask`). The harness must NOT
+///   force a continuation via `tool_choice=Required`.
+///
+/// * **LongWorkflow** (non-interactive skill execution): there is no
+///   human in the loop. A text-only mid-workflow turn likely means the
+///   LLM is asking for confirmation it can't get. The harness arms
+///   `tool_choice=Required` (or `Specific(next_required_tool)` if the
+///   skill declared one) to drive the LLM back into the workflow.
+///
+/// This makes the REPL vs non-interactive distinction explicit at the
+/// `AgentLoopConfig` boundary rather than inferring it from heuristics
+/// over `required_tools` presence. See
+/// `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` for
+/// the full design rationale and the ADR-V2-016 drift discussion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ExecutionMode {
+    /// Default — REPL conversations (grid-cli TUI, grid-server WS, `grid ask`).
+    #[default]
+    Conversational,
+    /// Non-interactive skill execution (grid-runtime serving EAASP L4).
+    LongWorkflow,
+}
+
 /// Agent Loop configuration — serves as the complete dependency injection container
 /// for `run_agent_loop()`. Inspired by IronClaw AgentDeps + ZeroClaw run_agent_loop().
 pub struct AgentLoopConfig {
@@ -164,6 +194,12 @@ pub struct AgentLoopConfig {
     ///     generic `tool_choice=Required`
     pub required_tools: Option<Vec<String>>,
 
+    // === REPL vs Long-Workflow distinction (2026-05-16 RFC) ===
+    /// Whether this loop instance is a REPL-style conversation or a
+    /// non-interactive skill execution. Gates the D87 Fix 2 forced
+    /// continuation logic in `harness.rs`. See [`ExecutionMode`].
+    pub execution_mode: ExecutionMode,
+
     // === Canary Guard (W10) ===
     /// Optional canary guard layer for per-turn canary rotation.
     pub canary_guard: Option<CanaryGuardLayer>,
@@ -288,6 +324,7 @@ impl Default for AgentLoopConfig {
             self_repair: None,
             tool_choice_supported: false,
             required_tools: None,
+            execution_mode: ExecutionMode::default(),
             canary_guard: None,
             permission_engine: None,
             session_summary_store: None,
@@ -550,6 +587,13 @@ impl AgentLoopConfigBuilder {
     /// every required tool has already been called.
     pub fn required_tools(mut self, names: Vec<String>) -> Self {
         self.config.required_tools = Some(names);
+        self
+    }
+
+    /// 2026-05-16 RFC: REPL vs Long-Workflow distinction. See
+    /// [`ExecutionMode`]. Default is `Conversational`.
+    pub fn execution_mode(mut self, mode: ExecutionMode) -> Self {
+        self.config.execution_mode = mode;
         self
     }
 

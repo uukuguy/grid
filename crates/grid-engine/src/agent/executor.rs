@@ -186,6 +186,11 @@ pub struct AgentExecutor {
     // (provider, model, base_url) tuple. Defaults to `false` (= harness
     // skips D87 continuation injection).
     tool_choice_supported: bool,
+    // 2026-05-16 RFC: REPL vs Long-Workflow distinction. Forwarded into
+    // AgentLoopConfig.execution_mode. Default Conversational keeps TUI /
+    // WS / `grid ask` safe; grid-runtime calls set_execution_mode to opt
+    // in to LongWorkflow.
+    execution_mode: super::loop_config::ExecutionMode,
     // D87 L1 metadata: skill-declared required_tools (forwarded into
     // AgentLoopConfig). Set via `AgentMessage::SetRequiredTools` from the
     // runtime after parsing the skill frontmatter. None = no constraint;
@@ -269,6 +274,7 @@ impl AgentExecutor {
             catalog,
             transcript_writer,
             tool_choice_supported: false,
+            execution_mode: super::loop_config::ExecutionMode::default(),
             required_tools: None,
             stop_hooks: Vec::new(),
         }
@@ -279,6 +285,17 @@ impl AgentExecutor {
     /// `CapabilityStore`. Forwarded into `AgentLoopConfig` for each turn.
     pub fn set_tool_choice_supported(&mut self, supported: bool) {
         self.tool_choice_supported = supported;
+    }
+
+    /// 2026-05-16 RFC: opt into LongWorkflow execution mode. grid-runtime
+    /// (serving EAASP non-interactive skills) MUST call this with
+    /// `ExecutionMode::LongWorkflow` after constructing the executor, or
+    /// the harness will treat text-only EndTurn mid-workflow as a
+    /// legitimate completion and skip D87 Fix 2 continuation injection.
+    /// REPL callers (grid-cli, grid-server) leave the default
+    /// `Conversational` value in place.
+    pub fn set_execution_mode(&mut self, mode: super::loop_config::ExecutionMode) {
+        self.execution_mode = mode;
     }
 
     /// S3.T5 (G7): install Stop hooks for this executor's session.
@@ -523,6 +540,7 @@ impl AgentExecutor {
                         git_context,
                         tool_choice_supported: self.tool_choice_supported,
                         required_tools: self.required_tools.clone(),
+                        execution_mode: self.execution_mode,
                         // S3.T5 (G7): forward Stop hooks (e.g. bash hooks
                         // bridged by `ScopedStopHookBridge`) into the
                         // per-round AgentLoopConfig so the harness fires
