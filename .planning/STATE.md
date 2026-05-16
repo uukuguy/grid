@@ -186,10 +186,10 @@ Local commits ahead of origin: 0 (all pushed; HEAD == origin/main)
 | T-01.8-12 TUI key_handler split + studio build fix | ✅ (actual: 10 files, not 7 per PLAN) | 92b7710 + **cfcffd6** (this session) |
 | T-01.13 unit tests for each mode file (≥21) | ✅ **far exceeded** (130 tests across 10 files) | (cumulative pre-Phase-5.2 + during) |
 | T-01.14 integration tests (≥2) | ⏳ (file `crates/grid-cli/tests/key_handler_integration.rs` does not exist) | — |
-| T-01.15 INVARIANTS.md completeness verify | ✅ (`scripts/check-key-handler-invariants.sh` PASS) | _pending — this session_ |
+| T-01.15 INVARIANTS.md completeness verify | ✅ (`scripts/check-key-handler-invariants.sh` PASS) | 7176b4b |
 | T-01.16 `session kill --purge` | ✅ | b14fca7 |
 | T-01.17 `grid doctor` expansion | ✅ | e6bb575 + 3b361da |
-| T-01.18 proto-cli-sync-check.sh | ✅ (PASS + FAIL=73 both verified) | _pending — this session_ |
+| T-01.18 proto-cli-sync-check.sh | ✅ (PASS + FAIL=73 both verified) | 7176b4b |
 | T-01.19 CLI integration tests | ⏳ | — |
 
 **Phase 5.2 progress: 16/19 (84%).** Remaining: T-01.14 + T-01.19 integration tests (both need new `crates/grid-cli/tests/` directory).
