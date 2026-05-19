@@ -1014,13 +1014,18 @@ where
                         this.pending_events.extend(parsed);
                     }
 
-                    // Some OpenAI-compat providers (e.g. ant-ling / Ling-2.6) close
-                    // the SSE stream WITHOUT emitting the trailing `data: [DONE]`
-                    // marker. Without that marker the parser never flushes pending
-                    // tool_calls or emits MessageStop, so the agent harness hangs
-                    // on stream.next().await indefinitely. Synthesize the missing
-                    // events here from accumulator state.
-                    if !this.stopped {
+                    // ADR-V2-027: handling for streams that end WITHOUT the
+                    // trailing `data: [DONE]` marker is gated by `no_done_marker`.
+                    //
+                    // - `no_done_marker: true` (e.g. ant-ling / Ling-2.6 — set by
+                    //   `LingProvider`): synthesize MessageStop from accumulator
+                    //   state so the harness doesn't hang on stream.next().
+                    // - `no_done_marker: false` (default, strict OpenAI): treat
+                    //   the missing marker as a contract violation and surface
+                    //   it as a loud error per anti-silent-fallback principle
+                    //   (Pitfall 5 — preserve assertion strength for compliant
+                    //   providers).
+                    if this.quirks.no_done_marker && !this.stopped {
                         let has_pending_tools = !this.tool_calls.is_empty();
                         let pending: Vec<ToolCallAccum> = this.tool_calls.drain(..).collect();
                         for tc in pending {
@@ -1043,6 +1048,18 @@ where
                             usage: this.final_usage.clone().unwrap_or_default(),
                         }));
                         this.stopped = true;
+                    } else if !this.stopped {
+                        // Strict OpenAI assertion: absent [DONE] is a contract
+                        // violation. Surface as error so the failure is loud,
+                        // not silent (anti-silent-fallback, ADR-V2-027).
+                        tracing::warn!(
+                            "OpenAI-compat stream ended without `data: [DONE]` marker; \
+                             quirks.no_done_marker=false rejects this as a broken stream."
+                        );
+                        this.finished = true;
+                        return Poll::Ready(Some(Err(anyhow!(
+                            "stream ended without `data: [DONE]` marker (quirks.no_done_marker=false)"
+                        ))));
                     }
 
                     if let Some(event) = this.pending_events.pop_front() {
