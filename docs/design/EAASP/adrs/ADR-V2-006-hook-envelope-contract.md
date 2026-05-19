@@ -307,3 +307,81 @@ A hook receiving the §2.1 envelope from grid-runtime (Rust) and the same envelo
   - Rust: `tools/eaasp-skill-registry/src/skill_parser.rs::substitute_hook_vars`
   - Python: `lang/claude-code-runtime-python/src/claude_code_runtime/hook_substitution.py`
   - Reference hooks: `examples/skills/threshold-calibration/hooks/block_write_scada.sh`, `check_output_anchor.sh`
+
+---
+
+## Implementation Record (2026-05-20, Phase 5.3)
+
+Contract-v1.2.0 adds 2 new Hook events to `HookEvent.oneof event`, both
+following §2.3 top-level payload shape (no `payload.*` nesting per
+Pitfall 3 — see D134 closure precedent).
+
+### `SubagentStartHook` (field 19)
+
+Fired when `grid-engine::subagent_runtime::run_async()` is about to
+dispatch a sub-agent. L3 governance MAY deny pre-spawn (sub-agent
+security gate, per Phase 5.3 CONTEXT.md D-05).
+
+Payload (top-level — ADR-V2-006 §2.3):
+
+| Field | Proto Type | Notes |
+|-------|-----------|-------|
+| `parent_session_id` | string | Required |
+| `subagent_id` | string | Required |
+| `subagent_name` | string | Required |
+| `purpose` | string | OPTIONAL — empty string if not provided |
+| `depth` | uint32 | Sub-agent depth (top-level = 1) |
+
+Implementation lands at `crates/grid-engine/src/agent/subagent_runtime.rs`
+inside `run_async`. The hook fires at the head of the spawned task
+(deviation from the original plan's `futures::executor::block_on` before
+`tokio::spawn` — see commit `c33f122` rationale: avoids pulling in
+the `futures` crate while preserving "L3 deny pre-agent-loop" semantics).
+
+### `TaskCheckpointHook` (field 20)
+
+Fired at task-boundary checkpoints. Two automatic triggers in 5.3 MVP
+(per Phase 5.3 CONTEXT.md D-06 + RESEARCH §"TaskCheckpoint Semantics"):
+1. `reason="required_tools_satisfied"` — D87 Fix 2 satisfied-branch at
+   `crates/grid-engine/src/agent/harness.rs:1486`
+2. `reason="max_continuations_reached"` — pre-D87 guard branch added in
+   the same commit, fires when `workflow_continuation_count >=
+   MAX_WORKFLOW_CONTINUATIONS` and the harness would otherwise continue
+
+Future scope: explicit `Checkpoint(session_id)` RPC trigger (DEFERRED to
+next milestone — wire reserved via `snapshot_uri` field).
+
+Payload (top-level — ADR-V2-006 §2.3):
+
+| Field | Proto Type | Notes |
+|-------|-----------|-------|
+| `reason` | string | "required_tools_satisfied" / "max_continuations_reached" / "explicit" |
+| `rounds_completed` | uint32 | Agent loop rounds at checkpoint |
+| `total_tool_calls` | uint32 | Total tool calls in session |
+| `completed_tools` | repeated string | Tool names that have been satisfied |
+| `snapshot_uri` | string | OPTIONAL — reserved for ATTACHMENT_REF integration |
+
+### HookContext envelope emitters
+
+`crates/grid-engine/src/hooks/context.rs::HookContext::to_json` extended
+with `to_subagent_start_envelope` and `to_task_checkpoint_envelope`
+methods. Both source fields from `HookContext.metadata` for caller
+flexibility and match the existing top-level pattern of PreToolUse /
+PostToolUse / Stop envelopes.
+
+### Implementation commits (Phase 5.3 Plan A):
+
+- Proto additions + ccb-types-ts hand-mirror: `ad04e57`
+- HookPoint enum + SubagentStart fire + envelope emitters + spy test: `c33f122`
+- TaskCheckpoint fire sites + 2 spy tests: `c045584`
+- Contract parity test (test_hook_event_contract.py NEW file): `6565d72`
+
+### Anti-pattern (Pitfall 3 — preserved):
+
+These payloads MUST NOT be wrapped under a nested `payload.*` key. The
+existing D134 example skill hooks at `examples/skills/*/hooks/*.sh`
+already read top-level fields directly per ADR-V2-006 §2.3 — new events
+MUST match. Tests
+`tests/contract/cases/test_hook_event_contract.py::test_subagent_start_hook_has_top_level_fields`
+and `test_task_checkpoint_hook_has_top_level_fields` lock this guard at
+descriptor level (no `payload` field allowed in the new message types).

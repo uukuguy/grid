@@ -261,3 +261,46 @@ reviewer 在 PR 阶段按此条款卡合入。
 
 - Full regression + 7-runtime contract sweep PASS 2026-04-20
 - See `phase3-verification-log.txt` for the detailed signoff record.
+
+---
+
+## Implementation Record (2026-05-20, Phase 5.3)
+
+Contract-v1.2.0 adds 2 new ChunkType wire values per the additive-only
+invariant established in this ADR's Decision section (closed enum,
+"新增取值必须先改 proto + 同步扩展契约测试白名单"):
+
+| Wire Int | Name | Semantic | Source |
+|----------|------|----------|--------|
+| 8 | `CHUNK_TYPE_THINKING_TRACE` | End-of-turn structured reasoning summary (JSON: `{effort_level, total_reasoning_tokens, reasoning_summary?}`). Coexists with existing `CHUNK_TYPE_THINKING` (=2, incremental SSE delta). Capability not requirement. | Phase 5.3 CONTEXT.md D-02 |
+| 9 | `CHUNK_TYPE_ATTACHMENT_REF` | Post-hoc blob pointer (JSON: `{uri, mime_type, size}`). Backend storage (URI scheme whitelist + blob adapters) DEFERRED to next milestone — 5.3 wire only carries opaque URI string. | Phase 5.3 CONTEXT.md D-03 |
+
+### Cross-language sync verification (per ADR §"新增取值必须先改 proto"):
+
+- `proto/eaasp/runtime/v2/common.proto` — new values appended at end of ChunkType enum block
+- `lang/ccb-runtime-ts/src/proto/types.ts` — hand-mirror updated; `scripts/check-ccb-types-ts-sync.sh` PASS
+- Python proto stubs regenerated across 3 runtimes (claude-code, nanobot, pydantic-ai) + L4
+- Rust proto stubs regenerated via `make build-eaasp-all` (workspace-wide, tonic-build)
+- Whitelist tests at `tests/contract/cases/test_chunk_type_contract.py::test_whitelist_matches_adr` extended to descriptor-driven assertion (auto-extends with the 2 new wires)
+
+### Runtime adoption (per ADR-V2-025 tier strategy):
+
+- 主力档 grid-runtime: `chunk_type_to_proto` mapper extended (`crates/grid-runtime/src/service.rs`); 4 new unit tests in `tests/test_chunk_emit.rs`
+- 样板档 (claude-code, nanobot, pydantic-ai): all 3 runtimes wire-emit the new values via mapper.py dict or service.py direct-emission branches
+- 参考档 (goose, claw-code, ccb): selective-xfail allowed per ADR-V2-025; not modified in this commit
+
+### Implementation commits (Phase 5.3 Plan A):
+
+- Proto + TS hand-mirror: `ad04e57`
+- grid-runtime mapper + unit tests: `ea75923`
+- 样板档 3 runtimes: `2baf5d9`
+- L4 mapper test + CLI whitelist + render branches: `3b2f712`
+- Contract parity test (test_chunk_type_contract.py whitelist extension): `6565d72`
+
+### Anti-pattern (Pitfall 2 — preserved):
+
+Existing wire values 1-7 MUST NOT be renumbered when adding new values.
+Append at the END of the enum block. Test
+`crates/grid-runtime/src/tests/test_chunk_emit.rs::chunk_emit_existing_wires_unchanged`
+pins every pre-5.3 wire to its assigned integer so any accidental
+renumber fails CI before reaching runtimes.
