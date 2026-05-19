@@ -24,6 +24,11 @@ class EventType:
     STOP = "STOP"
     ERROR = "ERROR"
     HOOK_FIRED = "HOOK_FIRED"
+    # Phase 5.3 contract-v1.2.0 (ADR-V2-021 amendment) — additive only.
+    # Capability not requirement: pydantic-ai exposes the EventType so a
+    # future SDK can yield these without re-touching the wire layer.
+    THINKING_TRACE = "THINKING_TRACE"
+    ATTACHMENT_REF = "ATTACHMENT_REF"
 
 
 @dataclass

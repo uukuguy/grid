@@ -142,6 +142,17 @@ class NanobotRuntimeService(runtime_pb2_grpc.RuntimeServiceServicer):
                         content=event.content,
                         is_error=True,
                     )
+                # Phase 5.3 (contract-v1.2.0):
+                elif event.event_type == EventType.THINKING_TRACE:
+                    yield runtime_pb2.SendResponse(
+                        chunk_type=common_pb2.CHUNK_TYPE_THINKING_TRACE,
+                        content=event.content,
+                    )
+                elif event.event_type == EventType.ATTACHMENT_REF:
+                    yield runtime_pb2.SendResponse(
+                        chunk_type=common_pb2.CHUNK_TYPE_ATTACHMENT_REF,
+                        content=event.content,
+                    )
         except Exception as exc:
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))

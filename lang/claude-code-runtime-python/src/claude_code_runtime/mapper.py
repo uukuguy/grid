@@ -32,6 +32,9 @@ _CHUNK_TYPE_MAP: dict[str, int] = {
     "done": common_pb2.CHUNK_TYPE_DONE,
     "error": common_pb2.CHUNK_TYPE_ERROR,
     "workflow_continuation": common_pb2.CHUNK_TYPE_WORKFLOW_CONTINUATION,
+    # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+    "thinking_trace": common_pb2.CHUNK_TYPE_THINKING_TRACE,
+    "attachment_ref": common_pb2.CHUNK_TYPE_ATTACHMENT_REF,
 }
 
 
