@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.2 19/19 ✅ — all tasks complete; ready for /gsd-discuss-phase 5.3
-last_updated: "2026-05-17T00:00:00.000Z"
-last_activity: 2026-05-17 -- T-01.14 (3 cross-mode integration tests) + T-01.19 (5 CLI smoke tests) shipped; 575/575 PASS under --features studio; pre-existing studio test compile bugs in vim_normal/vim_insert also fixed inline
+stopped_at: Phase 5.3 context gathered (CONTEXT + DISCUSSION-LOG)
+last_updated: "2026-05-19T12:36:03.270Z"
+last_activity: 2026-05-04 -- Phase 05.2 execution started
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 3
   completed_plans: 3
-  percent: 50
+  percent: 100
 ---
 
 # Project State
@@ -134,9 +134,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-17 (Phase 5.2 closure — T-01.14 + T-01.19 + studio test bug fixes)
-Stopped at: **Phase 5.2 19/19 ✅ COMPLETE**; ready for `/gsd-discuss-phase 5.3`
-Resume file: `.planning/phases/05.2-cli-hardening/05.2-01-SUMMARY.md` (closure record) + this STATE.md
+Last session: 2026-05-19T12:36:03.265Z
+Stopped at: Phase 5.3 context gathered (CONTEXT + DISCUSSION-LOG)
+Resume file: .planning/phases/05.3-contract-evolution/05.3-CONTEXT.md
 Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `ccaf36e`)
 
 Prior session: 2026-05-16 (DeepSeek shakedown + ExecutionMode RFC + implementation; 9/19 → 16/19)
@@ -152,8 +152,10 @@ Detailed narrative of both sessions preserved below.
   3 latent test-only bugs since 2026-05-04 key_handler split (`92b7710`).
   None affected production. Fixed because they blocked
   `cargo test -p grid-cli --features studio`:
+
   1. 5 wrong `super::super::` paths in `vim_normal.rs` + `vim_insert.rs`
      (need one more `super::` to reach `tui::widgets::figures::VimMode`)
+
   2. `test_dollar_goes_to_end` missing SHIFT modifier (real `$` = Shift+4)
   3. `test_x_deletes_character` wrong cursor expectation (test bug, impl
      matches real vim semantics — cursor only retreats on EOL overshoot)
@@ -162,27 +164,34 @@ Detailed narrative of both sessions preserved below.
   - `tests/key_handler_integration.rs` — 3 cross-mode integration tests
     locking INVARIANTS.md asymmetry items #4 (Esc cascade), #5 (slash
     overlay reuse), #8 (ModelSelector dual nav)
+
   - `tests/cli_integration.rs` — 5 CLI smoke tests via `CARGO_BIN_EXE_grid`
     (ask --help / invalid sub / missing arg / doctor exit codes / NO_COLOR)
+
   - `tests/common/mod.rs` — shared `fresh_state()` / `key()` / `ctrl()` helpers
   - `TuiState::new_for_test` `#[cfg(test)]` → `#[doc(hidden)]` (external
     integration tests need visibility across compilation-unit boundary)
+
   - PLAN T-01.14/19 marked ✅; STATE → COMPLETE; SUMMARY.md written
   - **New deferred NEW-A3** filed: `kill_session` returns exit 1, should be
     4 per `EXIT_SESSION_NOT_FOUND`. P2, mapped to Phase 5.4.
 
 **Test counts after closure**:
+
 - `cargo test -p grid-cli` (default features): 147/147 PASS
 - `cargo test -p grid-cli --features studio`: **575/575 PASS**
 - `cargo check --workspace`: clean
 - `scripts/check-key-handler-invariants.sh`: PASS
 
 **Key lessons**:
+
 - External integration tests need `#[doc(hidden)]`, NOT `#[cfg(test)]`,
   when a helper crosses compilation-unit boundaries.
+
 - Studio-feature lib tests had latent bugs because nobody ran them between
   2026-05-04 and 2026-05-17. Add `--features studio` to CI matrix or
   accept the drift.
+
 - PLAN spec drift is normal at execution time. T-01.16 wrote
   "EXIT_SESSION (71)" but the catalog has `SessionNotFound = 4`. Smoke
   tests are how you catch this. File a deferred, don't retrofit.
@@ -192,16 +201,19 @@ Detailed narrative of both sessions preserved below.
 11 commits total (`ac90121..b66e6ed..cedf810`), grouped:
 
 **Phase 5.2 task progress** (`ac90121`):
+
 - T-01.6 streaming JSON output for `grid ask` ✅
 - Note: cumulative 5.2 tasks done = 9/19 (T-01.3/4/5/6/8/9/10/11/12/16/17 from this and prior sessions)
 
 **DeepSeek end-to-end support** (4 commits — `25a8534`, `bf74d0a`, `cfcffd6`, `6535c37`):
+
 - `crates/grid-engine/src/providers/deepseek.rs` — dedicated provider, deepseek-chat only; deepseek-reasoner explicitly rejected (Phase 5.3 D-item)
 - Env plumbing in `providers/config.rs` + `grid-runtime/config.rs` + `grid-server/config.rs` — `LLM_PROVIDER=deepseek` end-to-end
 - `grid-cli/tui/mod.rs` status bar reads `agent_runtime.default_model()` (single source of truth)
 - Workspace passes `cargo check` and `make build-studio` cleanly
 
 **Agent loop ExecutionMode gate** (RFC + implementation — `3b4e686`, `f1999fb`):
+
 - Fixed: TUI 主会话 + deepseek-chat + tool call → 反复执行 (D87 Fix 2 误激活)
 - New `AgentLoopConfig.execution_mode { Conversational, LongWorkflow }`, default Conversational
 - `grid-runtime/main.rs` sets LongWorkflow at startup — EAASP byte-identical
@@ -221,6 +233,7 @@ Contract Evolution. Phase 5.3 anchors:
   intake at `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md`;
   implementation already landed in `f1999fb`. 5.3 must promote the RFC to an
   Accepted ADR that retroactively supersedes V2-016.
+
 - **WATCH-01 (D109)** — workflow.required_tools 不变量未文档化
 - **WATCH-03 (D136)** — grid-runtime hook 在 probe turn 不触发 (3 contract xfails)
 - **WATCH-08 (NEW-E4)** — same as ADR-V2-026 above; track until Accepted
@@ -293,4 +306,5 @@ Items for Phase 5.4 (server hardening) or later.
 ### Local environment caveat (user side, not code)
 
 User shell environment has `DEEPSEEK_API_KEY=9993...` (some other key) which wins over `.env`'s `sk-...` because CredentialResolver priority is `Vault > env > yaml > .env`. **User must `unset DEEPSEEK_API_KEY`** (and grep ~/.zshrc to find the source) before deepseek-chat will authenticate correctly. This is a shell-state issue, not a Grid bug. (See `crates/grid-engine/src/secret/resolver.rs:56-84`.)
+
 - 结论: GSD 体系在本仓库 brownfield 适配良好,Phase 5 复用同套
