@@ -59,4 +59,12 @@ pub enum HookPoint {
     SubagentStop,
     /// User prompt submitted (before first LLM call in a turn)
     UserPromptSubmit,
+    /// Sub-agent about to be spawned (Phase 5.3 CONTRACT-02 — pairs with
+    /// `SubagentStop`). Fires BEFORE the subagent task is dispatched so
+    /// L3 governance can deny pre-spawn.
+    SubagentStart,
+    /// Task boundary checkpoint reached (Phase 5.3 CONTRACT-02). Two
+    /// automatic triggers in 5.3 MVP: `required_tools_satisfied` and
+    /// `max_continuations_reached`. Future scope: explicit RPC trigger.
+    TaskCheckpoint,
 }

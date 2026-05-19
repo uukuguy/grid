@@ -357,6 +357,9 @@ impl HookContext {
             Some("PreToolUse") => self.to_pre_tool_use_envelope(),
             Some("PostToolUse") => self.to_post_tool_use_envelope(),
             Some("Stop") => self.to_stop_envelope(),
+            // Phase 5.3 CONTRACT-02 — new top-level envelopes per ADR-V2-006 §2.3.
+            Some("SubagentStart") => self.to_subagent_start_envelope(),
+            Some("TaskCheckpoint") => self.to_task_checkpoint_envelope(),
             // Unknown event or None: emit full struct for backwards
             // compatibility. Hooks written pre-ADR continue to see
             // every field they were built against.
@@ -420,6 +423,87 @@ impl HookContext {
             "skill_id": self.skill_id.clone().unwrap_or_default(),
             "draft_memory_id": self.draft_memory_id.clone().unwrap_or_default(),
             "evidence_anchor_id": self.evidence_anchor_id.clone().unwrap_or_default(),
+            "created_at": self
+                .created_at
+                .clone()
+                .unwrap_or_else(current_iso8601_z),
+        })
+    }
+
+    /// Emit the Phase 5.3 CONTRACT-02 SubagentStart envelope.
+    ///
+    /// Top-level flat-struct payload per ADR-V2-006 §2.3 (no nested
+    /// `payload.*` keys). Carries `parent_session_id`, `subagent_id`,
+    /// `subagent_name`, `purpose`, `depth` — sourced from
+    /// `HookContext.metadata` for caller flexibility.
+    fn to_subagent_start_envelope(&self) -> serde_json::Value {
+        let m = &self.metadata;
+        let get_str = |k: &str| -> String {
+            m.get(k)
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default()
+        };
+        let depth = m
+            .get("depth")
+            .and_then(|v| v.as_u64())
+            .or_else(|| m.get("depth").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()))
+            .unwrap_or(0);
+        serde_json::json!({
+            "event": "SubagentStart",
+            "session_id": self.session_id.clone().unwrap_or_default(),
+            "skill_id": self.skill_id.clone().unwrap_or_default(),
+            "parent_session_id": get_str("parent_session_id"),
+            "subagent_id": get_str("subagent_id"),
+            "subagent_name": get_str("subagent_name"),
+            "purpose": get_str("purpose"),
+            "depth": depth,
+            "created_at": self
+                .created_at
+                .clone()
+                .unwrap_or_else(current_iso8601_z),
+        })
+    }
+
+    /// Emit the Phase 5.3 CONTRACT-02 TaskCheckpoint envelope.
+    ///
+    /// Top-level flat-struct payload per ADR-V2-006 §2.3 (no nested
+    /// `payload.*` keys). Carries `reason`, `rounds_completed`,
+    /// `total_tool_calls`, `completed_tools`, `snapshot_uri` — sourced
+    /// from `HookContext.metadata` for caller flexibility.
+    fn to_task_checkpoint_envelope(&self) -> serde_json::Value {
+        let m = &self.metadata;
+        let get_str = |k: &str| -> String {
+            m.get(k)
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default()
+        };
+        let get_u64 = |k: &str| -> u64 {
+            m.get(k)
+                .and_then(|v| v.as_u64())
+                .or_else(|| m.get(k).and_then(|v| v.as_str()).and_then(|s| s.parse().ok()))
+                .unwrap_or(0)
+        };
+        // completed_tools may be passed as a comma-joined string or a JSON array;
+        // accept both for caller convenience.
+        let completed_tools: Vec<String> = match m.get("completed_tools") {
+            Some(Value::Array(arr)) => arr
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+            Some(Value::String(csv)) if !csv.is_empty() => {
+                csv.split(',').map(|s| s.trim().to_string()).collect()
+            }
+            _ => Vec::new(),
+        };
+        serde_json::json!({
+            "event": "TaskCheckpoint",
+            "session_id": self.session_id.clone().unwrap_or_default(),
+            "skill_id": self.skill_id.clone().unwrap_or_default(),
+            "reason": get_str("reason"),
+            "rounds_completed": get_u64("rounds_completed"),
+            "total_tool_calls": get_u64("total_tool_calls"),
+            "completed_tools": completed_tools,
+            "snapshot_uri": get_str("snapshot_uri"),
             "created_at": self
                 .created_at
                 .clone()

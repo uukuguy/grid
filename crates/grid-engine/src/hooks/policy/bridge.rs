@@ -40,6 +40,8 @@ impl PolicyEngineBridge {
             HookPoint::Stop => "Stop",
             HookPoint::SubagentStop => "SubagentStop",
             HookPoint::UserPromptSubmit => "UserPromptSubmit",
+            HookPoint::SubagentStart => "SubagentStart",
+            HookPoint::TaskCheckpoint => "TaskCheckpoint",
         }
     }
 

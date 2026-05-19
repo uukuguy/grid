@@ -286,15 +286,69 @@ impl SubAgentRuntime {
     /// Asynchronous execution: fire-and-forget, returns session_id immediately.
     ///
     /// Consumes the runtime — cleanup is handled inside the spawned task.
+    ///
+    /// Phase 5.3 CONTRACT-02: fires `HookPoint::SubagentStart` at the very
+    /// top of the spawned task, before any LLM/tool work begins. If L3
+    /// governance returns `HookAction::Block` or `HookAction::Abort`, the
+    /// subagent is marked failed via `mgr.fail` and the agent loop is
+    /// never invoked. Firing inside the spawned task (rather than before
+    /// `tokio::spawn`) preserves `run_async`'s sync signature without
+    /// pulling in `futures::executor::block_on` — the L3 governance check
+    /// still completes before any agent_loop work, so the observable
+    /// semantics ("pre-spawn deny") are preserved.
     pub fn run_async(mut self) -> String {
         let id = self.id.clone();
         let mgr = self.manager.clone();
         let sa_id = id.clone();
         let task = self.task.clone();
+        let agent_type = self.agent_type.clone().unwrap_or_default();
 
         // Take ownership of config to move into the spawned task
         let config = self.config.take().expect("SubAgentRuntime config already consumed");
         tokio::spawn(async move {
+            // ── Phase 5.3 CONTRACT-02: SubagentStart hook fire ──
+            // L3 governance MAY deny pre-spawn (subagent security gate, per
+            // ADR-V2-006 §2.3 top-level envelope, Phase 5.3 CONTEXT.md D-05).
+            if let Some(ref hooks) = config.hook_registry {
+                use crate::hooks::HookAction;
+                let parent_session_id = config.session_id.to_string();
+                let purpose: String = task.chars().take(120).collect();
+                let mut ctx = crate::hooks::HookContext::new()
+                    .with_session(parent_session_id.clone())
+                    .with_event("SubagentStart")
+                    .with_skill_id(
+                        config
+                            .active_skill
+                            .as_ref()
+                            .map(|s| s.name.as_str())
+                            .unwrap_or(""),
+                    );
+                ctx.set_metadata(
+                    "parent_session_id",
+                    serde_json::Value::String(parent_session_id),
+                );
+                ctx.set_metadata("subagent_id", serde_json::Value::String(sa_id.clone()));
+                ctx.set_metadata(
+                    "subagent_name",
+                    serde_json::Value::String(agent_type.clone()),
+                );
+                ctx.set_metadata("purpose", serde_json::Value::String(purpose));
+                ctx.set_metadata(
+                    "depth",
+                    serde_json::Value::Number(serde_json::Number::from(1u64)),
+                );
+                match hooks
+                    .execute(crate::hooks::HookPoint::SubagentStart, &ctx)
+                    .await
+                {
+                    HookAction::Block(reason) | HookAction::Abort(reason) => {
+                        let _ = mgr.fail(&sa_id, reason).await;
+                        return;
+                    }
+                    _ => {} // Continue with spawn
+                }
+            }
+
             let messages = vec![ChatMessage::user(&task)];
             let mut stream = run_agent_loop(config, messages);
             let mut final_output = String::new();
