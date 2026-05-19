@@ -22,7 +22,8 @@ use async_trait::async_trait;
 
 use grid_types::{CompletionRequest, CompletionResponse};
 
-use super::openai::create_openai_provider;
+use super::openai::OpenAIProvider;
+use super::quirks::{Quirks, ReasoningContentField};
 use super::traits::{CompletionStream, Provider};
 
 /// Default base URL for DeepSeek's public API.
@@ -35,8 +36,16 @@ pub struct DeepSeekProvider {
 impl DeepSeekProvider {
     pub fn new(api_key: String, base_url: Option<String>) -> Self {
         let url = base_url.unwrap_or_else(|| DEEPSEEK_BASE_URL.to_string());
+        // ADR-V2-027 F1 quirk: DeepSeek emits reasoning_content as a top-level
+        // delta field (shared with qwen / minimax / siliconflow). Without this
+        // quirk the strict-OpenAI default would silently drop the thinking
+        // deltas. DeepSeek DOES emit [DONE] markers — no_done_marker stays false.
+        let quirks = Quirks {
+            reasoning_content_field: ReasoningContentField::MultiField,
+            ..Default::default()
+        };
         Self {
-            inner: Arc::from(create_openai_provider(api_key, Some(url))),
+            inner: Arc::new(OpenAIProvider::with_base_url_and_quirks(api_key, url, quirks)),
         }
     }
 

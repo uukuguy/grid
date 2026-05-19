@@ -15,6 +15,7 @@ use grid_types::{
     StopReason, StreamEvent, TokenUsage, ToolSpec,
 };
 
+use super::quirks::{Quirks, ReasoningContentField};
 use super::retry::ProviderError;
 use super::traits::{CompletionStream, Provider};
 
@@ -22,6 +23,10 @@ pub struct OpenAIProvider {
     api_key: String,
     base_url: String,
     client: Client,
+    /// ADR-V2-027 quirks config — gates non-standard OpenAI-compat behaviors.
+    /// Default = strict OpenAI baseline; vendor providers (e.g. Deepseek, Ling)
+    /// override via `with_base_url_and_quirks` to opt into specific quirks.
+    quirks: Quirks,
 }
 
 impl OpenAIProvider {
@@ -30,6 +35,16 @@ impl OpenAIProvider {
     }
 
     pub fn with_base_url(api_key: String, base_url: String) -> Self {
+        Self::with_base_url_and_quirks(api_key, base_url, Quirks::default())
+    }
+
+    /// Construct an OpenAI-compat provider with explicit ADR-V2-027 quirks.
+    ///
+    /// Used by vendor-specific provider wrappers (`DeepSeekProvider`,
+    /// `LingProvider`) to opt into known non-standard behaviors of their
+    /// respective endpoints. Direct OpenAI callers should use
+    /// [`Self::new`] or [`Self::with_base_url`] which default to strict.
+    pub fn with_base_url_and_quirks(api_key: String, base_url: String, quirks: Quirks) -> Self {
         // Normalize: strip trailing slash, then strip /v1 suffix if present
         // so we always store the root URL without /v1
         let base_url = base_url.trim_end_matches('/').to_string();
@@ -62,6 +77,7 @@ impl OpenAIProvider {
             api_key,
             base_url,
             client,
+            quirks,
         }
     }
 }
@@ -647,7 +663,7 @@ impl Provider for OpenAIProvider {
         }
 
         let byte_stream = resp.bytes_stream();
-        Ok(Box::pin(OpenAISseStream::new(byte_stream)))
+        Ok(Box::pin(OpenAISseStream::new(byte_stream, self.quirks.clone())))
     }
 }
 
@@ -669,6 +685,8 @@ struct OpenAISseStream<S> {
     /// Whether we've already sent MessageStop (avoid duplicates)
     stopped: bool,
     finished: bool,
+    /// ADR-V2-027 quirks config — gates reasoning_content scan + [DONE]-absence handling.
+    quirks: Quirks,
 }
 
 struct ToolCallAccum {
@@ -679,7 +697,7 @@ struct ToolCallAccum {
 }
 
 impl<S> OpenAISseStream<S> {
-    fn new(inner: S) -> Self {
+    fn new(inner: S, quirks: Quirks) -> Self {
         Self {
             inner,
             buffer: String::new(),
@@ -690,6 +708,7 @@ impl<S> OpenAISseStream<S> {
             started: false,
             stopped: false,
             finished: false,
+            quirks,
         }
     }
 }
@@ -827,18 +846,27 @@ impl<S> OpenAISseStream<S> {
                     }
                 }
 
-                // Reasoning/thinking content - support multiple field names
-                // across different providers: reasoning_content (OpenAI, DeepSeek),
-                // thinking (MiniMax, SiliconFlow, etc.), reasoning (some models)
-                // Also check for thinking in content array blocks (OpenRouter Claude)
-                let thinking_fields = ["reasoning_content", "thinking", "reasoning"];
-                for field in thinking_fields {
-                    if let Some(reasoning) = delta[field].as_str() {
-                        if !reasoning.is_empty() {
-                            events.push(Ok(StreamEvent::ThinkingDelta {
-                                text: reasoning.to_string(),
-                            }));
-                            break;
+                // Reasoning/thinking content — gated by ADR-V2-027 quirks
+                // (`reasoning_content_field`). Default = `None` (strict OpenAI:
+                // no reasoning_content scan); `MultiField` scans the historical
+                // 3-field set used by deepseek/qwen/minimax/siliconflow.
+                match self.quirks.reasoning_content_field {
+                    ReasoningContentField::None => {
+                        // Strict OpenAI — skip the reasoning_content scan.
+                    }
+                    ReasoningContentField::MultiField => {
+                        // reasoning_content (DeepSeek), thinking (MiniMax,
+                        // SiliconFlow, etc.), reasoning (some models)
+                        let thinking_fields = ["reasoning_content", "thinking", "reasoning"];
+                        for field in thinking_fields {
+                            if let Some(reasoning) = delta[field].as_str() {
+                                if !reasoning.is_empty() {
+                                    events.push(Ok(StreamEvent::ThinkingDelta {
+                                        text: reasoning.to_string(),
+                                    }));
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
