@@ -30,7 +30,7 @@
 - [ ] **Phase 5.0: Hook Envelope Baseline** — D120 (HookContext schema 补全) + D134 (shipped skill hooks key-path 改正), engine 侧 hook envelope baseline 健康度补丁解锁 5.3/5.4
 - [x] **Phase 5.1: Runtime Tier ADR + Contract Test Parametrization** — ADR-V2-025 Accepted (主力/样板/参考/冻结四档执行强度 × 7 runtime) + test_chunk_type_contract.py 7-runtime 参数化 (✅ 2026-05-02)
 - [ ] **Phase 5.2: CLI Hardening** — `grid` 命令树 / streaming output / error+exit code / TUI 拆分 / session lifecycle / `grid doctor` 6 项 grid-cli 硬化
-- [ ] **Phase 5.3: Contract Evolution** — ChunkType + Hook event 扩展 (升级 contract-v1.2.0 主力档强制), 顺带 D109 + D136 收尾
+- [x] **Phase 5.3: Contract Evolution** — ChunkType + Hook event 扩展 (升级 contract-v1.2.0 主力档强制), 顺带 D109 + D136 收尾. ✅ COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits, V2-026 + V2-027 Accepted, NEW-E4/F1/F2 closed)
 - [ ] **Phase 5.4: Server Hardening** — WebSocket / L1 gRPC 集成 / session+L2 持久化 / auth+audit / config hot-reload 5 项 grid-server 硬化, 顺带 D142+D143 + ADR-V2-019 → Accepted
 - [ ] **Phase 5.5: Interface ADR + Milestone Close** — ADR-V2-026 候选 (engine vs data/integration boundary contract) + NEW-E2 advisory sweep + milestone close cascade
 
@@ -146,7 +146,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.0 Hook Envelope Baseline | 0/1 | Not started | - |
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | 0/1 | Not started | - |
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
-| 5.3 Contract Evolution | 0/2 | Not started | - |
+| 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
 | 5.4 Server Hardening | 0/TBD | Not started | - |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | - |
 

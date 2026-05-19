@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: Phase 5.3 context gathered (CONTEXT + DISCUSSION-LOG)
-last_updated: "2026-05-19T16:20:14.215Z"
-last_activity: 2026-05-19 -- Phase 5.3 planning complete
+stopped_at: Phase 5.3 ✅ COMPLETE 2026-05-20 — 20 commits, all 4 SCs PASS, 5 deferred items closed; ready for /gsd-discuss-phase 5.4
+last_updated: "2026-05-20T22:00:00.000Z"
+last_activity: 2026-05-20 -- Phase 5.3 execution complete (Plan A 11/11 + Plan B 7/7 + VERIFICATION PASSED)
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 5
+  percent: 71
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 05.2 — cli-hardening
+**Current focus:** Phase 5.3 ✅ COMPLETE — next: Phase 5.4 (Server Hardening) discuss
 
 ## Current Position
 
-Phase: 05.2 (cli-hardening) — EXECUTING
-Plan: 1 of 1
-Next phase: 5.2 (CLI Hardening) — ready to plan
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 5.3 planning complete
+Phase: 05.3 (contract-evolution) — ✅ COMPLETE 2026-05-20
+Plan: 2 of 2 (both PASS)
+Next phase: 5.4 (Server Hardening) — ready to discuss
+Status: Phase 5.3 closed; awaiting `/gsd-discuss-phase 5.4`
+Last activity: 2026-05-20 -- Phase 5.3 verification PASSED
 
-Progress: [▓▓▓░░░░░░░] 33% (2/6 milestone phases complete — 5.0 + 5.1)
+Progress: [▓▓▓▓░░░░░░] 67% (4/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3)
 
 **Previous milestone closure**: Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 — 3/3 phases (4.0/4.1/4.2), ADR-V2-024 Accepted (双轴模型), 16 commits pushed to origin/main.
 
@@ -54,7 +54,7 @@ Progress: [▓▓▓░░░░░░░] 33% (2/6 milestone phases complete �
 | 5.0 Hook Envelope Baseline | **1/1 ✅** | COMPLETE 2026-05-19 (commit 584b1cf) | D134 GA1 resolved, stop scope test added, 11 tests PASS |
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | **1/1 ✅** | COMPLETE 2026-05-02 (5 task commits + SUMMARY + VERIFICATION) | 4/4 SC PASS, 4/4 must-haves PASS, NEW-D2 closed, ADR-V2-025 Accepted, CONTRACT-00 + WATCH-05 ✓ |
 | 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
-| 5.3 Contract Evolution | 0/TBD | Not started | Depends on 5.1 |
+| 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
 | 5.4 Server Hardening | 0/TBD | Not started | Depends on 5.3 |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | Depends on 5.4 |
 
