@@ -75,6 +75,9 @@ ALLOWED_WIRE = frozenset(
         "done",
         "error",
         "workflow_continuation",
+        # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+        "thinking_trace",
+        "attachment_ref",
     }
 )
 
