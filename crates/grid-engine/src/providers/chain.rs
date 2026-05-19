@@ -1,3 +1,14 @@
+//! LLM provider chain — failover-aware orchestration over multiple
+//! [`LlmInstance`] entries.
+//!
+//! Provider instantiation flows through [`super::create_provider`] (see
+//! `mod.rs`), which dispatches to the per-vendor factories:
+//! [`super::create_anthropic_provider`], [`super::create_openai_provider`],
+//! [`super::create_deepseek_provider`], and [`super::create_ling_provider`]
+//! (ADR-V2-027 F2 split for ant-ling). New vendor factories register by
+//! adding a `match` arm in `mod.rs::create_provider` — chain.rs does NOT
+//! enumerate them directly so this list stays single-sourced.
+
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -597,6 +608,22 @@ impl crate::providers::Provider for ChainProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // ADR-V2-027 F2 split: confirm the chain dispatch can route to LingProvider.
+    use super::super::create_ling_provider;
+
+    #[test]
+    fn test_chain_dispatch_routes_to_ling() {
+        // Direct factory call — proves the factory link is intact for chain users.
+        let p = create_ling_provider("test-key".to_string(), None);
+        assert_eq!(p.id(), "ling");
+        // And the chain-aware super::create_provider("ling", ...) path:
+        let p2 = super::super::create_provider(
+            "ling",
+            "test-key".to_string(),
+            None,
+        );
+        assert_eq!(p2.id(), "ling");
+    }
 
     #[tokio::test]
     async fn test_add_and_list_instances() {
