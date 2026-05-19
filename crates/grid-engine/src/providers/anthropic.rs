@@ -30,11 +30,21 @@ impl AnthropicProvider {
     }
 
     pub fn with_base_url(api_key: String, base_url: String) -> Self {
-        let client = Client::builder()
+        // Mirrors OpenAIProvider: bypass system proxy for localhost or when
+        // user sets ANTHROPIC_NO_PROXY=1 / GRID_LLM_NO_PROXY=1. Some local
+        // proxies (e.g. macOS Clash) fail on large streaming POSTs.
+        let is_local = base_url.contains("localhost") || base_url.contains("127.0.0.1");
+        let no_proxy_env = std::env::var("ANTHROPIC_NO_PROXY")
+            .or_else(|_| std::env::var("GRID_LLM_NO_PROXY"))
+            .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes"))
+            .unwrap_or(false);
+        let mut builder = Client::builder()
             .timeout(std::time::Duration::from_secs(120))
-            .connect_timeout(std::time::Duration::from_secs(10))
-            .build()
-            .expect("failed to build HTTP client");
+            .connect_timeout(std::time::Duration::from_secs(10));
+        if is_local || no_proxy_env {
+            builder = builder.no_proxy();
+        }
+        let client = builder.build().expect("failed to build HTTP client");
 
         Self {
             api_key,

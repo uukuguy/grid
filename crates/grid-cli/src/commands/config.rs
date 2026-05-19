@@ -241,7 +241,7 @@ async fn show_config(state: &AppState) -> Result<()> {
         },
         ConfigEntry {
             key: "LLM_PROVIDER".to_string(),
-            value: std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".to_string()),
+            value: std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".to_string()),
             source: "env/default".to_string(),
         },
         ConfigEntry {
@@ -270,7 +270,7 @@ async fn validate_config(state: &AppState) -> Result<()> {
     let mut checks = Vec::new();
 
     // Check provider key
-    let provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".to_string());
+    let provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".to_string());
     let key_var = match provider.as_str() {
         "openai" => "OPENAI_API_KEY",
         _ => "ANTHROPIC_API_KEY",
@@ -474,13 +474,13 @@ mod tests {
         let out = ConfigShowOutput {
             entries: vec![ConfigEntry {
                 key: "LLM_PROVIDER".to_string(),
-                value: "anthropic".to_string(),
+                value: "openai".to_string(),
                 source: "env".to_string(),
             }],
         };
         let text = out.to_text();
         assert!(text.contains("LLM_PROVIDER"));
-        assert!(text.contains("anthropic"));
+        assert!(text.contains("openai"));
     }
 
     #[test]

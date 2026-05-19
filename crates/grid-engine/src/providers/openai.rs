@@ -39,13 +39,21 @@ impl OpenAIProvider {
             base_url
         };
 
-        // Bypass system proxy for local endpoints (localhost, 127.0.0.1)
-        // to avoid 502 errors from proxy servers that mishandle local traffic.
+        // Bypass system proxy when:
+        //   1. local endpoints (localhost / 127.0.0.1) — local proxies mishandle local traffic;
+        //   2. user explicitly requests via OPENAI_NO_PROXY=1 (or GRID_LLM_NO_PROXY=1) — some
+        //      proxies (e.g. macOS Clash) fail on large streaming POSTs with tool schemas,
+        //      surfacing as "error sending request for url" at reqwest layer.
+        // Default proxy behavior is preserved otherwise so OpenRouter / Together etc. keep working.
         let is_local = base_url.contains("localhost") || base_url.contains("127.0.0.1");
+        let no_proxy_env = std::env::var("OPENAI_NO_PROXY")
+            .or_else(|_| std::env::var("GRID_LLM_NO_PROXY"))
+            .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes"))
+            .unwrap_or(false);
         let mut builder = Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .connect_timeout(std::time::Duration::from_secs(10));
-        if is_local {
+        if is_local || no_proxy_env {
             builder = builder.no_proxy();
         }
         let client = builder.build().expect("failed to build HTTP client");
@@ -977,6 +985,38 @@ where
                         let parsed = this.parse_sse_events();
                         this.pending_events.extend(parsed);
                     }
+
+                    // Some OpenAI-compat providers (e.g. ant-ling / Ling-2.6) close
+                    // the SSE stream WITHOUT emitting the trailing `data: [DONE]`
+                    // marker. Without that marker the parser never flushes pending
+                    // tool_calls or emits MessageStop, so the agent harness hangs
+                    // on stream.next().await indefinitely. Synthesize the missing
+                    // events here from accumulator state.
+                    if !this.stopped {
+                        let has_pending_tools = !this.tool_calls.is_empty();
+                        let pending: Vec<ToolCallAccum> = this.tool_calls.drain(..).collect();
+                        for tc in pending {
+                            let input: Value = serde_json::from_str(&tc.arguments)
+                                .unwrap_or(Value::Object(serde_json::Map::new()));
+                            this.pending_events.push_back(Ok(StreamEvent::ToolUseComplete {
+                                index: tc.index,
+                                id: tc.id,
+                                name: tc.name,
+                                input,
+                            }));
+                        }
+                        let stop_reason = if has_pending_tools {
+                            StopReason::ToolUse
+                        } else {
+                            StopReason::EndTurn
+                        };
+                        this.pending_events.push_back(Ok(StreamEvent::MessageStop {
+                            stop_reason,
+                            usage: this.final_usage.clone().unwrap_or_default(),
+                        }));
+                        this.stopped = true;
+                    }
+
                     if let Some(event) = this.pending_events.pop_front() {
                         return Poll::Ready(Some(event));
                     }

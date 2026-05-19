@@ -200,9 +200,9 @@ cli-ask:
 # TUI 全屏模式
 studio-tui: build-studio
 	@if [ -f target/debug/grid-studio ]; then \
-		target/debug/grid-studio --project $(TEST_PROJECT) $(CLI_ARGS); \
+		target/debug/grid-studio --project $(TEST_PROJECT) --verbose $(CLI_ARGS); \
 	else \
-		cargo run --quiet -p grid-cli --features studio --bin grid-studio -- --project $(TEST_PROJECT) $(CLI_ARGS); \
+		cargo run --quiet -p grid-cli --features studio --bin grid-studio -- --project $(TEST_PROJECT) --verbose $(CLI_ARGS); \
 	fi
 
 # 启动 Web Dashboard

@@ -16,7 +16,7 @@ pub struct ProviderConfig {
 
 impl Default for ProviderConfig {
     fn default() -> Self {
-        let name = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".to_string());
+        let name = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".to_string());
         let (api_key, base_url, model) = match name.as_str() {
             "openai" => (
                 std::env::var("OPENAI_API_KEY").ok(),

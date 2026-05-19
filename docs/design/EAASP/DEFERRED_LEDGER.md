@@ -453,6 +453,30 @@
 
 WATCH-05 (REQUIREMENTS.md Active 项) 与 NEW-D2 一一对应，关闭后由 Phase 5.1 SUMMARY.md 引用本行 + ROADMAP.md Coverage 表反向回填。
 
+### NEW-F1..F4: LLM Provider 体系治理（2026-05-19 引入 → Phase 5.3 处理）
+
+> **NEW-F 命名空间** (F for "framework"): LLM provider 体系结构治理项，2026-05-19 在 deepseek-chat / Ling-2.6-1T 接入暴露的多个非标准 OpenAI-compat 行为基础上识别。F1+F2 共同构成 provider 子系统的 **职责切分原则**（统一 vs 拆分）；F3+F4 是配套基础设施（fail-fast 与可观察性）。挂到 Phase 5.3 Contract Evolution（与 NEW-E4 ExecutionMode/ADR-V2-026 同 phase）。
+>
+> **引入动机** (按发现顺序)：
+> - Ling-2.6-1T streaming 不发 `data: [DONE]` → parser 卡死，agent 无响应 (2026-05-19 hot fix in `f1xxxx`)
+> - deepseek-reasoner 历史回传强制要求 `reasoning_content` 字段 → 之前 400 error (2026-05-15 历史)
+> - `reasoning_content` delta 字段在 deepseek/qwen/minimax/siliconflow 多家共享 (`openai.rs:834` 已 hard-code 3 个字段名扫描)
+> - `LLM_PROVIDER` / `OPENAI_NO_PROXY` / TUI `RUST_LOG` 多处 silent fallback 让今日单 session 调试耗时数小时（stale `RUST_LOG=octo_*` 静默吞日志、stale binary 静默用旧 default、Clash 代理大 body 失败无诊断）
+
+| ID | 标题 | 详情 | 优先级 | 去向 |
+|----|------|------|------|------|
+| **NEW-F1** | OpenAI-compat 共享 quirks 统一处理层 | 在 `OpenAIProvider` 内建立 `Quirks` 抽象（如 `no_done_marker`/`reasoning_content_field`/`null_tool_id_continuation`），按 base_url host 或显式配置选 quirk set。**判定标准：≥2 个真实 provider 出现同一 quirk 才进 OpenAIProvider 统一处理**。当前已有共享点：`reasoning_content` (deepseek/qwen/minimax/siliconflow)、`[DONE]` 缺失 (ant-ling, 待观察是否还有)。 | 🟠 P1 | Phase 5.3 |
+| **NEW-F2** | Provider-specific 怪癖 → 拆独立 provider | 某 quirk 只 1 家有 → 不进 OpenAIProvider，开新 `XxxProvider` (已有先例: `DeepseekProvider`)。**判定门槛**：行为差异≥3 处 或 破坏 common path 复杂度。例：deepseek-reasoner 的 `reasoning_content` 强制回传 history（独有约束）应在专属 provider 内 enforce。 | 🟠 P1 | Phase 5.3 |
+| **NEW-F3** | 移除关键基础设施 silent fallback | `LLM_PROVIDER` / `OPENAI_NO_PROXY` / TUI logger / `RUST_LOG` 配置错误一律 fail-fast 退出 + actionable error。**反 pattern 列表**：`unwrap_or_else(_default)`、`fallback to stderr`、`expect("...")` 静默 panic 但 ratatui 吞掉。**正确 pattern**：明确 error message 指明问题 + 修复路径（"set X=... in .env or shell"）。 | 🟠 P1 | Phase 5.3 |
+| **NEW-F4** | TUI log 路径与诊断设施 ADR | TUI 缺省 log → `./logs/tui.log` (in repo, easy `tail -f`)，`GRID_TUI_LOG=<path>` 显式覆盖，旧路径 `~/Library/Application Support/grid/tui.log` 弃用。已 hot fix in `studio_main.rs:resolve_tui_log_path` (2026-05-19)，需正式记 ADR + 删除 dirs::data_local_dir() 旧路径。 | 🟡 P2 | Phase 5.3 |
+
+**实施约束** (来自 user feedback 2026-05-19)：
+1. F1 与 F2 是**对偶判定**——同一 quirk 落到 F1（统一）还是 F2（独立 provider）由 "共享数" + "差异复杂度" 决定，不能两边都不放。
+2. F3 优先级最高（debug 体验由它决定）。F1/F2 次之（架构整洁）。F4 最低（已 hot fix）。
+3. 这 4 条共同进 Phase 5.3 的好处：ADR-V2-026 (supersede V2-016, ExecutionMode) + ADR-V2-027 (OpenAI-compat quirks) + ADR-V2-028 (config-strictness) 可以同一 phase 一起记录，避免散落。
+
+**关联**：NEW-E4 (ExecutionMode RFC, Phase 5.3 现已挂) + WATCH-01 (D109) + WATCH-03 (D136) 共同构成 Phase 5.3 的工作面。本组 F1-F4 进 Phase 5.3 后总工作面约 7 项。plan-phase 评估是否需要 parallel plans。
+
 ## 附录 A: Legacy-Octo D 编号（pre-EAASP, 独立命名空间）
 
 以下文件各自维护独立的 D 编号空间，与 EAASP 全局空间无关。仅供历史查询：

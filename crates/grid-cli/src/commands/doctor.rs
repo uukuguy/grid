@@ -164,10 +164,10 @@ fn check_database(db_path: &Path) -> CheckResult {
 }
 
 fn check_provider() -> CheckResult {
-    let provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".to_string());
+    let provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".to_string());
     let key_var = match provider.as_str() {
-        "openai" => "OPENAI_API_KEY",
-        _ => "ANTHROPIC_API_KEY",
+        "anthropic" => "ANTHROPIC_API_KEY",
+        _ => "OPENAI_API_KEY",
     };
 
     if std::env::var(key_var).is_ok() {

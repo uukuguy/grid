@@ -40,6 +40,26 @@ struct StudioCli {
     theme: String,
 }
 
+/// Resolve the TUI log file path. Honors `GRID_TUI_LOG` for explicit override,
+/// otherwise writes to `./logs/tui.log` in the current working directory (close
+/// to the repo for fast `tail -f` access during development). Falls back to
+/// `dirs::data_local_dir()/grid/tui.log` if cwd is unwritable.
+fn resolve_tui_log_path() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("GRID_TUI_LOG") {
+        return std::path::PathBuf::from(p);
+    }
+    let cwd_logs = std::env::current_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join("logs");
+    if std::fs::create_dir_all(&cwd_logs).is_ok() {
+        return cwd_logs.join("tui.log");
+    }
+    dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("grid")
+        .join("tui.log")
+}
+
 fn init_logging_tui(verbose: bool) {
     let filter = if verbose {
         EnvFilter::try_from_default_env()
@@ -48,25 +68,45 @@ fn init_logging_tui(verbose: bool) {
         EnvFilter::new("grid_cli=warn,grid_engine=warn")
     };
 
-    // TUI mode: redirect tracing to log file to avoid corrupting ratatui screen
-    let log_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("grid");
-    let _ = std::fs::create_dir_all(&log_dir);
+    let log_path = resolve_tui_log_path();
+    // Print resolved path BEFORE entering alternate-screen so the user always
+    // knows where to look. If file open later fails, we fall back to stderr.
+    eprintln!("[grid-studio] log: {}", log_path.display());
+
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
     let log_file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(log_dir.join("tui.log"))
-        .expect("Failed to open TUI log file");
-    fmt()
+        .open(&log_path);
+
+    let builder = fmt()
         .with_env_filter(filter)
         .with_target(false)
         .with_thread_ids(false)
         .with_file(true)
         .with_line_number(true)
-        .with_ansi(false)
-        .with_writer(std::sync::Mutex::new(log_file))
-        .init();
+        .with_ansi(false);
+
+    match log_file {
+        Ok(file) => {
+            builder
+                .with_writer(std::sync::Mutex::new(file))
+                .init();
+        }
+        Err(e) => {
+            // Don't silently swallow — fall back to stderr (will be visible
+            // before TUI enters alternate screen, then get drowned by ratatui
+            // afterwards, but at least startup errors are surfaced).
+            eprintln!(
+                "[grid-studio] WARNING: failed to open {}: {} — logging to stderr",
+                log_path.display(),
+                e
+            );
+            builder.init();
+        }
+    }
 }
 
 fn init_logging_dashboard(verbose: bool) {
@@ -98,6 +138,15 @@ async fn main() -> Result<()> {
     } else {
         init_logging_tui(cli.verbose);
     }
+
+    // Sanity check — write one event right after init so we can verify the
+    // subscriber + writer are actually wired. If the log file has 0 bytes
+    // after this point, logger init is silently broken.
+    tracing::info!(
+        verbose = cli.verbose,
+        project = ?cli.project,
+        "grid-studio: logger initialized"
+    );
 
     let grid_root = if let Some(ref project_path) = cli.project {
         grid_engine::GridRoot::with_project_dir(project_path)?
