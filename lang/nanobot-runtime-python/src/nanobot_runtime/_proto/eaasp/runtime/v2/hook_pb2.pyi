@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class HookEvent(_message.Message):
-    __slots__ = ("session_id", "request_id", "event_type", "timestamp", "pre_tool_call", "post_tool_result", "stop", "session_start", "session_end", "pre_policy_deploy", "pre_approval", "event_received", "pre_compact")
+    __slots__ = ("session_id", "request_id", "event_type", "timestamp", "pre_tool_call", "post_tool_result", "stop", "session_start", "session_end", "pre_policy_deploy", "pre_approval", "event_received", "pre_compact", "subagent_start", "task_checkpoint")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -23,6 +23,8 @@ class HookEvent(_message.Message):
     PRE_APPROVAL_FIELD_NUMBER: _ClassVar[int]
     EVENT_RECEIVED_FIELD_NUMBER: _ClassVar[int]
     PRE_COMPACT_FIELD_NUMBER: _ClassVar[int]
+    SUBAGENT_START_FIELD_NUMBER: _ClassVar[int]
+    TASK_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     request_id: str
     event_type: _runtime_pb2.HookEventType
@@ -36,7 +38,9 @@ class HookEvent(_message.Message):
     pre_approval: PreApprovalHook
     event_received: EventReceivedHook
     pre_compact: PreCompactHook
-    def __init__(self, session_id: _Optional[str] = ..., request_id: _Optional[str] = ..., event_type: _Optional[_Union[_runtime_pb2.HookEventType, str, int]] = ..., timestamp: _Optional[str] = ..., pre_tool_call: _Optional[_Union[PreToolCallHook, _Mapping]] = ..., post_tool_result: _Optional[_Union[PostToolResultHook, _Mapping]] = ..., stop: _Optional[_Union[StopHook, _Mapping]] = ..., session_start: _Optional[_Union[SessionStartHook, _Mapping]] = ..., session_end: _Optional[_Union[SessionEndHook, _Mapping]] = ..., pre_policy_deploy: _Optional[_Union[PrePolicyDeployHook, _Mapping]] = ..., pre_approval: _Optional[_Union[PreApprovalHook, _Mapping]] = ..., event_received: _Optional[_Union[EventReceivedHook, _Mapping]] = ..., pre_compact: _Optional[_Union[PreCompactHook, _Mapping]] = ...) -> None: ...
+    subagent_start: SubagentStartHook
+    task_checkpoint: TaskCheckpointHook
+    def __init__(self, session_id: _Optional[str] = ..., request_id: _Optional[str] = ..., event_type: _Optional[_Union[_runtime_pb2.HookEventType, str, int]] = ..., timestamp: _Optional[str] = ..., pre_tool_call: _Optional[_Union[PreToolCallHook, _Mapping]] = ..., post_tool_result: _Optional[_Union[PostToolResultHook, _Mapping]] = ..., stop: _Optional[_Union[StopHook, _Mapping]] = ..., session_start: _Optional[_Union[SessionStartHook, _Mapping]] = ..., session_end: _Optional[_Union[SessionEndHook, _Mapping]] = ..., pre_policy_deploy: _Optional[_Union[PrePolicyDeployHook, _Mapping]] = ..., pre_approval: _Optional[_Union[PreApprovalHook, _Mapping]] = ..., event_received: _Optional[_Union[EventReceivedHook, _Mapping]] = ..., pre_compact: _Optional[_Union[PreCompactHook, _Mapping]] = ..., subagent_start: _Optional[_Union[SubagentStartHook, _Mapping]] = ..., task_checkpoint: _Optional[_Union[TaskCheckpointHook, _Mapping]] = ...) -> None: ...
 
 class PreToolCallHook(_message.Message):
     __slots__ = ("tool_name", "tool_id", "input_json")
@@ -123,6 +127,34 @@ class PreCompactHook(_message.Message):
     reuses_prior_summary: bool
     prior_summary_count: int
     def __init__(self, trigger: _Optional[str] = ..., estimated_tokens: _Optional[int] = ..., context_window: _Optional[int] = ..., usage_pct: _Optional[int] = ..., messages_to_compact: _Optional[int] = ..., messages_total: _Optional[int] = ..., reuses_prior_summary: bool = ..., prior_summary_count: _Optional[int] = ...) -> None: ...
+
+class SubagentStartHook(_message.Message):
+    __slots__ = ("parent_session_id", "subagent_id", "subagent_name", "purpose", "depth")
+    PARENT_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SUBAGENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SUBAGENT_NAME_FIELD_NUMBER: _ClassVar[int]
+    PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    DEPTH_FIELD_NUMBER: _ClassVar[int]
+    parent_session_id: str
+    subagent_id: str
+    subagent_name: str
+    purpose: str
+    depth: int
+    def __init__(self, parent_session_id: _Optional[str] = ..., subagent_id: _Optional[str] = ..., subagent_name: _Optional[str] = ..., purpose: _Optional[str] = ..., depth: _Optional[int] = ...) -> None: ...
+
+class TaskCheckpointHook(_message.Message):
+    __slots__ = ("reason", "rounds_completed", "total_tool_calls", "completed_tools", "snapshot_uri")
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ROUNDS_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_TOOLS_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_URI_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    rounds_completed: int
+    total_tool_calls: int
+    completed_tools: _containers.RepeatedScalarFieldContainer[str]
+    snapshot_uri: str
+    def __init__(self, reason: _Optional[str] = ..., rounds_completed: _Optional[int] = ..., total_tool_calls: _Optional[int] = ..., completed_tools: _Optional[_Iterable[str]] = ..., snapshot_uri: _Optional[str] = ...) -> None: ...
 
 class HookResponse(_message.Message):
     __slots__ = ("request_id", "decision", "policy_update", "error")

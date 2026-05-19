@@ -137,6 +137,8 @@ enum ChunkType {
   CHUNK_TYPE_DONE                  = 5;   // 本轮结束，content 可为最终汇总文本
   CHUNK_TYPE_ERROR                 = 6;   // 运行期错误，error 字段必填
   CHUNK_TYPE_WORKFLOW_CONTINUATION = 7;   // D87 observability：workflow 继续执行事件，content = "attempt N/M"
+  CHUNK_TYPE_THINKING_TRACE        = 8;   // end-of-turn structured reasoning summary (Phase 5.3 D-02; ADR-V2-021 amendment)
+  CHUNK_TYPE_ATTACHMENT_REF        = 9;   // opaque blob URI envelope (Phase 5.3 D-03; backend deferred)
 }
 
 message Empty {}

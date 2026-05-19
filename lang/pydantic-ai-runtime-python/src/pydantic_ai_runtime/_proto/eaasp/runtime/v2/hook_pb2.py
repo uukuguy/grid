@@ -26,7 +26,7 @@ from pydantic_ai_runtime._proto.eaasp.runtime.v2 import common_pb2 as eaasp_dot_
 from pydantic_ai_runtime._proto.eaasp.runtime.v2 import runtime_pb2 as eaasp_dot_runtime_dot_v2_dot_runtime__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x65\x61\x61sp/runtime/v2/hook.proto\x12\x10\x65\x61\x61sp.runtime.v2\x1a\x1d\x65\x61\x61sp/runtime/v2/common.proto\x1a\x1e\x65\x61\x61sp/runtime/v2/runtime.proto\"\x9b\x05\n\tHookEvent\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x12\n\nrequest_id\x18\x02 \x01(\t\x12\x33\n\nevent_type\x18\x03 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12:\n\rpre_tool_call\x18\n \x01(\x0b\x32!.eaasp.runtime.v2.PreToolCallHookH\x00\x12@\n\x10post_tool_result\x18\x0b \x01(\x0b\x32$.eaasp.runtime.v2.PostToolResultHookH\x00\x12*\n\x04stop\x18\x0c \x01(\x0b\x32\x1a.eaasp.runtime.v2.StopHookH\x00\x12;\n\rsession_start\x18\r \x01(\x0b\x32\".eaasp.runtime.v2.SessionStartHookH\x00\x12\x37\n\x0bsession_end\x18\x0e \x01(\x0b\x32 .eaasp.runtime.v2.SessionEndHookH\x00\x12\x42\n\x11pre_policy_deploy\x18\x0f \x01(\x0b\x32%.eaasp.runtime.v2.PrePolicyDeployHookH\x00\x12\x39\n\x0cpre_approval\x18\x10 \x01(\x0b\x32!.eaasp.runtime.v2.PreApprovalHookH\x00\x12=\n\x0e\x65vent_received\x18\x11 \x01(\x0b\x32#.eaasp.runtime.v2.EventReceivedHookH\x00\x12\x37\n\x0bpre_compact\x18\x12 \x01(\x0b\x32 .eaasp.runtime.v2.PreCompactHookH\x00\x42\x07\n\x05\x65vent\"I\n\x0fPreToolCallHook\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07tool_id\x18\x02 \x01(\t\x12\x12\n\ninput_json\x18\x03 \x01(\t\"Z\n\x12PostToolResultHook\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07tool_id\x18\x02 \x01(\t\x12\x0e\n\x06output\x18\x03 \x01(\t\x12\x10\n\x08is_error\x18\x04 \x01(\x08\"\x1a\n\x08StopHook\x12\x0e\n\x06reason\x18\x01 \x01(\t\"H\n\x10SessionStartHook\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x11\n\tuser_role\x18\x02 \x01(\t\x12\x10\n\x08org_unit\x18\x03 \x01(\t\" \n\x0eSessionEndHook\x12\x0e\n\x06reason\x18\x01 \x01(\t\"@\n\x13PrePolicyDeployHook\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x16\n\x0epolicy_version\x18\x02 \x01(\t\"<\n\x0fPreApprovalHook\x12\x13\n\x0b\x61pproval_id\x18\x01 \x01(\t\x12\x14\n\x0cresource_ref\x18\x02 \x01(\t\"B\n\x11\x45ventReceivedHook\x12-\n\x05\x65vent\x18\x01 \x01(\x0b\x32\x1e.eaasp.runtime.v2.EventContext\"\xd6\x01\n\x0ePreCompactHook\x12\x0f\n\x07trigger\x18\x01 \x01(\t\x12\x18\n\x10\x65stimated_tokens\x18\x02 \x01(\x04\x12\x16\n\x0e\x63ontext_window\x18\x03 \x01(\x04\x12\x11\n\tusage_pct\x18\x04 \x01(\r\x12\x1b\n\x13messages_to_compact\x18\x05 \x01(\r\x12\x16\n\x0emessages_total\x18\x06 \x01(\r\x12\x1c\n\x14reuses_prior_summary\x18\x07 \x01(\x08\x12\x1b\n\x13prior_summary_count\x18\x08 \x01(\r\"\xcd\x01\n\x0cHookResponse\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x32\n\x08\x64\x65\x63ision\x18\n \x01(\x0b\x32\x1e.eaasp.runtime.v2.HookDecisionH\x00\x12\x37\n\rpolicy_update\x18\x0b \x01(\x0b\x32\x1e.eaasp.runtime.v2.PolicyUpdateH\x00\x12\x30\n\x05\x65rror\x18\x0c \x01(\x0b\x32\x1f.eaasp.runtime.v2.ErrorResponseH\x00\x42\n\n\x08response\"`\n\x0cHookDecision\x12\x10\n\x08\x64\x65\x63ision\x18\x01 \x01(\t\x12\x0e\n\x06reason\x18\x02 \x01(\t\x12\x1a\n\x12mutated_input_json\x18\x03 \x01(\t\x12\x12\n\nprecedence\x18\x04 \x01(\x05\"Y\n\x0cPolicyUpdate\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x13\n\x0bpolicy_json\x18\x02 \x01(\t\x12\x0e\n\x06\x61\x63tion\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\".\n\rErrorResponse\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\xb8\x01\n\x13HookEvaluateRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x33\n\nevent_type\x18\x02 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x11\n\ttool_name\x18\x03 \x01(\t\x12\x0f\n\x07tool_id\x18\x04 \x01(\t\x12\x12\n\ninput_json\x18\x05 \x01(\t\x12\x0e\n\x06output\x18\x06 \x01(\t\x12\x10\n\x08is_error\x18\x07 \x01(\x08\"^\n\x12HookTelemetryBatch\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x34\n\x06\x65vents\x18\x02 \x03(\x0b\x32$.eaasp.runtime.v2.HookTelemetryEvent\"\x93\x01\n\x12HookTelemetryEvent\x12\x0f\n\x07hook_id\x18\x01 \x01(\t\x12\x33\n\nevent_type\x18\x02 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x10\n\x08\x64\x65\x63ision\x18\x03 \x01(\t\x12\x12\n\nlatency_us\x18\x04 \x01(\x03\x12\x11\n\ttimestamp\x18\x05 \x01(\t\"2\n\x0cTelemetryAck\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\r\x12\x10\n\x08rejected\x18\x02 \x01(\r\"*\n\x14PolicySummaryRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\"W\n\rPolicySummary\x12\x16\n\x0etotal_policies\x18\x01 \x01(\r\x12.\n\x08policies\x18\x02 \x03(\x0b\x32\x1c.eaasp.runtime.v2.PolicyInfo\"\x95\x01\n\nPolicyInfo\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05scope\x18\x03 \x01(\t\x12\x32\n\thook_type\x18\x04 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x0f\n\x07\x65nabled\x18\x05 \x01(\x08\x12\x12\n\nprecedence\x18\x06 \x01(\x05\x32\xf0\x02\n\x11HookBridgeService\x12N\n\x0bStreamHooks\x12\x1b.eaasp.runtime.v2.HookEvent\x1a\x1e.eaasp.runtime.v2.HookResponse(\x01\x30\x01\x12U\n\x0c\x45valuateHook\x12%.eaasp.runtime.v2.HookEvaluateRequest\x1a\x1e.eaasp.runtime.v2.HookDecision\x12W\n\x0fReportTelemetry\x12$.eaasp.runtime.v2.HookTelemetryBatch\x1a\x1e.eaasp.runtime.v2.TelemetryAck\x12[\n\x10GetPolicySummary\x12&.eaasp.runtime.v2.PolicySummaryRequest\x1a\x1f.eaasp.runtime.v2.PolicySummaryb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x65\x61\x61sp/runtime/v2/hook.proto\x12\x10\x65\x61\x61sp.runtime.v2\x1a\x1d\x65\x61\x61sp/runtime/v2/common.proto\x1a\x1e\x65\x61\x61sp/runtime/v2/runtime.proto\"\x9b\x06\n\tHookEvent\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x12\n\nrequest_id\x18\x02 \x01(\t\x12\x33\n\nevent_type\x18\x03 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12:\n\rpre_tool_call\x18\n \x01(\x0b\x32!.eaasp.runtime.v2.PreToolCallHookH\x00\x12@\n\x10post_tool_result\x18\x0b \x01(\x0b\x32$.eaasp.runtime.v2.PostToolResultHookH\x00\x12*\n\x04stop\x18\x0c \x01(\x0b\x32\x1a.eaasp.runtime.v2.StopHookH\x00\x12;\n\rsession_start\x18\r \x01(\x0b\x32\".eaasp.runtime.v2.SessionStartHookH\x00\x12\x37\n\x0bsession_end\x18\x0e \x01(\x0b\x32 .eaasp.runtime.v2.SessionEndHookH\x00\x12\x42\n\x11pre_policy_deploy\x18\x0f \x01(\x0b\x32%.eaasp.runtime.v2.PrePolicyDeployHookH\x00\x12\x39\n\x0cpre_approval\x18\x10 \x01(\x0b\x32!.eaasp.runtime.v2.PreApprovalHookH\x00\x12=\n\x0e\x65vent_received\x18\x11 \x01(\x0b\x32#.eaasp.runtime.v2.EventReceivedHookH\x00\x12\x37\n\x0bpre_compact\x18\x12 \x01(\x0b\x32 .eaasp.runtime.v2.PreCompactHookH\x00\x12=\n\x0esubagent_start\x18\x13 \x01(\x0b\x32#.eaasp.runtime.v2.SubagentStartHookH\x00\x12?\n\x0ftask_checkpoint\x18\x14 \x01(\x0b\x32$.eaasp.runtime.v2.TaskCheckpointHookH\x00\x42\x07\n\x05\x65vent\"I\n\x0fPreToolCallHook\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07tool_id\x18\x02 \x01(\t\x12\x12\n\ninput_json\x18\x03 \x01(\t\"Z\n\x12PostToolResultHook\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07tool_id\x18\x02 \x01(\t\x12\x0e\n\x06output\x18\x03 \x01(\t\x12\x10\n\x08is_error\x18\x04 \x01(\x08\"\x1a\n\x08StopHook\x12\x0e\n\x06reason\x18\x01 \x01(\t\"H\n\x10SessionStartHook\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x11\n\tuser_role\x18\x02 \x01(\t\x12\x10\n\x08org_unit\x18\x03 \x01(\t\" \n\x0eSessionEndHook\x12\x0e\n\x06reason\x18\x01 \x01(\t\"@\n\x13PrePolicyDeployHook\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x16\n\x0epolicy_version\x18\x02 \x01(\t\"<\n\x0fPreApprovalHook\x12\x13\n\x0b\x61pproval_id\x18\x01 \x01(\t\x12\x14\n\x0cresource_ref\x18\x02 \x01(\t\"B\n\x11\x45ventReceivedHook\x12-\n\x05\x65vent\x18\x01 \x01(\x0b\x32\x1e.eaasp.runtime.v2.EventContext\"\xd6\x01\n\x0ePreCompactHook\x12\x0f\n\x07trigger\x18\x01 \x01(\t\x12\x18\n\x10\x65stimated_tokens\x18\x02 \x01(\x04\x12\x16\n\x0e\x63ontext_window\x18\x03 \x01(\x04\x12\x11\n\tusage_pct\x18\x04 \x01(\r\x12\x1b\n\x13messages_to_compact\x18\x05 \x01(\r\x12\x16\n\x0emessages_total\x18\x06 \x01(\r\x12\x1c\n\x14reuses_prior_summary\x18\x07 \x01(\x08\x12\x1b\n\x13prior_summary_count\x18\x08 \x01(\r\"z\n\x11SubagentStartHook\x12\x19\n\x11parent_session_id\x18\x01 \x01(\t\x12\x13\n\x0bsubagent_id\x18\x02 \x01(\t\x12\x15\n\rsubagent_name\x18\x03 \x01(\t\x12\x0f\n\x07purpose\x18\x04 \x01(\t\x12\r\n\x05\x64\x65pth\x18\x05 \x01(\r\"\x87\x01\n\x12TaskCheckpointHook\x12\x0e\n\x06reason\x18\x01 \x01(\t\x12\x18\n\x10rounds_completed\x18\x02 \x01(\r\x12\x18\n\x10total_tool_calls\x18\x03 \x01(\r\x12\x17\n\x0f\x63ompleted_tools\x18\x04 \x03(\t\x12\x14\n\x0csnapshot_uri\x18\x05 \x01(\t\"\xcd\x01\n\x0cHookResponse\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x32\n\x08\x64\x65\x63ision\x18\n \x01(\x0b\x32\x1e.eaasp.runtime.v2.HookDecisionH\x00\x12\x37\n\rpolicy_update\x18\x0b \x01(\x0b\x32\x1e.eaasp.runtime.v2.PolicyUpdateH\x00\x12\x30\n\x05\x65rror\x18\x0c \x01(\x0b\x32\x1f.eaasp.runtime.v2.ErrorResponseH\x00\x42\n\n\x08response\"`\n\x0cHookDecision\x12\x10\n\x08\x64\x65\x63ision\x18\x01 \x01(\t\x12\x0e\n\x06reason\x18\x02 \x01(\t\x12\x1a\n\x12mutated_input_json\x18\x03 \x01(\t\x12\x12\n\nprecedence\x18\x04 \x01(\x05\"Y\n\x0cPolicyUpdate\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x13\n\x0bpolicy_json\x18\x02 \x01(\t\x12\x0e\n\x06\x61\x63tion\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\".\n\rErrorResponse\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\xb8\x01\n\x13HookEvaluateRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x33\n\nevent_type\x18\x02 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x11\n\ttool_name\x18\x03 \x01(\t\x12\x0f\n\x07tool_id\x18\x04 \x01(\t\x12\x12\n\ninput_json\x18\x05 \x01(\t\x12\x0e\n\x06output\x18\x06 \x01(\t\x12\x10\n\x08is_error\x18\x07 \x01(\x08\"^\n\x12HookTelemetryBatch\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\x34\n\x06\x65vents\x18\x02 \x03(\x0b\x32$.eaasp.runtime.v2.HookTelemetryEvent\"\x93\x01\n\x12HookTelemetryEvent\x12\x0f\n\x07hook_id\x18\x01 \x01(\t\x12\x33\n\nevent_type\x18\x02 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x10\n\x08\x64\x65\x63ision\x18\x03 \x01(\t\x12\x12\n\nlatency_us\x18\x04 \x01(\x03\x12\x11\n\ttimestamp\x18\x05 \x01(\t\"2\n\x0cTelemetryAck\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\r\x12\x10\n\x08rejected\x18\x02 \x01(\r\"*\n\x14PolicySummaryRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\"W\n\rPolicySummary\x12\x16\n\x0etotal_policies\x18\x01 \x01(\r\x12.\n\x08policies\x18\x02 \x03(\x0b\x32\x1c.eaasp.runtime.v2.PolicyInfo\"\x95\x01\n\nPolicyInfo\x12\x11\n\tpolicy_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05scope\x18\x03 \x01(\t\x12\x32\n\thook_type\x18\x04 \x01(\x0e\x32\x1f.eaasp.runtime.v2.HookEventType\x12\x0f\n\x07\x65nabled\x18\x05 \x01(\x08\x12\x12\n\nprecedence\x18\x06 \x01(\x05\x32\xf0\x02\n\x11HookBridgeService\x12N\n\x0bStreamHooks\x12\x1b.eaasp.runtime.v2.HookEvent\x1a\x1e.eaasp.runtime.v2.HookResponse(\x01\x30\x01\x12U\n\x0c\x45valuateHook\x12%.eaasp.runtime.v2.HookEvaluateRequest\x1a\x1e.eaasp.runtime.v2.HookDecision\x12W\n\x0fReportTelemetry\x12$.eaasp.runtime.v2.HookTelemetryBatch\x1a\x1e.eaasp.runtime.v2.TelemetryAck\x12[\n\x10GetPolicySummary\x12&.eaasp.runtime.v2.PolicySummaryRequest\x1a\x1f.eaasp.runtime.v2.PolicySummaryb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,47 +34,51 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'eaasp.runtime.v2.hook_pb2',
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_HOOKEVENT']._serialized_start=113
-  _globals['_HOOKEVENT']._serialized_end=780
-  _globals['_PRETOOLCALLHOOK']._serialized_start=782
-  _globals['_PRETOOLCALLHOOK']._serialized_end=855
-  _globals['_POSTTOOLRESULTHOOK']._serialized_start=857
-  _globals['_POSTTOOLRESULTHOOK']._serialized_end=947
-  _globals['_STOPHOOK']._serialized_start=949
-  _globals['_STOPHOOK']._serialized_end=975
-  _globals['_SESSIONSTARTHOOK']._serialized_start=977
-  _globals['_SESSIONSTARTHOOK']._serialized_end=1049
-  _globals['_SESSIONENDHOOK']._serialized_start=1051
-  _globals['_SESSIONENDHOOK']._serialized_end=1083
-  _globals['_PREPOLICYDEPLOYHOOK']._serialized_start=1085
-  _globals['_PREPOLICYDEPLOYHOOK']._serialized_end=1149
-  _globals['_PREAPPROVALHOOK']._serialized_start=1151
-  _globals['_PREAPPROVALHOOK']._serialized_end=1211
-  _globals['_EVENTRECEIVEDHOOK']._serialized_start=1213
-  _globals['_EVENTRECEIVEDHOOK']._serialized_end=1279
-  _globals['_PRECOMPACTHOOK']._serialized_start=1282
-  _globals['_PRECOMPACTHOOK']._serialized_end=1496
-  _globals['_HOOKRESPONSE']._serialized_start=1499
-  _globals['_HOOKRESPONSE']._serialized_end=1704
-  _globals['_HOOKDECISION']._serialized_start=1706
-  _globals['_HOOKDECISION']._serialized_end=1802
-  _globals['_POLICYUPDATE']._serialized_start=1804
-  _globals['_POLICYUPDATE']._serialized_end=1893
-  _globals['_ERRORRESPONSE']._serialized_start=1895
-  _globals['_ERRORRESPONSE']._serialized_end=1941
-  _globals['_HOOKEVALUATEREQUEST']._serialized_start=1944
-  _globals['_HOOKEVALUATEREQUEST']._serialized_end=2128
-  _globals['_HOOKTELEMETRYBATCH']._serialized_start=2130
-  _globals['_HOOKTELEMETRYBATCH']._serialized_end=2224
-  _globals['_HOOKTELEMETRYEVENT']._serialized_start=2227
-  _globals['_HOOKTELEMETRYEVENT']._serialized_end=2374
-  _globals['_TELEMETRYACK']._serialized_start=2376
-  _globals['_TELEMETRYACK']._serialized_end=2426
-  _globals['_POLICYSUMMARYREQUEST']._serialized_start=2428
-  _globals['_POLICYSUMMARYREQUEST']._serialized_end=2470
-  _globals['_POLICYSUMMARY']._serialized_start=2472
-  _globals['_POLICYSUMMARY']._serialized_end=2559
-  _globals['_POLICYINFO']._serialized_start=2562
-  _globals['_POLICYINFO']._serialized_end=2711
-  _globals['_HOOKBRIDGESERVICE']._serialized_start=2714
-  _globals['_HOOKBRIDGESERVICE']._serialized_end=3082
+  _globals['_HOOKEVENT']._serialized_end=908
+  _globals['_PRETOOLCALLHOOK']._serialized_start=910
+  _globals['_PRETOOLCALLHOOK']._serialized_end=983
+  _globals['_POSTTOOLRESULTHOOK']._serialized_start=985
+  _globals['_POSTTOOLRESULTHOOK']._serialized_end=1075
+  _globals['_STOPHOOK']._serialized_start=1077
+  _globals['_STOPHOOK']._serialized_end=1103
+  _globals['_SESSIONSTARTHOOK']._serialized_start=1105
+  _globals['_SESSIONSTARTHOOK']._serialized_end=1177
+  _globals['_SESSIONENDHOOK']._serialized_start=1179
+  _globals['_SESSIONENDHOOK']._serialized_end=1211
+  _globals['_PREPOLICYDEPLOYHOOK']._serialized_start=1213
+  _globals['_PREPOLICYDEPLOYHOOK']._serialized_end=1277
+  _globals['_PREAPPROVALHOOK']._serialized_start=1279
+  _globals['_PREAPPROVALHOOK']._serialized_end=1339
+  _globals['_EVENTRECEIVEDHOOK']._serialized_start=1341
+  _globals['_EVENTRECEIVEDHOOK']._serialized_end=1407
+  _globals['_PRECOMPACTHOOK']._serialized_start=1410
+  _globals['_PRECOMPACTHOOK']._serialized_end=1624
+  _globals['_SUBAGENTSTARTHOOK']._serialized_start=1626
+  _globals['_SUBAGENTSTARTHOOK']._serialized_end=1748
+  _globals['_TASKCHECKPOINTHOOK']._serialized_start=1751
+  _globals['_TASKCHECKPOINTHOOK']._serialized_end=1886
+  _globals['_HOOKRESPONSE']._serialized_start=1889
+  _globals['_HOOKRESPONSE']._serialized_end=2094
+  _globals['_HOOKDECISION']._serialized_start=2096
+  _globals['_HOOKDECISION']._serialized_end=2192
+  _globals['_POLICYUPDATE']._serialized_start=2194
+  _globals['_POLICYUPDATE']._serialized_end=2283
+  _globals['_ERRORRESPONSE']._serialized_start=2285
+  _globals['_ERRORRESPONSE']._serialized_end=2331
+  _globals['_HOOKEVALUATEREQUEST']._serialized_start=2334
+  _globals['_HOOKEVALUATEREQUEST']._serialized_end=2518
+  _globals['_HOOKTELEMETRYBATCH']._serialized_start=2520
+  _globals['_HOOKTELEMETRYBATCH']._serialized_end=2614
+  _globals['_HOOKTELEMETRYEVENT']._serialized_start=2617
+  _globals['_HOOKTELEMETRYEVENT']._serialized_end=2764
+  _globals['_TELEMETRYACK']._serialized_start=2766
+  _globals['_TELEMETRYACK']._serialized_end=2816
+  _globals['_POLICYSUMMARYREQUEST']._serialized_start=2818
+  _globals['_POLICYSUMMARYREQUEST']._serialized_end=2860
+  _globals['_POLICYSUMMARY']._serialized_start=2862
+  _globals['_POLICYSUMMARY']._serialized_end=2949
+  _globals['_POLICYINFO']._serialized_start=2952
+  _globals['_POLICYINFO']._serialized_end=3101
+  _globals['_HOOKBRIDGESERVICE']._serialized_start=3104
+  _globals['_HOOKBRIDGESERVICE']._serialized_end=3472
 # @@protoc_insertion_point(module_scope)

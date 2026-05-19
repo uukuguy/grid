@@ -17,6 +17,9 @@ export enum ChunkType {
   DONE = 5,
   ERROR = 6,
   WORKFLOW_CONTINUATION = 7,
+  // Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+  THINKING_TRACE = 8,
+  ATTACHMENT_REF = 9,
 }
 
 export interface InitializeRequest {

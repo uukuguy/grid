@@ -17,6 +17,8 @@ class ChunkType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CHUNK_TYPE_DONE: _ClassVar[ChunkType]
     CHUNK_TYPE_ERROR: _ClassVar[ChunkType]
     CHUNK_TYPE_WORKFLOW_CONTINUATION: _ClassVar[ChunkType]
+    CHUNK_TYPE_THINKING_TRACE: _ClassVar[ChunkType]
+    CHUNK_TYPE_ATTACHMENT_REF: _ClassVar[ChunkType]
 CHUNK_TYPE_UNSPECIFIED: ChunkType
 CHUNK_TYPE_TEXT_DELTA: ChunkType
 CHUNK_TYPE_THINKING: ChunkType
@@ -25,6 +27,8 @@ CHUNK_TYPE_TOOL_RESULT: ChunkType
 CHUNK_TYPE_DONE: ChunkType
 CHUNK_TYPE_ERROR: ChunkType
 CHUNK_TYPE_WORKFLOW_CONTINUATION: ChunkType
+CHUNK_TYPE_THINKING_TRACE: ChunkType
+CHUNK_TYPE_ATTACHMENT_REF: ChunkType
 
 class PolicyContext(_message.Message):
     __slots__ = ("hooks", "org_unit", "policy_version", "quotas", "deploy_timestamp")

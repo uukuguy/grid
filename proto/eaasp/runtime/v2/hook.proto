@@ -53,6 +53,8 @@ message HookEvent {
     PreApprovalHook pre_approval = 16;
     EventReceivedHook event_received = 17;
     PreCompactHook pre_compact = 18;       // ADR-V2-018 — context window compaction event
+    SubagentStartHook subagent_start = 19; // Phase 5.3 CONTRACT-02 — pre-spawn subagent gate
+    TaskCheckpointHook task_checkpoint = 20; // Phase 5.3 CONTRACT-02 — task boundary checkpoint
   }
 }
 
@@ -108,6 +110,28 @@ message PreCompactHook {
   uint32 messages_total = 6;      // total messages in conversation
   bool reuses_prior_summary = 7;  // whether prior summary is being prepended
   uint32 prior_summary_count = 8; // historical summaries reused (MVP linear chain: 0 or 1)
+}
+
+// Phase 5.3 CONTRACT-02 — Fired pre-spawn so L3 governance can deny sub-agent creation.
+// Top-level flat-struct payload per ADR-V2-006 §2.3 (no nested `payload.*`).
+message SubagentStartHook {
+  string parent_session_id = 1;
+  string subagent_id = 2;
+  string subagent_name = 3;
+  string purpose = 4;             // OPTIONAL — empty string if not provided
+  uint32 depth = 5;               // sub-agent depth (top-level = 1)
+}
+
+// Phase 5.3 CONTRACT-02 — Task boundary checkpoint. Two automatic triggers in 5.3 MVP:
+//   reason="required_tools_satisfied"  — D87 Fix 2 satisfied-branch
+//   reason="max_continuations_reached" — MAX_WORKFLOW_CONTINUATIONS fallback
+// `snapshot_uri` is reserved for future ATTACHMENT_REF integration.
+message TaskCheckpointHook {
+  string reason = 1;              // "required_tools_satisfied" | "max_continuations_reached" | "explicit"
+  uint32 rounds_completed = 2;
+  uint32 total_tool_calls = 3;
+  repeated string completed_tools = 4;
+  string snapshot_uri = 5;        // OPTIONAL — reserved for ATTACHMENT_REF integration
 }
 
 // HookBridge → L1 direction
