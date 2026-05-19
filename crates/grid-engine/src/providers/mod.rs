@@ -8,6 +8,7 @@ pub mod error_classifier;
 pub mod metering_provider;
 pub mod openai;
 pub mod pipeline;
+pub mod quirks;
 pub mod response_cache;
 pub mod retry;
 pub mod smart_router;
