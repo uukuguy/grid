@@ -26,7 +26,7 @@ use crate::proto::runtime_service_server::RuntimeService;
 /// `ChunkType` enum per ADR-V2-021. Unknown strings fall back to
 /// `UNSPECIFIED` (0) which is explicitly forbidden by the contract —
 /// emission of UNSPECIFIED should be treated as a bug at the grpc boundary.
-fn chunk_type_to_proto(s: &str) -> i32 {
+pub(crate) fn chunk_type_to_proto(s: &str) -> i32 {
     use proto::ChunkType;
     match s {
         "text_delta" => ChunkType::TextDelta as i32,
@@ -36,6 +36,9 @@ fn chunk_type_to_proto(s: &str) -> i32 {
         "done" => ChunkType::Done as i32,
         "error" => ChunkType::Error as i32,
         "workflow_continuation" => ChunkType::WorkflowContinuation as i32,
+        // NEW for 5.3 (contract-v1.2.0):
+        "thinking_trace" => ChunkType::ThinkingTrace as i32,
+        "attachment_ref" => ChunkType::AttachmentRef as i32,
         other => {
             tracing::error!(
                 chunk_type = %other,

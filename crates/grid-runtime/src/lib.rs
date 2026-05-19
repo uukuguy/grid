@@ -30,6 +30,9 @@ pub mod service;
 pub mod session_payload;
 pub mod telemetry;
 
+#[cfg(test)]
+mod tests;
+
 /// Generated gRPC types from EAASP v2 proto (common + runtime).
 pub mod proto {
     tonic::include_proto!("eaasp.runtime.v2");
