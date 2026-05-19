@@ -354,6 +354,42 @@ Rust 参考实现：`crates/grid-engine/src/tools/mod.rs`（`register_layered` /
 
 合约验证：`tests/contract/cases/test_tool_namespace_enforcement.py`（23 cases，Phase 3 S1.T6）。
 
+### 10.6 Skill workflow.required_tools 不变量 (D109 close, 2026-05-20)
+
+`workflow.required_tools` 字段 MUST list ONLY tools the agent is expected
+to invoke during normal workflow execution. Including unreachable tools
+(reserved for error paths, or tools the agent semantically has no reason
+to call) will cause D87 Fix 2's `tool_choice=Specific(next_required)`
+branch (`crates/grid-engine/src/agent/harness.rs:1476`) to deadlock — the
+harness keeps requesting the "next required tool" the LLM has no semantic
+reason to invoke, exhausting `MAX_WORKFLOW_CONTINUATIONS` without progress.
+
+**Code anchors:**
+- `crates/grid-engine/src/agent/harness.rs:1465` — D87 comment block
+- `crates/grid-engine/src/agent/harness.rs:1486` — satisfied-branch
+  shortcut where `next_required.is_none()` accepts a text-only turn as final
+
+**Failure example (D109 ledger row):** the `skill_submit_draft` tool was
+deliberately excluded from `required_tools` in the threshold-calibration
+skill because it's an unreachable tool (error-path only). Including it in
+the list would deadlock the workflow as described above.
+
+**Recommended skill-parse-time check (OPTIONAL, future enhancement):** at
+skill load time, if a tool in `required_tools` is not in the MCP
+`dependencies` resolved tool set, emit a warning:
+
+```rust
+warn!("skill {} declares unreachable tool {} in required_tools", skill_id, tool_name);
+```
+
+This warning is advisory — D109 closes as doc-only; the parse-time check
+is deferred unless a second skill exhibits the same misconfiguration.
+
+**Related:** ADR-V2-016 (agent loop generic principle), ADR-V2-020
+(skill-declared tool filter — different layer L2 vs L1; do not bundle),
+ADR-V2-026 (ExecutionMode — controls when D87 Fix 2 is even active; see
+RFC at `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md`).
+
 ---
 
 ## 11. 实施路径建议
