@@ -88,7 +88,9 @@
   2. 主力档 (grid-runtime) 与样板档 (claude-code / nanobot / pydantic-ai) 4 runtime 在 contract-v1.2.0 全 PASS; 参考档 (goose / claw-code / ccb) 按 tier 策略允许 v1.1 baseline 或 selective xfail; `make v2-phase3-e2e` (或 phase5 后续) 输出反映 tier 设定结果
   3. CLI `_ALLOWED_CHUNK_TYPES` whitelist + L4 `_chunk_type_to_wire` mapper + `tests/contract/cases/test_chunk_type_contract.py` 三处全部覆盖新增 ChunkType wire 值; new hook event fire site 在主力档 runtime 至少有一个端到端 trigger test (mock LLM, 不打 live LLM)
   4. D109 (workflow.required_tools 不变量) 在 `docs/design/EAASP/L1_RUNTIME_ADAPTATION_GUIDE.md` (or 等价 spec doc) 显式文档化; D136 (grid-runtime hook 在 probe turn 不触发) 修正 — 原 3 contract xfails 改为 PASS, ADR-V2-016 capability matrix probe turn 章节注明协同; 两项 D109 + D136 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash
-**Plans**: TBD by `/gsd-plan-phase 5.3` (推测 2-3 plans, CONTRACT-01 + CONTRACT-02 各一 + watchlist 顺手 plan)
+**Plans**: 2 plans
+- [ ] 05.3-01-PLAN.md — Contract main line: ChunkType +2 wires + HookEvent +2 events + D109 doc + D136 fix + ADR-V2-021/006 amendments (14 VALIDATION rows)
+- [ ] 05.3-02-PLAN.md — ADR-V2-026 (ExecutionMode supersede V2-016) + ADR-V2-027 (OpenAI-compat Quirks + prototype) + conditional LingProvider (10 VALIDATION rows)
 **UI hint**: no
 
 ### Phase 5.4: Server Hardening
@@ -144,7 +146,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.0 Hook Envelope Baseline | 0/1 | Not started | - |
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | 0/1 | Not started | - |
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
-| 5.3 Contract Evolution | 0/TBD | Not started | - |
+| 5.3 Contract Evolution | 0/2 | Not started | - |
 | 5.4 Server Hardening | 0/TBD | Not started | - |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | - |
 
