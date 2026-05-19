@@ -134,13 +134,104 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-19T12:36:03.265Z
-Stopped at: Phase 5.3 context gathered (CONTEXT + DISCUSSION-LOG)
-Resume file: .planning/phases/05.3-contract-evolution/05.3-CONTEXT.md
-Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `ccaf36e`)
+Last session: 2026-05-20 (Phase 5.3 full close — discuss + plan + execute Wave 1+2 + verify + close, all in one session)
+Stopped at: **Phase 5.3 ✅ COMPLETE**; ready for `/gsd-discuss-phase 5.4`
+Resume file: `.planning/phases/05.3-contract-evolution/05.3-VERIFICATION.md` (orchestrator-inline verification record) + this STATE.md
+Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `a3851f0`)
+Worktrees: cleaned (Phase 5.3 worktree-a5a8 + worktree-a401 removed; 1 unrelated `ac21fe86` worktree from earlier session still locked, left alone)
 
-Prior session: 2026-05-16 (DeepSeek shakedown + ExecutionMode RFC + implementation; 9/19 → 16/19)
-Detailed narrative of both sessions preserved below.
+Prior sessions:
+- 2026-05-19: LLM provider fix + Phase 5.3 plan-phase (`/gsd-discuss-phase 5.3` + `/gsd-plan-phase 5.3`)
+- 2026-05-17: Phase 5.2 closure (T-01.14/19) — 19/19 PASS
+- 2026-05-16: DeepSeek shakedown + ExecutionMode RFC + commit `f1999fb` impl
+
+Detailed narratives below.
+
+### What 2026-05-20 session delivered (THIS session)
+
+**Single-day full Phase 5.3 execution + 1 cross-session LLM provider hot fix.** 26 commits total `e346ffd..a3851f0` (1 pre-phase + 25 within Phase 5.3 boundary).
+
+**Pre-phase (2026-05-19 evening, carried into 2026-05-20)** — LLM provider unblock:
+- `e346ffd` fix(llm-providers): unblock TUI with ant-ling + record provider-system debt (NEW-F1..F4)
+- Root cause cascade discovered: (1) macOS Clash proxy fails on ~57KB POST bodies (small `grid ask` OK, TUI 47-tool body fails); (2) ant-ling Ling-2.6-1T doesn't emit `data: [DONE]` (parser hangs); (3) stale `.env` `RUST_LOG=octo_*` (pre-Phase-BA rename leftover) silently filters all `grid_*` log → debugged for hours; (4) `make studio-tui` Makefile didn't pass `--verbose` flag
+- Mitigations landed: `OPENAI_NO_PROXY=1` / `ANTHROPIC_NO_PROXY=1` / `GRID_LLM_NO_PROXY=1` env switches in providers; OpenAIProvider parser flushes pending tool_calls on `Poll::Ready(None)` (unconditional hot fix; later gated by ADR-V2-027 Quirks.no_done_marker); TUI log path moved to `./logs/tui.log`; LLM_PROVIDER default flipped anthropic → openai
+- Filed NEW-F1..F4 deferred items for follow-up
+
+**Phase 5.3 Discuss → Plan → Execute → Verify → Close, all in one day**:
+
+1. **Discuss** (2026-05-19 night): `/gsd-discuss-phase 5.3`. 10 user decisions locked in CONTEXT.md including:
+   - Plan structure: 2 plans (CONTRACT main + ADR/Quirks)
+   - CONTRACT-01: BOTH THINKING_TRACE (wire 8) + ATTACHMENT_REF (wire 9) added
+   - CONTRACT-02: BOTH SubagentStart + TaskCheckpoint added
+   - NEW-E4 → ADR-V2-026 supersede V2-016 (lock f1999fb impl)
+   - NEW-F1/F2 → ADR-V2-027 (Quirks framework + LingProvider F2 split)
+   - NEW-F3/F4 → pushed to Phase 5.4
+   - ATTACHMENT_REF backend storage → deferred to next milestone (wire-only in 5.3)
+
+2. **Plan** (2026-05-20 morning): `/gsd-plan-phase 5.3`. Research → Validation → Patterns → 2 PLANs. plan-checker took 3 iterations (3 BLOCKERS → 1 BLOCKER → PASS). Key revisions:
+   - iter-1: RESEARCH Open Questions resolved at planning time (esp. Q3 = F2 path), missing test file retargeted, deepseek.rs added to files_modified
+   - iter-2: nanobot/pydantic-ai mapper.py paths don't exist — retargeted to service.py direct-emission (parallel to goose/claw-code Rust pattern)
+   - iter-3: PASS all 12 dimensions
+
+3. **Execute Wave 1** (Plan A, 2h35min, 12 commits `ad04e57..95f1b6a`): proto + 7-runtime impl + parity tests + D109 doc + D136 fix + ADR-V2-021/006 amendments + LEDGER closes. All targeted tests PASS, ADR lint 16/16 PASS each. Worktree merged ff-only.
+
+4. **Out-of-scope discovery mid-Wave-2**: user disk audit found `data/l2-memory/hnsw-mock-bge-m3-fp16/index.bin` at 94GB (expected ~4MB). Forensics traced to `vector_index.py:189-192` unbounded max_elements doubling + meta.json schema gap. User deleted directory; code fix → NEW-L1 mapped to Phase 5.4.
+
+5. **Execute Wave 2** (Plan B, 51min, 8 commits `2e7b2b9..501f31d`): ADR-V2-026 + ADR-V2-027 Accept + Quirks struct + LingProvider F2 + DeepseekProvider wiring + LEDGER closes. 5/5 + 4/4 + 3/3 + 132/132 tests PASS. Worktree was already on main (planner's commits had directly written there during Wave 1 ff-merge; not a concern). 
+
+6. **Verify** (orchestrator inline): gsd-verifier subagent socket dropped at 14 min (Anthropic infra hiccup). Orchestrator completed goal-backward spot checks via grep/Read in ~5 min. VERIFICATION.md written manually. All 4 ROADMAP SCs PASS + 5 deferred items closed.
+
+7. **Close** (commit `a3851f0`): VERIFICATION.md + STATE.md + ROADMAP.md + deferred-items.md, single commit. Pushed.
+
+**Test counts (all PASS, per-Plan SUMMARY + verifier spot-check)**:
+- chunk_emit 4/4 · subagent_start_hook 2/2 · task_checkpoint_hook 2/2 · d87_multi_step_workflow_regression 3/3
+- openai_quirks 5/5 · ling 4/4 · chain dispatch 1/1
+- test_chunk_type_contract 1/1 · test_hook_event_contract 5/5 · test_chunk_type_whitelist 2/2
+- test_cmd_session_chunk_types::test_whitelist_has_exactly_nine_values 1/1
+- test_chunk_coalescing::test_chunk_type_to_wire_known_variants 1/1
+- check-ccb-types-ts-sync.sh PASS · ADR-V2-021 lint 16/16 · ADR-V2-006 lint 16/16
+- providers lib 127/127
+
+**Out-of-scope discoveries logged in `.planning/phases/05.3-contract-evolution/deferred-items.md`**:
+1. grid-cli `mod output` pre-existing E0583 — Phase 5.4 inbox
+2. NEW-L1 L2 HNSW 94GB disk leak — data ✅ deleted; code fix → Phase 5.4 NEW-L1
+
+**Key lessons captured to memory**:
+- macOS Clash + reqwest fails on ≳50KB POST bodies (mitigated via OPENAI_NO_PROXY env)
+- dotenvy + stale RUST_LOG (pre-Phase-BA `octo_*` keys) silently drops all grid logs
+- OpenAI-compat `[DONE]` not guaranteed (ant-ling specifically)
+- hnswlib save_index dumps full pre-allocated arena, not just live vectors
+- Planner disk-verification sweeps must explicitly include parallel categories (Rust vs Python tier-mirror discovery)
+- Verifier socket drop is recoverable inline via grep/Read in ~5 min when SUMMARY.md files exist
+- 2-plan structure cohesion-justified despite scope warning (contract-v1.2.0 needs all-or-nothing landing)
+
+### Resume path (next session)
+
+Phase 5.3 closed 2026-05-20 at `origin/main` HEAD `a3851f0`. Next action: **`/gsd-discuss-phase 5.4`** — SERVER hardening.
+
+Phase 5.4 anchors carried into the new session:
+- **SERVER-01..05** main scope (ROADMAP §Phase 5.4): WebSocket / L1 gRPC integration / session+L2 persistence / auth+audit / config hot-reload
+- **WATCH-04** (D142+D143 — EAASP_DEPLOYMENT_MODE接入 + max_sessions=1 gate per ADR-V2-019)
+- **WATCH-07** (NEW-E3 — ADR-V2-019 Proposed → Accepted after D142+D143 close)
+- **NEW-A2** (migrate() race in grid-engine/db) — 2026-05-16 forensics
+- **NEW-A3** (kill_session exit code 1 vs expected 4) — 2026-05-17 Phase 5.2 smoke test
+- **NEW-F3** (silent-fallback removal: LLM_PROVIDER / OPENAI_NO_PROXY / RUST_LOG / logger) — 2026-05-19
+- **NEW-F4** (./logs/tui.log + GRID_TUI_LOG ADR) — 2026-05-19
+- **grid-cli mod output E0583** — 2026-05-20 Phase 5.3 OOS
+- **NEW-L1** (HNSW disk leak code fix; data already reclaimed) — 2026-05-20 Phase 5.3 OOS
+
+That's 9 candidate items for Phase 5.4 plan-phase to weigh against SERVER-01..05. plan-phase will fold what fits cohesion, push rest to Phase 5.5 or next milestone.
+
+### Phase 5.5 prep note carried forward
+
+ADR-V2-026 + ADR-V2-027 numbers consumed in Phase 5.3 → Phase 5.5 INTERFACE-01's ADR (currently reserved as V2-026 in ROADMAP) must renumber to **V2-028** when Phase 5.5 plan-phase runs. Documented in `.planning/phases/05.3-contract-evolution/05.3-02-PLAN.md` § Cross-Phase Note.
+
+### Local environment caveat (user side, still valid from 2026-05-19)
+
+- `.env` cleaned of stale `RUST_LOG=octo_*` 2026-05-19; should now be `RUST_LOG=grid_engine=debug,grid_cli=info,tower_http=debug` (or unset — `--verbose` will provide a fallback filter)
+- `OPENAI_NO_PROXY=1` set in `.env` for Clash-environment users; OpenRouter users should NOT have this set
+- `LLM_PROVIDER=openai` is the new code-level default (changed from `anthropic`); explicit `.env` value still overrides
+- `data/l2-memory/hnsw-mock-bge-m3-fp16/` deleted 2026-05-20; test fixtures will rebuild if needed (will likely re-trigger NEW-L1 bug unless code fixed first)
 
 ### What 2026-05-17 session delivered
 
