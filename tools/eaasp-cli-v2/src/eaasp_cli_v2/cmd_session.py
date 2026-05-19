@@ -31,6 +31,9 @@ _ALLOWED_CHUNK_TYPES: frozenset[str] = frozenset({
     "done",
     "error",
     "workflow_continuation",
+    # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+    "thinking_trace",
+    "attachment_ref",
 })
 
 
@@ -111,6 +114,17 @@ def _render_chunk(
         # Surface quietly on stderr; don't pollute stdout. Tests may rely on
         # stdout staying clean for pipe consumers.
         err_console.print(f"[dim]\\[continuation] {content}[/dim]")
+        return
+
+    # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+    if chunk_type == "thinking_trace":
+        # Structured reasoning summary — stderr to keep stdout clean.
+        err_console.print(f"[dim]\\[thinking_trace] {content}[/dim]")
+        return
+
+    if chunk_type == "attachment_ref":
+        # Opaque blob URI envelope — stderr; backend interpretation deferred.
+        err_console.print(f"[dim]\\[attachment_ref] {content}[/dim]")
         return
 
     # ── Contract violations (ADR-V2-021) ─────────────────────────────────

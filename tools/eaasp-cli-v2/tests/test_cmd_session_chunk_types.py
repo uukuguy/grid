@@ -33,8 +33,12 @@ def _make_consoles() -> tuple[Console, io.StringIO, Console, io.StringIO]:
     return console, stdout_buf, err_console, stderr_buf
 
 
-def test_whitelist_has_exactly_seven_values() -> None:
-    """Lock ADR-V2-021 canonical set so drift is caught at test time."""
+def test_whitelist_has_exactly_nine_values() -> None:
+    """Lock ADR-V2-021 canonical set so drift is caught at test time.
+
+    Phase 5.3 (contract-v1.2.0): added `thinking_trace` (wire 8) and
+    `attachment_ref` (wire 9). Total now 9.
+    """
     assert _ALLOWED_CHUNK_TYPES == frozenset({
         "text_delta",
         "thinking",
@@ -43,6 +47,8 @@ def test_whitelist_has_exactly_seven_values() -> None:
         "done",
         "error",
         "workflow_continuation",
+        "thinking_trace",
+        "attachment_ref",
     })
 
 

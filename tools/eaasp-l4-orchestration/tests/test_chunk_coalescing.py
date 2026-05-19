@@ -452,6 +452,15 @@ def test_chunk_type_to_wire_known_variants() -> None:
         _chunk_type_to_wire(common_pb2.CHUNK_TYPE_WORKFLOW_CONTINUATION)
         == "workflow_continuation"
     )
+    # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+    assert (
+        _chunk_type_to_wire(common_pb2.CHUNK_TYPE_THINKING_TRACE)
+        == "thinking_trace"
+    )
+    assert (
+        _chunk_type_to_wire(common_pb2.CHUNK_TYPE_ATTACHMENT_REF)
+        == "attachment_ref"
+    )
     # UNSPECIFIED (0) and unknown future ints collapse to "" — whitelist
     # rejects that and contract tests catch it.
     assert _chunk_type_to_wire(0) == ""
