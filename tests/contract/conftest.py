@@ -660,18 +660,25 @@ def _check_envelope_mode(cap, scope: str, runtime_name: str) -> None:
 
 @pytest.fixture
 def trigger_pre_tool_use_hook(runtime_grpc_stub, probe_out_dir, runtime_name):
-    """Trigger a PreToolUse hook and return ``(envelope, env)``."""
+    """Trigger a PreToolUse hook and return ``(envelope, env)``.
+
+    Phase 5.3 D136 closure: the previous `if cap is None: pytest.xfail(...)`
+    escape hatch was deleted. The root cause was a missing SSE-delta path
+    in `tests/contract/harness/mock_openai_server.py` — grid-engine's
+    OpenAIProvider.stream() expects SSE-delta with `index` + nested
+    `function.{name,arguments}`, which the synchronous JSON shape did
+    not satisfy. With the SSE path in place, `cap is None` is now a real
+    bug — a missing capture should FAIL, not xfail.
+    """
     def _invoke():
         captures = _run_hook_probe(runtime_grpc_stub, probe_out_dir)
         cap = captures.get("PreToolUse")
-        if cap is None:
-            pytest.xfail(
-                f"D136: {runtime_name}-runtime did not fire PreToolUse "
-                "during probe turn — for grid this is the required_tools / "
-                "D87 interaction in the agent loop; for claude-code this "
-                "would indicate the OnToolCall RPC dispatch path is "
-                "broken. Resolution deferred to Phase 2.5 S1."
-            )
+        assert cap is not None, (
+            f"D136 regression: {runtime_name}-runtime did not fire "
+            f"PreToolUse during probe turn (Phase 5.3 fix expected cap "
+            f"to be populated). Investigate mock SSE delta shape and "
+            f"agent_loop tool dispatch."
+        )
         _check_envelope_mode(cap, "PreToolUse", runtime_name)
         return cap.envelope, cap.env
 
@@ -683,11 +690,11 @@ def trigger_post_tool_use_hook(runtime_grpc_stub, probe_out_dir, runtime_name):
     def _invoke():
         captures = _run_hook_probe(runtime_grpc_stub, probe_out_dir)
         cap = captures.get("PostToolUse")
-        if cap is None:
-            pytest.xfail(
-                f"D136: {runtime_name}-runtime did not fire PostToolUse "
-                "during probe turn (same root cause as PreToolUse gap)"
-            )
+        assert cap is not None, (
+            f"D136 regression: {runtime_name}-runtime did not fire "
+            f"PostToolUse during probe turn (Phase 5.3 fix expected "
+            f"cap to be populated)."
+        )
         _check_envelope_mode(cap, "PostToolUse", runtime_name)
         return cap.envelope, cap.env
 
@@ -699,11 +706,11 @@ def trigger_stop_hook(runtime_grpc_stub, probe_out_dir, runtime_name):
     def _invoke():
         captures = _run_hook_probe(runtime_grpc_stub, probe_out_dir)
         cap = captures.get("Stop")
-        if cap is None:
-            pytest.xfail(
-                f"D136: {runtime_name}-runtime did not fire Stop hook "
-                "at natural termination during probe turn"
-            )
+        assert cap is not None, (
+            f"D136 regression: {runtime_name}-runtime did not fire "
+            f"Stop hook at natural termination during probe turn "
+            f"(Phase 5.3 fix expected cap to be populated)."
+        )
         _check_envelope_mode(cap, "Stop", runtime_name)
         return cap.envelope, cap.env
 

@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import json
 import threading
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 
@@ -33,6 +34,135 @@ class _ChatRequest(BaseModel):
     tools: list[dict[str, Any]] | None = None
     stream: bool = False
     tool_choice: Any = None
+
+
+async def _sse_delta_response(
+    model: str,
+    idx: int,
+    shape: dict[str, Any],
+) -> AsyncIterator[bytes]:
+    """Emit one OpenAI-compatible SSE-delta chat completion.
+
+    D136 fix (Phase 5.3 WATCH-03): grid-engine's OpenAIProvider.stream()
+    parses ``delta["tool_calls"][N]`` expecting ``index`` (uint),
+    ``id`` (str), and ``function.{name, arguments}`` (str, str) per
+    openai.rs around line 866. The synchronous chat-completion shape
+    we kept for compatibility uses ``message.tool_calls[N]`` (no
+    ``index``), which fails the SSE-delta parser silently.
+
+    This emitter mirrors the real OpenAI SSE shape: one role+id chunk,
+    one tool_call delta with name + arguments string, one finish chunk,
+    and the ``data: [DONE]`` sentinel.
+    """
+    if shape["kind"] == "tool_calls":
+        # 1. role chunk
+        chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant"},
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+
+        # 2. tool_call delta with index + nested function.{name,arguments}
+        tool_chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": shape["tool_id"],
+                                "type": "function",
+                                "function": {
+                                    "name": shape["tool_name"],
+                                    "arguments": json.dumps(shape["arguments"]),
+                                },
+                            }
+                        ]
+                    },
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(tool_chunk)}\n\n".encode("utf-8")
+
+        # 3. finish chunk (tool_calls)
+        finish_chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "tool_calls",
+                }
+            ],
+        }
+        yield f"data: {json.dumps(finish_chunk)}\n\n".encode("utf-8")
+    else:
+        # Terminal stop path — a small text delta + stop finish_reason.
+        role_chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant"},
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(role_chunk)}\n\n".encode("utf-8")
+
+        content_chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"content": shape.get("content", "mock response")},
+                    "finish_reason": None,
+                }
+            ],
+        }
+        yield f"data: {json.dumps(content_chunk)}\n\n".encode("utf-8")
+
+        finish_chunk = {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion.chunk",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+        yield f"data: {json.dumps(finish_chunk)}\n\n".encode("utf-8")
+
+    # Terminator — closes the SSE stream per OpenAI spec.
+    yield b"data: [DONE]\n\n"
 
 
 def build_app(
@@ -53,8 +183,12 @@ def build_app(
     Endpoints:
 
     * ``POST /v1/chat/completions`` — scripted behaviour described above.
-      ``stream=true`` is NOT implemented; the runtime should disable
-      streaming against this mock.
+      Supports both synchronous JSON (``stream=false``) and SSE-delta
+      (``stream=true``) response shapes. The SSE path was added in
+      Phase 5.3 WATCH-03 / D136: grid-engine's OpenAIProvider only ever
+      issues ``stream=true``, so without the SSE branch the runtime's
+      delta parser saw zero events and the agent loop exited without
+      firing PreToolUse / PostToolUse / Stop hooks.
     * ``GET  /health`` — liveness probe (always 200 ``{"status": "ok"}``).
 
     Returns:
@@ -69,17 +203,42 @@ def build_app(
     script = list(tool_script or [])
 
     @app.post("/v1/chat/completions")
-    async def chat_completions(req: _ChatRequest) -> dict[str, Any]:
+    async def chat_completions(req: _ChatRequest):
         with counter_lock:
             idx = counter["n"]
             counter["n"] += 1
 
-        # Scripted path: emit a tool_calls response.
+        # Resolve the response shape (scripted tool_use OR terminal stop)
+        # from the same script counter for both synchronous and SSE paths.
         if idx < len(script):
             entry = script[idx]
-            tool_name = entry["tool_name"]
-            args = entry.get("arguments", {})
-            tool_id = entry.get("id", f"call_{idx}")
+            shape = {
+                "kind": "tool_calls",
+                "tool_name": entry["tool_name"],
+                "arguments": entry.get("arguments", {}),
+                "tool_id": entry.get("id", f"call_{idx}"),
+            }
+        else:
+            shape = {
+                "kind": "stop",
+                "content": "mock response",
+            }
+
+        if req.stream:
+            # D136 fix (Phase 5.3 WATCH-03): real OpenAI clients (including
+            # grid-engine OpenAIProvider) issue `stream=true` and expect
+            # SSE-delta chunks. The synchronous JSON path below answered
+            # 200 OK but with Content-Type: application/json, so the
+            # runtime's stream parser saw zero events → agent_loop exited
+            # without ever firing PreToolUse / PostToolUse / Stop hooks.
+            return StreamingResponse(
+                _sse_delta_response(req.model, idx, shape),
+                media_type="text/event-stream",
+            )
+
+        # Synchronous path (pre-5.3 baseline — kept for any caller that
+        # explicitly sets stream=false).
+        if shape["kind"] == "tool_calls":
             return {
                 "id": f"chatcmpl-mock-{idx}",
                 "object": "chat.completion",
@@ -93,11 +252,11 @@ def build_app(
                             "content": None,
                             "tool_calls": [
                                 {
-                                    "id": tool_id,
+                                    "id": shape["tool_id"],
                                     "type": "function",
                                     "function": {
-                                        "name": tool_name,
-                                        "arguments": json.dumps(args),
+                                        "name": shape["tool_name"],
+                                        "arguments": json.dumps(shape["arguments"]),
                                     },
                                 }
                             ],
@@ -112,7 +271,6 @@ def build_app(
                 },
             }
 
-        # Fallback: deterministic terminal-stop response.
         return {
             "id": f"chatcmpl-mock-{idx}",
             "object": "chat.completion",
@@ -123,7 +281,7 @@ def build_app(
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": "mock response",
+                        "content": shape["content"],
                     },
                     "finish_reason": "stop",
                 }
