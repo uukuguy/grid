@@ -1454,6 +1454,61 @@ async fn run_agent_loop_inner(
         // must NOT have their natural-language reply hijacked into a forced
         // tool_choice=Required continuation. See
         // `.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md`.
+        // Phase 5.3 CONTRACT-02: if we'd otherwise continue but
+        // `workflow_continuation_count` has already hit MAX, fire a
+        // TaskCheckpoint with `reason="max_continuations_reached"` so
+        // L3/L2 observe the boundary before the harness silently falls
+        // through to the normal exit branch.
+        if config.execution_mode == super::loop_config::ExecutionMode::LongWorkflow
+            && stop_reason == StopReason::EndTurn
+            && tool_uses.is_empty()
+            && total_tool_calls > 0
+            && workflow_continuation_count >= MAX_WORKFLOW_CONTINUATIONS
+            && config.tool_choice_supported
+        {
+            if let Some(ref hooks) = config.hook_registry {
+                use crate::hooks::HookPoint;
+                let mut ctx = build_rich_hook_context(
+                    &config,
+                    round,
+                    total_tool_calls,
+                    &recent_tools,
+                )
+                .with_event("TaskCheckpoint")
+                .with_skill_id(
+                    config
+                        .active_skill
+                        .as_ref()
+                        .map(|s| s.name.as_str())
+                        .unwrap_or(""),
+                );
+                ctx.set_metadata(
+                    "reason",
+                    serde_json::Value::String("max_continuations_reached".to_string()),
+                );
+                ctx.set_metadata(
+                    "rounds_completed",
+                    serde_json::Value::Number(serde_json::Number::from(round)),
+                );
+                ctx.set_metadata(
+                    "total_tool_calls",
+                    serde_json::Value::Number(serde_json::Number::from(total_tool_calls)),
+                );
+                ctx.set_metadata(
+                    "completed_tools",
+                    serde_json::Value::Array(
+                        recent_tools
+                            .iter()
+                            .map(|t| serde_json::Value::String(t.clone()))
+                            .collect(),
+                    ),
+                );
+                let _ = hooks.execute(HookPoint::TaskCheckpoint, &ctx).await;
+            }
+            // After firing, fall through — the harness will hit the
+            // normal exit branch below as before (no behavioral change).
+        }
+
         if config.execution_mode == super::loop_config::ExecutionMode::LongWorkflow
             && stop_reason == StopReason::EndTurn
             && tool_uses.is_empty()
@@ -1488,6 +1543,51 @@ async fn run_agent_loop_inner(
                     "D87: skill workflow.required_tools all satisfied — \
                      accepting text-only turn as final"
                 );
+                // Phase 5.3 CONTRACT-02: fire TaskCheckpoint with reason
+                // `required_tools_satisfied` so L3/L2 see the boundary.
+                if let Some(ref hooks) = config.hook_registry {
+                    use crate::hooks::HookPoint;
+                    let mut ctx = build_rich_hook_context(
+                        &config,
+                        round,
+                        total_tool_calls,
+                        &recent_tools,
+                    )
+                    .with_event("TaskCheckpoint")
+                    .with_skill_id(
+                        config
+                            .active_skill
+                            .as_ref()
+                            .map(|s| s.name.as_str())
+                            .unwrap_or(""),
+                    );
+                    ctx.set_metadata(
+                        "reason",
+                        serde_json::Value::String(
+                            "required_tools_satisfied".to_string(),
+                        ),
+                    );
+                    ctx.set_metadata(
+                        "rounds_completed",
+                        serde_json::Value::Number(serde_json::Number::from(round)),
+                    );
+                    ctx.set_metadata(
+                        "total_tool_calls",
+                        serde_json::Value::Number(serde_json::Number::from(
+                            total_tool_calls,
+                        )),
+                    );
+                    ctx.set_metadata(
+                        "completed_tools",
+                        serde_json::Value::Array(
+                            recent_tools
+                                .iter()
+                                .map(|t| serde_json::Value::String(t.clone()))
+                                .collect(),
+                        ),
+                    );
+                    let _ = hooks.execute(HookPoint::TaskCheckpoint, &ctx).await;
+                }
                 // Fall through to the normal exit branch below.
             } else {
                 workflow_continuation_count += 1;
