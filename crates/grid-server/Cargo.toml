@@ -9,6 +9,9 @@ full = ["grid-engine/full"]
 sandbox-wasm = ["grid-engine/sandbox-wasm"]
 sandbox-docker = ["grid-engine/sandbox-docker"]
 tls = ["grid-engine/tls", "dep:axum-server"]
+# Phase 5.4 W3: enable AppState::test_inject_events for cross-crate
+# integration tests. Production binaries never enable this.
+testing = []
 
 [dependencies]
 grid-types = { workspace = true }

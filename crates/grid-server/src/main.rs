@@ -5,6 +5,7 @@ mod router;
 mod session;
 mod state;
 mod ws;
+mod ws_chunk;
 
 use std::path::PathBuf;
 use std::sync::Arc;

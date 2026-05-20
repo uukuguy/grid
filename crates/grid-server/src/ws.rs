@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{Request, State, WebSocketUpgrade};
+use axum::extract::{Path, Query, Request, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use futures_util::{SinkExt, StreamExt};
 use grid_types::SessionId;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
-use grid_engine::{AgentEvent, AgentExecutorHandle, AgentMessage};
+use grid_engine::{AgentExecutorHandle, AgentMessage};
 
 use crate::state::AppState;
+use crate::ws_chunk;
 
 // --- Client -> Server messages ---
 
@@ -36,133 +37,14 @@ enum ClientMessage {
 }
 
 // --- Server -> Client messages ---
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-#[allow(dead_code)]
-enum ServerMessage {
-    #[serde(rename = "session_created")]
-    SessionCreated { session_id: String },
-
-    #[serde(rename = "text_delta")]
-    TextDelta { session_id: String, text: String },
-
-    #[serde(rename = "text_complete")]
-    TextComplete { session_id: String, text: String },
-
-    #[serde(rename = "thinking_delta")]
-    ThinkingDelta { session_id: String, text: String },
-
-    #[serde(rename = "thinking_complete")]
-    ThinkingComplete { session_id: String, text: String },
-
-    #[serde(rename = "tool_start")]
-    ToolStart {
-        session_id: String,
-        tool_id: String,
-        tool_name: String,
-        input: serde_json::Value,
-    },
-
-    #[serde(rename = "tool_result")]
-    ToolResult {
-        session_id: String,
-        tool_id: String,
-        output: String,
-        success: bool,
-    },
-
-    #[serde(rename = "tool_execution")]
-    ToolExecutionEvent {
-        session_id: String,
-        execution: grid_types::ToolExecution,
-    },
-
-    #[serde(rename = "token_budget_update")]
-    TokenBudgetUpdate {
-        session_id: String,
-        budget: grid_types::TokenBudgetSnapshot,
-    },
-
-    #[serde(rename = "typing")]
-    Typing { session_id: String, state: bool },
-
-    #[serde(rename = "error")]
-    Error { session_id: String, message: String },
-
-    #[serde(rename = "done")]
-    Done { session_id: String },
-
-    #[serde(rename = "context_degraded")]
-    ContextDegraded {
-        session_id: String,
-        level: String,
-        usage_pct: f32,
-    },
-
-    #[serde(rename = "memory_flushed")]
-    MemoryFlushed {
-        session_id: String,
-        facts_count: usize,
-    },
-
-    #[serde(rename = "approval_required")]
-    ApprovalRequired {
-        session_id: String,
-        tool_name: String,
-        tool_id: String,
-        risk_level: grid_types::RiskLevel,
-    },
-
-    /// Phase AS: Agent is requesting user interaction (ask_user tool)
-    #[serde(rename = "interaction_requested")]
-    InteractionRequested {
-        session_id: String,
-        request_id: String,
-        request: grid_engine::tools::interaction::InteractionRequest,
-    },
-
-    #[serde(rename = "security_blocked")]
-    SecurityBlocked { session_id: String, reason: String },
-
-    #[serde(rename = "retrying_malformed_tool_call")]
-    RetryingMalformedToolCall {
-        session_id: String,
-        attempt: u32,
-        max_attempts: u32,
-        reason: String,
-    },
-
-    /// Session lifecycle update (created, message_added, context_updated, closed).
-    /// The actual WebSocket subscription wiring is deferred to a later phase.
-    #[serde(rename = "session_update")]
-    SessionUpdate {
-        event_type: String,
-        session_id: String,
-    },
-
-    // === Autonomous Mode Events (Phase AU-G3) ===
-    #[serde(rename = "autonomous_sleeping")]
-    AutonomousSleeping {
-        session_id: String,
-        duration_secs: u64,
-    },
-
-    #[serde(rename = "autonomous_tick")]
-    AutonomousTick { session_id: String, round: u32 },
-
-    #[serde(rename = "autonomous_paused")]
-    AutonomousPaused { session_id: String },
-
-    #[serde(rename = "autonomous_resumed")]
-    AutonomousResumed { session_id: String },
-
-    #[serde(rename = "autonomous_exhausted")]
-    AutonomousExhausted {
-        session_id: String,
-        reason: String,
-    },
-}
+//
+// As of Phase 5.4 D-03/D-04, server→client wire is split:
+// - model output → ChunkType envelope (handled by ws_chunk::map_event)
+// - lifecycle / control → ws_chunk::ControlMessage variants
+//
+// The historic 14-variant `enum ServerMessage` has been retired; the two
+// standalone control sends below (session_created + error) construct
+// `ws_chunk::ControlMessage` directly.
 
 /// Extract a named parameter from a query string.
 fn extract_query_param(query: &str, name: &str) -> Option<String> {
@@ -172,11 +54,27 @@ fn extract_query_param(query: &str, name: &str) -> Option<String> {
     })
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WsQueryParams {
+    pub session_id: Option<String>,
+    pub token: Option<String>,
+}
+
+/// Legacy WebSocket handler — mounted at `/ws?session_id=...`.
+///
+/// Emits a deprecation warn line per Phase 5.4 D-05. Will be removed
+/// when grep -r `/ws?` in-tree returns 0 (per 5.2 D-04 pattern).
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
     req: Request,
 ) -> impl IntoResponse {
+    warn!(
+        "'/ws' WebSocket path is deprecated; use '/v1/sessions/{{id}}/stream' instead. \
+         This alias will be removed when no in-tree consumer references remain \
+         (grep -r '/ws?' returns 0)."
+    );
+
     // Auth check: if auth is enabled, verify user context exists.
     // Browser WebSocket API cannot send custom HTTP headers, so we also
     // accept the token as a query parameter: /ws?token=xxx
@@ -186,7 +84,6 @@ pub async fn ws_handler(
             .get::<grid_engine::auth::UserContext>()
             .is_none()
     {
-        // Try token from query string as fallback for browser WS connections
         let query_token = req
             .uri()
             .query()
@@ -195,8 +92,6 @@ pub async fn ws_handler(
         match query_token {
             Some(ref token) if state.auth_config.validate_key(token) => {
                 debug!("WebSocket authenticated via query token");
-                // Token is valid — proceed (no UserContext extension needed
-                // since ws_handler manages its own auth gate)
             }
             Some(_) => {
                 warn!("WebSocket query token validation failed");
@@ -222,16 +117,66 @@ pub async fn ws_handler(
         }
     }
 
-    // Extract session_id from query string: /ws?session_id=xxx
     let requested_sid = req
         .uri()
         .query()
         .and_then(|q| extract_query_param(q, "session_id"));
 
-    // Resolve the AgentExecutorHandle based on session_id query param.
-    // If session_id is provided, look it up in the session registry;
-    // if not found (or not provided), fall back to the primary session handle.
-    let handle = if let Some(ref sid) = requested_sid {
+    let handle = resolve_session_handle(&state, requested_sid.as_deref());
+
+    ws.on_upgrade(move |socket| handle_socket(socket, state, handle))
+        .into_response()
+}
+
+/// Canonical WebSocket handler — mounted at `/v1/sessions/:id/stream`.
+/// No deprecation warn; this is the path going forward (D-05).
+pub async fn ws_handler_with_path(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+    Query(params): Query<WsQueryParams>,
+) -> impl IntoResponse {
+    // Auth check (same logic as legacy handler).
+    if state.auth_config.mode != grid_engine::auth::AuthMode::None {
+        let token = params.token.as_deref();
+        match token {
+            Some(t) if state.auth_config.validate_key(t) => {
+                debug!("WebSocket authenticated via query token");
+            }
+            Some(_) => {
+                warn!("WebSocket query token validation failed");
+                return axum::response::Response::builder()
+                    .status(axum::http::StatusCode::UNAUTHORIZED)
+                    .body(axum::body::Body::from(
+                        "WebSocket authentication failed: invalid token",
+                    ))
+                    .unwrap_or_else(|_| {
+                        axum::response::Response::new(axum::body::Body::from("Unauthorized"))
+                    })
+                    .into_response();
+            }
+            None => {
+                return axum::response::Response::builder()
+                    .status(axum::http::StatusCode::UNAUTHORIZED)
+                    .body(axum::body::Body::from("WebSocket authentication required"))
+                    .unwrap_or_else(|_| {
+                        axum::response::Response::new(axum::body::Body::from("Unauthorized"))
+                    })
+                    .into_response();
+            }
+        }
+    }
+
+    let handle = resolve_session_handle(&state, Some(session_id.as_str()));
+    ws.on_upgrade(move |socket| handle_socket(socket, state, handle))
+        .into_response()
+}
+
+/// Shared session-handle resolution: if `session_id` is given and matches an
+/// existing session, return that handle; otherwise fall back to the primary
+/// agent_handle.
+fn resolve_session_handle(state: &Arc<AppState>, session_id: Option<&str>) -> AgentExecutorHandle {
+    if let Some(sid) = session_id {
         let session_id = SessionId::from_string(sid);
         match state.agent_supervisor.get_session_handle(&session_id) {
             Some(h) => {
@@ -245,10 +190,7 @@ pub async fn ws_handler(
         }
     } else {
         state.agent_handle.clone()
-    };
-
-    ws.on_upgrade(move |socket| handle_socket(socket, state, handle))
-        .into_response()
+    }
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>, handle: AgentExecutorHandle) {
@@ -257,251 +199,147 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, handle: AgentExe
     let sid_str = handle.session_id.as_str().to_string();
     info!(session_id = %sid_str, "WebSocket connected");
 
-    while let Some(msg) = receiver.next().await {
-        let msg = match msg {
-            Ok(Message::Text(t)) => t,
-            Ok(Message::Close(_)) => {
-                info!(session_id = %sid_str, "WebSocket closed by client");
-                break;
-            }
-            Err(e) => {
-                warn!(session_id = %sid_str, "WebSocket error: {e}");
-                break;
-            }
-            _ => continue,
-        };
+    // Phase 5.4 D-04: emit session_created control envelope on connect (before
+    // any client message). This lets reconnect / new-connection tests assert
+    // the lifecycle handshake immediately.
+    let initial_msg = ws_chunk::WsServerMessage::Control(ws_chunk::ControlMessage::SessionCreated {
+        session_id: sid_str.clone(),
+    });
+    if let Ok(text) = serde_json::to_string(&initial_msg) {
+        let _ = sender.send(Message::Text(text.into())).await;
+    }
 
-        // Touch session to reset idle timeout (AJ-D4)
-        state.agent_supervisor.touch_session(&handle.session_id);
-
-        let client_msg: ClientMessage = match serde_json::from_str(&msg) {
-            Ok(m) => m,
-            Err(e) => {
-                let err = ServerMessage::Error {
-                    session_id: sid_str.clone(),
-                    message: format!("Invalid message: {e}"),
-                };
-                if let Ok(text) = serde_json::to_string(&err) {
-                    let _ = sender.send(Message::Text(text.into())).await;
-                }
-                continue;
-            }
-        };
-
-        match client_msg {
-            ClientMessage::SendMessage { content } => {
-                // Tell client the session_id (for frontend UI display)
-                let created_msg = ServerMessage::SessionCreated {
-                    session_id: sid_str.clone(),
-                };
-                if let Ok(text) = serde_json::to_string(&created_msg) {
-                    let _ = sender.send(Message::Text(text.into())).await;
-                }
-
-                // Subscribe first, then send message (avoid missing events)
-                let mut rx = handle.subscribe();
-
-                // Forward user message to AgentExecutor
-                let _ = handle
-                    .send(AgentMessage::UserMessage {
-                        content: content.clone(),
-                        channel_id: "websocket".to_string(),
-                    })
-                    .await;
-
-                // Forward agent events to WebSocket
-                loop {
-                    match rx.recv().await {
-                        Ok(event) => {
-                            let server_msg = match event {
-                                AgentEvent::TextDelta { text } => ServerMessage::TextDelta {
-                                    session_id: sid_str.clone(),
-                                    text,
-                                },
-                                AgentEvent::TextComplete { text } => ServerMessage::TextComplete {
-                                    session_id: sid_str.clone(),
-                                    text,
-                                },
-                                AgentEvent::ThinkingDelta { text } => {
-                                    ServerMessage::ThinkingDelta {
-                                        session_id: sid_str.clone(),
-                                        text,
-                                    }
-                                }
-                                AgentEvent::ThinkingComplete { text } => {
-                                    ServerMessage::ThinkingComplete {
-                                        session_id: sid_str.clone(),
-                                        text,
-                                    }
-                                }
-                                AgentEvent::ToolStart {
-                                    tool_id,
-                                    tool_name,
-                                    input,
-                                } => ServerMessage::ToolStart {
-                                    session_id: sid_str.clone(),
-                                    tool_id,
-                                    tool_name,
-                                    input,
-                                },
-                                AgentEvent::ToolResult {
-                                    tool_id,
-                                    output,
-                                    success,
-                                    // tool_name (D83): not surfaced through
-                                    // the workbench WS ServerMessage schema
-                                    // (out of D83 scope); upstream gRPC path
-                                    // already carries it.
-                                    ..
-                                } => ServerMessage::ToolResult {
-                                    session_id: sid_str.clone(),
-                                    tool_id,
-                                    output,
-                                    success,
-                                },
-                                AgentEvent::ToolExecution { execution } => {
-                                    ServerMessage::ToolExecutionEvent {
-                                        session_id: sid_str.clone(),
-                                        execution,
-                                    }
-                                }
-                                AgentEvent::TokenBudgetUpdate { budget } => {
-                                    ServerMessage::TokenBudgetUpdate {
-                                        session_id: sid_str.clone(),
-                                        budget,
-                                    }
-                                }
-                                AgentEvent::Typing { state } => ServerMessage::Typing {
-                                    session_id: sid_str.clone(),
-                                    state,
-                                },
-                                AgentEvent::Error { message } => ServerMessage::Error {
-                                    session_id: sid_str.clone(),
-                                    message,
-                                },
-                                AgentEvent::Done | AgentEvent::Completed(_) => {
-                                    let done_msg = ServerMessage::Done {
-                                        session_id: sid_str.clone(),
-                                    };
-                                    if let Ok(text) = serde_json::to_string(&done_msg) {
-                                        let _ = sender.send(Message::Text(text.into())).await;
-                                    }
-                                    break;
-                                }
-                                AgentEvent::ContextDegraded { level, usage_pct } => {
-                                    ServerMessage::ContextDegraded {
-                                        session_id: sid_str.clone(),
-                                        level,
-                                        usage_pct,
-                                    }
-                                }
-                                AgentEvent::MemoryFlushed { facts_count } => {
-                                    ServerMessage::MemoryFlushed {
-                                        session_id: sid_str.clone(),
-                                        facts_count,
-                                    }
-                                }
-                                AgentEvent::ApprovalRequired {
-                                    tool_name,
-                                    tool_id,
-                                    risk_level,
-                                } => ServerMessage::ApprovalRequired {
-                                    session_id: sid_str.clone(),
-                                    tool_name,
-                                    tool_id,
-                                    risk_level,
-                                },
-                                AgentEvent::InteractionRequested { request_id, request } => {
-                                    ServerMessage::InteractionRequested {
-                                        session_id: sid_str.clone(),
-                                        request_id,
-                                        request,
-                                    }
-                                }
-                                AgentEvent::SecurityBlocked { reason } => {
-                                    ServerMessage::SecurityBlocked {
-                                        session_id: sid_str.clone(),
-                                        reason,
-                                    }
-                                }
-                                AgentEvent::RetryingMalformedToolCall {
-                                    attempt,
-                                    max_attempts,
-                                    reason,
-                                } => ServerMessage::RetryingMalformedToolCall {
-                                    session_id: sid_str.clone(),
-                                    attempt,
-                                    max_attempts,
-                                    reason,
-                                },
-                                // === Autonomous Mode Events (Phase AU-G3) ===
-                                AgentEvent::AutonomousSleeping { duration_secs } => {
-                                    ServerMessage::AutonomousSleeping {
-                                        session_id: sid_str.clone(),
-                                        duration_secs,
-                                    }
-                                }
-                                AgentEvent::AutonomousTick { round } => {
-                                    ServerMessage::AutonomousTick {
-                                        session_id: sid_str.clone(),
-                                        round,
-                                    }
-                                }
-                                AgentEvent::AutonomousPaused => {
-                                    ServerMessage::AutonomousPaused {
-                                        session_id: sid_str.clone(),
-                                    }
-                                }
-                                AgentEvent::AutonomousResumed => {
-                                    ServerMessage::AutonomousResumed {
-                                        session_id: sid_str.clone(),
-                                    }
-                                }
-                                AgentEvent::AutonomousExhausted { reason } => {
-                                    ServerMessage::AutonomousExhausted {
-                                        session_id: sid_str.clone(),
-                                        reason,
-                                    }
-                                }
-                                // IterationStart/IterationEnd are internal -- skip
-                                _ => continue,
-                            };
-
-                            if let Ok(json) = serde_json::to_string(&server_msg) {
-                                if sender.send(Message::Text(json.into())).await.is_err() {
+    // Subscribe to the broadcast channel so async injections (test backdoor +
+    // future server-side push) reach this socket even before a user message.
+    let mut bg_rx = handle.subscribe();
+    loop {
+        tokio::select! {
+            // Branch A: background events from the broadcast channel (test
+            // injection or out-of-band agent events). Forward whatever
+            // ws_chunk::map_event returns.
+            ev = bg_rx.recv() => {
+                match ev {
+                    Ok(event) => {
+                        if let Some(msg) = ws_chunk::map_event(&sid_str, event) {
+                            let is_done = matches!(
+                                &msg,
+                                ws_chunk::WsServerMessage::Control(ws_chunk::ControlMessage::Done { .. })
+                            );
+                            if let Ok(text) = serde_json::to_string(&msg) {
+                                if sender.send(Message::Text(text.into())).await.is_err() {
                                     break;
                                 }
                             }
+                            if is_done {
+                                // Stay open; another user message may arrive.
+                                // (The legacy code broke the inner loop; the
+                                // outer loop here continues until the client
+                                // closes the socket.)
+                            }
                         }
-                        Err(broadcast::error::RecvError::Closed) => break,
-                        Err(broadcast::error::RecvError::Lagged(n)) => {
-                            debug!("Broadcast lagged by {n} messages");
-                        }
+                    }
+                    Err(broadcast::error::RecvError::Closed) => break,
+                    Err(broadcast::error::RecvError::Lagged(n)) => {
+                        warn!(session_id = %sid_str, lagged = n, "broadcast channel lagged");
                     }
                 }
             }
-            ClientMessage::Cancel => {
-                let _ = handle.send(AgentMessage::Cancel).await;
-                info!(session_id = %sid_str, "Agent cancellation requested");
-            }
-            ClientMessage::ApprovalResponse { tool_id, approved } => {
-                if let Some(ref gate) = state.approval_gate {
-                    let found = gate.respond(&tool_id, approved).await;
-                    if found {
-                        info!(tool_id = %tool_id, approved, "Approval response forwarded");
-                    } else {
-                        warn!(tool_id = %tool_id, "No pending approval for tool_id");
+            // Branch B: client → server messages.
+            msg = receiver.next() => {
+                let Some(msg) = msg else { break };
+                let txt = match msg {
+                    Ok(Message::Text(t)) => t,
+                    Ok(Message::Close(_)) => {
+                        info!(session_id = %sid_str, "WebSocket closed by client");
+                        break;
                     }
-                } else {
-                    warn!("ApprovalResponse received but no ApprovalGate configured");
-                }
-            }
-            ClientMessage::InteractionResponse { request_id, response } => {
-                let found = state.interaction_gate.respond(&request_id, response).await;
-                if found {
-                    info!(request_id = %request_id, "Interaction response forwarded");
-                } else {
-                    warn!(request_id = %request_id, "No pending interaction request");
+                    Err(e) => {
+                        warn!(session_id = %sid_str, "WebSocket error: {e}");
+                        break;
+                    }
+                    _ => continue,
+                };
+
+                state.agent_supervisor.touch_session(&handle.session_id);
+
+                let client_msg: ClientMessage = match serde_json::from_str(&txt) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        let err = ws_chunk::WsServerMessage::Control(ws_chunk::ControlMessage::Error {
+                            session_id: sid_str.clone(),
+                            message: format!("Invalid message: {e}"),
+                        });
+                        if let Ok(text) = serde_json::to_string(&err) {
+                            let _ = sender.send(Message::Text(text.into())).await;
+                        }
+                        continue;
+                    }
+                };
+
+                match client_msg {
+                    ClientMessage::SendMessage { content } => {
+                        // Subscribe a per-turn rx (avoid races on first chunk)
+                        let mut rx = handle.subscribe();
+
+                        let _ = handle
+                            .send(AgentMessage::UserMessage {
+                                content: content.clone(),
+                                channel_id: "websocket".to_string(),
+                            })
+                            .await;
+
+                        // Drain per-turn rx until Done, then return to outer select.
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => {
+                                    if let Some(server_msg) = ws_chunk::map_event(&sid_str, event) {
+                                        let is_done = matches!(
+                                            &server_msg,
+                                            ws_chunk::WsServerMessage::Control(
+                                                ws_chunk::ControlMessage::Done { .. }
+                                            )
+                                        );
+                                        if let Ok(text) = serde_json::to_string(&server_msg) {
+                                            if sender.send(Message::Text(text.into())).await.is_err() {
+                                                return;
+                                            }
+                                        }
+                                        if is_done {
+                                            break;
+                                        }
+                                    }
+                                }
+                                Err(broadcast::error::RecvError::Closed) => return,
+                                Err(broadcast::error::RecvError::Lagged(n)) => {
+                                    warn!("Broadcast lagged by {n} messages");
+                                }
+                            }
+                        }
+                    }
+                    ClientMessage::Cancel => {
+                        let _ = handle.send(AgentMessage::Cancel).await;
+                        info!(session_id = %sid_str, "Agent cancellation requested");
+                    }
+                    ClientMessage::ApprovalResponse { tool_id, approved } => {
+                        if let Some(ref gate) = state.approval_gate {
+                            let found = gate.respond(&tool_id, approved).await;
+                            if found {
+                                info!(tool_id = %tool_id, approved, "Approval response forwarded");
+                            } else {
+                                warn!(tool_id = %tool_id, "No pending approval for tool_id");
+                            }
+                        } else {
+                            warn!("ApprovalResponse received but no ApprovalGate configured");
+                        }
+                    }
+                    ClientMessage::InteractionResponse { request_id, response } => {
+                        let found = state.interaction_gate.respond(&request_id, response).await;
+                        if found {
+                            info!(request_id = %request_id, "Interaction response forwarded");
+                        } else {
+                            warn!(request_id = %request_id, "No pending interaction request");
+                        }
+                    }
                 }
             }
         }

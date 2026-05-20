@@ -7,3 +7,4 @@ pub mod router;
 pub mod session;
 pub mod state;
 pub mod ws;
+pub mod ws_chunk;

@@ -41,6 +41,9 @@ pub struct AppState {
     pub agent_supervisor: Arc<AgentRuntime>,
     /// 主 AgentExecutor 的通信句柄（channels 唯一的 Agent 接入点）
     pub agent_handle: AgentExecutorHandle,
+    /// Optional L2 memory engine base URL override (Phase 5.4 D-07/D-08).
+    /// `None` → `L2MemoryClient::from_env()`; `Some(url)` → `L2MemoryClient::new(url)`.
+    pub l2_client_base_url: Option<String>,
     /// Server start time for uptime calculation
     pub start_time: std::time::Instant,
     /// Shared approval gate for pending human approval requests (T3).
@@ -78,6 +81,7 @@ impl AppState {
             metrics_registry,
             agent_supervisor,
             agent_handle,
+            l2_client_base_url: None,
             start_time: std::time::Instant::now(),
             approval_gate,
             interaction_gate,
@@ -98,6 +102,51 @@ impl AppState {
     pub async fn metering_storage(&self) -> Option<grid_engine::metering::storage::MeteringStorage> {
         let db = grid_engine::Database::open(self.db_path.to_str()?).await.ok()?;
         Some(grid_engine::metering::storage::MeteringStorage::new(db))
+    }
+
+    /// Get L2 memory engine client on-demand (Phase 5.4 D-08).
+    ///
+    /// Mirrors `mcp_storage` / `audit_storage` on-demand pattern: every call
+    /// constructs a new `L2MemoryClient` (reqwest has its own connection pool,
+    /// no need to long-hold). If `l2_client_base_url` is set on `AppState`
+    /// (typically by tests), uses it; otherwise falls back to
+    /// `L2MemoryClient::from_env()` which reads `EAASP_L2_HOST` / `EAASP_L2_PORT`.
+    pub fn l2_storage(&self) -> grid_engine::l2::L2MemoryClient {
+        match &self.l2_client_base_url {
+            Some(url) => grid_engine::l2::L2MemoryClient::new(url),
+            None => grid_engine::l2::L2MemoryClient::from_env(),
+        }
+    }
+
+    /// Test backdoor — inject `AgentEvent`s directly into the primary
+    /// session's broadcast channel. Used by WS load / ordering / reconnect
+    /// tests (Tasks 5.4-01-05, 5.4-01-06, 5.4-01-07) to avoid spinning a real
+    /// LLM. **NOT** exposed in production builds.
+    ///
+    /// Per W3 (plan-checker 2026-05-21): cfg-gated; `pub(crate)` visibility
+    /// keeps it out of the binary surface entirely.
+    #[cfg(any(test, feature = "testing"))]
+    pub async fn test_inject_events(
+        &self,
+        session_id: &SessionId,
+        events: Vec<grid_engine::AgentEvent>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Resolve the handle (or fall back to primary if no match).
+        let handle = match self.agent_supervisor.get_session_handle(session_id) {
+            Some(h) => h,
+            None => self.agent_handle.clone(),
+        };
+        for ev in events {
+            // Pace via yield_now so the broadcast channel drains between
+            // sends — backpressure test (5.4-01-05) relies on this to keep
+            // the default-capacity broadcast channel from lagging.
+            tokio::task::yield_now().await;
+            // Ignore "no receivers" errors — tests may inject before a WS
+            // subscriber is connected, in which case the value is simply
+            // discarded. Realistic tests subscribe first.
+            let _ = handle.broadcast_tx.send(ev);
+        }
+        Ok(())
     }
 
     /// Resolve a session handle: if session_id is given, look up in agent_supervisor;
