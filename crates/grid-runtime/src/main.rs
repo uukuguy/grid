@@ -138,7 +138,11 @@ async fn main() -> anyhow::Result<()> {
             .with_provider(&config.provider, &config.model),
     );
 
-    let grpc_service = RuntimeGrpcService::new(harness);
+    // Phase 5.4 WATCH-04 D142: thread the deployment mode read from
+    // EAASP_DEPLOYMENT_MODE through to the gRPC service so Initialize()
+    // can enforce the per-session gate (ADR-V2-019 §D2).
+    let grpc_service =
+        RuntimeGrpcService::with_deployment_mode(harness, config.deployment_mode);
     let server = RuntimeServiceServer::new(grpc_service);
 
     info!(addr = %config.grpc_addr, "gRPC server listening");

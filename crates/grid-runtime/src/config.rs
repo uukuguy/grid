@@ -4,6 +4,8 @@
 
 use std::net::SocketAddr;
 
+use crate::contract::DeploymentMode;
+
 /// grid-runtime server configuration.
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
@@ -22,6 +24,12 @@ pub struct RuntimeConfig {
     /// Runtime workspace base directory for session isolation.
     /// Each session creates a subdirectory under this path.
     pub runtime_workspace: Option<String>,
+    /// Phase 5.4 WATCH-04 D142 — deployment-mode gate per ADR-V2-019.
+    ///
+    /// `Shared` (default) allows multiple concurrent sessions per process.
+    /// `PerSession` enforces max_sessions=1 so EAASP L4 must spawn a fresh
+    /// container per session. Read from `EAASP_DEPLOYMENT_MODE`.
+    pub deployment_mode: DeploymentMode,
 }
 
 impl RuntimeConfig {
@@ -73,6 +81,20 @@ impl RuntimeConfig {
         // Bare-metal dev: set by dev-eaasp.sh to data/runtime-workspace/.
         let runtime_workspace = std::env::var("EAASP_RUNTIME_WORKSPACE").ok();
 
+        // Phase 5.4 WATCH-04 D142 + ADR-V2-019 §D2 — deployment-mode wire.
+        // Default Shared (multi-session per process); explicit per_session
+        // gates Initialize() at one session per container.
+        let deployment_mode = match std::env::var("EAASP_DEPLOYMENT_MODE")
+            .as_deref()
+        {
+            Ok("per_session") => DeploymentMode::PerSession,
+            Ok("shared") | Err(_) => DeploymentMode::Shared,
+            Ok(other) => panic!(
+                "Invalid EAASP_DEPLOYMENT_MODE: '{}', expected 'shared' or 'per_session'",
+                other
+            ),
+        };
+
         Self {
             grpc_addr,
             runtime_id,
@@ -81,6 +103,7 @@ impl RuntimeConfig {
             provider,
             model,
             runtime_workspace,
+            deployment_mode,
         }
     }
 }
@@ -97,12 +120,15 @@ mod tests {
         std::env::set_var("OPENAI_API_KEY", "test-key");
         std::env::set_var("OPENAI_MODEL_NAME", "gpt-4o");
         std::env::remove_var("EAASP_RUNTIME_WORKSPACE");
+        std::env::remove_var("EAASP_DEPLOYMENT_MODE");
         let config = RuntimeConfig::from_env();
         assert_eq!(config.grpc_addr.port(), 50051);
         assert_eq!(config.runtime_id, "grid-harness");
         assert_eq!(config.provider, "openai");
         assert_eq!(config.model, "gpt-4o");
         assert_eq!(config.api_key.as_deref(), Some("test-key"));
+        // Default deployment mode is Shared when env unset.
+        assert_eq!(config.deployment_mode, DeploymentMode::Shared);
         // Cleanup
         std::env::remove_var("LLM_PROVIDER");
         std::env::remove_var("OPENAI_API_KEY");

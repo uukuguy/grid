@@ -55,13 +55,28 @@ pub struct RuntimeGrpcService<C: RuntimeContract> {
     /// Last initialized session — provides implicit context for
     /// v2 methods whose request is `Empty` (GetState, Terminate, …).
     current_session: Arc<RwLock<Option<String>>>,
+    /// Phase 5.4 WATCH-04 D142 — when `PerSession`, a second Initialize call
+    /// against the same process returns `ResourceExhausted` per ADR-V2-019 §D2.
+    deployment_mode: contract::DeploymentMode,
 }
 
 impl<C: RuntimeContract + 'static> RuntimeGrpcService<C> {
+    /// Construct with default `Shared` deployment mode.
     pub fn new(contract: Arc<C>) -> Self {
+        Self::with_deployment_mode(contract, contract::DeploymentMode::Shared)
+    }
+
+    /// Phase 5.4 WATCH-04 D142 — construct with an explicit deployment mode.
+    /// Production binaries should pass the value read from `EAASP_DEPLOYMENT_MODE`
+    /// via `RuntimeConfig::from_env()`.
+    pub fn with_deployment_mode(
+        contract: Arc<C>,
+        deployment_mode: contract::DeploymentMode,
+    ) -> Self {
         Self {
             contract,
             current_session: Arc::new(RwLock::new(None)),
+            deployment_mode,
         }
     }
 
@@ -231,6 +246,18 @@ impl<C: RuntimeContract + 'static> RuntimeService for RuntimeGrpcService<C> {
         &self,
         request: Request<proto::InitializeRequest>,
     ) -> Result<Response<proto::InitializeResponse>, Status> {
+        // Phase 5.4 WATCH-04 D142 + ADR-V2-019 §D2 — per-session deployment gate.
+        // When the runtime is configured for `PerSession` mode, refuse a
+        // second Initialize against the same process. L4 must spin up a
+        // fresh container per session in this mode.
+        if self.deployment_mode == contract::DeploymentMode::PerSession
+            && self.current_session.read().await.is_some()
+        {
+            return Err(Status::resource_exhausted(
+                "per-session deployment: max_sessions=1 reached",
+            ));
+        }
+
         let payload = request
             .into_inner()
             .payload
