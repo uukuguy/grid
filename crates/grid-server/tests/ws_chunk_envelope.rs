@@ -218,8 +218,14 @@ async fn test_message_ordering_serial() {
 
 #[tokio::test]
 async fn test_ws_reconnect_simple() {
-    // D-15: simple reconnect — only assert new connection + first
-    // SessionCreated frame replay. chunk_id resume defer to Phase 5.5+.
+    // D-15 (CONTEXT lock 2026-05-21, plan-checker W1): simple reconnect
+    // scope — only assert new connection succeeds + first SessionCreated
+    // frame replay. chunk_id resume semantics deferred to Phase 5.5+.
+    //
+    // Scope guard: assert the SessionCreated frame does NOT contain a
+    // `chunk_id` or `since_chunk_id` field. If a future commit adds chunk_id
+    // resume to SessionCreated wire shape without going through Phase 5.5
+    // planning, this test will fail and surface the scope creep.
     let app = Arc::new(TestApp::new().await);
     let (addr, _server, _state) = start_ws_server(app).await;
 
@@ -227,6 +233,10 @@ async fn test_ws_reconnect_simple() {
     let mut ws1 = connect_ws_v1(addr, "reconn-test").await;
     let v1 = next_json(&mut ws1).await;
     assert_eq!(v1["type"], "session_created", "first frame must be session_created");
+    assert!(
+        v1.get("chunk_id").is_none(),
+        "Phase 5.4 D-15: SessionCreated must not yet carry chunk_id (defer to 5.5+)"
+    );
     drop(ws1);
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
@@ -236,6 +246,10 @@ async fn test_ws_reconnect_simple() {
     assert_eq!(
         v2["type"], "session_created",
         "reconnect must replay session_created as the first frame"
+    );
+    assert!(
+        v2.get("since_chunk_id").is_none(),
+        "Phase 5.4 D-15: reconnect must not yet support since_chunk_id replay (defer to 5.5+)"
     );
 }
 
