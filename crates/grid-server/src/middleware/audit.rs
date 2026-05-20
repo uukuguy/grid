@@ -69,6 +69,17 @@ pub async fn audit_middleware(
     let path = req.uri().path().to_string();
     let query = req.uri().query().map(|s| s.to_string());
 
+    // Phase 5.4 SERVER-04 (Task 5.4-02-05): capture per-request trace ID.
+    // Prefer the inbound X-Request-Id header (set by request_id_middleware
+    // at the outermost layer); fall back to the literal "anonymous" when
+    // absent so the column is always non-empty.
+    let request_id = req
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned)
+        .unwrap_or_else(|| "anonymous".to_string());
+
     // Execute the request
     let response = next.run(req).await;
 
@@ -85,6 +96,7 @@ pub async fn audit_middleware(
     let log_query = query;
     let log_status = status;
     let log_duration = duration_ms;
+    let log_request_id = request_id;
 
     tokio::spawn(async move {
         let storage = match AuditStorage::new(&db_path) {
@@ -113,6 +125,7 @@ pub async fn audit_middleware(
                 "query": log_query,
                 "status": log_status,
                 "duration_ms": log_duration,
+                "request_id": log_request_id,
             })),
             ip_address: log_client_ip,
         };

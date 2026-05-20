@@ -68,24 +68,37 @@ async fn rate_limit_middleware(
     use axum::response::IntoResponse;
     use tracing::debug;
 
-    // Extract client IP: try ConnectInfo extension first, then X-Forwarded-For header
-    let client_ip = req
-        .extensions()
-        .get::<axum::extract::connect_info::ConnectInfo<std::net::SocketAddr>>()
-        .map(|connect_info| connect_info.0.ip().to_string())
-        .or_else(|| {
-            req.headers()
-                .get("x-forwarded-for")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.split(',').next())
-                .map(|s| s.to_string())
-        })
-        .unwrap_or_else(|| "127.0.0.1".to_string());
+    // Phase 5.4 SERVER-04 (Task 5.4-02-05): prefer X-API-Key as rate-limit
+    // key when present — gives per-key isolation (two clients using different
+    // keys don't share a quota). Falls back to client IP for unauthenticated
+    // / public requests. RateLimiter is already per-key internally, so this
+    // is just a key-selection change, not a redesign (plan §Task 05 explicit:
+    // "DO NOT redesign rate_limit middleware. Existing per-key counter is
+    // sufficient. Only expose configuration.").
+    let api_key = req
+        .headers()
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
 
-    debug!(client_ip = %client_ip, "Rate limit check");
+    let rate_key = api_key.unwrap_or_else(|| {
+        req.extensions()
+            .get::<axum::extract::connect_info::ConnectInfo<std::net::SocketAddr>>()
+            .map(|connect_info| connect_info.0.ip().to_string())
+            .or_else(|| {
+                req.headers()
+                    .get("x-forwarded-for")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.split(',').next())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| "127.0.0.1".to_string())
+    });
 
-    if !rate_limiter.check(&client_ip).await {
-        debug!("Rate limit exceeded for {}", client_ip);
+    debug!(rate_key = %rate_key, "Rate limit check");
+
+    if !rate_limiter.check(&rate_key).await {
+        debug!("Rate limit exceeded for {}", rate_key);
         return (
             axum::http::StatusCode::TOO_MANY_REQUESTS,
             [("retry-after", "60")],
