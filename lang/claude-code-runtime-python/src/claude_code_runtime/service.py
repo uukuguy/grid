@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 
 import grpc
@@ -129,6 +130,11 @@ class RuntimeServiceImpl(runtime_pb2_grpc.RuntimeServiceServicer):
         self._start_time = time.time()
         # L2 Memory Engine client for tool execution evidence writes
         self._l2_client = L2MemoryClient()
+        # Phase 5.4 WATCH-04 D143 + ADR-V2-019 §D2 — deployment-mode wire.
+        # Defaults to "shared" so multi-session callers retain current
+        # behaviour; EAASP L4 sets EAASP_DEPLOYMENT_MODE=per_session when
+        # it expects one container per session.
+        self._deployment_mode = os.getenv("EAASP_DEPLOYMENT_MODE", "shared")
 
     # ── helpers ──
 
@@ -153,6 +159,17 @@ class RuntimeServiceImpl(runtime_pb2_grpc.RuntimeServiceServicer):
 
     # 1. Initialize
     async def Initialize(self, request, context):
+        # Phase 5.4 WATCH-04 D143 + ADR-V2-019 §D2 — per-session deployment gate.
+        # When configured for per_session, refuse a second Initialize against
+        # the same process: L4 must spawn a fresh container per session.
+        if (
+            self._deployment_mode == "per_session"
+            and len(self.session_mgr._sessions) >= 1
+        ):
+            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            context.set_details("per-session mode: one session per container")
+            return runtime_pb2.InitializeResponse()
+
         payload = request.payload
 
         user_id = _extract_user_id(payload)
