@@ -120,6 +120,14 @@ async fn test_path_v1_native_no_warn() {
 
 #[tokio::test]
 async fn test_backpressure_1000_chunks() {
+    // T-01 mitigation gate (Task 5.4-01-05): inject 1000 TextDelta events
+    // into the broadcast channel and verify all 1000 are received in order
+    // by the WS client. Defense-in-depth: this test installs a tracing
+    // capture and asserts NO "broadcast channel lagged" warn line emitted —
+    // if the channel had dropped any chunk, we would both receive < 1000
+    // AND see a Lagged warn line in captured logs.
+    let (logs, _guard) = install_capture();
+
     let app = Arc::new(TestApp::new().await);
     let (addr, _server, state) = start_ws_server(app).await;
 
@@ -163,6 +171,11 @@ async fn test_backpressure_1000_chunks() {
     assert_eq!(
         received, 1000,
         "expected exactly 1000 wire-1 chunks, received {received} — broadcast channel lagged"
+    );
+    // Explicit defense-in-depth: no Lagged warn line emitted.
+    assert!(
+        !logs.contains("broadcast channel lagged"),
+        "broadcast channel must not lag with 0 dropped chunks (T-01 mitigation)"
     );
 }
 
