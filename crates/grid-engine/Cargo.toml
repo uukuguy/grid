@@ -91,3 +91,12 @@ optional = true
 
 [dev-dependencies]
 tempfile = "3"
+
+# Test-only binary spawned by crates/grid-server/tests/migrate_race.rs.
+# Verifies multi-process atomicity of grid_engine::db::migrate() (NEW-A2 fix).
+[[bin]]
+name = "migrate-tester"
+path = "tests/bin/migrate_tester.rs"
+test = false
+bench = false
+required-features = []
