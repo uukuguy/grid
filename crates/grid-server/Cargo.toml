@@ -40,3 +40,5 @@ axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
