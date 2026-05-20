@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
-status: executing
-stopped_at: Phase 5.3 ✅ COMPLETE 2026-05-20 — 20 commits, all 4 SCs PASS, 5 deferred items closed; ready for /gsd-discuss-phase 5.4
-last_updated: "2026-05-20T22:00:00.000Z"
-last_activity: 2026-05-20 -- Phase 5.3 execution complete (Plan A 11/11 + Plan B 7/7 + VERIFICATION PASSED)
+status: Phase 5.3 closed; awaiting `/gsd-discuss-phase 5.4`
+stopped_at: "Phase 5.4 context gathered — 4 gray areas locked (GA1 in-process + GA2 ChunkType wire/path + GA3 grid-engine::l2 module + GA4+5 fold WATCH-04/07/NEW-A2/F3, defer 4 sideband to 5.5)"
+last_updated: "2026-05-20T13:00:39.096Z"
+last_activity: 2026-05-20 -- Phase 5.3 verification PASSED
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 7
+  total_plans: 5
   completed_plans: 5
-  percent: 71
+  percent: 100
 ---
 
 # Project State
@@ -134,13 +134,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20 (Phase 5.3 full close — discuss + plan + execute Wave 1+2 + verify + close, all in one session)
-Stopped at: **Phase 5.3 ✅ COMPLETE**; ready for `/gsd-discuss-phase 5.4`
-Resume file: `.planning/phases/05.3-contract-evolution/05.3-VERIFICATION.md` (orchestrator-inline verification record) + this STATE.md
+Last session: 2026-05-20T13:00:39.089Z
+Stopped at: Phase 5.4 context gathered — 4 gray areas locked (GA1 in-process + GA2 ChunkType wire/path + GA3 grid-engine::l2 module + GA4+5 fold WATCH-04/07/NEW-A2/F3, defer 4 sideband to 5.5)
+Resume file: .planning/phases/05.4-server-hardening/05.4-CONTEXT.md
 Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `a3851f0`)
 Worktrees: cleaned (Phase 5.3 worktree-a5a8 + worktree-a401 removed; 1 unrelated `ac21fe86` worktree from earlier session still locked, left alone)
 
 Prior sessions:
+
 - 2026-05-19: LLM provider fix + Phase 5.3 plan-phase (`/gsd-discuss-phase 5.3` + `/gsd-plan-phase 5.3`)
 - 2026-05-17: Phase 5.2 closure (T-01.14/19) — 19/19 PASS
 - 2026-05-16: DeepSeek shakedown + ExecutionMode RFC + commit `f1999fb` impl
@@ -152,6 +153,7 @@ Detailed narratives below.
 **Single-day full Phase 5.3 execution + 1 cross-session LLM provider hot fix.** 26 commits total `e346ffd..a3851f0` (1 pre-phase + 25 within Phase 5.3 boundary).
 
 **Pre-phase (2026-05-19 evening, carried into 2026-05-20)** — LLM provider unblock:
+
 - `e346ffd` fix(llm-providers): unblock TUI with ant-ling + record provider-system debt (NEW-F1..F4)
 - Root cause cascade discovered: (1) macOS Clash proxy fails on ~57KB POST bodies (small `grid ask` OK, TUI 47-tool body fails); (2) ant-ling Ling-2.6-1T doesn't emit `data: [DONE]` (parser hangs); (3) stale `.env` `RUST_LOG=octo_*` (pre-Phase-BA rename leftover) silently filters all `grid_*` log → debugged for hours; (4) `make studio-tui` Makefile didn't pass `--verbose` flag
 - Mitigations landed: `OPENAI_NO_PROXY=1` / `ANTHROPIC_NO_PROXY=1` / `GRID_LLM_NO_PROXY=1` env switches in providers; OpenAIProvider parser flushes pending tool_calls on `Poll::Ready(None)` (unconditional hot fix; later gated by ADR-V2-027 Quirks.no_done_marker); TUI log path moved to `./logs/tui.log`; LLM_PROVIDER default flipped anthropic → openai
@@ -184,6 +186,7 @@ Detailed narratives below.
 7. **Close** (commit `a3851f0`): VERIFICATION.md + STATE.md + ROADMAP.md + deferred-items.md, single commit. Pushed.
 
 **Test counts (all PASS, per-Plan SUMMARY + verifier spot-check)**:
+
 - chunk_emit 4/4 · subagent_start_hook 2/2 · task_checkpoint_hook 2/2 · d87_multi_step_workflow_regression 3/3
 - openai_quirks 5/5 · ling 4/4 · chain dispatch 1/1
 - test_chunk_type_contract 1/1 · test_hook_event_contract 5/5 · test_chunk_type_whitelist 2/2
@@ -193,10 +196,12 @@ Detailed narratives below.
 - providers lib 127/127
 
 **Out-of-scope discoveries logged in `.planning/phases/05.3-contract-evolution/deferred-items.md`**:
+
 1. grid-cli `mod output` pre-existing E0583 — Phase 5.4 inbox
 2. NEW-L1 L2 HNSW 94GB disk leak — data ✅ deleted; code fix → Phase 5.4 NEW-L1
 
 **Key lessons captured to memory**:
+
 - macOS Clash + reqwest fails on ≳50KB POST bodies (mitigated via OPENAI_NO_PROXY env)
 - dotenvy + stale RUST_LOG (pre-Phase-BA `octo_*` keys) silently drops all grid logs
 - OpenAI-compat `[DONE]` not guaranteed (ant-ling specifically)
@@ -210,6 +215,7 @@ Detailed narratives below.
 Phase 5.3 closed 2026-05-20 at `origin/main` HEAD `a3851f0`. Next action: **`/gsd-discuss-phase 5.4`** — SERVER hardening.
 
 Phase 5.4 anchors carried into the new session:
+
 - **SERVER-01..05** main scope (ROADMAP §Phase 5.4): WebSocket / L1 gRPC integration / session+L2 persistence / auth+audit / config hot-reload
 - **WATCH-04** (D142+D143 — EAASP_DEPLOYMENT_MODE接入 + max_sessions=1 gate per ADR-V2-019)
 - **WATCH-07** (NEW-E3 — ADR-V2-019 Proposed → Accepted after D142+D143 close)
