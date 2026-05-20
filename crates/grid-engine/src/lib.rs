@@ -7,6 +7,7 @@ pub mod context;
 pub mod db;
 pub mod event;
 pub mod hooks;
+pub mod l2;
 pub mod logging;
 pub mod mcp;
 pub mod memory;
@@ -47,6 +48,9 @@ pub use db::Database;
 pub use event::{TelemetryBus, EventCountProjection, EventStore, TelemetryEvent, Projection, StoredEvent};
 pub use hooks::{
     BoxHookHandler, HookAction, HookContext, HookFailureMode, HookHandler, HookPoint, HookRegistry,
+};
+pub use l2::{
+    L2MemoryClient, WriteAnchorRequest, WriteAnchorResponse, WriteFileRequest, WriteFileResponse,
 };
 pub use logging::{
     init_logging, init_logging_with_filter, init_pretty_logging, init_pretty_logging_with_filter,
