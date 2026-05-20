@@ -11,8 +11,11 @@ use tokio::sync::RwLock;
 
 use crate::config::Config;
 
-/// Runtime-updatable configuration overrides (AO-T8).
+/// Runtime-updatable configuration overrides (AO-T8 + Phase 5.4 SERVER-05).
 /// Fields set to `Some(...)` override the corresponding value in `Config`.
+///
+/// Phase 5.4 Task 5.4-02-06 added `hooks_file` and `policies_file` —
+/// reloadable via `POST /api/v1/admin/reload` (T-06 mitigation).
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeConfigOverrides {
     pub logging_format: Option<String>,
@@ -23,6 +26,13 @@ pub struct RuntimeConfigOverrides {
     pub autonomy_level: Option<String>,
     pub require_approval_for_medium_risk: Option<bool>,
     pub block_high_risk_commands: Option<bool>,
+    /// Phase 5.4 SERVER-05: hooks definition file path; reloadable.
+    pub hooks_file: Option<String>,
+    /// Phase 5.4 SERVER-05: policy DSL file path; reloadable.
+    pub policies_file: Option<String>,
+    /// Phase 5.4 SERVER-05: tracing log filter (e.g. "grid_server=debug").
+    /// Reloadable when `log_reload_handle` is wired (W0-03 spike: viable).
+    pub log_level: Option<String>,
 }
 
 pub struct AppState {

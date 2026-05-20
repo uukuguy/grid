@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod agents;
 pub mod audit;
 pub mod autonomous;
@@ -138,4 +139,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .merge(context::router())
         // AR-T5: Autonomous webhook trigger
         .route("/autonomous/trigger", post(autonomous::trigger_autonomous))
+        // Phase 5.4 SERVER-05 (Task 5.4-02-06): hot-reload admin endpoint.
+        // 422 on restart-required fields (host/port/auth_mode/api_key per
+        // GA7) — explicit anti-silent-drift surfacing (T-06).
+        .route("/admin/reload", post(admin::reload_config))
 }
