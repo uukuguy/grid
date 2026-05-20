@@ -24,6 +24,7 @@ pub mod interrupt;
 pub mod loop_;
 pub mod loop_config;
 pub mod loop_guard;
+pub mod l2_trajectory_hook;
 pub mod loop_steps;
 pub mod manifest_loader;
 pub mod parallel;
@@ -82,6 +83,7 @@ pub use manifest_loader::AgentManifestLoader;
 pub use queue::{MessageQueue, QueueKind, QueueMode};
 pub use router::{AgentProfile, AgentRouter, RouteAlternative, RouteResult};
 pub use runtime::{AgentRuntime, AgentRuntimeConfig, IdleDistribution, SessionEntry, SessionMetrics};
+pub use l2_trajectory_hook::L2TrajectoryStopHook;
 pub use stop_hooks::{
     dispatch_stop_hooks, NoOpStopHook, StopHook, StopHookDecision, MAX_STOP_HOOK_INJECTIONS,
 };
