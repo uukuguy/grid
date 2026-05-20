@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: "Phase 5.4 context gathered — 4 gray areas locked (GA1 in-process + GA2 ChunkType wire/path + GA3 grid-engine::l2 module + GA4+5 fold WATCH-04/07/NEW-A2/F3, defer 4 sideband to 5.5)"
-last_updated: "2026-05-20T19:16:08.575Z"
-last_activity: 2026-05-20 -- Phase 5.4 planning complete
+stopped_at: "Phase 5.4 Plan 01 (SERVER-01/02/03 backbone) ✅ COMPLETE — ws_chunk-native envelope, in-process verification, grid-engine::l2 module + Stop hook → L2 write all green. Next: Plan 02 (NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth + SERVER-05 hot-reload + WATCH-04 + WATCH-07 + ADR-V2-028)."
+last_updated: "2026-05-21T05:45:00Z"
+last_activity: 2026-05-21 -- Phase 5.4 Plan 01 execution complete (9 commits, 33 tests PASS)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 7
-  completed_plans: 5
-  percent: 71
+  total_plans: 8
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 5.3 ✅ COMPLETE — next: Phase 5.4 (Server Hardening) discuss
+**Current focus:** Phase 5.4 — Server Hardening
 
 ## Current Position
 
-Phase: 05.3 (contract-evolution) — ✅ COMPLETE 2026-05-20
-Plan: 2 of 2 (both PASS)
-Next phase: 5.4 (Server Hardening) — ready to discuss
-Status: Ready to execute
-Last activity: 2026-05-20 -- Phase 5.4 planning complete
+Phase: 5.4 (Server Hardening) — EXECUTING
+Plan: 1 of 2 ✅ COMPLETE (2026-05-21)
+Next plan: 5.4-02 — NEW-A2 + NEW-F3 + SERVER-04 + SERVER-05 + WATCH-04 + WATCH-07 + ADR-V2-028
+Status: Plan 01 complete, Plan 02 ready to execute
+Last activity: 2026-05-21 -- Phase 5.4 Plan 01 execution complete (9 commits, 33 tests PASS)
 
 Progress: [▓▓▓▓░░░░░░] 67% (4/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3)
 
@@ -39,7 +39,7 @@ Progress: [▓▓▓▓░░░░░░] 67% (4/6 milestone phases complete �
 
 **Velocity:**
 
-- Total plans completed (executed): 3 ✅
+- Total plans completed (executed): 4 ✅ (05.4-01 added 2026-05-21)
 - Total plans planned (ready to execute): 0
 - Average duration: ~75 min (Phase 4.0 ~25 min mechanical + Phase 4.1 ~3.5h audit + 4 plan iterations + cross-AI review)
 - Total execution time: ~4h cumulative
@@ -55,12 +55,12 @@ Progress: [▓▓▓▓░░░░░░] 67% (4/6 milestone phases complete �
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | **1/1 ✅** | COMPLETE 2026-05-02 (5 task commits + SUMMARY + VERIFICATION) | 4/4 SC PASS, 4/4 must-haves PASS, NEW-D2 closed, ADR-V2-025 Accepted, CONTRACT-00 + WATCH-05 ✓ |
 | 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
-| 5.4 Server Hardening | 0/TBD | Not started | Depends on 5.3 |
+| 5.4 Server Hardening | **1/2 🚧** | Executing 2026-05-21 (Plan 01 ✅, Plan 02 ready) | Plan 01: 10 tasks (W0-01..03 + 5.4-01-01..07), 9 commits, 33 tests PASS, SC#1+SC#2+SC#3 PASS, ROADMAP SC#2 rewritten per D-02, CONTEXT D-15 restructured |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | Depends on 5.4 |
 
 **Recent Trend:**
 
-- Last 5 plans: [05.2-01 ✅ 2026-05-17, 05.1-01 ✅ 2026-05-02, 05.0-01 ✅ 2026-05-19, 04.0-01 ✅ 2026-04-27, 04.1-01 ✅ 2026-04-27]
+- Last 5 plans: [05.4-01 ✅ 2026-05-21, 05.3-02 ✅ 2026-05-20, 05.3-01 ✅ 2026-05-20, 05.2-01 ✅ 2026-05-17, 05.1-01 ✅ 2026-05-02]
 - Trend: design-heavy phase 跑通 — cross-AI review (4 reviewers + 7 fixes) 显著提升 audit 框架严谨性,catch 到 B1 pre-committed verdict 隐患 (T4 hardcoded "两腿都推进" 被 Path 1 fix 改成 verdict-format regex + runtime substitution)
 
 *Updated after each plan completion*
