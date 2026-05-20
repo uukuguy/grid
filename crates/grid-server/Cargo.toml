@@ -38,6 +38,12 @@ chrono.workspace = true
 rusqlite = { workspace = true }
 tokio-rusqlite = { workspace = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+# Phase 5.4 SERVER-04 — HMAC request-signature verification (ADR-003).
+# Constant-time compare via `subtle` mitigates timing attacks (ASVS V2.10).
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+subtle = "2.5"
 
 [dev-dependencies]
 tempfile = "3"

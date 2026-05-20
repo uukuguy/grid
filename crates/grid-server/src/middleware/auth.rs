@@ -3,10 +3,60 @@ use grid_engine::auth::middleware::{RequiredAction, UserContext};
 use grid_engine::auth::roles::Role;
 use grid_engine::auth::{AuthConfig, AuthMode, Permission};
 
+/// Maximum body size accepted while verifying an HMAC signature.
+/// Larger payloads are rejected with 413; the limit lives here so callers
+/// don't have to thread a config value through every middleware layer.
+const HMAC_MAX_BODY_BYTES: usize = 10 * 1024 * 1024; // 10 MiB
+
+/// HMAC request-signature replay window (±5 minutes per ADR-003).
+const HMAC_REPLAY_WINDOW_SECS: i64 = 300;
+
 /// 从请求中提取用户上下文
 #[allow(dead_code)]
 pub fn get_user_context<B>(req: &Request<B>) -> Option<UserContext> {
     req.extensions().get::<UserContext>().cloned()
+}
+
+/// Verify an HMAC-SHA256 request signature per ADR-003.
+///
+/// Format:
+/// - `sig_hex`: lowercase hex of `HMAC-SHA256(secret, ts + "\n" + body)`
+/// - `ts`: Unix timestamp (seconds) as ASCII decimal
+/// - `body`: raw request body bytes
+///
+/// Mitigations:
+/// - **Replay (T-05)**: rejects timestamps outside ±5min from server time.
+/// - **Timing attack (ASVS V2.10)**: compares via
+///   `subtle::ConstantTimeEq` rather than `==` on `&str`.
+fn verify_hmac_signature(sig_hex: &str, ts: &str, body: &[u8], secret: &str) -> bool {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    use subtle::ConstantTimeEq;
+    type HmacSha256 = Hmac<Sha256>;
+
+    // 1. Replay window — reject if ts is too far from server's view of now.
+    let now = chrono::Utc::now().timestamp();
+    let ts_parsed: i64 = match ts.parse() {
+        Ok(n) => n,
+        Err(_) => return false,
+    };
+    if (now - ts_parsed).abs() > HMAC_REPLAY_WINDOW_SECS {
+        return false;
+    }
+
+    // 2. Compute expected = HMAC-SHA256(secret, ts + "\n" + body), hex-encoded.
+    let mut mac = match HmacSha256::new_from_slice(secret.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    mac.update(ts.as_bytes());
+    mac.update(b"\n");
+    mac.update(body);
+    let expected = mac.finalize().into_bytes();
+    let expected_hex = hex::encode(expected);
+
+    // 3. Constant-time compare to defeat timing attacks (ASVS V2.10).
+    sig_hex.as_bytes().ct_eq(expected_hex.as_bytes()).into()
 }
 
 /// 认证中间件 - 验证 API Key 并提取角色信息
@@ -29,20 +79,71 @@ pub async fn auth_middleware_with_role(
             Ok(next.run(req).await)
         }
         AuthMode::ApiKey => {
-            let key = req.headers().get("x-api-key").and_then(|v| v.to_str().ok());
+            // 1. Validate X-API-Key (existing path)
+            let key_owned = req
+                .headers()
+                .get("x-api-key")
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned);
 
-            match key {
-                Some(k) if config.validate_key(k) => {
-                    let user_id = config.get_user_id(k);
-                    let permissions = config.get_permissions(k);
-                    let role = config.get_role(k);
+            let key = match &key_owned {
+                Some(k) if config.validate_key(k) => k,
+                _ => return Err(StatusCode::UNAUTHORIZED),
+            };
 
-                    let mut req = req;
-                    req.extensions_mut()
-                        .insert(UserContext::new(user_id, permissions, role));
-                    Ok(next.run(req).await)
+            let user_id = config.get_user_id(key);
+            let permissions = config.get_permissions(key);
+            let role = config.get_role(key);
+
+            // 2. HMAC signature — Phase 5.4 SERVER-04 / T-05 mitigation per
+            //    ADR-003. Additive: if `x-grid-signature` is present, the
+            //    request MUST also include `x-grid-timestamp` and the
+            //    signature MUST validate against the request body.
+            //    Per Q3 correction this lives INSIDE the ApiKey arm — there
+            //    is NO `AuthMode::Hmac` / `AuthMode::Hybrid` variant.
+            let has_signature_header = req.headers().contains_key("x-grid-signature");
+
+            if has_signature_header {
+                let sig_owned = req
+                    .headers()
+                    .get("x-grid-signature")
+                    .and_then(|v| v.to_str().ok())
+                    .map(str::to_owned)
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
+                let ts_owned = req
+                    .headers()
+                    .get("x-grid-timestamp")
+                    .and_then(|v| v.to_str().ok())
+                    .map(str::to_owned)
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
+
+                // Drain body so we can hash it, then rebuild the request
+                // with the same bytes so downstream handlers still see the
+                // full payload.
+                let (parts, body) = req.into_parts();
+                let body_bytes = axum::body::to_bytes(body, HMAC_MAX_BODY_BYTES)
+                    .await
+                    .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
+
+                if !verify_hmac_signature(
+                    &sig_owned,
+                    &ts_owned,
+                    &body_bytes,
+                    &config.hmac_secret,
+                ) {
+                    return Err(StatusCode::UNAUTHORIZED);
                 }
-                _ => Err(StatusCode::UNAUTHORIZED),
+
+                let mut req = Request::from_parts(parts, Body::from(body_bytes));
+                req.extensions_mut()
+                    .insert(UserContext::new(user_id, permissions, role));
+                Ok(next.run(req).await)
+            } else {
+                // Vanilla ApiKey path — no signature requested.
+                let mut req = req;
+                req.extensions_mut()
+                    .insert(UserContext::new(user_id, permissions, role));
+                Ok(next.run(req).await)
             }
         }
         AuthMode::Full => {
