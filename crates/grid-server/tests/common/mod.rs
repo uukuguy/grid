@@ -17,6 +17,11 @@ use tower::ServiceExt;
 use grid_engine::{AgentCatalog, AgentRuntime, AgentRuntimeConfig, TenantContext};
 use grid_types::{TenantId, UserId};
 
+// Phase 5.4 W3: tokio-tungstenite WebSocket client helper for integration
+// tests. Defined in tests/common/ws.rs.
+#[allow(dead_code)]
+pub mod ws;
+
 // Re-export for test files
 pub use grid_server::config::Config;
 pub use grid_server::router::build_router;
@@ -26,7 +31,10 @@ pub use grid_server::state::AppState;
 ///
 /// On drop the temporary SQLite directory is removed automatically.
 pub struct TestApp {
-    router: Router,
+    pub router: Router,
+    /// Phase 5.4 W3: shared AppState handle so WS integration tests can
+    /// call `state.test_inject_events(...)` via the cfg-gated backdoor.
+    pub state: Arc<AppState>,
     _db_dir: tempfile::TempDir,
 }
 
@@ -92,10 +100,11 @@ impl TestApp {
             agent_handle,
         ));
 
-        let router = build_router(state);
+        let router = build_router(state.clone());
 
         Self {
             router,
+            state,
             _db_dir: db_dir,
         }
     }
@@ -179,10 +188,11 @@ impl TestApp {
             agent_handle,
         ));
 
-        let router = build_router(state);
+        let router = build_router(state.clone());
 
         Self {
             router,
+            state,
             _db_dir: db_dir,
         }
     }
