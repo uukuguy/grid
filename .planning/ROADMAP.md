@@ -99,12 +99,14 @@
 **Depends on**: Phase 5.3 (contract-v1.2.0 + hook event 扩展 必须先就位, server WebSocket 流式 + session 持久化 hook 写 trajectory 到 L2 才有正确的 ChunkType+event 集合可序列化)
 **Requirements**: SERVER-01, SERVER-02, SERVER-03, SERVER-04, SERVER-05, WATCH-04, WATCH-07
 **Success Criteria** (what must be TRUE):
-  1. WebSocket endpoint `ws://127.0.0.1:3001/v1/sessions/{id}/stream` 支持 ChunkType stream 端到端流式输出 + backpressure (1000-msg load test 0 dropped chunks) + reconnect (client reconnect 续传 from last chunk_id) + message ordering (顺序保持); 集成测试 `tests/integration/test_websocket_stream.rs` (或等价路径) ≥ 5 case PASS
+  1. WebSocket endpoint `ws://127.0.0.1:3001/v1/sessions/{id}/stream` 支持 ChunkType stream 端到端流式输出 + backpressure (1000-msg load test 0 dropped chunks) + simple reconnect (new connection succeeds + first SessionCreated frame replay; **chunk_id resume defer 到 5.5+** per Phase 5.4 D-15) + message ordering (顺序保持); 集成测试 `tests/integration/test_websocket_stream.rs` (或等价路径) ≥ 5 case PASS
   2. `grid-server` (`:3001`) 调 `grid-runtime` (`:50051`) 16-method RuntimeService gRPC 端到端跑通 — Initialize + SendResponse + Terminate 三大主路径 + chunk relay + hook envelope 透传, `make verify-dual-runtime` 在 grid-server 启动时 pass; session id 在 server-side state 与 runtime-side state 一致
   3. SQLite (`data/grid.db`) schema 新增 / 演进 covering session record + turn record + L2 memory FTS5+HNSW+time-decay 索引 (与 `tools/eaasp-l2-memory-engine` schema 兼容); Stop hook fire 时 server 写 trajectory 到 L2 memory engine 的端到端单元测试 ≥ 2 case PASS; tokio-rusqlite migration 跑通且幂等
   4. `GRID_AUTH_MODE` / `GRID_API_KEY` / `GRID_API_KEY_USER` / HMAC (ADR-003) 端到端验证: 4 种 auth 模式各有 ≥ 1 个集成测试覆盖 + audit log 写入 + rate limit 基础生效 (per-key 简单计数即可); config hot-reload 在 4 类 hot-reloadable 字段上 (GRID_HOOKS_FILE / GRID_POLICIES_FILE / GRID_LOG / GRID_CORS_ORIGINS) 不重启生效, GRID_HOST / GRID_PORT 列入 require-restart 白名单且 hot-reload 触发时报清晰错误
   5. D142 + D143 closed (`grid-runtime` + `claude-code-runtime` 都读 EAASP_DEPLOYMENT_MODE + 实施 max_sessions=1 gate per ADR-V2-019); NEW-E3 closed (ADR-V2-019 status flip Proposed → Accepted, F1-F4 lint exit 0); 三项 D142 / D143 / NEW-E3 在 DEFERRED_LEDGER + ADR audit doc 标 ✅ CLOSED 并附 commit hash
-**Plans**: TBD by `/gsd-plan-phase 5.4` (推测 2-3 plans, SERVER-01..03 主路径一组 + SERVER-04+05+watchlist 一组)
+**Plans**: 2 plans
+- [ ] 05.4-01-PLAN.md — SERVER-01/02/03 WS wire alignment + in-process verification + L2 module extraction + Stop hook → L2 write (8 tasks, Wave 0 + Wave 1+2)
+- [ ] 05.4-02-PLAN.md — NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth 3-mode + SERVER-05 hot-reload + WATCH-04 deployment mode + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 (12 tasks, Wave 1+2+3)
 **UI hint**: yes
 
 ### Phase 5.5: Interface ADR + Milestone Close
@@ -147,7 +149,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | 0/1 | Not started | - |
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
-| 5.4 Server Hardening | 0/TBD | Not started | - |
+| 5.4 Server Hardening | 0/2 | Not started | - |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | - |
 
 ## Coverage
