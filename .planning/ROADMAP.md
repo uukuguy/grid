@@ -32,7 +32,7 @@
 - [ ] **Phase 5.2: CLI Hardening** — `grid` 命令树 / streaming output / error+exit code / TUI 拆分 / session lifecycle / `grid doctor` 6 项 grid-cli 硬化
 - [x] **Phase 5.3: Contract Evolution** — ChunkType + Hook event 扩展 (升级 contract-v1.2.0 主力档强制), 顺带 D109 + D136 收尾. ✅ COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits, V2-026 + V2-027 Accepted, NEW-E4/F1/F2 closed)
 - [ ] **Phase 5.4: Server Hardening** — WebSocket / L1 gRPC 集成 / session+L2 持久化 / auth+audit / config hot-reload 5 项 grid-server 硬化, 顺带 D142+D143 + ADR-V2-019 → Accepted
-- [ ] **Phase 5.5: Interface ADR + Milestone Close** — ADR-V2-026 候选 (engine vs data/integration boundary contract) + NEW-E2 advisory sweep + milestone close cascade
+- [ ] **Phase 5.5: Interface ADR + Milestone Close** — ADR-V2-029 (engine vs data/integration boundary, strategy, crate-level) + ADR-V2-032 (TUI log path convention, NEW-F4 record) + NEW-E2 F3 sweep (33 WARN → 13 explicit-strategic) + 4 OOS code fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1) + milestone close cascade
 
 ## Phase Details
 
@@ -111,16 +111,18 @@
 
 ### Phase 5.5: Interface ADR + Milestone Close
 
-**Goal**: 起草 ADR-V2-026 候选 (`type: strategy 或 contract 待定`) 描述 engine (user 60%+30% 工时) 与 data/integration 横切层 (他人 10%) 的 boundary contract — customer data ingestion / SSO / third-party API gateway / EAASP+Grid 双产品 boundary 在代码层的 enforcement (crate boundaries + proto package separation); ADR-only, **不写 trait / proto skeleton** (per 用户 Phase 5 决策, 留给 v3.2+ INTERFACE-02/03); 顺带 NEW-E2 (F3 ADR enforcement.trace 29 missing items, advisory) sweep, 然后跑 milestone close cascade (PROJECT.md §Active flip + ROADMAP 状态 + STATE.md frontmatter)。
-**Depends on**: Phase 5.4 (ADR-V2-019 已 Accepted, NEW-E3 已 closed, 让 NEW-E2 sweep 时 ADR audit baseline 干净; 同时 server hardening 已落地, ADR-V2-026 boundary contract 可参考 grid-server runtime 实证 boundary 而非纸面臆测)
+**Goal**: 起草 ADR-V2-029 (`type: strategy`, crate-level enforcement) 描述 engine (user 60%+30% 工时) 与 data/integration 横切层 (他人 10%) 的 boundary contract — customer data ingestion / SSO / third-party API gateway / EAASP+Grid 双产品 boundary 在代码层的 enforcement (crate boundaries + proto package separation); ADR-only, **不写 trait / proto skeleton** (per 用户 Phase 5 决策, 留给 v3.2+ V2-030 + V2-031 reserved IDs); 同时起草 ADR-V2-032 (TUI Log Path Convention, type: record) 记录 NEW-F4 hot-fix 决策; 完成 NEW-E2 F3 sweep (33 WARN baseline → 13 explicit-strategic + 0 unjustified); 折入 4 OOS code fixes (NEW-A3 kill_session exit 4 / NEW-F4 dead-path delete / grid-cli mod-output verification-only / NEW-L1 HNSW cap+schema); 然后跑 milestone close cascade (PROJECT.md §Active flip + ROADMAP 状态 + STATE.md frontmatter + REQUIREMENTS.md Traceability + DEFERRED_LEDGER 18-row sweep)。
+**Depends on**: Phase 5.4 (ADR-V2-019 已 Accepted, NEW-E3 已 closed, 让 NEW-E2 sweep 时 ADR audit baseline 干净; 同时 server hardening 已落地, ADR-V2-029 boundary contract 可参考 grid-server runtime 实证 boundary 而非纸面臆测)
 **Requirements**: INTERFACE-01, WATCH-06
 **Success Criteria** (what must be TRUE):
-  1. `docs/design/EAASP/adrs/ADR-V2-026-engine-data-integration-boundary.md` 状态 Accepted (F1-F4 lint exit 0); Decision 段描述双轴 (engine vs data/integration) 在代码层的 boundary — engine = `crates/grid-*` + `tools/eaasp-l[2-4]-*` + `proto/eaasp/runtime/v2/`, data/integration = customer-specific adapters / SSO / third-party API / WORM 存储 / 信创 LLM 适配 等横切层 + 各自 hook-out 接入面 (但具体 trait / proto skeleton **不在本 ADR 范围**)
-  2. ADR-V2-026 §References 引用 ADR-V2-024 §1 双轴模型 + ADR-V2-023 P1 shared core 规则 (retained under V2-024) + Phase 4.1 audit doc 5+3 字段切分; ADR-V2-026 标记 future ADR 候选 V2-XXX (代码层 enforcement implementation) + V2-YYY (Rust trait + gRPC service skeleton) 待 v3.2+
-  3. NEW-E2 sweep 完成 — 29 missing `enforcement.trace` items 在相关 ADR 中按 advisory level 补全或显式标记 "trace=[] is intentional for strategic ADRs"; F3 lint 输出从 29 missing 降至 ≤ 5 (剩余项明示 strategic / strategic-with-rationale); NEW-E2 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash
-  4. Milestone close cascade ✓ — PROJECT.md §Active "Phase 5 milestone (v3.1)" 行划掉移入 §Validated 引用 ADR-V2-025+026 commit hash; ROADMAP.md 全 6 phase Status=Complete 含完成日期; STATE.md frontmatter `status: milestone-complete` + progress 6/6=100%; debt water-line 无新增 P0/P1-active 项
+  1. `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` 状态 Accepted (F1-F4 lint exit 0); Decision 段描述双轴 (engine vs data/integration) 在代码层的 boundary — engine = `crates/grid-*` + `tools/eaasp-l[2-4]-*` + `proto/eaasp/runtime/v2/`, data/integration = customer-specific adapters / SSO / third-party API / WORM 存储 / 信创 LLM 适配 等横切层 + 各自 hook-out 接入面 (但具体 trait / proto skeleton **不在本 ADR 范围**)
+  2. ADR-V2-029 §References 引用 ADR-V2-024 §1 双轴模型 + ADR-V2-023 P1 shared core 规则 (retained under V2-024) + Phase 4.1 audit doc 5+3 字段切分; ADR-V2-029 标记 future ADR 候选 V2-030 (代码层 enforcement implementation) + V2-031 (Rust trait + gRPC service skeleton) 待 v3.2+; ADR-V2-032 (TUI log path convention) Accepted 记录 NEW-F4 决策
+  3. NEW-E2 sweep 完成 — 33 F3 WARN baseline (verified 2026-05-22; correction per Phase 5.5 RESEARCH §Pitfall 4 — ROADMAP 原文 29 已 drift) 经 9-ADR sweep (5 contract trace fix + 4 strategy rationale annotation) 降至 13 explicit-strategic + 0 unjustified WARN; 剩余 13 项均在 ADR frontmatter 内带 "F3-WARN expected" rationale 注释 (per CONTEXT D-04 strategy tier); NEW-E2 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash
+  4. Milestone close cascade ✓ — PROJECT.md §Active "Phase 5 milestone (v3.1)" 行划掉移入 §Validated 引用 ADR-V2-025+026+027+028+029+032 commit hash; ROADMAP.md 全 6 phase Status=Complete 含完成日期; STATE.md frontmatter `status: milestone-complete` + progress 6/6=100%; debt water-line 无新增 P0/P1-active 项
   5. 全 milestone 23 REQ-ID traceability ✅ (所有 6 phase 的 SC 在自身 phase verify-phase 阶段过, 且 Phase 5.5 close 时 ROADMAP.md Coverage 表无 ❌); 8 watchlist 项 (D109 / D120 / D134 / D136 / D142 / D143 / NEW-D2 / NEW-E2 / NEW-E3 — 实际 9 项含 NEW-E3, requirements WATCHLIST 数为 8 是因 NEW-D2 + NEW-E2 + NEW-E3 算 3 项 advisory) 全 closed-or-resolved 在 DEFERRED_LEDGER 中
-**Plans**: TBD by `/gsd-plan-phase 5.5` (推测 1 plan, INTERFACE-01 ADR 起草 + NEW-E2 sweep + milestone close 并入)
+**Plans**: 2 plans
+- [ ] 05.5-01-PLAN.md — Interface ADR + F3 Sweep + OOS Code Fixes: ADR-V2-029 (strategy) + ADR-V2-032 (record) + 9-ADR F3 sweep + 4 OOS fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1)
+- [ ] 05.5-02-PLAN.md — Milestone v3.1 Close Cascade: PROJECT.md flip + ROADMAP 6 phases complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep + phase gate per D-10
 **UI hint**: no
 
 ## Phase 之外的 milestone 关闭后续
@@ -150,7 +152,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
 | 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 | 21 commits total (Plan 01: 9 + Plan 02: 12); 33+31 = 64 plan-level tests PASS; SC#1-#5 PASS; ADR-V2-028 Accepted, V2-019 trace filled; D142+D143+NEW-A2+NEW-E3+NEW-F3 closed; phase gate: 2698 release tests + 164/0/0 ADR audit + schema PASS |
-| 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | - |
+| 5.5 Interface ADR + Milestone Close | 0/2 | Planned 2026-05-22 | Plan 01: ADR-V2-029 + V2-032 + F3 sweep + 4 OOS fixes; Plan 02: milestone close cascade + LEDGER sweep |
 
 ## Coverage
 
@@ -176,9 +178,9 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | WATCH-03 | 5.3 | D136 — grid-runtime probe turn hook 不触发 (3 contract xfails) 修正 |
 | WATCH-04 | 5.4 | D142 + D143 — EAASP_DEPLOYMENT_MODE 接入 + max_sessions=1 gate |
 | WATCH-05 | 5.1 | NEW-D2 — test_chunk_type_contract.py 7-runtime 参数化 |
-| WATCH-06 | 5.5 | NEW-E2 — F3 ADR enforcement.trace 29 missing items advisory sweep |
+| WATCH-06 | 5.5 | NEW-E2 — F3 ADR enforcement.trace 33 (corrected from 29) missing items advisory sweep |
 | WATCH-07 | 5.4 | NEW-E3 — ADR-V2-019 Proposed → Accepted (D142+D143 关闭后顺接) |
-| INTERFACE-01 | 5.5 | ADR-V2-026 候选 — engine vs data/integration boundary contract (ADR-only) |
+| INTERFACE-01 | 5.5 | ADR-V2-029 — engine vs data/integration boundary contract (ADR-only, type: strategy, crate-level) |
 
 **Total v3.1 requirements:** 23 (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1)
 **Mapped:** 23/23 ✓
@@ -200,4 +202,4 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 
 ---
 
-*Roadmap created 2026-04-29 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.1). Source: REQUIREMENTS.md (commit `ed864fb`) + PROJECT.md §Current Milestone v3.1 + ADR-V2-024 §1 双轴 framework + Phase 4 milestone close decisions. Phase 5.0 ready to enter `/gsd-plan-phase 5.0`.*
+*Roadmap created 2026-04-29 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.1). Source: REQUIREMENTS.md (commit `ed864fb`) + PROJECT.md §Current Milestone v3.1 + ADR-V2-024 §1 双轴 framework + Phase 4 milestone close decisions. Phase 5.5 plans authored 2026-05-22 by `/gsd-plan-phase 5.5` — ADR-V2-029/V2-032 renumbered (V2-026/027/028 consumed Phase 5.3/5.4); F3 baseline corrected 29 → 33 per live 2026-05-22 measurement.*
