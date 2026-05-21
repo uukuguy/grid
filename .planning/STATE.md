@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: "Phase 5.4 Plan 02 ✅ COMPLETE — NEW-A2 atomic migrate + NEW-F3 strict ProviderConfig + SERVER-04 3-mode auth+HMAC+audit+rate-limit + SERVER-05 /admin/reload + WATCH-04 (D142+D143) EAASP_DEPLOYMENT_MODE wire + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 Accepted; 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3). Phase 5.4 entire phase complete (2/2 plans, 21 commits, 31+8 tests PASS). Next: /gsd-verify-work 5.4."
-last_updated: "2026-05-21T17:30:00Z"
-last_activity: 2026-05-21 -- Phase 5.4 Plan 02 execution complete (12 commits, 2698 release tests PASS, ADR audit 164/0/0, schema gate PASS)
+stopped_at: "Phase 5.4 ✅ COMPLETE + VERIFIED 2026-05-21 — 23 commits, 2/2 plans, 5/5 SC PASS, 7/7 REQ-IDs covered, ADR-V2-028 Accepted + V2-019 trace filled, 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); ready for /gsd-discuss-phase 5.5 (Interface ADR + Milestone Close)"
+last_updated: "2026-05-21T18:45:00Z"
+last_activity: 2026-05-21 -- Phase 5.4 verification PASSED (5/5 SC + 7/7 REQ + 2698 release tests + 164/0/0 ADR audit + schema gate)
 progress:
   total_phases: 6
   completed_phases: 5
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 ## Current Position
 
-Phase: 5.4 (Server Hardening) — ✅ COMPLETE (2026-05-21)
+Phase: 5.4 (Server Hardening) — ✅ COMPLETE + VERIFIED (2026-05-21)
 Plan: 2 of 2 ✅ COMPLETE (2026-05-21)
-Next phase: 5.5 (TBD — `/gsd-discuss-phase 5.5` after `/gsd-verify-work 5.4`)
-Status: Phase 5.4 fully complete, awaiting verification pass
-Last activity: 2026-05-21 -- Phase 5.4 Plan 02 execution complete (12 commits, 2698 release tests PASS, ADR audit clean, schema gate PASS)
+Next phase: 5.5 (Interface ADR + Milestone Close) — ready for `/gsd-discuss-phase 5.5`
+Status: Phase 5.4 fully complete + verifier PASSED (5/5 SC + 7/7 REQ-IDs)
+Last activity: 2026-05-21 -- Phase 5.4 verification PASSED (5/5 SC + 2698 release tests + 164/0/0 ADR audit + schema gate)
 
 Progress: [▓▓▓▓▓░░░░░] 83% (5/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4)
 
@@ -55,7 +55,7 @@ Progress: [▓▓▓▓▓░░░░░] 83% (5/6 milestone phases complete �
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | **1/1 ✅** | COMPLETE 2026-05-02 (5 task commits + SUMMARY + VERIFICATION) | 4/4 SC PASS, 4/4 must-haves PASS, NEW-D2 closed, ADR-V2-025 Accepted, CONTRACT-00 + WATCH-05 ✓ |
 | 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
-| 5.4 Server Hardening | **1/2 🚧** | Executing 2026-05-21 (Plan 01 ✅, Plan 02 ready) | Plan 01: 10 tasks (W0-01..03 + 5.4-01-01..07), 9 commits, 33 tests PASS, SC#1+SC#2+SC#3 PASS, ROADMAP SC#2 rewritten per D-02, CONTEXT D-15 restructured |
+| 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 (Plan 01: 9 commits + Plan 02: 12 commits + 2 closures = 23 commits) | All 5/5 SC PASS, all 7/7 REQ-IDs covered (SERVER-01..05 + WATCH-04 + WATCH-07); ADR-V2-028 Accepted (Strict-by-default Config Validation); ADR-V2-019 enforcement.trace filled (status UNCHANGED 2026-04-20 per Q9); 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); phase gate 2698 release tests PASS + ADR audit 164/0/0 + schema-coverage gate sessions+turns; W0-03 spike Verdict YES (tracing_subscriber::reload viable); 2 advisory drift items (ROADMAP SC#4 "4 modes" stale wording vs Q3-correction 3-mode; NEW-F4 LEDGER row needs retag to Phase 5.5) — non-blocking |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | Depends on 5.4 |
 
 **Recent Trend:**
