@@ -13,7 +13,11 @@ deprecated_at: null
 deprecated_reason: null
 enforcement:
   level: strategic
-  trace: []
+  trace:
+    - "crates/grid-runtime/src/config.rs::RuntimeConfig::deployment_mode"   # D142 close (5.4-02-07 @ d12f6ec)
+    - "crates/grid-runtime/src/service.rs::RuntimeServiceImpl::create_session"   # gate (5.4-02-07 @ d12f6ec)
+    - "lang/claude-code-runtime-python/src/claude_code_runtime/service.py::RuntimeServiceImpl.__init__::_deployment_mode"   # D143 close (5.4-02-08 @ 2453447)
+    - "lang/claude-code-runtime-python/src/claude_code_runtime/service.py::RuntimeServiceImpl.Initialize"   # gate (5.4-02-08 @ 2453447)
   review_checklist: "docs/design/EAASP/adrs/ADR-V2-019-l1-runtime-deployment-model.md"
 affected_modules:
   - "crates/grid-runtime/"
