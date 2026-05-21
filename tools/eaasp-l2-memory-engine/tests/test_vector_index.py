@@ -231,3 +231,57 @@ async def test_hnsw_growth_resize(tmp_path: Path) -> None:
         hits = await idx.search(v, top_k=1)
         assert hits, f"id-{i} query returned no hits"
         assert hits[0].id == f"id-{i}"
+
+
+# ---------------------------------------------------------------------------
+# 11. Phase 5.5 NEW-L1 — HNSW hard cap + meta.json max_elements roundtrip
+# ---------------------------------------------------------------------------
+
+
+async def test_grow_hits_hard_cap(monkeypatch, tmp_path: Path) -> None:
+    """Filling beyond HNSW_HARD_CAP must raise RuntimeError, not silently double.
+
+    Per W-3 resolution (planner revision iteration 1): we monkey-patch the
+    module-level HNSW_HARD_CAP constant down to 100 so the test runs in seconds
+    instead of minutes. Production HNSW_HARD_CAP stays at 1_000_000 — see
+    Task 01.B4."""
+    from eaasp_l2_memory_engine import vector_index
+
+    monkeypatch.setattr(vector_index, "HNSW_HARD_CAP", 100)
+    idx = vector_index.HNSWVectorIndex(
+        model_id="bge-m3:fp16@ollama",
+        octo_root=tmp_path,
+        max_elements=99,  # cap - 1
+    )
+    rng = np.random.default_rng(42)
+    # Fill 99 vectors successfully (each may trigger growth, capped at 100),
+    # then assert RuntimeError on 100th add (already at cap, no room to grow).
+    for i in range(99):
+        await idx.add(f"id-{i}", _rand_vec(rng))
+    with pytest.raises(RuntimeError, match="hard cap"):
+        await idx.add("overflow-id", _rand_vec(rng))
+
+
+async def test_meta_json_max_elements_roundtrip(tmp_path: Path) -> None:
+    """Persist grown max_elements through save -> reload; recovered cap must match."""
+    idx = HNSWVectorIndex(
+        model_id="bge-m3:fp16@ollama",
+        octo_root=tmp_path,
+        max_elements=5,
+    )
+    rng = np.random.default_rng(7)
+    # Trigger growth (5 -> 10)
+    for i in range(7):
+        await idx.add(f"id-{i}", _rand_vec(rng))
+    assert idx._max_elements >= 10, "growth should have occurred"
+    persisted = idx._max_elements
+    await idx.save()
+    # Reload — pass the original constructor default; meta.json must override
+    idx2 = HNSWVectorIndex(
+        model_id="bge-m3:fp16@ollama",
+        octo_root=tmp_path,
+    )
+    assert idx2._max_elements == persisted, (
+        f"reloaded index should restore max_elements={persisted} from meta.json, "
+        f"got {idx2._max_elements}"
+    )

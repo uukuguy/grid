@@ -151,3 +151,21 @@ fn no_color_env_produces_zero_ansi_codes() {
         );
     }
 }
+
+// Phase 5.5 NEW-A3 regression: `grid session kill <missing-id>` must exit with
+// ExitCode::SessionNotFound (= 4), not the generic exit 1 that anyhow!() produces.
+// Fix lands in Task 01.B1 (commands/session.rs::kill_session + main.rs downcast).
+#[test]
+fn test_kill_nonexistent_session_exits_4() {
+    let out = grid_bin()
+        .args(["session", "kill", "does-not-exist-xyz"])
+        .output()
+        .expect("failed to run grid session kill");
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "kill_session on missing id should exit 4 (SessionNotFound), got {:?}; stderr: {}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
