@@ -8,7 +8,7 @@
 ## Milestones
 
 - ✅ **v3.0 Phase 4 — Product Scope Decision** — Phases 4.0/4.1/4.2 (shipped 2026-04-28, ADR-V2-024 Accepted)
-- 🚧 **v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)** — Phases 5.0/5.1/5.2/5.3/5.4/5.5 (in progress)
+- 🚧 **v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)** — Phases 5.0/5.1/5.2/5.3/5.4 COMPLETE; 5.5 remaining
 
 ## Phases
 
@@ -106,7 +106,7 @@
   5. D142 + D143 closed (`grid-runtime` + `claude-code-runtime` 都读 EAASP_DEPLOYMENT_MODE + 实施 max_sessions=1 gate per ADR-V2-019); NEW-E3 closed (ADR-V2-019 status flip Proposed → Accepted, F1-F4 lint exit 0); 三项 D142 / D143 / NEW-E3 在 DEFERRED_LEDGER + ADR audit doc 标 ✅ CLOSED 并附 commit hash
 **Plans**: 2 plans
 - [x] 05.4-01-PLAN.md — SERVER-01/02/03 WS wire alignment + in-process verification + L2 module extraction + Stop hook → L2 write (10 tasks: W0-01/02/03 + 5.4-01-01..07, 9 commits 2026-05-21, 33 tests PASS, SC#1+SC#2+SC#3 PASS)
-- [ ] 05.4-02-PLAN.md — NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth 3-mode + SERVER-05 hot-reload + WATCH-04 deployment mode + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 (12 tasks, Wave 1+2+3)
+- [x] 05.4-02-PLAN.md — NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth 3-mode + SERVER-05 hot-reload + WATCH-04 deployment mode + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 (12 tasks, 12 commits 2026-05-21, 31 tests PASS, SC#4+SC#5+SC#3 schema clause PASS, 5-row LEDGER close)
 **UI hint**: yes
 
 ### Phase 5.5: Interface ADR + Milestone Close
@@ -149,7 +149,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.1 Runtime Tier ADR + Contract Test Parametrization | 0/1 | Not started | - |
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
-| 5.4 Server Hardening | **1/2 🚧** | Plan 01 COMPLETE 2026-05-21, Plan 02 ready | Plan 01: 9 commits, 33 tests PASS, SC#1+SC#2+SC#3 PASS, ROADMAP SC#2 rewritten per D-02 |
+| 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 | 21 commits total (Plan 01: 9 + Plan 02: 12); 33+31 = 64 plan-level tests PASS; SC#1-#5 PASS; ADR-V2-028 Accepted, V2-019 trace filled; D142+D143+NEW-A2+NEW-E3+NEW-F3 closed; phase gate: 2698 release tests + 164/0/0 ADR audit + schema PASS |
 | 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | - |
 
 ## Coverage

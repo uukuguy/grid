@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: "Phase 5.4 Plan 01 (SERVER-01/02/03 backbone) ✅ COMPLETE — ws_chunk-native envelope, in-process verification, grid-engine::l2 module + Stop hook → L2 write all green. Next: Plan 02 (NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth + SERVER-05 hot-reload + WATCH-04 + WATCH-07 + ADR-V2-028)."
-last_updated: "2026-05-21T05:45:00Z"
-last_activity: 2026-05-21 -- Phase 5.4 Plan 01 execution complete (9 commits, 33 tests PASS)
+stopped_at: "Phase 5.4 Plan 02 ✅ COMPLETE — NEW-A2 atomic migrate + NEW-F3 strict ProviderConfig + SERVER-04 3-mode auth+HMAC+audit+rate-limit + SERVER-05 /admin/reload + WATCH-04 (D142+D143) EAASP_DEPLOYMENT_MODE wire + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 Accepted; 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3). Phase 5.4 entire phase complete (2/2 plans, 21 commits, 31+8 tests PASS). Next: /gsd-verify-work 5.4."
+last_updated: "2026-05-21T17:30:00Z"
+last_activity: 2026-05-21 -- Phase 5.4 Plan 02 execution complete (12 commits, 2698 release tests PASS, ADR audit 164/0/0, schema gate PASS)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 87
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 ## Current Position
 
-Phase: 5.4 (Server Hardening) — EXECUTING
-Plan: 1 of 2 ✅ COMPLETE (2026-05-21)
-Next plan: 5.4-02 — NEW-A2 + NEW-F3 + SERVER-04 + SERVER-05 + WATCH-04 + WATCH-07 + ADR-V2-028
-Status: Plan 01 complete, Plan 02 ready to execute
-Last activity: 2026-05-21 -- Phase 5.4 Plan 01 execution complete (9 commits, 33 tests PASS)
+Phase: 5.4 (Server Hardening) — ✅ COMPLETE (2026-05-21)
+Plan: 2 of 2 ✅ COMPLETE (2026-05-21)
+Next phase: 5.5 (TBD — `/gsd-discuss-phase 5.5` after `/gsd-verify-work 5.4`)
+Status: Phase 5.4 fully complete, awaiting verification pass
+Last activity: 2026-05-21 -- Phase 5.4 Plan 02 execution complete (12 commits, 2698 release tests PASS, ADR audit clean, schema gate PASS)
 
-Progress: [▓▓▓▓░░░░░░] 67% (4/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3)
+Progress: [▓▓▓▓▓░░░░░] 83% (5/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4)
 
 **Previous milestone closure**: Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 — 3/3 phases (4.0/4.1/4.2), ADR-V2-024 Accepted (双轴模型), 16 commits pushed to origin/main.
 
@@ -118,16 +118,16 @@ Items acknowledged and carried forward from previous milestone close:
 | Functional | D120 — Rust HookContext schema 缺 event/skill_id 字段 | 🟠 P1, mapped to Phase 5.0 (WATCH-00, D134 前置) | Phase 2 S3.T5 (历史) | 5.0 |
 | Functional | D134 — Shipped skill hooks read nested `.payload.output.X` 但 ADR-V2-006 §2.3 是 top-level | 🟠 P1, mapped to Phase 5.0 (WATCH-02, must-fix) | Phase 2.5 S0.T3 (历史) | 5.0 |
 | Functional | D136 — grid-runtime hook 在 probe turn 不触发(3 contract xfails) | 🟠 P1, mapped to Phase 5.3 (WATCH-03) | Phase 2.5 S0.T4 (历史) | 5.3 |
-| Functional | D142 — grid-runtime 不读 EAASP_DEPLOYMENT_MODE | 🟡 P1-defer, mapped to Phase 5.4 (WATCH-04) | ADR-V2-019 audit (历史) | 5.4 |
-| Functional | D143 — claude-code-runtime 不读 EAASP_DEPLOYMENT_MODE + 无 max_sessions=1 gate | 🟡 P1-defer, mapped to Phase 5.4 (WATCH-04) | ADR-V2-019 audit (历史) | 5.4 |
+| Functional | D142 — grid-runtime 不读 EAASP_DEPLOYMENT_MODE | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `d12f6ec` (5.4-02-07) — grid-runtime/config.rs deployment_mode + service.rs create_session per_session gate; 2 tests PASS | ADR-V2-019 audit (历史) | 5.4 (closed) |
+| Functional | D143 — claude-code-runtime 不读 EAASP_DEPLOYMENT_MODE + 无 max_sessions=1 gate | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `2453447` (5.4-02-08) — service.py __init__._deployment_mode + Initialize gate; 2 pytest PASS | ADR-V2-019 audit (历史) | 5.4 (closed) |
 | Contract | NEW-D2 — test_chunk_type_contract.py 仅 3 tests,not 7-runtime parametric | 🟠 P1, mapped to Phase 5.1 (WATCH-05) | Phase 4a project review | 5.1 |
 | ADR | NEW-E2 — F3 reports 29 missing `enforcement.trace` items | 🟡 advisory, mapped to Phase 5.5 (WATCH-06) | Phase 4a session-04-26 audit | 5.5 |
-| ADR | NEW-E3 — ADR-V2-019 still Proposed, blocks on D142+D143 | 🟡 advisory, mapped to Phase 5.4 (WATCH-07, after WATCH-04 closes) | Phase 4a session-04-26 audit | 5.4 |
+| ADR | NEW-E3 — ADR-V2-019 enforcement.trace empty (corrected per Q9: status was already Accepted 2026-04-20) | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `70b5e94` (5.4-02-10) — enforcement.trace filled with 4 anchors (D142+D143 impl points); ADR lint 7 PASS / 0 FAIL; status UNCHANGED | Phase 4a session-04-26 audit | 5.4 (closed) |
 | ADR/Functional | NEW-E4 — ADR-V2-016 实现漂移:D87 Fix 2 强制 tool_choice=Required 续航 在 TUI 对话场景误命中 (deepseek-chat × web_search 反复执行)。需 `ExecutionMode { Conversational, LongWorkflow }` + ADR-V2-026 retroactive supersede。RFC 草稿:`.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` | 🟠 P1, mapped to Phase 5.3 (WATCH-08) | 2026-05-16 deepseek shakedown | 5.3 |
 | Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | ✅ **CLOSED** 2026-05-04 (commits `92b7710`+`cfcffd6`) — split into 10 files, INVARIANTS.md SoT + verifier @ 7176b4b | Phase 4a review | 5.2 (closed) |
 | Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.1) | Phase 4a review | v3.2+ |
 | Tech-debt | D-batch (~40 P3 / housekeeping items 跨 D8..D80) | 🟡 P3, 单日 batch sweep 待安排 (NOT in v3.1) | 累积自 Phase 0 → 3.6 | v3.2+ |
-| Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 (读 `user_version` → 跑 ALTER → 写 `user_version` 之间无锁), 多进程同 db 文件并发 migrate 会重现 `duplicate column name: user_id`。production race, 单进程 grid-cli 不触发 | 🟡 P2, mapped to Phase 5.4 (SERVER hardening) | 2026-05-16 NEW-A1 forensics | 5.4 |
+| Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `74e6472`+`bf26cb8` (5.4-02-01+02) — BEGIN EXCLUSIVE + double-check user_version; 4-process race regression test PASS, no duplicate column panic, user_version → 13 | 2026-05-16 NEW-A1 forensics | 5.4 (closed) |
 | Functional | NEW-A3 — `kill_session` in `commands/session.rs:117` returns `anyhow::Error` for "Session not found", which `main.rs:88` maps to `ExitCode::General` (1). Should return `GridError::SessionNotFound` → exit 4. PLAN T-01.16 said EXIT_SESSION (71) but real code has EXIT_SESSION_NOT_FOUND (4). 5-line fix: replace `anyhow!` with `GridError::session_not_found()` and bubble via `From<GridError>` impl on main. | 🟢 P2 (CLI ergonomics), mapped to Phase 5.4 | 2026-05-17 T-01.19 smoke test discovery | 5.4 |
 
 > 这些 Deferred 的 SSOT 仍是 `docs/design/EAASP/DEFERRED_LEDGER.md`(GSD 例外保留),本表只为 STATE.md 单 view 摘要。Phase 5 Mapping 列由 ROADMAP.md Coverage 表 反向回填, 关闭时 SSOT 双向更新 (LEDGER + ROADMAP)。
