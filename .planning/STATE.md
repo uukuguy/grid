@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
-status: executing
-stopped_at: "Phase 5.4 ✅ COMPLETE + VERIFIED 2026-05-21 — 23 commits, 2/2 plans, 5/5 SC PASS, 7/7 REQ-IDs covered, ADR-V2-028 Accepted + V2-019 trace filled, 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); ready for /gsd-discuss-phase 5.5 (Interface ADR + Milestone Close)"
-last_updated: "2026-05-21T18:45:00Z"
-last_activity: 2026-05-21 -- Phase 5.4 verification PASSED (5/5 SC + 7/7 REQ + 2698 release tests + 164/0/0 ADR audit + schema gate)
+status: verifying
+stopped_at: "Phase 5.5 context gathered — 4 GAs locked: V2-029 strategy crate-level (D-01..03); F3 sweep 5 contract+4 strategy (D-04..05); 4 OOS items all folded NEW-A3+NEW-F4+mod-output+NEW-L1 (D-06..07); 2-plan structure +LEDGER sweep close cascade +targeted phase gate (D-08..10)"
+last_updated: "2026-05-21T17:34:38.254Z"
+last_activity: 2026-05-21 -- Phase 5.4 verification PASSED (5/5 SC + 2698 release tests + 164/0/0 ADR audit + schema gate)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 8
+  total_plans: 7
   completed_plans: 7
-  percent: 87
+  percent: 100
 ---
 
 # Project State
@@ -134,9 +134,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20T13:00:39.089Z
-Stopped at: Phase 5.4 context gathered — 4 gray areas locked (GA1 in-process + GA2 ChunkType wire/path + GA3 grid-engine::l2 module + GA4+5 fold WATCH-04/07/NEW-A2/F3, defer 4 sideband to 5.5)
-Resume file: .planning/phases/05.4-server-hardening/05.4-CONTEXT.md
+Last session: 2026-05-21T17:34:38.249Z
+Stopped at: Phase 5.5 context gathered — 4 GAs locked: V2-029 strategy crate-level (D-01..03); F3 sweep 5 contract+4 strategy (D-04..05); 4 OOS items all folded NEW-A3+NEW-F4+mod-output+NEW-L1 (D-06..07); 2-plan structure +LEDGER sweep close cascade +targeted phase gate (D-08..10)
+Resume file: .planning/phases/05.5-interface-adr-milestone-close/05.5-CONTEXT.md
 Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `a3851f0`)
 Worktrees: cleaned (Phase 5.3 worktree-a5a8 + worktree-a401 removed; 1 unrelated `ac21fe86` worktree from earlier session still locked, left alone)
 
