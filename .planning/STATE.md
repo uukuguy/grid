@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
 status: executing
-stopped_at: "Phase 5.5 context gathered — 4 GAs locked: V2-029 strategy crate-level (D-01..03); F3 sweep 5 contract+4 strategy (D-04..05); 4 OOS items all folded NEW-A3+NEW-F4+mod-output+NEW-L1 (D-06..07); 2-plan structure +LEDGER sweep close cascade +targeted phase gate (D-08..10)"
-last_updated: "2026-05-21T21:53:34.244Z"
-last_activity: 2026-05-21 -- Phase 5.5 execution started
+stopped_at: "Phase 5.5 Plan 01 COMPLETE 2026-05-22 — 8 commits (3fb9e2b W0 + 0b23a01 V2-029 + 1b9afd1 V2-032 + 2303b3d+e84a57e F3 sweep + 8c25223 NEW-A3 + ba3ba26 NEW-F4 code + 0bdf70c NEW-L1; B3 mod output verify-only no commit); ADR-V2-029 + V2-032 Accepted; F3 WARN 33 → 12 explicit-strategic; phase gate ALL GREEN (210 ADR PASS / 0 FAIL, grid-cli 147+6 tests PASS, vector_index 12/12 PASS, cargo check workspace Finished). Plan 02 milestone close cascade next."
+last_updated: "2026-05-22T00:00:00Z"
+last_activity: 2026-05-22 -- Phase 5.5 Plan 01 COMPLETE (7 task commits)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 9
-  completed_plans: 7
-  percent: 78
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 ## Current Position
 
 Phase: 5.5 (Interface ADR + Milestone Close) — EXECUTING
-Plan: 1 of 2
-Next phase: 5.5 (Interface ADR + Milestone Close) — ready for `/gsd-discuss-phase 5.5`
-Status: Executing Phase 5.5
-Last activity: 2026-05-21 -- Phase 5.5 execution started
+Plan: 1/2 COMPLETE; Plan 2/2 next (milestone close cascade)
+Next plan: 05.5-02 — Milestone v3.1 Close Cascade (PROJECT.md flip + ROADMAP all-complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep)
+Status: Executing Phase 5.5 (Plan 01 done; Plan 02 awaiting orchestrator)
+Last activity: 2026-05-22 -- Phase 5.5 Plan 01 COMPLETE
 
-Progress: [▓▓▓▓▓░░░░░] 83% (5/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4)
+Progress: [▓▓▓▓▓▓░░░░] 88% (5/6 milestone phases + 1/2 Phase 5.5 plans complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4 + 5.5 Plan 01)
 
 **Previous milestone closure**: Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 — 3/3 phases (4.0/4.1/4.2), ADR-V2-024 Accepted (双轴模型), 16 commits pushed to origin/main.
 
@@ -56,11 +56,11 @@ Progress: [▓▓▓▓▓░░░░░] 83% (5/6 milestone phases complete �
 | 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
 | 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 (Plan 01: 9 commits + Plan 02: 12 commits + 2 closures = 23 commits) | All 5/5 SC PASS, all 7/7 REQ-IDs covered (SERVER-01..05 + WATCH-04 + WATCH-07); ADR-V2-028 Accepted (Strict-by-default Config Validation); ADR-V2-019 enforcement.trace filled (status UNCHANGED 2026-04-20 per Q9); 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); phase gate 2698 release tests PASS + ADR audit 164/0/0 + schema-coverage gate sessions+turns; W0-03 spike Verdict YES (tracing_subscriber::reload viable); 2 advisory drift items (ROADMAP SC#4 "4 modes" stale wording vs Q3-correction 3-mode; NEW-F4 LEDGER row needs retag to Phase 5.5) — non-blocking |
-| 5.5 Interface ADR + Milestone Close | 0/TBD | Not started | Depends on 5.4 |
+| 5.5 Interface ADR + Milestone Close | **1/2 ✅ (Plan 01)** | Plan 01 COMPLETE 2026-05-22 (8 commits total: 3fb9e2b W0 + 7 task commits); Plan 02 next | ADR-V2-029 (engine vs data/integration boundary, strategy) + ADR-V2-032 (TUI log path convention, record) Accepted; F3 WARN 33 → 12 explicit-strategic (target was ≤13); NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean (verify-only); Plan 01 phase gate ALL GREEN (210 ADR PASS / 0 FAIL, 147+6 grid-cli tests PASS, 12/12 vector_index pytest PASS, cargo check workspace Finished); 2 P3 inbox rows for Plan 02 (NEW-X2 kill anti-pattern siblings, NEW-X3 grid-cli --all-features grid-engine 12 errors) |
 
 **Recent Trend:**
 
-- Last 5 plans: [05.4-01 ✅ 2026-05-21, 05.3-02 ✅ 2026-05-20, 05.3-01 ✅ 2026-05-20, 05.2-01 ✅ 2026-05-17, 05.1-01 ✅ 2026-05-02]
+- Last 5 plans: [05.5-01 ✅ 2026-05-22, 05.4-02 ✅ 2026-05-21, 05.4-01 ✅ 2026-05-21, 05.3-02 ✅ 2026-05-20, 05.3-01 ✅ 2026-05-20]
 - Trend: design-heavy phase 跑通 — cross-AI review (4 reviewers + 7 fixes) 显著提升 audit 框架严谨性,catch 到 B1 pre-committed verdict 隐患 (T4 hardcoded "两腿都推进" 被 Path 1 fix 改成 verdict-format regex + runtime substitution)
 
 *Updated after each plan completion*
@@ -121,24 +121,28 @@ Items acknowledged and carried forward from previous milestone close:
 | Functional | D142 — grid-runtime 不读 EAASP_DEPLOYMENT_MODE | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `d12f6ec` (5.4-02-07) — grid-runtime/config.rs deployment_mode + service.rs create_session per_session gate; 2 tests PASS | ADR-V2-019 audit (历史) | 5.4 (closed) |
 | Functional | D143 — claude-code-runtime 不读 EAASP_DEPLOYMENT_MODE + 无 max_sessions=1 gate | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `2453447` (5.4-02-08) — service.py __init__._deployment_mode + Initialize gate; 2 pytest PASS | ADR-V2-019 audit (历史) | 5.4 (closed) |
 | Contract | NEW-D2 — test_chunk_type_contract.py 仅 3 tests,not 7-runtime parametric | 🟠 P1, mapped to Phase 5.1 (WATCH-05) | Phase 4a project review | 5.1 |
-| ADR | NEW-E2 — F3 reports 29 missing `enforcement.trace` items | 🟡 advisory, mapped to Phase 5.5 (WATCH-06) | Phase 4a session-04-26 audit | 5.5 |
+| ADR | NEW-E2 — F3 reports 29 missing `enforcement.trace` items (corrected to 33 baseline 2026-05-22; closed at 12 explicit-strategic) | ✅ **CLOSED** 2026-05-22 Phase 5.5 Plan 01 @ `2303b3d`+`e84a57e` — 5-contract ADR trace fills (V2-006/018/020/027/028 in phase3-contract.yml + eval-ci.yml) + 4-strategy ADR rationale comments (V2-001/002/003/005); F3 WARN 33 → 12; ADR statuses UNCHANGED; F1/F2 0 FAIL | Phase 4a session-04-26 audit | 5.5 (closed) |
 | ADR | NEW-E3 — ADR-V2-019 enforcement.trace empty (corrected per Q9: status was already Accepted 2026-04-20) | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `70b5e94` (5.4-02-10) — enforcement.trace filled with 4 anchors (D142+D143 impl points); ADR lint 7 PASS / 0 FAIL; status UNCHANGED | Phase 4a session-04-26 audit | 5.4 (closed) |
 | ADR/Functional | NEW-E4 — ADR-V2-016 实现漂移:D87 Fix 2 强制 tool_choice=Required 续航 在 TUI 对话场景误命中 (deepseek-chat × web_search 反复执行)。需 `ExecutionMode { Conversational, LongWorkflow }` + ADR-V2-026 retroactive supersede。RFC 草稿:`.planning/research/2026-05-16-agent-loop-execution-mode-rfc.md` | 🟠 P1, mapped to Phase 5.3 (WATCH-08) | 2026-05-16 deepseek shakedown | 5.3 |
 | Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | ✅ **CLOSED** 2026-05-04 (commits `92b7710`+`cfcffd6`) — split into 10 files, INVARIANTS.md SoT + verifier @ 7176b4b | Phase 4a review | 5.2 (closed) |
 | Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.1) | Phase 4a review | v3.2+ |
 | Tech-debt | D-batch (~40 P3 / housekeeping items 跨 D8..D80) | 🟡 P3, 单日 batch sweep 待安排 (NOT in v3.1) | 累积自 Phase 0 → 3.6 | v3.2+ |
 | Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 | ✅ **CLOSED** 2026-05-21 Phase 5.4 Plan 02 @ `74e6472`+`bf26cb8` (5.4-02-01+02) — BEGIN EXCLUSIVE + double-check user_version; 4-process race regression test PASS, no duplicate column panic, user_version → 13 | 2026-05-16 NEW-A1 forensics | 5.4 (closed) |
-| Functional | NEW-A3 — `kill_session` in `commands/session.rs:117` returns `anyhow::Error` for "Session not found", which `main.rs:88` maps to `ExitCode::General` (1). Should return `GridError::SessionNotFound` → exit 4. PLAN T-01.16 said EXIT_SESSION (71) but real code has EXIT_SESSION_NOT_FOUND (4). 5-line fix: replace `anyhow!` with `GridError::session_not_found()` and bubble via `From<GridError>` impl on main. | 🟢 P2 (CLI ergonomics), mapped to Phase 5.4 | 2026-05-17 T-01.19 smoke test discovery | 5.4 |
+| Functional | NEW-A3 — `kill_session` in `commands/session.rs:117` returns `anyhow::Error` for "Session not found", which `main.rs:88` maps to `ExitCode::General` (1). Should return `GridError::SessionNotFound` → exit 4. | ✅ **CLOSED** 2026-05-22 Phase 5.5 Plan 01 @ `8c25223` — session.rs::kill_session returns typed GridError::session_not_found; main.rs adds downcast_ref::<GridError> arm to preserve typed exit code; regression test test_kill_nonexistent_session_exits_4 PASSES; 147 + 6 grid-cli tests PASS, no regression. Filed NEW-X2 (sibling delete_session + export_session same anti-pattern) as P3 inbox for Plan 02 | 2026-05-17 T-01.19 smoke test discovery | 5.5 (closed) |
+| Functional | NEW-F4 — TUI log path moved to `./logs/tui.log` + `GRID_TUI_LOG` env override (2026-05-19 hot fix); ADR + dead `dirs::data_local_dir()` fallback delete still pending | ✅ **CLOSED** 2026-05-22 Phase 5.5 Plan 01: ADR @ `1b9afd1` (ADR-V2-032 TUI Log Path Convention, type=record, Accepted) + code @ `ba3ba26` (studio_main.rs::resolve_tui_log_path L57-60 dead branch deleted, docstring cross-links V2-032, `dirs` crate dep retained for path_shortener.rs); both default + studio builds PASS | 2026-05-19 NEW-F1..F4 cascade | 5.5 (closed) |
+| Functional | grid-cli `mod output` E0583 — pre-existing compile error observed during Phase 5.3 OOS | ✅ **CLOSED (verified clean)** 2026-05-22 Phase 5.5 Plan 01 Task 01.B3 — verify-only; both `cargo build -p grid-cli` and `--features studio` Finished clean; output/ module structure intact (mod.rs+json.rs+stream_json.rs+text.rs); no code edit needed (resolved by prior commit, root cause unknown); no commit per plan spec | 2026-05-20 Phase 5.3 OOS | 5.5 (closed) |
+| Functional | NEW-L1 — HNSW disk leak (94GB index from unbounded max_elements doubling) + meta.json schema gap | ✅ **CLOSED** 2026-05-22 Phase 5.5 Plan 01 @ `0bdf70c` — vector_index.py adds HNSW_HARD_CAP=1_000_000 module constant + caps doubling at min(new_max, HNSW_HARD_CAP) + raises RuntimeError on cap-hit + persists max_elements in meta.json save() + restores max_elements in _try_load_sync(); 12/12 vector_index pytest PASS (10 existing + 2 new W0 stubs); atomic write_text preserved (V14.1.5) | 2026-05-20 Phase 5.3 OOS forensics | 5.5 (closed) |
+| ADR | INTERFACE-01 — ADR-V2-029 engine vs data/integration boundary contract (ADR-only, type=strategy, crate-level) | ✅ **CLOSED** 2026-05-22 Phase 5.5 Plan 01 @ `0b23a01` — ADR-V2-029 Accepted; §1 2-column table enumerates engine-side 17 modules vs data/integration categories; §3 future-proofing rules; V2-030 + V2-031 reserved in §References for v3.2+; F1/F2/F3/F5 PASS (F4 module overlap WARN advisory-only, expected for boundary ADR) | Phase 5.5 ROADMAP scope | 5.5 (closed) |
 
 > 这些 Deferred 的 SSOT 仍是 `docs/design/EAASP/DEFERRED_LEDGER.md`(GSD 例外保留),本表只为 STATE.md 单 view 摘要。Phase 5 Mapping 列由 ROADMAP.md Coverage 表 反向回填, 关闭时 SSOT 双向更新 (LEDGER + ROADMAP)。
 
 ## Session Continuity
 
-Last session: 2026-05-21T17:34:38.249Z
-Stopped at: Phase 5.5 context gathered — 4 GAs locked: V2-029 strategy crate-level (D-01..03); F3 sweep 5 contract+4 strategy (D-04..05); 4 OOS items all folded NEW-A3+NEW-F4+mod-output+NEW-L1 (D-06..07); 2-plan structure +LEDGER sweep close cascade +targeted phase gate (D-08..10)
-Resume file: .planning/phases/05.5-interface-adr-milestone-close/05.5-CONTEXT.md
-Local commits ahead of origin: 0 (all pushed; HEAD == origin/main == `a3851f0`)
-Worktrees: cleaned (Phase 5.3 worktree-a5a8 + worktree-a401 removed; 1 unrelated `ac21fe86` worktree from earlier session still locked, left alone)
+Last session: 2026-05-22T00:00:00Z
+Stopped at: Phase 5.5 Plan 01 COMPLETE 2026-05-22 — 7 task commits (0b23a01..0bdf70c) atop W0 (3fb9e2b); ADR-V2-029 + V2-032 Accepted; F3 sweep 33 → 12 explicit-strategic; NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean; phase gate ALL GREEN. Next: Plan 02 milestone close cascade (PROJECT.md flip + ROADMAP all-complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep + close-cascade phase gate per D-10).
+Resume file: .planning/phases/05.5-interface-adr-milestone-close/05.5-02-PLAN.md
+Local commits ahead of origin: 8 awaiting push (3fb9e2b W0 + ee7b008 STATE start + 7 Plan 01 task commits)
+Worktrees: cleaned (no active worktrees this session — sequential execution per recovery context)
 
 Prior sessions:
 

@@ -121,7 +121,7 @@
   4. Milestone close cascade ✓ — PROJECT.md §Active "Phase 5 milestone (v3.1)" 行划掉移入 §Validated 引用 ADR-V2-025+026+027+028+029+032 commit hash; ROADMAP.md 全 6 phase Status=Complete 含完成日期; STATE.md frontmatter `status: milestone-complete` + progress 6/6=100%; debt water-line 无新增 P0/P1-active 项
   5. 全 milestone 23 REQ-ID traceability ✅ (所有 6 phase 的 SC 在自身 phase verify-phase 阶段过, 且 Phase 5.5 close 时 ROADMAP.md Coverage 表无 ❌); 8 watchlist 项 (D109 / D120 / D134 / D136 / D142 / D143 / NEW-D2 / NEW-E2 / NEW-E3 — 实际 9 项含 NEW-E3, requirements WATCHLIST 数为 8 是因 NEW-D2 + NEW-E2 + NEW-E3 算 3 项 advisory) 全 closed-or-resolved 在 DEFERRED_LEDGER 中
 **Plans**: 2 plans
-- [ ] 05.5-01-PLAN.md — Interface ADR + F3 Sweep + OOS Code Fixes: ADR-V2-029 (strategy) + ADR-V2-032 (record) + 9-ADR F3 sweep + 4 OOS fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1)
+- [x] 05.5-01-PLAN.md — Interface ADR + F3 Sweep + OOS Code Fixes: ADR-V2-029 (strategy) + ADR-V2-032 (record) + 9-ADR F3 sweep + 4 OOS fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1) — ✅ COMPLETE 2026-05-22, 8 commits (3fb9e2b W0 + 7 task), F3 WARN 33 → 12, all phase gates GREEN
 - [ ] 05.5-02-PLAN.md — Milestone v3.1 Close Cascade: PROJECT.md flip + ROADMAP 6 phases complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep + phase gate per D-10
 **UI hint**: no
 
@@ -152,7 +152,7 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | 5.2 CLI Hardening | 0/TBD | Not started | - |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
 | 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 | 21 commits total (Plan 01: 9 + Plan 02: 12); 33+31 = 64 plan-level tests PASS; SC#1-#5 PASS; ADR-V2-028 Accepted, V2-019 trace filled; D142+D143+NEW-A2+NEW-E3+NEW-F3 closed; phase gate: 2698 release tests + 164/0/0 ADR audit + schema PASS |
-| 5.5 Interface ADR + Milestone Close | 0/2 | Planned 2026-05-22 | Plan 01: ADR-V2-029 + V2-032 + F3 sweep + 4 OOS fixes; Plan 02: milestone close cascade + LEDGER sweep |
+| 5.5 Interface ADR + Milestone Close | **1/2** | Plan 01 ✅ 2026-05-22; Plan 02 next | Plan 01 (8 commits): ADR-V2-029 + V2-032 Accepted; F3 WARN 33 → 12 explicit-strategic; NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean. Plan 02 next: milestone close cascade + LEDGER 18-row sweep |
 
 ## Coverage
 

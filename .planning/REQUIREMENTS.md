@@ -39,12 +39,12 @@
 - [ ] **WATCH-03**: D136 — grid-runtime hook 在 probe turn 不触发 (3 contract xfails) 修正 (CONTRACT phase 顺手, 跟 ADR-V2-016 capability matrix probe turn 协同)。
 - [ ] **WATCH-04**: D142 + D143 — grid-runtime + claude-code-runtime EAASP_DEPLOYMENT_MODE 接入 + max_sessions=1 gate (~20 LOC each, SERVER phase 顺手)。
 - [x] **WATCH-05**: NEW-D2 — test_chunk_type_contract.py 7-runtime 参数化 (现 仅 3 tests, CONTRACT phase 顺手, 与 CONTRACT-00 runtime 分级 review 同步用)。
-- [ ] **WATCH-06**: NEW-E2 — F3 ADR enforcement.trace 29 missing items 补 (advisory, 任一 phase 顺手)。
+- [x] **WATCH-06**: NEW-E2 — F3 ADR enforcement.trace 33 (corrected from 29) missing items 补 (advisory, 任一 phase 顺手) — ✅ COMPLETE 2026-05-22 Phase 5.5 Plan 01 @ `2303b3d`+`e84a57e` (5-contract trace fill + 4-strategy rationale; F3 WARN 33 → 12 explicit-strategic; F1/F2 0 FAIL)
 - [ ] **WATCH-07**: NEW-E3 — ADR-V2-019 Proposed → Accepted (blocks on D142+D143; closes after WATCH-04, SERVER phase 收尾)。
 
 ### E. INTERFACE — Data/integration 横切层接入面规约 (ADR-only)
 
-- [ ] **INTERFACE-01**: data/integration boundary contract ADR 起草 — 新 ADR 候选 `ADR-V2-026-engine-data-integration-boundary.md` (type: strategy / contract 待定), 描述 engine (user 60%+30%) 与 data/integration 横切层 (他人 10%) 之间的 boundary contract: customer data ingestion endpoints / SSO contracts / third-party API gateway 接入面 / EAASP / Grid 双产品 boundary 在代码层的 enforcement (crate boundaries + proto package separation); ADR-only, **不写 trait / proto skeleton** (per 用户 Phase 5 决策, 留给 next milestone)。
+- [x] **INTERFACE-01**: data/integration boundary contract ADR 起草 — 新 ADR `ADR-V2-029-engine-data-integration-boundary.md` (type: strategy, crate-level), 描述 engine (user 60%+30%) 与 data/integration 横切层 (他人 10%) 之间的 boundary contract: customer data ingestion / SSO / third-party API / WORM 存储 / 信创 LLM 适配 / hook-out 接入面 categories; ADR-only, **不写 trait / proto skeleton** (per 用户 Phase 5 决策, V2-030 + V2-031 reserved for v3.2+). ✅ COMPLETE 2026-05-22 Phase 5.5 Plan 01 @ `0b23a01` (Accepted, F1-F4 lint PASS, §1 2-column table, §3 future-proofing rules). Note: ROADMAP/REQ originally cited V2-026 but V2-026/027/028 consumed in Phase 5.3/5.4 — renumbered to V2-029.
 
 ---
 
@@ -101,9 +101,9 @@
 | WATCH-03 | 5.3 | (D136) |
 | WATCH-04 | 5.4 | (D142 + D143) |
 | WATCH-05 | 5.1 | (NEW-D2) |
-| WATCH-06 | 5.5 | (NEW-E2) |
+| WATCH-06 | 5.5 | ✅ (NEW-E2) — closed 2026-05-22 Plan 01 @ `2303b3d`+`e84a57e`; F3 WARN 33 → 12 explicit-strategic |
 | WATCH-07 | 5.4 | (NEW-E3 — D142/D143 关闭后顺接) |
-| INTERFACE-01 | 5.5 | (ADR-only, 新 ADR-V2-026 待定 ID) |
+| INTERFACE-01 | 5.5 | ✅ (ADR-only, ADR-V2-029 Accepted) — closed 2026-05-22 Plan 01 @ `0b23a01`; V2-030 + V2-031 reserved v3.2+ |
 
 **Total v3.1 requirements:** 23 REQ-IDs (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1)
 **Granularity:** 6 phases (Phase 5.0 → 5.5)
