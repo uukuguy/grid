@@ -22,6 +22,22 @@ import hnswlib
 
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+
+# Hard cap on HNSW vector index growth (NEW-L1 / Phase 5.5).
+# At dim=1024 fp32, 1_000_000 vectors ≈ 4 GB of raw vector data; matches
+# typical L2-memory production load. Past this cap the index refuses to grow
+# further and raises RuntimeError — operators should migrate to a fresh
+# index rather than let memory / disk usage grow unbounded.
+# NOTE: tests monkey-patch this constant down (e.g. to 100) for fast coverage
+# of the cap-hit path; production code never overrides it. See ADR-V2-032
+# style records for similar single-knob conventions.
+HNSW_HARD_CAP = 1_000_000
+
+
+# ---------------------------------------------------------------------------
 # Public error types
 # ---------------------------------------------------------------------------
 
@@ -151,6 +167,12 @@ class HNSWVectorIndex:
                 raise DimensionMismatchError(
                     f"Index dim={meta['dim']}, code dim={self.dim}"
                 )
+            # NEW-L1 (Phase 5.5): restore persisted max_elements BEFORE
+            # load_index, so reload preserves the grown capacity instead
+            # of clamping back to the constructor default (10_000).
+            # Older meta.json files written before NEW-L1 lack this key —
+            # fall back to whatever was passed to the constructor.
+            self._max_elements = int(meta.get("max_elements", self._max_elements))
             self._index.load_index(
                 str(self.index_path), max_elements=self._max_elements
             )
@@ -185,9 +207,17 @@ class HNSWVectorIndex:
             raise DimensionMismatchError(f"vec len {len(vec)} != index dim {self.dim}")
         async with self._write_lock:
             # Grow if we're about to hit capacity.
+            # NEW-L1 (Phase 5.5): cap doubling at HNSW_HARD_CAP and refuse to
+            # grow further once at the cap. Previous code silently doubled
+            # forever, producing 94 GB+ index dumps in pathological cases.
             current_count = self._index.get_current_count()
             if current_count >= self._max_elements - 1:
-                new_max = self._max_elements * 2
+                new_max = min(self._max_elements * 2, HNSW_HARD_CAP)
+                if new_max <= self._max_elements:
+                    raise RuntimeError(
+                        f"HNSW index at hard cap ({HNSW_HARD_CAP} vectors); "
+                        f"refusing to grow further. Migrate to a fresh index."
+                    )
                 self._index.resize_index(new_max)
                 self._max_elements = new_max
 
@@ -228,6 +258,9 @@ class HNSWVectorIndex:
                 "space": self.space,
                 "M": self.M,
                 "ef_construction": self.ef_construction,
+                # NEW-L1 (Phase 5.5): persist current cap so reload restores
+                # the grown capacity instead of defaulting back to 10_000.
+                "max_elements": self._max_elements,
                 "next_label": self._next_label,
                 "id_to_label": self._id_to_label,
                 # Stringify keys for JSON; parsed back to int on load.
