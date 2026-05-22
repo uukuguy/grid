@@ -12,6 +12,10 @@ deprecated_at: null
 deprecated_reason: null
 enforcement:
   level: contract-test
+  # F3-WARN expected: strategic-tier ADR with documentation-only trace anchors.
+  # The listed tools/eaasp-l4-orchestration tests are not (yet) wired into any
+  # .github/workflows/*.yml — kept as documentation references for now. Per
+  # Phase 5.5 NEW-E2 sweep (CONTEXT D-04 strategy tier): not blocking.
   trace:
     - "tools/eaasp-l4-orchestration/tests/test_event_backend_sqlite.py"
     - "tools/eaasp-l4-orchestration/tests/test_event_stream.py"

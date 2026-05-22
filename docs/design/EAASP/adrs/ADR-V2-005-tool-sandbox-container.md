@@ -12,6 +12,11 @@ deprecated_at: null
 deprecated_reason: null
 enforcement:
   level: contract-test
+  # F3-WARN expected: strategic-tier ADR with documentation-only trace anchors.
+  # The listed tests (hermes frozen tier + mock-scada example + L4 orchestrator)
+  # are not (yet) wired into any .github/workflows/*.yml — kept as documentation
+  # references for now. Per Phase 5.5 NEW-E2 sweep (CONTEXT D-04 strategy tier):
+  # not blocking. hermes-runtime-python frozen per ADR-V2-017.
   trace:
     - "lang/hermes-runtime-python/tests/test_mcp_bridge.py"
     - "tools/mock-scada/tests/test_server.py"
