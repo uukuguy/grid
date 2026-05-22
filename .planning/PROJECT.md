@@ -58,12 +58,13 @@
 - ✓ **Phase-driven 开发流水**(Phase 2 → 4a 共 14 个归档 phase) —— ADR governance plugin + Deferred ledger SSOT
 - ✓ **Debt 水位归零**(2026-04-20 @ commit `8629505`) —— D148/D149/D151/D152/D153/D154/D155 全 ✅ CLOSED 后无新 P1-active
 - ✓ **Phase 4 主决策**(2026-04-28) —— 走"双轴模型(engine vs data/integration)主框架 + 两腿都推进(产品形态实例)" 路径; 详见 ADR-V2-024 (commit `f497eef`, status: Accepted, supersedes ADR-V2-023) + audit doc `docs/design/EAASP/adrs/decisions/2026-04-27-leg-decision-audit.md`
+- ✓ **Phase 5 milestone (v3.1) Engine Hardening** (2026-05-22) —— Phases 5.0/5.1/5.2/5.3/5.4/5.5 全 6 phase 完成; 23/23 REQ-ID traceability ✅ (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1); 6 ADR Accepted: ADR-V2-025 (Phase 5.1, Runtime Tier Strategy) + ADR-V2-026 (Phase 5.3, Agent Loop ExecutionMode supersedes V2-016) + ADR-V2-027 (Phase 5.3, OpenAI-compat Quirks) + ADR-V2-028 (Phase 5.4, Strict-by-default Config Validation) + ADR-V2-029 (Phase 5.5, Engine vs Data/Integration Boundary, commit `0b23a01`) + ADR-V2-032 (Phase 5.5, TUI Log Path Convention, commit `1b9afd1`); 18 D-items closed across milestone; F3 ADR enforcement.trace baseline 33 WARN → 12 explicit-strategic + 0 unjustified. grid-cli + grid-server 优先发力组合 per ADR-V2-024 §1 双轴模型 / Open Item #3 完成; 其余 (grid-platform / grid-desktop / web*) 保持 dormant.
 
 ### Active
 
-<!-- Phase 5 milestone v3.1 — Engine Hardening (grid-cli + grid-server). REQ-IDs 由 Step 9 requirements 流程定义后回填。 -->
+<!-- Milestone v3.1 已 closed 2026-05-22. 下一个 milestone (v3.2 候选) 由 /gsd-new-milestone 启动后填充. -->
 
-- [ ] **Phase 5 milestone (v3.1)** —— Engine Hardening (grid-cli + grid-server) per ADR-V2-024 §1 双轴模型 + Open Item #3 优先发力组合; requirements 由 `/gsd-new-milestone` Step 9 流程定义后回填到此处
+- _(no active milestone — v3.1 closed 2026-05-22; ready for /gsd-new-milestone v3.2 or pause)_
 
 ### Out of Scope
 
@@ -134,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-29 — Milestone v3.1 (Phase 5 — Engine Hardening) started. Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 with ADR-V2-024 Accepted (commit `f497eef`). Phase 5 milestone scope: grid-cli + grid-server 硬化 + watchlist spread + data/integration interface 规约; 6 phases granularity, continues numbering from Phase 4.*
+*Last updated: 2026-05-22 — Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22. 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5) complete, 23/23 REQ-IDs traceability, 6 ADRs Accepted (V2-025/V2-026/V2-027/V2-028/V2-029/V2-032), 18 D-items closed, F3 ADR WARN 33 → 12 explicit-strategic. Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 with ADR-V2-024 Accepted (commit `f497eef`). Ready for /gsd-new-milestone (v3.2 TBD) or pause.*
