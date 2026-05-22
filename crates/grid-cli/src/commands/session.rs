@@ -114,7 +114,10 @@ async fn kill_session(session_id: String, purge: bool, state: &AppState) -> Resu
     // Check if session exists
     if session_store.get_session(&sid).await.is_none() {
         eprintln!("Session not found: {}", session_id);
-        return Err(anyhow::anyhow!("Session not found: {}", session_id));
+        // NEW-A3 (Phase 5.5): return typed GridError so main.rs downcast preserves
+        // ExitCode::SessionNotFound (= 4). Previously `anyhow!("Session not found")`
+        // collapsed to ExitCode::General (= 1) at the error handler.
+        return Err(crate::error::GridError::session_not_found(session_id).into());
     }
 
     // Hard delete: remove proto sync markers from disk

@@ -91,7 +91,15 @@ async fn main() {
 
     if let Err(e) = run_command(cli.command, &state).await {
         eprintln!("Error: {}", e);
-        let exit_code: ExitCode = GridError::other(e.to_string()).into();
+        // NEW-A3 (Phase 5.5): downcast to typed GridError so variant-specific
+        // exit codes (SessionNotFound=4, AuthFailed=3, ...) are preserved.
+        // Previously `GridError::other(e.to_string()).into()` always returned
+        // ExitCode::General (= 1), losing the typed variant.
+        let exit_code: ExitCode = e
+            .downcast_ref::<GridError>()
+            .cloned()
+            .map(ExitCode::from)
+            .unwrap_or_else(|| GridError::other(e.to_string()).into());
         std::process::exit(exit_code as i32);
     }
 }
