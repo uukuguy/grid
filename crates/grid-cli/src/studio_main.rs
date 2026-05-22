@@ -42,8 +42,10 @@ struct StudioCli {
 
 /// Resolve the TUI log file path. Honors `GRID_TUI_LOG` for explicit override,
 /// otherwise writes to `./logs/tui.log` in the current working directory (close
-/// to the repo for fast `tail -f` access during development). Falls back to
-/// `dirs::data_local_dir()/grid/tui.log` if cwd is unwritable.
+/// to the repo for fast `tail -f` access during development).
+///
+/// See ADR-V2-032 for the convention. The previous platform-specific local-data
+/// directory fallback was removed as dead code per Phase 5.5 NEW-F4.
 fn resolve_tui_log_path() -> std::path::PathBuf {
     if let Ok(p) = std::env::var("GRID_TUI_LOG") {
         return std::path::PathBuf::from(p);
@@ -51,13 +53,8 @@ fn resolve_tui_log_path() -> std::path::PathBuf {
     let cwd_logs = std::env::current_dir()
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
         .join("logs");
-    if std::fs::create_dir_all(&cwd_logs).is_ok() {
-        return cwd_logs.join("tui.log");
-    }
-    dirs::data_local_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("grid")
-        .join("tui.log")
+    let _ = std::fs::create_dir_all(&cwd_logs);
+    cwd_logs.join("tui.log")
 }
 
 fn init_logging_tui(verbose: bool) {
