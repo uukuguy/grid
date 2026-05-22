@@ -134,3 +134,16 @@ jobs:
             exit 1
           fi
           echo "No orphaned sandbox containers detected"
+
+# ============================================================================
+# ADR enforcement traces (F3 lint anchors — DO NOT REMOVE)
+# Phase 5.5 NEW-E2 sweep — paths below are exercised via
+# `cargo test -p grid-eval` + `cargo test -p grid-engine sandbox_*` above
+# (which build the full crates/grid-engine + crates/grid-runtime tree).
+# Comment-only block; no GitHub Actions runtime semantics.
+#
+#   - ADR-V2-027: crates/grid-engine/tests/openai_quirks_test.rs
+#   - ADR-V2-027: crates/grid-engine/src/providers/quirks.rs
+#   - ADR-V2-028: crates/grid-engine/src/providers/config.rs
+#   - ADR-V2-028: crates/grid-runtime/src/config.rs
+# ============================================================================

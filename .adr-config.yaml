@@ -7,4 +7,5 @@ ci_workflows:
   - .github/workflows/phase2_5-contract.yml
   - .github/workflows/phase3-contract.yml
   - .github/workflows/adr-audit.yml
+  - .github/workflows/eval-ci.yml
 adr_id_prefix: "ADR-V2"

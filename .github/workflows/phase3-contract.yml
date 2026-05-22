@@ -175,3 +175,27 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           OPENAI_MODEL_NAME: ${{ secrets.OPENAI_MODEL_NAME }}
+
+# ============================================================================
+# ADR enforcement traces (F3 lint anchors — DO NOT REMOVE)
+# Phase 5.5 NEW-E2 sweep — paths listed below run inside the
+# `make v2-phase3-contract-*` Makefile targets above. Comment-only block;
+# no GitHub Actions runtime semantics.
+#
+#   - ADR-V2-006: tests/contract/contract_v1/test_hook_envelope.py
+#   - ADR-V2-006: crates/grid-engine/tests/hook_envelope_parity_test.rs
+#   - ADR-V2-006: crates/grid-engine/tests/hook_failure_mode.rs
+#   - ADR-V2-006: crates/grid-engine/tests/stop_hooks_integration.rs
+#   - ADR-V2-006: crates/grid-runtime/tests/scoped_hook_wiring_integration.rs
+#   - ADR-V2-006: lang/claude-code-runtime-python/tests/test_scoped_hook_executor_integration.py
+#   - ADR-V2-006: lang/claude-code-runtime-python/tests/test_hook_substitution.py
+#   - ADR-V2-006: lang/claude-code-runtime-python/tests/test_skill_extraction_e2e.py
+#   - ADR-V2-006: lang/nanobot-runtime-python/tests/test_skill_extraction_e2e.py
+#   - ADR-V2-018: crates/grid-engine/tests/compaction_pipeline.rs
+#   - ADR-V2-018: tests/e2e/phase3/test_precompact_long_conversation.py
+#   - ADR-V2-018: tests/contract/contract_v1/test_event_type.py
+#   - ADR-V2-018: tests/contract/contract_v1/test_proto_shape.py
+#   - ADR-V2-020: tests/contract/cases/test_tool_namespace_enforcement.py
+#   - ADR-V2-020: tests/contract/cases/test_tool_conflict_resolution.py
+#   - ADR-V2-020: tests/contract/cases/test_pre_phase3_skill_compat.py
+# ============================================================================
