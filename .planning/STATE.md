@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
-status: executing
-stopped_at: "Phase 5.5 Plan 01 COMPLETE 2026-05-22 — 8 commits (3fb9e2b W0 + 0b23a01 V2-029 + 1b9afd1 V2-032 + 2303b3d+e84a57e F3 sweep + 8c25223 NEW-A3 + ba3ba26 NEW-F4 code + 0bdf70c NEW-L1; B3 mod output verify-only no commit); ADR-V2-029 + V2-032 Accepted; F3 WARN 33 → 12 explicit-strategic; phase gate ALL GREEN (210 ADR PASS / 0 FAIL, grid-cli 147+6 tests PASS, vector_index 12/12 PASS, cargo check workspace Finished). Plan 02 milestone close cascade next."
-last_updated: "2026-05-22T00:00:00Z"
-last_activity: 2026-05-22 -- Phase 5.5 Plan 01 COMPLETE (7 task commits)
+status: milestone-complete
+stopped_at: "Milestone v3.1 closed 2026-05-22 — 6/6 phases complete (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs traced, 6 ADRs Accepted across milestone (V2-025 Phase 5.1 + V2-026 Phase 5.3 + V2-027 Phase 5.3 + V2-028 Phase 5.4 + V2-029 Phase 5.5 + V2-032 Phase 5.5), 4-row LEDGER ADD + 1 EDIT + 2 new P3 rows (NEW-X2/NEW-X3), F3 WARN 33 → 12 explicit-strategic + 0 unjustified, phase gate ALL GREEN."
+last_updated: "2026-05-22T12:00:00Z"
+last_activity: 2026-05-22 -- Milestone v3.1 closed — Phase 5.5 SUMMARY + close cascade landed
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 ## Current Position
 
-Phase: 5.5 (Interface ADR + Milestone Close) — EXECUTING
-Plan: 1/2 COMPLETE; Plan 2/2 next (milestone close cascade)
-Next plan: 05.5-02 — Milestone v3.1 Close Cascade (PROJECT.md flip + ROADMAP all-complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep)
-Status: Executing Phase 5.5 (Plan 01 done; Plan 02 awaiting orchestrator)
-Last activity: 2026-05-22 -- Phase 5.5 Plan 01 COMPLETE
+Phase: 5.5 (Interface ADR + Milestone Close) — ✅ COMPLETE + MILESTONE v3.1 CLOSED 2026-05-22
+Plan: 2/2 COMPLETE (Plan 01 ADR + Plan 02 close cascade)
+Next milestone: v3.2 (TBD) — ready for `/gsd-new-milestone` (or pause)
+Status: Milestone v3.1 SHIPPED — 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs ✅, 6 ADRs Accepted (V2-025/026/027/028/029/032), 18 D-items closed, F3 baseline 33 → 12
+Last activity: 2026-05-22 -- Milestone v3.1 close cascade complete
 
-Progress: [▓▓▓▓▓▓░░░░] 88% (5/6 milestone phases + 1/2 Phase 5.5 plans complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4 + 5.5 Plan 01)
+Progress: [▓▓▓▓▓▓▓▓▓▓] 100% (6/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4 + 5.5) — MILESTONE v3.1 CLOSED 2026-05-22
 
 **Previous milestone closure**: Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 — 3/3 phases (4.0/4.1/4.2), ADR-V2-024 Accepted (双轴模型), 16 commits pushed to origin/main.
 
@@ -56,12 +56,12 @@ Progress: [▓▓▓▓▓▓░░░░] 88% (5/6 milestone phases + 1/2 Phase
 | 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
 | 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
 | 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 (Plan 01: 9 commits + Plan 02: 12 commits + 2 closures = 23 commits) | All 5/5 SC PASS, all 7/7 REQ-IDs covered (SERVER-01..05 + WATCH-04 + WATCH-07); ADR-V2-028 Accepted (Strict-by-default Config Validation); ADR-V2-019 enforcement.trace filled (status UNCHANGED 2026-04-20 per Q9); 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); phase gate 2698 release tests PASS + ADR audit 164/0/0 + schema-coverage gate sessions+turns; W0-03 spike Verdict YES (tracing_subscriber::reload viable); 2 advisory drift items (ROADMAP SC#4 "4 modes" stale wording vs Q3-correction 3-mode; NEW-F4 LEDGER row needs retag to Phase 5.5) — non-blocking |
-| 5.5 Interface ADR + Milestone Close | **1/2 ✅ (Plan 01)** | Plan 01 COMPLETE 2026-05-22 (8 commits total: 3fb9e2b W0 + 7 task commits); Plan 02 next | ADR-V2-029 (engine vs data/integration boundary, strategy) + ADR-V2-032 (TUI log path convention, record) Accepted; F3 WARN 33 → 12 explicit-strategic (target was ≤13); NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean (verify-only); Plan 01 phase gate ALL GREEN (210 ADR PASS / 0 FAIL, 147+6 grid-cli tests PASS, 12/12 vector_index pytest PASS, cargo check workspace Finished); 2 P3 inbox rows for Plan 02 (NEW-X2 kill anti-pattern siblings, NEW-X3 grid-cli --all-features grid-engine 12 errors) |
+| 5.5 Interface ADR + Milestone Close | **2/2 ✅** | COMPLETE 2026-05-22 | Plan 01 (8 commits: 3fb9e2b W0 + 7 task): ADR-V2-029 (engine vs data/integration boundary, strategy) + ADR-V2-032 (TUI log path convention, record) Accepted; F3 WARN 33 → 12 explicit-strategic (target was ≤13); NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean. Plan 02 (close cascade): 4 doc files edited (PROJECT/ROADMAP/STATE/REQUIREMENTS) + 5-row LEDGER sweep (NEW-E2/NEW-A3/NEW-L1/grid-cli mod output ADD + NEW-F4 EDIT) + 2 new P3 rows (NEW-X2 kill anti-pattern siblings, NEW-X3 grid-cli --all-features grid-engine 12 errors); phase gate ALL GREEN (ADR lint 0 FAIL F3 WARN ≤13; grid-cli + studio + workspace check + vector_index pytest all PASS) |
 
 **Recent Trend:**
 
-- Last 5 plans: [05.5-01 ✅ 2026-05-22, 05.4-02 ✅ 2026-05-21, 05.4-01 ✅ 2026-05-21, 05.3-02 ✅ 2026-05-20, 05.3-01 ✅ 2026-05-20]
-- Trend: design-heavy phase 跑通 — cross-AI review (4 reviewers + 7 fixes) 显著提升 audit 框架严谨性,catch 到 B1 pre-committed verdict 隐患 (T4 hardcoded "两腿都推进" 被 Path 1 fix 改成 verdict-format regex + runtime substitution)
+- Last 5 plans: [05.5-02 ✅ 2026-05-22, 05.5-01 ✅ 2026-05-22, 05.4-02 ✅ 2026-05-21, 05.4-01 ✅ 2026-05-21, 05.3-02 ✅ 2026-05-20]
+- Trend: milestone v3.1 CLOSED 2026-05-22 — Plan 02 close cascade (4-doc edit + 5-row LEDGER sweep + phase gate) landed cleanly atop Plan 01 deliverables; 6 ADRs Accepted across milestone, 23/23 REQ-IDs traced, 18 D-items closed, F3 baseline 33 → 12 explicit-strategic (beats ≤13 target). design-heavy phase 跑通 — cross-AI review (4 reviewers + 7 fixes) 显著提升 audit 框架严谨性,catch 到 B1 pre-committed verdict 隐患
 
 *Updated after each plan completion*
 
@@ -138,10 +138,10 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-22T00:00:00Z
-Stopped at: Phase 5.5 Plan 01 COMPLETE 2026-05-22 — 7 task commits (0b23a01..0bdf70c) atop W0 (3fb9e2b); ADR-V2-029 + V2-032 Accepted; F3 sweep 33 → 12 explicit-strategic; NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean; phase gate ALL GREEN. Next: Plan 02 milestone close cascade (PROJECT.md flip + ROADMAP all-complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep + close-cascade phase gate per D-10).
-Resume file: .planning/phases/05.5-interface-adr-milestone-close/05.5-02-PLAN.md
-Local commits ahead of origin: 8 awaiting push (3fb9e2b W0 + ee7b008 STATE start + 7 Plan 01 task commits)
+Last session: 2026-05-22T12:00:00Z
+Stopped at: Milestone v3.1 ✅ CLOSED 2026-05-22 — Plan 05.5-02 close cascade complete; 6/6 phases shipped; 23/23 REQ-IDs traceability; 6 ADRs Accepted (V2-025/026/027/028/029/032); 18 D-items closed; F3 baseline 33 → 12 explicit-strategic + 0 unjustified; phase gate ALL GREEN (ADR lint 0 FAIL / 12 F3 WARN ≤13 target; grid-cli + studio + workspace + vector_index pytest all PASS); 2 new P3 inbox rows filed (NEW-X2 kill anti-pattern siblings, NEW-X3 grid-cli --all-features grid-engine 12 errors) deferred to v3.2+.
+Resume path: Milestone v3.1 closed 2026-05-22. Next action: `/gsd-new-milestone` (v3.2 TBD) — or pause.
+Local commits ahead of origin: ~16+ awaiting push (8 Plan 01 commits + 5-7 Plan 02 close cascade commits); push decision deferred to user per project rule.
 Worktrees: cleaned (no active worktrees this session — sequential execution per recovery context)
 
 Prior sessions:
