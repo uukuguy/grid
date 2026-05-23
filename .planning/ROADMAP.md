@@ -1,14 +1,15 @@
 # Grid — Roadmap
 
-> **Milestone:** v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)
-> **Brownfield context:** Second GSD-managed milestone after Phase 4 (v3.0) closed 2026-04-28 with ADR-V2-024 Accepted (双轴模型 supersedes ADR-V2-023). Phase 4 (4.0/4.1/4.2) 历史保留只读, this roadmap covers ONLY milestone v3.1 (Phase 5.0 → 5.5, 6 phases).
-> **Granularity:** standard (6 phases — 在 5-8 区间内偏低端, 匹配 Phase 4 单 plan/phase 节奏 + watchlist-spread 策略避免单独 watchlist phase 阻塞主线)。
-> **Done condition for milestone:** 6 phases 全 ✅; 23 REQ-ID 全 ✅ traceability; ADR-V2-025 (runtime tier strategy) + ADR-V2-026 (engine vs data/integration boundary) Accepted; ADR-V2-019 (L1 deployment) 翻 Accepted; contract-v1.2.0 升级 + 主力档 7 runtime 全 PASS; watchlist 8 项 (D109 / D120 / D134 / D136 / D142 / D143 / NEW-D2 / NEW-E2 / NEW-E3) 全部 closed-or-resolved; PROJECT.md / STATE.md milestone close cascade 完成。
+> **Milestone:** v3.2 Tech-Debt Triage & CI Red Line Clearance (Phases 6.0/6.1/6.2)
+> **Brownfield context:** Third GSD-managed milestone after Phase 4 (v3.0, ADR-V2-024 Accepted 2026-04-28) and Phase 5 (v3.1, shipped 2026-05-22). v3.0/v3.1 sections preserved below as historical traceability; this section covers ONLY milestone v3.2 (Phase 6.0 → 6.2, 3 phases).
+> **Granularity:** light (3 phases — intentionally below GSD standard 5-8 range). v3.2 IS the watchlist-sweep / triage milestone, NOT feature work; mega debt sweep is scope-deferred to v3.3+ per TRIAGE-03 output. See §Granularity 备注 v3.2 for rationale.
+> **Done condition for milestone:** 3 phases 全 ✅; 6 REQ-ID 全 ✅ traceability (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01..03); Phase 3 Contract Matrix CI GREEN (≥4/7 jobs PASS); `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` 文件创建并迁入所有 DEAD-tagged row; `.planning/v3.3-INBOX.md` 文件创建按 module 分组列出 P1/P2/P3 row; PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated; STATE.md frontmatter `status: milestone-complete` + progress 3/3=100%; DEFERRED_LEDGER 主体只剩 P1/P2/P3 row + 3 NEW-X row (NEW-X2/X3/X4 各自 closed-or-classified)。
 
 ## Milestones
 
 - ✅ **v3.0 Phase 4 — Product Scope Decision** — Phases 4.0/4.1/4.2 (shipped 2026-04-28, ADR-V2-024 Accepted)
-- ✅ **v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)** — SHIPPED 2026-05-22 (Phases 5.0/5.1/5.2/5.3/5.4/5.5 all complete)
+- ✅ **v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)** — SHIPPED 2026-05-22 (Phases 5.0/5.1/5.2/5.3/5.4/5.5 all complete, 23/23 REQ-IDs, 6 ADRs Accepted V2-025/026/027/028/029/032)
+- 🟡 **v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance** — STARTED 2026-05-23 (Phases 6.0/6.1/6.2 planned)
 
 ## Phases
 
@@ -23,138 +24,117 @@
 
 </details>
 
-### ✅ v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server) (SHIPPED 2026-05-22)
+<details>
+<summary>✅ v3.1 Phase 5 — Engine Hardening (Phases 5.0/5.1/5.2/5.3/5.4/5.5) — SHIPPED 2026-05-22</summary>
 
-**Milestone Goal:** 在 ADR-V2-024 双轴模型下推进 engine 接入面 (grid-cli + grid-server 优先发力组合) 的硬化, 同时把 cross-milestone watchlist P1 项分散到相关 phase 顺手解决, 并定义 data/integration 横切层接入面 ADR-only 规约。
+6 phases shipped under v3.1 milestone. All 23 REQ-IDs traceability ✅. 6 ADRs Accepted (V2-025 runtime tier / V2-026 ExecutionMode supersede V2-016 / V2-027 OpenAI Quirks / V2-028 Strict Config / V2-029 engine vs data/integration boundary / V2-032 TUI Log Path Convention). 18 D-items closed. F3 ADR baseline 33 WARN → 12 explicit-strategic + 0 unjustified.
 
-- [x] **Phase 5.0: Hook Envelope Baseline** — D120 (HookContext schema 补全) + D134 (shipped skill hooks key-path 改正), engine 侧 hook envelope baseline 健康度补丁解锁 5.3/5.4 (✅ 2026-05-19)
-- [x] **Phase 5.1: Runtime Tier ADR + Contract Test Parametrization** — ADR-V2-025 Accepted (主力/样板/参考/冻结四档执行强度 × 7 runtime) + test_chunk_type_contract.py 7-runtime 参数化 (✅ 2026-05-02)
-- [x] **Phase 5.2: CLI Hardening** — `grid` 命令树 / streaming output / error+exit code / TUI 拆分 / session lifecycle / `grid doctor` 6 项 grid-cli 硬化 (✅ 2026-05-17)
-- [x] **Phase 5.3: Contract Evolution** — ChunkType + Hook event 扩展 (升级 contract-v1.2.0 主力档强制), 顺带 D109 + D136 收尾. ✅ COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits, V2-026 + V2-027 Accepted, NEW-E4/F1/F2 closed)
-- [x] **Phase 5.4: Server Hardening** — WebSocket / L1 gRPC 集成 / session+L2 持久化 / auth+audit / config hot-reload 5 项 grid-server 硬化, 顺带 D142+D143 + ADR-V2-019 trace fill (✅ 2026-05-21)
-- [x] **Phase 5.5: Interface ADR + Milestone Close** — ADR-V2-029 (engine vs data/integration boundary, strategy, crate-level) + ADR-V2-032 (TUI log path convention, NEW-F4 record) + NEW-E2 F3 sweep (33 WARN → 12 explicit-strategic) + 4 OOS code fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1) + milestone close cascade (✅ 2026-05-22)
+- [x] **Phase 5.0: Hook Envelope Baseline** — ✅ 2026-05-19 (D120 + D134 closed)
+- [x] **Phase 5.1: Runtime Tier ADR + Contract Test Parametrization** — ✅ 2026-05-02 (ADR-V2-025 Accepted, NEW-D2 closed)
+- [x] **Phase 5.2: CLI Hardening** — ✅ 2026-05-17 (6 CLI REQ-IDs, NEW-C2 closed, 575/575 PASS --features studio)
+- [x] **Phase 5.3: Contract Evolution** — ✅ 2026-05-20 (contract-v1.2.0 live, V2-026 + V2-027 Accepted, D109+D136+NEW-E4+NEW-F1+NEW-F2 closed)
+- [x] **Phase 5.4: Server Hardening** — ✅ 2026-05-21 (5 SERVER REQ-IDs + WATCH-04+07, ADR-V2-028 Accepted, V2-019 trace filled, 5-row LEDGER close)
+- [x] **Phase 5.5: Interface ADR + Milestone Close** — ✅ 2026-05-22 (ADR-V2-029 + V2-032 Accepted, F3 sweep, 4 OOS code fixes, milestone close cascade, 2 P3 inbox rows NEW-X2/X3 filed → v3.2)
+
+> Full Phase Details section preserved verbatim in commit history; archived 2026-05-23 at milestone v3.1 close. For audit re-read, see git log + `.planning/phases/05.*/SUMMARY.md` + `.planning/phases/05.*/VERIFICATION.md`.
+
+</details>
+
+### 🟡 v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance (Phases 6.0/6.1/6.2, STARTED 2026-05-23)
+
+**Milestone Goal:** 消除 Phase 3 Contract Matrix CI 红线 (持续 RED 自 2026-05-04) + grid-cli 残留 anti-pattern 收尾 + 对 102 D-row + 3 NEW-X row 历史债做一次性 triage 分类, 为后续 milestone (v3.3+) 的代码工作建立优先级地图。**NOT mega-debt-sweep** — 代码修复仅限 3 个具体 row (CI-01 NEW-X4 fixture-scope fix + CLI-X2 NEW-X2 sibling typed GridError 补 + CLI-X3 NEW-X3 --all-features 调查); 102 D-row 仅做分类不做修复, mega sweep 留给 v3.3+ 按 triage 结果立 phase。
+
+- [ ] **Phase 6.0: CI Red Clearance** — NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修, Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4/7 jobs PASS)
+- [ ] **Phase 6.1: grid-cli Anti-pattern Sweep** — NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) + NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter
+- [ ] **Phase 6.2: Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 一次性 triage 分类 (P1/P2/P3/DEAD) + DEAD 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md + `.planning/v3.3-INBOX.md` 按 module 分组喂下轮
 
 ## Phase Details
 
-### Phase 5.0: Hook Envelope Baseline
+### Phase 6.0: CI Red Clearance
 
-**Goal**: Hook envelope baseline (ADR-V2-006 §2-§3) 健康度补丁 — Rust HookContext schema 补齐至与 Python 一致 (D120), shipped skill hooks 的 nested key path 改正为 ADR-V2-006 §2.3 top-level (D134); 这是 Phase 5 后续 CONTRACT (5.3) 与 SERVER (5.4) phase 改 hook fire 点 / 跨 runtime parity test 的前置基线。
-**Depends on**: Nothing (milestone 第一个 phase, 但需 Phase 4.2 milestone close 已经完成的 ADR-V2-024 双轴 framework 上下文)
-**Requirements**: WATCH-00, WATCH-02
+**Goal**: Phase 3 Contract Matrix CI 由 RED 转 GREEN — `tests/contract/cases/test_chunk_type_contract.py` 与 `tests/contract/conftest.py` 之间 fixture-scope mismatch (NEW-X4) 修复, 让 pytest fixture 装配通过, 跨 7 个 L1 runtime (claude-code / goose / nanobot / pydantic-ai / claw-code / ccb / grid) 都能正常 setup 测试上下文; 实际 contract test 内容是否 PASS 取决于各 runtime 实现 (允许 XFAIL), 关键 success = 不再出 ScopeMismatch error 阻塞整个 workflow。这是消除 Phase 3 Contract Matrix CI 持续红线 (since 2026-05-04) 的最小修。
+**Depends on**: Nothing (milestone 第一个 phase; CI red 不阻塞 local work 但是心理性 blocker / signal pollution, 优先消除给后续 phase 干净的 CI baseline)
+**Requirements**: CI-01
 **Success Criteria** (what must be TRUE):
-  1. `crates/grid-engine/src/hooks/context.rs` (or 等价路径) `HookContext::to_json` / `to_env_vars` 输出包含 `event` + `skill_id` 字段, 进程 env 包含 `GRID_EVENT` + `GRID_SKILL_ID`, 且 `tests/contract/test_hook_envelope_parity.rs` (或 `hook_envelope_parity_test.rs`) 跨 Rust ↔ Python 两侧 envelope shape 比对全 PASS (无 missing-field skip)
-  2. `examples/skills/*/hooks/*.sh` 7 个 example skill hook 脚本中所有读 `.payload.output.*` 的位置改为读 ADR-V2-006 §2.3 top-level `.output.*`; grep `.payload.output` 在 `examples/skills/` 路径下 0 hit (lock-in regression test)
-  3. D120 + D134 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash, ledger row-edit-on-close convention 遵守 (per Phase 4.0 CLEANUP-02 precedent)
-  4. Phase 5.0 后跑 `make verify-runtime` (或 7 runtime contract test 子集 covering HookContext envelope 字段) 不引入新 xfail; D136 (probe turn 不 fire hook 的 3 contract xfails) 保持原状, 留给 Phase 5.3 处理
-**Plans**: 1 plan
-- [x] 05.0-01-PLAN.md — Hook envelope baseline: fix GA1 dead code, confirm D120 parity, close D134
+  1. `pytest tests/contract/cases/test_chunk_type_contract.py -v` 在本地不再抛 `ScopeMismatch` error; fixture `runtime_name` (function-scoped) 与 session-scoped requesting fixture 之间的 scope 冲突已修, 7 runtime case 各自能 setup 进入实际 assert (PASS / FAIL / XFAIL by runtime, 不再是 fixture-装配-阶段-error)
+  2. Phase 3 Contract Matrix workflow (`.github/workflows/phase3-contract.yml` 或等价 CI workflow) 跑过后 ≥ 4 of 7 jobs PASS (per ADR-V2-025 tier strategy 允许某些 runtime XFAIL, 但不能因 fixture-scope-error 整体 RED); CI run URL + commit hash 写入 SUMMARY.md
+  3. NEW-X4 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash, 遵循 row-edit-on-close convention (per Phase 4.0 CLEANUP-02 precedent + Phase 5.4 NEW-A2/E3 precedent); ledger row include 修复 commit hash + CI run URL
+**Plans**: TBD by `/gsd-plan-phase 6.0` (推测 1 plan, scope 小, ≤5 task)
 **UI hint**: no
 
-### Phase 5.1: Runtime Tier ADR + Contract Test Parametrization
+### Phase 6.1: grid-cli Anti-pattern Sweep
 
-**Goal**: 在 ADR-V2-017 三轨产品策略 (主力 / 样板 / 对比) 基础上增加契约执行强度差异化策略 — 起草 ADR-V2-025 (`type: strategy`), 评估 7 runtime 现状 + 划分主力档 / 样板档 / 参考档 / 冻结档, 同时把 `tests/contract/cases/test_chunk_type_contract.py` 从现 3 tests 扩展为 7-runtime 参数化, 与 tier review 同步用 (NEW-D2)。
-**Depends on**: Phase 5.0 (hook envelope baseline 健康对 contract test 主力档 PASS 判定有影响, 不让 D120 missing field 污染 tier 划分依据)
-**Requirements**: CONTRACT-00, WATCH-05
+**Goal**: 收尾 grid-cli 残留 anti-pattern — NEW-X2 sibling kill_session anti-pattern 补全 (`crates/grid-cli/src/commands/session.rs:99-103` `delete_session` + L157 `export_session` 仍用 `anyhow!("Session not found")` 映射到 `ExitCode::General` 1, 应改为 `GridError::session_not_found()` → typed exit code `SessionNotFound = 4`; 与 Phase 5.5 Plan 01 Task B1 修的 `kill_session` 同模式) + NEW-X3 `cargo build -p grid-cli --all-features` 12 grid-engine errors 调查 + 决定 (是真 dead code / 应 feature-gate / 还是只需 doc fix)。两项同属 grid-cli 域, 都是小 scope (NEW-X2 ~10 LOC + 2 integration test; NEW-X3 调查可能 N/A), 自然 pairing 成一个 phase。
+**Depends on**: Nothing on 6.0 (NEW-X2/X3 与 NEW-X4 CI fixture 无代码依赖, 可与 6.0 并行执行; 但 GSD 顺序执行规则下排在 6.0 后)
+**Requirements**: CLI-X2, CLI-X3
 **Success Criteria** (what must be TRUE):
-  1. `docs/design/EAASP/adrs/ADR-V2-025-l1-runtime-contract-tier-strategy.md` 状态 Accepted (F1-F4 lint exit 0); Decision 段包含 4 档执行强度表格 (主力 / 样板 / 参考 / 冻结) × 7 runtime (grid / claude-code / nanobot / pydantic-ai / goose / claw-code / ccb) 显式分配 + hermes (frozen)
-  2. ADR-V2-025 §References 引用 ADR-V2-017 (产品三轨) + ADR-V2-021 (chunk_type contract) + ADR-V2-024 (双轴 framework) + Phase 4a project review 中 NEW-D2 议题
-  3. `tests/contract/cases/test_chunk_type_contract.py` 改为 pytest parametrize 跑 7 runtime; CI workflow `.github/workflows/phase3-contract.yml` (或 phase5 后续) 7-runtime matrix run 全部按 ADR-V2-025 tier 设定 (主力档 must PASS / 样板档 PASS-or-xfail / 参考档 v1.1 baseline / 冻结档 skip) 行为正确
-  4. NEW-D2 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; `pytest tests/contract/cases/test_chunk_type_contract.py -v` 输出 7 runtime case 数 ≥ 21 (3 cases × 7 runtime)
-**Plans**: 1 plan
-- [x] 05.1-01-PLAN.md — Runtime Tier ADR + Contract Test Parametrization
+  1. `delete_session` (`crates/grid-cli/src/commands/session.rs:99-103`) + `export_session` (L157) 改用 `GridError::session_not_found()` typed error; `main.rs` 既有的 `downcast_ref::<GridError>` arm (Phase 5.5 Plan 01 Task B1 落地) 自动 catch, 用户敲 `grid session delete <nonexistent-id>` + `grid session export <nonexistent-id>` 都 exit 4 而非 exit 1
+  2. `crates/grid-cli/tests/` 下新增 2 个 integration test (`test_delete_nonexistent_session_exits_4` + `test_export_nonexistent_session_exits_4`) 均 PASS; 既有 147 + 6 grid-cli test 全部 no regression (`cargo test -p grid-cli` 全 PASS)
+  3. `cargo build -p grid-cli --all-features` 状态 = **(a) 编译 clean** (12 个 grid-engine errors 修复 或 经调查为真 dead code 删除) **OR (b) 矩阵窄化** (`grid-cli` Cargo.toml `--all-features` feature set 显式排除引发错误的 feature, 留一个能 build 的子集), 选择写入 LEDGER NEW-X3 row 的 close-out 注释, 包含 root cause 一句话 + 决策 rationale
+  4. NEW-X2 + NEW-X3 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; 如 NEW-X3 决定走 (b) 矩阵窄化路径, 在 `grid-cli/Cargo.toml` 或 `Makefile` 中加 comment 注释为何排除某 feature, 防止下个 contributor 误以为是漏配
+**Plans**: TBD by `/gsd-plan-phase 6.1` (推测 1 plan, 2 task block 顺序执行 X2 → X3, 总 ≤6 task)
 **UI hint**: no
 
-### Phase 5.2: CLI Hardening
+### Phase 6.2: Debt Ledger Triage
 
-**Goal**: `grid-cli` (binary `grid`) 用户面硬化 — 命令树梳理 / streaming output UX / 错误信息+exit code 一致性 / TUI key_handler.rs 拆分 / session lifecycle 命令打磨 / `grid doctor` 检查清单扩展 6 项, 让用户敲 `grid --help` 与 `grid cli-ask "..."` 体验对齐 Phase 4 后预期成熟度。
-**Depends on**: Phase 5.0 (hook envelope baseline; CLI session lifecycle 命令需要 hook fire 路径稳定; 不阻塞 5.1, 但概念上 CLI hardening 在主力档 contract test 健康后做更稳)
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05, CLI-06
+**Goal**: 对 `docs/design/EAASP/DEFERRED_LEDGER.md` 中 102 open D-row + 3 NEW-X row (NEW-X2/X3 在 6.1 关闭后仍计入分类轨, NEW-X4 在 6.0 关闭后同) 做一次性 triage 分类 — 每行加 tag {P1-actionable-now / P2-next-milestone / P3-async-when-touched / DEAD-archived} + 一行 rationale 引用 code/ADR/commit; DEAD row 物理迁移到新文件 `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` (LEDGER 主体只留 P1/P2/P3); 最后 P1/P2/P3 列表汇总到 `.planning/v3.3-INBOX.md` 按 module 分组 (grid-engine / grid-cli / grid-server / L2 / contract / etc), 喂 v3.3+ milestone scoping。**Doc-only phase, 零代码修改**, 三 task 顺序依赖 (TRIAGE-01 分类 → TRIAGE-02 物理迁移 → TRIAGE-03 INBOX 汇总)。
+**Depends on**: Phase 6.1 (NEW-X2/X3 在 6.1 关闭后已有 final status, triage 时 tag 可直接写 ✅ CLOSED; 不严格阻塞 6.2 启动但减少后续 re-tag)
+**Requirements**: TRIAGE-01, TRIAGE-02, TRIAGE-03
 **Success Criteria** (what must be TRUE):
-  1. 用户运行 `grid --help` 看到统一分类的 subcommand 树 (cli-ask / cli-session / cli-config / cli-doctor / studio-tui / studio-dashboard 命名一致, help 输出按 group 分类), 并且 6 个 subcommand 各自的 `grid <cmd> --help` 都包含 Examples 段 + exit code 说明
-  2. 用户运行 `grid cli-ask "hello world"` 看到 ChunkType 流式渲染 (TEXT_DELTA 打字机效果 + TOOL_START 折叠 + TOOL_RESULT 摘要 + ERROR 高亮); 跨 ChunkType (含 WORKFLOW_CONTINUATION) 渲染无丢字 / 错排
-  3. CLI exit code 在 4 类典型故障场景 (provider 错误 / network timeout / config 缺失 / API key invalid) 输出一致格式错误信息且 exit code 符合 sysexits.h (EX_USAGE=64 / EX_NOINPUT=66 / EX_UNAVAILABLE=69 / EX_SOFTWARE=70 / EX_CONFIG=78); `cargo test -p grid-cli` 包含至少 4 个 exit-code 断言测试
-  4. `crates/grid-cli/src/tui/key_handler.rs` 拆分为 dispatcher + per-mode handler 子模块 (NEW-C2); 文件行数从拆分前 P1 阈值 (~500+ LOC) 降到合理区间 (<300 LOC per file); `cargo test -p grid-cli` 新增的 mode-handler 单元测试 ≥ 6 个 PASS
-  5. 用户运行 `grid session list / resume / kill` 端到端可用 — 列表显示 SQLite session record 关键字段, resume 能 turn-by-turn 恢复, kill 清理孤儿 record; `grid doctor` 输出包含 EAASP_DEPLOYMENT_MODE / GRID_HOOKS_FILE / hook bundle 健康度 / L2 memory engine 可达性 / L1 runtime gRPC 可达性 5 个新增检查项
-**Plans**: TBD by `/gsd-plan-phase 5.2` (推测 1-2 plans, CLI-01..03 + CLI-04..06 二分组, 取决于 plan-phase 评估)
-**UI hint**: yes
-
-### Phase 5.3: Contract Evolution
-
-**Goal**: L1 runtime contract 中等扩展 — ChunkType 新增 1-2 个 enum 值 (CONTRACT-01) + Hook event 新增 1-2 个 event (CONTRACT-02), 走完 proto + codegen + 主力档 runtime 实现 + L4 mapper + CLI whitelist + cross-runtime parity test 全链路, 升级到 contract-v1.2.0 (主力档强制 / 样板+参考档按 ADR-V2-025 策略); 顺带 D109 (workflow.required_tools 不变量文档化) + D136 (grid-runtime probe turn 不 fire hook 的 3 contract xfails 修正) 收尾。
-**Depends on**: Phase 5.1 (ADR-V2-025 tier strategy 必须先 Accepted, 用以判定 contract-v1.2.0 升级时哪些 runtime 必须 PASS / 哪些可降级)
-**Requirements**: CONTRACT-01, CONTRACT-02, WATCH-01, WATCH-03
-**Success Criteria** (what must be TRUE):
-  1. `proto/eaasp/runtime/v2/runtime.proto` ChunkType 枚举新增 1-2 个 wire 值 (例 `THINKING_TRACE` / `ATTACHMENT_REF`, 由 plan-phase 决定具体语义), `proto/eaasp/runtime/v2/hook.proto` Hook event oneof 新增 1-2 个 event (例 `SubagentStart` / `TaskCheckpoint`); proto codegen 在 7 runtime 全部 regen 且 `cargo build` + `make build-eaasp-all` 全 PASS; ADR-V2-021 + ADR-V2-006 增量更新 commit + 新 ADR (V2-XXX) covering hook event 扩展 Accepted
-  2. 主力档 (grid-runtime) 与样板档 (claude-code / nanobot / pydantic-ai) 4 runtime 在 contract-v1.2.0 全 PASS; 参考档 (goose / claw-code / ccb) 按 tier 策略允许 v1.1 baseline 或 selective xfail; `make v2-phase3-e2e` (或 phase5 后续) 输出反映 tier 设定结果
-  3. CLI `_ALLOWED_CHUNK_TYPES` whitelist + L4 `_chunk_type_to_wire` mapper + `tests/contract/cases/test_chunk_type_contract.py` 三处全部覆盖新增 ChunkType wire 值; new hook event fire site 在主力档 runtime 至少有一个端到端 trigger test (mock LLM, 不打 live LLM)
-  4. D109 (workflow.required_tools 不变量) 在 `docs/design/EAASP/L1_RUNTIME_ADAPTATION_GUIDE.md` (or 等价 spec doc) 显式文档化; D136 (grid-runtime hook 在 probe turn 不触发) 修正 — 原 3 contract xfails 改为 PASS, ADR-V2-016 capability matrix probe turn 章节注明协同; 两项 D109 + D136 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash
-**Plans**: 2 plans
-- [ ] 05.3-01-PLAN.md — Contract main line: ChunkType +2 wires + HookEvent +2 events + D109 doc + D136 fix + ADR-V2-021/006 amendments (14 VALIDATION rows)
-- [ ] 05.3-02-PLAN.md — ADR-V2-026 (ExecutionMode supersede V2-016) + ADR-V2-027 (OpenAI-compat Quirks + prototype) + conditional LingProvider (10 VALIDATION rows)
+  1. `docs/design/EAASP/DEFERRED_LEDGER.md` 中 102 open D-row + 3 NEW-X row (共 105 row) 每一行有 triage tag (P1 / P2 / P3 / DEAD) + ≥1 行 rationale 引用 code path / ADR-ID / commit hash / 历史 phase. DEAD tag 标准: Phase BA Grid 重命名后引用 `octo_*` 不再存在的 row + 引用 deleted code 的 row + 决策已被 ADR superseded 的 row (e.g., V2-017 frozen hermes 相关 row)
+  2. `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` 新文件存在, 包含所有 TRIAGE-01 标 DEAD 的 row 原文 + 移除时间戳 + 一行 DEAD rationale; archive 文件头部声明"此文件不可再追加, 仅作历史归档"; LEDGER 主体只剩 P1/P2/P3 + 3 NEW-X (NEW-X2/X3 ✅ CLOSED in 6.1, NEW-X4 ✅ CLOSED in 6.0) row; migration commit hash 在 archive 文件与 LEDGER 主体双向引用
+  3. `.planning/v3.3-INBOX.md` 新文件存在, 按 module (grid-engine / grid-cli / grid-server / grid-runtime / contract / L2 / L3 / L4 / hooks / providers / eval / etc) 分组列出所有 P1/P2/P3 row, 每行 包含 row ID + 一句 summary + 原 LEDGER 行号引用; 文件头部包含 triage 总览统计 (P1 count / P2 count / P3 count / DEAD count moved to archive) + "喂 v3.3+ milestone scoping" 用途说明
+  4. TRIAGE-01/02/03 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated 引用 6 个 REQ-ID 完成 commit hash; v3.2 milestone close cascade ✓ (STATE.md frontmatter `status: milestone-complete` + progress 3/3=100%)
+**Plans**: TBD by `/gsd-plan-phase 6.2` (推测 1 plan, 3 task 顺序: TRIAGE-01 分类 → TRIAGE-02 物理迁移 → TRIAGE-03 INBOX 汇总; 工作量大但都 doc-only 可并行写)
 **UI hint**: no
 
-### Phase 5.4: Server Hardening
-
-**Goal**: `grid-server` (Axum 0.8 + WebSocket + tokio-rusqlite) 单用户 workbench 服务端硬化 — WebSocket 流式 / L1 runtime gRPC 集成 / session+L2 内存持久化 / auth+audit 路径 / config hot-reload 5 项, 让 grid-server 在 `:3001` 端口端到端服务用户能撑住 ChunkType 流式 + 多 turn session + L2 内存读写 + HMAC auth; 顺带 D142+D143 (EAASP_DEPLOYMENT_MODE 接入 grid-runtime + claude-code-runtime) + ADR-V2-019 → Accepted (NEW-E3, blocks on D142+D143 关闭后顺接)。
-**Depends on**: Phase 5.3 (contract-v1.2.0 + hook event 扩展 必须先就位, server WebSocket 流式 + session 持久化 hook 写 trajectory 到 L2 才有正确的 ChunkType+event 集合可序列化)
-**Requirements**: SERVER-01, SERVER-02, SERVER-03, SERVER-04, SERVER-05, WATCH-04, WATCH-07
-**Success Criteria** (what must be TRUE):
-  1. WebSocket endpoint `ws://127.0.0.1:3001/v1/sessions/{id}/stream` 支持 ChunkType stream 端到端流式输出 + backpressure (1000-msg load test 0 dropped chunks) + simple reconnect (new connection succeeds + first SessionCreated frame replay; **chunk_id resume defer 到 5.5+** per Phase 5.4 D-15) + message ordering (顺序保持); 集成测试 `tests/integration/test_websocket_stream.rs` (或等价路径) ≥ 5 case PASS
-  2. `grid-server` (`:3001`) **in-process** 调 `grid-engine` 走 Initialize + SendResponse + Terminate 三主路径 + chunk relay + hook envelope 透传; session id 在 server-side state 与 engine-side state 一致; 集成测试 `crates/grid-server/tests/ws_chunk_envelope.rs` 内 ≥ 3 case PASS (per Phase 5.4 D-01/D-02 lock — gRPC subprocess path defer 到 v3.2+ EAASP-via-server)
-  3. SQLite (`data/grid.db`) schema 新增 / 演进 covering session record + turn record + L2 memory FTS5+HNSW+time-decay 索引 (与 `tools/eaasp-l2-memory-engine` schema 兼容); Stop hook fire 时 server 写 trajectory 到 L2 memory engine 的端到端单元测试 ≥ 2 case PASS; tokio-rusqlite migration 跑通且幂等
-  4. `GRID_AUTH_MODE` / `GRID_API_KEY` / `GRID_API_KEY_USER` / HMAC (ADR-003) 端到端验证: **3 种 auth 模式 (None / ApiKey / Full)** 各有 ≥ 1 个集成测试覆盖 + audit log 写入 + rate limit 基础生效 (per-key 简单计数即可)。HMAC 是 ApiKey arm 内的签名子路径而非独立 mode (per Q3 correction 2026-05-21 verifier; 历史 "4 种 auth 模式" 措辞 stale); config hot-reload 在 4 类 hot-reloadable 字段上 (GRID_HOOKS_FILE / GRID_POLICIES_FILE / GRID_LOG / GRID_CORS_ORIGINS) 不重启生效, GRID_HOST / GRID_PORT / AUTH_MODE / API_KEY 列入 require-restart 白名单且 hot-reload 触发时报 422 错误
-  5. D142 + D143 closed (`grid-runtime` + `claude-code-runtime` 都读 EAASP_DEPLOYMENT_MODE + 实施 max_sessions=1 gate per ADR-V2-019); NEW-E3 closed (ADR-V2-019 enforcement.trace 4 anchors 填充, 状态 UNCHANGED 仍 Accepted 2026-04-20 per Q9 correction — 原 "status flip Proposed → Accepted" 措辞 stale, 因 ADR 早 2026-04-20 已 Accepted, WATCH-07 实际动作是 trace fill); 三项 D142 / D143 / NEW-E3 在 DEFERRED_LEDGER + ADR audit doc 标 ✅ CLOSED 并附 commit hash
-**Plans**: 2 plans
-- [x] 05.4-01-PLAN.md — SERVER-01/02/03 WS wire alignment + in-process verification + L2 module extraction + Stop hook → L2 write (10 tasks: W0-01/02/03 + 5.4-01-01..07, 9 commits 2026-05-21, 33 tests PASS, SC#1+SC#2+SC#3 PASS)
-- [x] 05.4-02-PLAN.md — NEW-A2 migrate race + NEW-F3 strict config + SERVER-04 auth 3-mode + SERVER-05 hot-reload + WATCH-04 deployment mode + WATCH-07 ADR-V2-019 trace fill + ADR-V2-028 (12 tasks, 12 commits 2026-05-21, 31 tests PASS, SC#4+SC#5+SC#3 schema clause PASS, 5-row LEDGER close)
-**UI hint**: yes
-
-### Phase 5.5: Interface ADR + Milestone Close
-
-**Goal**: 起草 ADR-V2-029 (`type: strategy`, crate-level enforcement) 描述 engine (user 60%+30% 工时) 与 data/integration 横切层 (他人 10%) 的 boundary contract — customer data ingestion / SSO / third-party API gateway / EAASP+Grid 双产品 boundary 在代码层的 enforcement (crate boundaries + proto package separation); ADR-only, **不写 trait / proto skeleton** (per 用户 Phase 5 决策, 留给 v3.2+ V2-030 + V2-031 reserved IDs); 同时起草 ADR-V2-032 (TUI Log Path Convention, type: record) 记录 NEW-F4 hot-fix 决策; 完成 NEW-E2 F3 sweep (33 WARN baseline → 13 explicit-strategic + 0 unjustified); 折入 4 OOS code fixes (NEW-A3 kill_session exit 4 / NEW-F4 dead-path delete / grid-cli mod-output verification-only / NEW-L1 HNSW cap+schema); 然后跑 milestone close cascade (PROJECT.md §Active flip + ROADMAP 状态 + STATE.md frontmatter + REQUIREMENTS.md Traceability + DEFERRED_LEDGER 18-row sweep)。
-**Depends on**: Phase 5.4 (ADR-V2-019 已 Accepted, NEW-E3 已 closed, 让 NEW-E2 sweep 时 ADR audit baseline 干净; 同时 server hardening 已落地, ADR-V2-029 boundary contract 可参考 grid-server runtime 实证 boundary 而非纸面臆测)
-**Requirements**: INTERFACE-01, WATCH-06
-**Success Criteria** (what must be TRUE):
-  1. `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` 状态 Accepted (F1-F4 lint exit 0); Decision 段描述双轴 (engine vs data/integration) 在代码层的 boundary — engine = `crates/grid-*` + `tools/eaasp-l[2-4]-*` + `proto/eaasp/runtime/v2/`, data/integration = customer-specific adapters / SSO / third-party API / WORM 存储 / 信创 LLM 适配 等横切层 + 各自 hook-out 接入面 (但具体 trait / proto skeleton **不在本 ADR 范围**)
-  2. ADR-V2-029 §References 引用 ADR-V2-024 §1 双轴模型 + ADR-V2-023 P1 shared core 规则 (retained under V2-024) + Phase 4.1 audit doc 5+3 字段切分; ADR-V2-029 标记 future ADR 候选 V2-030 (代码层 enforcement implementation) + V2-031 (Rust trait + gRPC service skeleton) 待 v3.2+; ADR-V2-032 (TUI log path convention) Accepted 记录 NEW-F4 决策
-  3. NEW-E2 sweep 完成 — 33 F3 WARN baseline (verified 2026-05-22; correction per Phase 5.5 RESEARCH §Pitfall 4 — ROADMAP 原文 29 已 drift) 经 9-ADR sweep (5 contract trace fix via workflow YAML anchor comments + 4 strategy rationale annotation) 降至 12 explicit-strategic + 0 unjustified WARN (实际达成优于 ≤13 target per Plan 01 live lint 2026-05-22); 剩余 12 项均在 ADR frontmatter 内带 "F3-WARN expected: strategic ADR documentation anchor" rationale 注释 (per CONTEXT D-04 strategy tier); NEW-E2 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash
-  4. Milestone close cascade ✓ — PROJECT.md §Active "Phase 5 milestone (v3.1)" 行划掉移入 §Validated 引用 ADR-V2-025+026+027+028+029+032 commit hash; ROADMAP.md 全 6 phase Status=Complete 含完成日期; STATE.md frontmatter `status: milestone-complete` + progress 6/6=100%; debt water-line 无新增 P0/P1-active 项
-  5. 全 milestone 23 REQ-ID traceability ✅ (所有 6 phase 的 SC 在自身 phase verify-phase 阶段过, 且 Phase 5.5 close 时 ROADMAP.md Coverage 表无 ❌); 8 watchlist 项 (D109 / D120 / D134 / D136 / D142 / D143 / NEW-D2 / NEW-E2 / NEW-E3 — 实际 9 项含 NEW-E3, requirements WATCHLIST 数为 8 是因 NEW-D2 + NEW-E2 + NEW-E3 算 3 项 advisory) 全 closed-or-resolved 在 DEFERRED_LEDGER 中
-**Plans**: 2 plans
-- [x] 05.5-01-PLAN.md — Interface ADR + F3 Sweep + OOS Code Fixes: ADR-V2-029 (strategy) + ADR-V2-032 (record) + 9-ADR F3 sweep + 4 OOS fixes (NEW-A3/NEW-F4/grid-cli mod-output/NEW-L1) — ✅ COMPLETE 2026-05-22, 8 commits (3fb9e2b W0 + 7 task), F3 WARN 33 → 12, all phase gates GREEN
-- [ ] 05.5-02-PLAN.md — Milestone v3.1 Close Cascade: PROJECT.md flip + ROADMAP 6 phases complete + STATE.md milestone-complete + REQUIREMENTS Traceability + DEFERRED_LEDGER 18-row sweep + phase gate per D-10
-**UI hint**: no
-
-## Phase 之外的 milestone 关闭后续
+## Phase 之外的 milestone 关闭后续 (v3.2)
 
 > 这些不是本 milestone 的 phase, 只作为 traceability 提示。
 
-- **下一个 milestone (v3.2 候选)** 由 `/gsd-new-milestone` 启动, 内容由 Phase 5 milestone close 时累积的 Future Requirements 决定, 候选方向:
-  - **CONTRACT-03**: 新 RPC method (Probe / Capabilities / MemorySync) — defer 到 v3.2+
-  - **CONTRACT-04**: SubAgent first-class 协议 — defer 至 second consumer 出现
-  - **INTERFACE-02**: Rust trait + gRPC service skeleton 实现 (在 ADR-V2-026 boundary 锁定后)
-  - **INTERFACE-03**: EAASP / Grid 双产品 boundary 代码层 enforcement (in-place)
-  - **NEW-C1 / C3**: harness.rs / grid-eval 大文件拆分 (defer until second consumer per Phase 4a project review; CLI-04 NEW-C2 在 Phase 5.2 已处理)
-  - **D-batch (~40 P3 / housekeeping items 跨 D8..D80)** — 单日 batch sweep window 待安排
-  - **EAASP 与 Grid 分仓** — 时点由 v3.2+ milestone 决定
-  - **grid-platform / grid-desktop / web* 增量功能** — dormant per ADR-V2-024 双轴 framework, 激活由 next milestone audit 决定
+- **下一个 milestone (v3.3 候选)** 由 `/gsd-new-milestone` 启动, 内容由 v3.2 TRIAGE-03 输出的 `.planning/v3.3-INBOX.md` P1/P2 row 决定 (按 module 分组立 phase); 候选方向:
+  - **mega debt sweep**: 按 INBOX P1 列表 + P2 列表选若干 module-batch 立 phase (grid-engine 一批 / grid-cli 一批 / contract 一批 / etc), 每 phase ≤5 row 保证 cohesion
+  - **CONTRACT-03**: 新 RPC method (Probe / Capabilities / MemorySync) — 仍 defer 待 second consumer
+  - **CONTRACT-04**: SubAgent first-class 协议 — 仍 defer
+  - **INTERFACE-02**: Rust trait + gRPC service skeleton — 走 ADR-V2-031 reserved
+  - **INTERFACE-03**: EAASP / Grid 双产品 boundary 代码层 enforcement — 走 ADR-V2-030 reserved
+  - **NEW-C1 / C3**: harness.rs / grid-eval 大文件拆分 — defer until second consumer
+  - **EAASP 与 Grid 分仓** — 时点由 v3.3+ milestone 决定
+  - **grid-platform / grid-desktop / web* 增量功能** — dormant per ADR-V2-024 双轴 framework
 - **不属于本 milestone 但仍需追踪的项**: 见 PROJECT.md §Out of Scope; `grid-sandbox` 仓库改名 / `git push origin main` push 时机 / Phase 0–2.5 历史 sign_off_commit retrofit / 132 历史 plan + 14 archived phase 迁入 GSD ROADMAP / F4 lint 52 module-overlap 警告 reconcile / WORK_LOG.md vs STATE.md / DEFERRED_LEDGER 迁入 GSD backlog 全部 acknowledged 不动。
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
+Phases execute in numeric order: 6.0 → 6.1 → 6.2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5.0 Hook Envelope Baseline | **1/1 ✅** | COMPLETE 2026-05-19 | commit 584b1cf; D134 GA1 resolved; 11 tests PASS |
-| 5.1 Runtime Tier ADR + Contract Test Parametrization | **1/1 ✅** | COMPLETE 2026-05-02 | 5 task commits + SUMMARY + VERIFICATION; 4/4 SC + 4/4 must-haves; NEW-D2 closed; ADR-V2-025 Accepted |
-| 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 | 19/19 tasks; 575/575 PASS under --features studio; T-01.14 + T-01.19 closed; vim_normal/vim_insert pre-existing test bugs fixed inline |
-| 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 | 20 commits; 4/4 SCs PASS; V2-026 + V2-027 Accepted; D109+D136+NEW-E4+NEW-F1+NEW-F2 closed |
-| 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 | 21 commits total (Plan 01: 9 + Plan 02: 12); 33+31 = 64 plan-level tests PASS; SC#1-#5 PASS; ADR-V2-028 Accepted, V2-019 trace filled; D142+D143+NEW-A2+NEW-E3+NEW-F3 closed; phase gate: 2698 release tests + 164/0/0 ADR audit + schema PASS |
-| 5.5 Interface ADR + Milestone Close | **2/2 ✅** | COMPLETE 2026-05-22 | Plan 01: ADR-V2-029 + V2-032 Accepted + F3 sweep (33 WARN → 12 explicit-strategic) + 4 OOS code fixes (NEW-A3 exit 4 / NEW-F4 dead-path / grid-cli mod output verify / NEW-L1 HNSW cap+schema); Plan 02: milestone close cascade + 5-row LEDGER sweep (NEW-E2/NEW-A3/NEW-L1/grid-cli-mod-output ADD + NEW-F4 EDIT) + 2 P3 inbox rows (NEW-X2/NEW-X3) |
+| 6.0 CI Red Clearance | 0/1 | Not started | — |
+| 6.1 grid-cli Anti-pattern Sweep | 0/1 | Not started | — |
+| 6.2 Debt Ledger Triage | 0/1 | Not started | — |
+
+(v3.1 progress table preserved in collapsed v3.1 summary above; 6/6 phases ✅ as of 2026-05-22)
 
 ## Coverage
+
+### v3.2 Coverage (current)
+
+| REQ-ID | Phase | Notes |
+|--------|-------|-------|
+| CI-01 | 6.0 | NEW-X4 pytest fixture-scope mismatch fix, Phase 3 Contract Matrix CI RED → GREEN |
+| CLI-X2 | 6.1 | NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) → typed GridError + exit 4 |
+| CLI-X3 | 6.1 | NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + fix vs filter 决策 |
+| TRIAGE-01 | 6.2 | 102 D-row + 3 NEW-X classify (P1/P2/P3/DEAD) |
+| TRIAGE-02 | 6.2 | DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md |
+| TRIAGE-03 | 6.2 | v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3 |
+
+**Total v3.2 requirements:** 6 (CI 1 + CLI 2 + TRIAGE 3)
+**Mapped:** 6/6 ✓
+**Orphans:** 0
+**Double-mapped:** 0
+
+### v3.1 Coverage (historical, CLOSED 2026-05-22)
 
 | REQ-ID | Phase | Notes |
 |--------|-------|-------|
@@ -179,29 +159,24 @@ Phases execute in numeric order: 5.0 → 5.1 → 5.2 → 5.3 → 5.4 → 5.5
 | WATCH-04 | 5.4 | D142 + D143 — EAASP_DEPLOYMENT_MODE 接入 + max_sessions=1 gate |
 | WATCH-05 | 5.1 | NEW-D2 — test_chunk_type_contract.py 7-runtime 参数化 |
 | WATCH-06 | 5.5 | NEW-E2 — F3 ADR enforcement.trace 33 (corrected from 29) missing items advisory sweep |
-| WATCH-07 | 5.4 | NEW-E3 — ADR-V2-019 Proposed → Accepted (D142+D143 关闭后顺接) |
+| WATCH-07 | 5.4 | NEW-E3 — ADR-V2-019 enforcement.trace fill (status was UNCHANGED Accepted 2026-04-20 per Q9) |
 | INTERFACE-01 | 5.5 | ADR-V2-029 — engine vs data/integration boundary contract (ADR-only, type: strategy, crate-level) |
 
-**Total v3.1 requirements:** 23 (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1)
-**Mapped:** 23/23 ✓
-**Orphans:** 0
-**Double-mapped:** 0
+**Total v3.1 requirements:** 23 (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1) — ✅ CLOSED 2026-05-22
 
-> 注: REQUIREMENTS.md §Total 标 22 是计数 typo (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1 = 23), Traceability 表实际 23 行, 此处以 23 为准。
+## Granularity 备注 (v3.2)
 
-## Granularity 备注
+本 milestone 选 **3 phase** (低于 GSD standard 5-8 区间) 是**有意为之 — intentional triage milestone, not feature work**:
 
-本 milestone 选 6 phase (在 standard 设定 5-8 区间内偏低端) 是**有意为之**:
-- ADR-V2-024 Open Item #3 优先发力组合 grid-cli + grid-server 是本 milestone 主线, 自然落两个独立 phase (5.2 CLI + 5.4 SERVER); 其他 4 phase (5.0 baseline / 5.1 tier ADR / 5.3 contract evolution / 5.5 interface ADR) 都是为主线提供 prerequisite or close-out
-- watchlist-spread 策略 (per 用户 Phase 5 决策) 把 8 watchlist 项分散到 5 个 phase (5.0/5.1/5.3/5.4/5.5) 而非单独 watchlist phase, 避免单独 phase 阻塞主线; 顺手解决降低工时分散风险
-- Phase 5.0 单独成 phase 是因 D120 (HookContext schema) 是 D134 修正的 hard prerequisite + Phase 5.3/5.4 的 hook fire 路径前置, 不可与 CLI/SERVER 主线并行 (会撞 baseline 不一致)
-- Phase 5.1 单独成 phase 是因 ADR-V2-025 tier strategy 必须在 Phase 5.3 contract-v1.2.0 升级前 Accepted (用以判定哪些 runtime 必须 PASS / 哪些可降级); 与 NEW-D2 7-runtime 参数化同一 plan 写作工时复用
-- Phase 5.5 单独成 phase 是因 INTERFACE-01 是 ADR-only deliverable + milestone close cascade 工作量都是文档+脚本性质, 不混入 SERVER hardening (避免 Phase 5.4 边界模糊)
+- v3.2 scope = **6 REQ-ID 全部集中在 3 件事** (CI 红线消除 / grid-cli anti-pattern 收尾 / 102 D-row 一次性分类); 不是 feature delivery milestone, 不需要长 phase 链
+- **代码修复 ONLY 3 row** (NEW-X4 CI + NEW-X2 CLI sibling + NEW-X3 --all-features 调查); 102 D-row 仅 classify 不 fix, mega sweep 留给 v3.3+ 按 INBOX 立 module-batch phase
+- **3-phase 自然分组**: 6.0 (CI, 独立域, doc/CI only) + 6.1 (grid-cli 域, 2 小 row pairing) + 6.2 (debt ledger 域, doc-only, 3 task 顺序依赖); 强行拆 5 phase 会撕裂 cohesion
+- **依赖关系松**: 6.0 与 6.1 互不依赖可并行 (顺序执行规则下 6.0 → 6.1), 6.2 软依赖 6.1 (NEW-X2/X3 final status 入 triage tag); 链短不需大 milestone framework
+- **vs v3.1 6 phase 对比**: v3.1 是 feature milestone (grid-cli + grid-server 硬化 + contract evolution + interface ADR), 自然多 phase; v3.2 是 cleanup milestone, 短链合适
+- **watchlist 策略 = N/A**: v3.2 本身 IS the watchlist sweep, 不需要 spread strategy
 
-如 plan-phase 阶段发现某个 phase task 多于 5 个 plan, 可由 plan-phase 自行考虑微拆 (例 Phase 5.2 CLI 6 项可能拆 2 plan, Phase 5.4 SERVER 5+watchlist 7 项可能拆 2-3 plan), 但 ROADMAP 阶段不预拆。
+如 plan-phase 阶段发现某个 phase task 多于 5 个, 可由 plan-phase 自行考虑微拆 (例 Phase 6.2 三 task 若 TRIAGE-01 分类 102 row 工作量大可拆 plan), 但 ROADMAP 阶段不预拆。
 
 ---
 
-*Roadmap created 2026-04-29 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.1). Source: REQUIREMENTS.md (commit `ed864fb`) + PROJECT.md §Current Milestone v3.1 + ADR-V2-024 §1 双轴 framework + Phase 4 milestone close decisions. Phase 5.5 plans authored 2026-05-22 by `/gsd-plan-phase 5.5` — ADR-V2-029/V2-032 renumbered (V2-026/027/028 consumed Phase 5.3/5.4); F3 baseline corrected 29 → 33 per live 2026-05-22 measurement.*
-
-*Milestone v3.1 ✅ CLOSED 2026-05-22 (Plan 05.5-02 Task 02.02) — 6/6 phases shipped; 23/23 REQ-IDs traceability; 6 ADRs Accepted across milestone; F3 sweep 33 WARN → 12 explicit-strategic + 0 unjustified; 18 D-items closed. Ready for `/gsd-new-milestone` (v3.2 TBD) or pause.*
+*Roadmap v3.2 section added 2026-05-23 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.2). Source: REQUIREMENTS.md v3.2 section (6 REQ-IDs) + PROJECT.md §Current Milestone v3.2 + v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (原 ~40 估算严重低估). v3.1 milestone ✅ CLOSED 2026-05-22 — section collapsed for traceability lineage. v3.0 milestone ✅ CLOSED 2026-04-28.*

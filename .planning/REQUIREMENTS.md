@@ -104,7 +104,7 @@
 
 ## Traceability
 
-> Filled by `/gsd-roadmapper` after Step 10 (✅ filled 2026-04-29 via `/gsd-roadmapper`). 每条 REQ-ID 1-to-1 映射到 ROADMAP.md `Phase Details` 中一个 phase。
+> Filled by `/gsd-roadmapper` after Step 10 (✅ filled 2026-04-29 via `/gsd-roadmapper` for v3.1; ✅ extended 2026-05-23 for v3.2 — 6 new rows mapped to Phases 6.0/6.1/6.2). 每条 REQ-ID 1-to-1 映射到 ROADMAP.md `Phase Details` 中一个 phase。
 
 | REQ-ID | Phase | Notes |
 |--------|-------|-------|
@@ -131,17 +131,17 @@
 | WATCH-06 | 5.5 | ✅ (NEW-E2) — closed 2026-05-22 Plan 01 @ `2303b3d`+`e84a57e`; F3 WARN 33 → 12 explicit-strategic |
 | WATCH-07 | 5.4 | (NEW-E3 — D142/D143 关闭后顺接) |
 | INTERFACE-01 | 5.5 | ✅ (ADR-only, ADR-V2-029 Accepted) — closed 2026-05-22 Plan 01 @ `0b23a01`; V2-030 + V2-031 reserved v3.2+ |
-| CI-01 | 6.0 (TBD by /gsd-roadmapper) | (NEW-X4 pytest fixture-scope fix) |
-| CLI-X2 | 6.1 (TBD by /gsd-roadmapper) | (NEW-X2 sibling kill_session anti-pattern) |
-| CLI-X3 | 6.1 (TBD by /gsd-roadmapper) | (NEW-X3 --all-features grid-engine errors investigation) |
-| TRIAGE-01 | 6.2 (TBD by /gsd-roadmapper) | (102 D-row + 3 NEW-X classify) |
-| TRIAGE-02 | 6.2 (TBD by /gsd-roadmapper) | (DEAD row archive migration) |
-| TRIAGE-03 | 6.2 (TBD by /gsd-roadmapper) | (v3.3-INBOX.md generation) |
+| CI-01 | 6.0 | (NEW-X4 pytest fixture-scope fix — Phase 3 Contract Matrix CI RED → GREEN) |
+| CLI-X2 | 6.1 | (NEW-X2 sibling kill_session anti-pattern — delete_session + export_session typed GridError + exit 4) |
+| CLI-X3 | 6.1 | (NEW-X3 --all-features grid-engine 12 errors investigation + fix vs filter decision) |
+| TRIAGE-01 | 6.2 | (102 D-row + 3 NEW-X classify P1/P2/P3/DEAD) |
+| TRIAGE-02 | 6.2 | (DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md) |
+| TRIAGE-03 | 6.2 | (v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3) |
 
 **Total v3.1 requirements:** 23 REQ-IDs (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1) — ✅ CLOSED 2026-05-22
-**Total v3.2 requirements:** 6 REQ-IDs (CI 1 + CLI 2 + TRIAGE 3) — defining 2026-05-23
-**Granularity:** v3.1 = 6 phases; v3.2 = 3 phases estimated (Phase 6.0 / 6.1 / 6.2), exact by `/gsd-roadmapper`
-**Mapping density:** v3.2 ~2 REQ/phase (light, intentional for triage milestone)
+**Total v3.2 requirements:** 6 REQ-IDs (CI 1 + CLI 2 + TRIAGE 3) — mapped 2026-05-23 to Phases 6.0/6.1/6.2 ✓
+**Granularity:** v3.1 = 6 phases; v3.2 = 3 phases (Phase 6.0 / 6.1 / 6.2, mapped by `/gsd-roadmapper` 2026-05-23 — intentional light triage milestone, see ROADMAP §Granularity 备注 v3.2)
+**Mapping density:** v3.2 = 1 REQ/phase (6.0) + 2 REQ/phase (6.1) + 3 REQ/phase (6.2), avg 2 — light, intentional for triage milestone
 
 ---
 
@@ -149,4 +149,4 @@
 
 *Milestone v3.1 ✅ CLOSED 2026-05-22 — all 23 REQ-IDs traced to completed phases. Closed via Plan 05.5-02 close cascade (Task 02.04).*
 
-*v3.2 Requirements 来源: v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (REQUIREMENTS 原 ~40 估算严重低估). Defined 2026-05-23 via `/gsd-new-milestone` Step 9 conversation-mode (no research — scope concrete & pre-locked).*
+*v3.2 Requirements 来源: v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (REQUIREMENTS 原 ~40 估算严重低估). Defined 2026-05-23 via `/gsd-new-milestone` Step 9 conversation-mode (no research — scope concrete & pre-locked). Phase mapping 完成 2026-05-23 via `/gsd-roadmapper` Step 10 — 6/6 REQ-IDs ✓, 0 orphans, 0 double-mapped.*
