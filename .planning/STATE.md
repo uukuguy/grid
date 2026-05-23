@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.1
-milestone_name: Phase 5 — Engine Hardening (grid-cli + grid-server)
-status: milestone-complete
-stopped_at: "Milestone v3.1 closed 2026-05-22 — 6/6 phases complete (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs traced, 6 ADRs Accepted across milestone (V2-025 Phase 5.1 + V2-026 Phase 5.3 + V2-027 Phase 5.3 + V2-028 Phase 5.4 + V2-029 Phase 5.5 + V2-032 Phase 5.5), 4-row LEDGER ADD + 1 EDIT + 2 new P3 rows (NEW-X2/NEW-X3), F3 WARN 33 → 12 explicit-strategic + 0 unjustified, phase gate ALL GREEN."
-last_updated: "2026-05-22T12:00:00Z"
-last_activity: 2026-05-22 -- Milestone v3.1 closed — Phase 5.5 SUMMARY + close cascade landed
+milestone: v3.2
+milestone_name: Tech-Debt Triage & CI Red Line Clearance
+status: defining-requirements
+stopped_at: "v3.2 milestone started 2026-05-23 — PROJECT.md updated, requirements TBD. Next: gsd-roadmapper after step 9 requirements scoping."
+last_updated: "2026-05-23T03:00:00Z"
+last_activity: 2026-05-23 -- v3.2 milestone started (Tech-Debt Triage & CI Red Line Clearance)
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,19 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 5.5 — Interface ADR + Milestone Close
+**Current focus:** v3.2 — Tech-Debt Triage & CI Red Line Clearance
 
 ## Current Position
 
-Phase: 5.5 (Interface ADR + Milestone Close) — ✅ COMPLETE + MILESTONE v3.1 CLOSED 2026-05-22
-Plan: 2/2 COMPLETE (Plan 01 ADR + Plan 02 close cascade)
-Next milestone: v3.2 (TBD) — ready for `/gsd-new-milestone` (or pause)
-Status: Milestone v3.1 SHIPPED — 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs ✅, 6 ADRs Accepted (V2-025/026/027/028/029/032), 18 D-items closed, F3 baseline 33 → 12
-Last activity: 2026-05-22 -- Milestone v3.1 close cascade complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements (workflow Step 9 next)
+Last activity: 2026-05-23 — Milestone v3.2 started
 
-Progress: [▓▓▓▓▓▓▓▓▓▓] 100% (6/6 milestone phases complete — 5.0 + 5.1 + 5.2 + 5.3 + 5.4 + 5.5) — MILESTONE v3.1 CLOSED 2026-05-22
+Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 / 6.1 / 6.2 estimated, exact count by roadmapper)
 
-**Previous milestone closure**: Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 — 3/3 phases (4.0/4.1/4.2), ADR-V2-024 Accepted (双轴模型), 16 commits pushed to origin/main.
+**Previous milestone closure**: v3.1 Phase 5 — Engine Hardening ✅ SHIPPED 2026-05-22 — 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs ✅, 6 ADRs Accepted (V2-025/026/027/028/029/032), 18 D-items closed, F3 baseline 33 → 12 explicit-strategic. 24 commits pushed to origin/main @ `833e0eb`.
 
 ## Performance Metrics
 

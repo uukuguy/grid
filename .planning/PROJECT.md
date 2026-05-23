@@ -16,23 +16,25 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)
+## Current Milestone: v3.2 Tech-Debt Triage & CI Red Line Clearance
 
-**Goal:** 在 ADR-V2-024 双轴模型下推进 engine 接入面 (grid-cli + grid-server 优先发力组合) 的硬化, 同时把 cross-milestone watchlist P1 项分散到相关 phase 顺手解决, 并定义 data/integration 横切层接入面规约。
+**Goal:** 消除 Phase 3 Contract Matrix CI 红线 (持续 RED 自 2026-05-04) + grid-cli 残留 anti-pattern + 对 102 D-row 历史债做一次性 triage 分类, 为后续 milestone 的代码工作建立优先级地图。**NOT mega-debt-sweep** (代码修复仅限 3 个具体 P2/P3 row)。
 
 **Target features:**
-- grid-cli 硬化 — 命令行工具能力扩展 + UX 改善 + 稳定性
-- grid-server 硬化 — 单用户 workbench HTTP/WS server 功能补齐 (Axum 0.8 + WebSocket 流式 + L1 runtime gRPC 集成)
-- L1 runtime contract evolution — 基于 contract-v1.1 baseline 的下一步契约演进
-- Watchlist sweep (spread strategy) — D109 / D134 / D136 / D142 / D143 / NEW-D2 / NEW-E2 / NEW-E3 分散到相关 phase
-- Data/integration interface 规约 — engine 与 data/integration 横切层之间的接入面 (ADR? interface 规约?)
+- **CI Red Clearance** — NEW-X4 fixture-scope 修, Phase 3 Contract Matrix CI 由 RED 转 GREEN
+- **grid-cli Anti-pattern Sweep** — NEW-X2 (delete_session / export_session sibling typed GridError 补全) + NEW-X3 (`cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter)
+- **Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 全部分类为 P1-当动 / P2-下轮 / P3-异步 / DEAD-archive, 写入 LEDGER, 喂 v3.3+ scoping
 
-**Granularity:** 6 phases (Phase 5.0 → 5.5), continues numbering from Phase 4.
+**Granularity:** 3 phases (Phase 6.0 → 6.2), continues numbering from Phase 5.5.
 
 **Key context:**
-- 工时 baseline: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2)
-- 优先发力组合: grid-cli + grid-server (per ADR-V2-024 Open Item #3); 其余 (grid-platform / grid-desktop / web*) 保持 dormant
+- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2)
+- 优先发力组合不变: grid-cli + grid-server (per ADR-V2-024 Open Item #3); 其余 (grid-platform / grid-desktop / web*) 保持 dormant
 - 双轴框架: engine vs data/integration (per ADR-V2-024 §1)
+- v3.1 close cascade carry-over: NEW-X4 (P2) blocks Phase 3 Contract Matrix CI; NEW-X2/X3 (P3) Anti-pattern
+- 102 D-row 大部分预计 stale (Phase BA Grid 重命名前的 octo_* 老 row), triage 验证
+
+**Previous milestone:** v3.1 Phase 5 Engine Hardening ✅ SHIPPED 2026-05-22 (6 phases / 10 plans / 23/23 REQ-IDs / 6 ADRs Accepted: V2-025/026/027/028/029/032)
 
 ## Core Value
 
@@ -62,9 +64,9 @@
 
 ### Active
 
-<!-- Milestone v3.1 已 closed 2026-05-22. 下一个 milestone (v3.2 候选) 由 /gsd-new-milestone 启动后填充. -->
+<!-- Milestone v3.2 — Tech-Debt Triage & CI Red Line Clearance (started 2026-05-23). REQ-IDs 由 /gsd-new-milestone Step 9 流程定义后回填. -->
 
-- _(no active milestone — v3.1 closed 2026-05-22; ready for /gsd-new-milestone v3.2 or pause)_
+- [ ] **Phase 6 milestone (v3.2)** —— Tech-Debt Triage & CI Red Line Clearance — 消 Phase 3 Contract Matrix CI 红线 (NEW-X4) + grid-cli anti-pattern sweep (NEW-X2/X3) + 102 D-row triage 分类; requirements 由 `/gsd-new-milestone` Step 9 流程定义后回填到此处
 
 ### Out of Scope
 
