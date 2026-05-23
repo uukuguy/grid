@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.2
-milestone_name: Tech-Debt Triage & CI Red Line Clearance
-status: ready-to-execute
-stopped_at: "v3.2 ROADMAP created 2026-05-23 — 3 phases (6.0/6.1/6.2) mapped from 6 REQ-IDs (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01..03). Next: /gsd-discuss-phase 6.0."
-last_updated: "2026-05-23T08:00:00Z"
-last_activity: 2026-05-23 -- v3.2 ROADMAP created via /gsd-roadmapper (6/6 REQ-IDs mapped to Phases 6.0/6.1/6.2)
+milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
+status: executing
+stopped_at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
+last_updated: "2026-05-23T11:22:53.906Z"
+last_activity: 2026-05-23 — v3.2 ROADMAP created (3 phases / 6 REQ-IDs mapped)
 progress:
   total_phases: 3
   completed_phases: 0
@@ -33,6 +33,7 @@ Last activity: 2026-05-23 — v3.2 ROADMAP created (3 phases / 6 REQ-IDs mapped)
 Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 / 6.1 / 6.2 mapped 2026-05-23 by `/gsd-roadmapper`)
 
 **Phase-to-REQ mapping (v3.2)**:
+
 - Phase 6.0 CI Red Clearance — CI-01 (NEW-X4 fixture-scope fix; Phase 3 Contract Matrix CI RED → GREEN)
 - Phase 6.1 grid-cli Anti-pattern Sweep — CLI-X2 (NEW-X2 sibling) + CLI-X3 (NEW-X3 --all-features)
 - Phase 6.2 Debt Ledger Triage — TRIAGE-01 (105-row classify) + TRIAGE-02 (DEAD archive migration) + TRIAGE-03 (v3.3-INBOX.md)
@@ -132,8 +133,8 @@ Items acknowledged and carried forward from previous milestone close (v3.1):
 
 ## Session Continuity
 
-Last session: 2026-05-23T08:00:00Z
-Stopped at: v3.2 ROADMAP created via `/gsd-roadmapper` — 3 phases (6.0/6.1/6.2) mapped from 6 REQ-IDs (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01..03). All 6/6 REQ-IDs mapped, 0 orphans, 0 double-mapped. REQUIREMENTS.md Traceability table extended with 6 new rows. PROJECT.md §Active "Phase 6 milestone (v3.2)" row already populated 2026-05-22.
+Last session: 2026-05-23T11:22:53.902Z
+Stopped at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
 Resume path: **Next action: `/gsd-discuss-phase 6.0`** — CI Red Clearance (NEW-X4 fixture-scope fix; 1 REQ-ID = CI-01; scope tight, expect single small plan).
 Local commits ahead of origin: 30+ unpushed commits await user push (per project rule: push decision deferred to user).
 Worktrees: cleaned (no active worktrees this session — sequential execution per recovery context)
