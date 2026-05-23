@@ -1,10 +1,35 @@
 # Grid — Requirements
 
-> **Brownfield context**: 14 archived phases (Phase BA → Phase 4a) under dev-phase-manager already shipped EAASP v2.0 functional baseline. Phase 4 milestone v3.0 (3 phases: 4.0 / 4.1 / 4.2) closed 2026-04-28 with ADR-V2-024 Accepted (双轴模型 supersedes ADR-V2-023). This REQUIREMENTS.md scopes **milestone v3.1 — Phase 5 Engine Hardening (grid-cli + grid-server)**.
+> **Brownfield context**: 14 archived phases (Phase BA → Phase 4a) under dev-phase-manager already shipped EAASP v2.0 functional baseline. Phase 4 milestone v3.0 (3 phases: 4.0 / 4.1 / 4.2) closed 2026-04-28 with ADR-V2-024 Accepted (双轴模型 supersedes ADR-V2-023). v3.1 Phase 5 Engine Hardening closed 2026-05-22 (6 phases, 23 REQ-IDs, 6 ADRs Accepted). This REQUIREMENTS.md now scopes **milestone v3.2 — Tech-Debt Triage & CI Red Line Clearance**.
 
 ---
 
-## v3.1 Requirements (Milestone: Phase 5 — Engine Hardening)
+## v3.2 Requirements (Milestone: Tech-Debt Triage & CI Red Line Clearance)
+
+> **Per ADR-V2-024 §1 双轴模型 + Open Item #3**: 优先发力组合 grid-cli + grid-server 不变; 其余 (grid-platform / grid-desktop / web*) 保持 dormant. 工时 baseline: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10%.
+>
+> **Scope shape**: minimum-viable triage milestone. 代码修复 ONLY 3 个具体 P2/P3 row (NEW-X4 + NEW-X2 + NEW-X3); 102 D-row 仅做分类不做修复; mega debt sweep 留给 v3.3+ 按 triage 结果决定。
+
+### A. CI — Phase 3 Contract Matrix CI Red Line Clearance
+
+- [ ] **CI-01**: NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修 — `runtime_name` fixture 与 session-scoped requesting fixture 在 `tests/contract/conftest.py` 或 `cases/test_chunk_type_contract.py` 中的 scope 冲突。修复后 `pytest tests/contract/cases/test_chunk_type_contract.py -v` 跨 7 个 L1 runtime (claude-code / goose / nanobot / pydantic-ai / claw-code / ccb / grid) 都通过 fixture 装配 (test 内容是否 PASS 取决于 runtime 实现; 关键 success criterion = 不再 ScopeMismatch error)。Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4 of 7 jobs PASS, 因为有些 runtime contract test 本来就有 XFAIL 不算 RED)。
+
+### B. CLI — grid-cli Anti-pattern Sweep
+
+- [ ] **CLI-X2**: NEW-X2 sibling kill_session anti-pattern 补全 — `crates/grid-cli/src/commands/session.rs:99-103` (`delete_session`) + L157 (`export_session`) 仍用 `anyhow!("Session not found")` 映射到 `ExitCode::General` (1); 应该用 `GridError::session_not_found()` 走 typed exit code `SessionNotFound = 4` 路径 (同 NEW-A3 在 Phase 5.5 已 Plan 01 Task B1 修的模式)。每处 ~5 LOC, 加 2 个 integration test (delete + export 各一)。
+- [ ] **CLI-X3**: NEW-X3 `cargo build -p grid-cli --all-features` 12 grid-engine errors 调查 + 决定 — 当前 default + studio 两 feature set build 全清; `--all-features` 路径触发 grid-engine hooks module 12 个 pre-existing errors (E0596 borrow-checker + E0412/E0425/E0433)。任务 = 调查根因 (是否真的 dead code? 是否某个 feature flag 应该 gate 它?), 然后两选一 fix: (a) 修真错; (b) 从 grid-cli `--all-features` 矩阵移除引发错的 feature, 保留 `--all-features` 在小一点的集合上能 build。**结果可能是 N/A** — 如果 hooks module 是 grid-server only 那就只需 doc fix。
+
+### C. TRIAGE — Debt Ledger Triage Pass
+
+- [ ] **TRIAGE-01**: 102 open D-row + 3 NEW-X row 一次性 triage 分类 — 每一行 row 加分类 tag (P1-actionable-now / P2-next-milestone / P3-async-when-touched / DEAD-archived) + 一行 rationale (引用代码/ADR/历史 commit)。**DEAD** tag 适用于: Phase BA Grid 重命名后引用 `octo_*` 不再存在的 row; 引用 deleted code 的 row; 决策已被 ADR superseded 的 row (e.g., 2026-03 时期 hermes-runtime 相关 row 在 V2-017 hermes Frozen 后)。
+- [ ] **TRIAGE-02**: DEAD-archived row 物理迁移 — 把所有 TRIAGE-01 标 DEAD 的 row 移到 `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` 新文件, LEDGER 主体只留 P1/P2/P3 row。Archive 文件保留 row 原文 + 移除时间 + DEAD rationale, 不可再追加。
+- [ ] **TRIAGE-03**: TRIAGE 结果汇总写入 `.planning/v3.3-INBOX.md` — P1 row 列表 + P2 row 列表 + P3 row 列表, 喂未来 milestone scoping。每一类按 module (grid-engine / grid-cli / grid-server / L2 / contract / etc) 分组方便 v3.3+ 按 module 立 phase。
+
+---
+
+## v3.1 Requirements (CLOSED 2026-05-22 — historical reference)
+
+> v3.1 = Phase 5 Engine Hardening, shipped 2026-05-22. All 23 REQ-IDs traced ✅. Section kept for traceability lineage.
 
 > **Per ADR-V2-024 §1 双轴模型 + Open Item #3**: 优先发力组合 grid-cli + grid-server; 其余 (grid-platform / grid-desktop / web*) 保持 dormant. 工时 baseline: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10%.
 
@@ -48,15 +73,17 @@
 
 ---
 
-## Future Requirements (deferred to v3.2+)
+## Future Requirements (deferred to v3.3+)
 
-- **CONTRACT-03**: 新 RPC method (Probe / Capabilities / MemorySync) — defer to next milestone, premature 风险高
+> v3.2 (Triage milestone) PULLED IN: NEW-X4 → CI-01, NEW-X2 → CLI-X2, NEW-X3 → CLI-X3. Remaining items below STILL deferred. **D-batch count corrected**: real count = 102 open D-row (not ~40 from earlier estimate). v3.2 TRIAGE pass will classify these into P1/P2/P3/DEAD; v3.3+ scoping draws from the TRIAGE inbox.
+
+- **CONTRACT-03**: 新 RPC method (Probe / Capabilities / MemorySync) — defer, premature 风险高
 - **CONTRACT-04**: SubAgent first-class 协议 — defer 至 second consumer 出现
-- **INTERFACE-02**: Rust trait + gRPC service skeleton — defer 待 INTERFACE-01 ADR 锁定 boundary 后
-- **INTERFACE-03**: EAASP / Grid 双产品 boundary 代码层 enforcement — 与 INTERFACE-01 部分重叠, 由 INTERFACE-01 一处 anchor 起步
+- **INTERFACE-02**: Rust trait + gRPC service skeleton — defer (V2-031 placeholder reserved in ADR-V2-029 §References)
+- **INTERFACE-03**: EAASP / Grid 双产品 boundary 代码层 enforcement — defer (V2-030 placeholder reserved in ADR-V2-029 §References)
 - **NEW-C1 / C3**: harness.rs / grid-eval 大文件拆分 — defer until second consumer (per Phase 4a project review)
-- **D-batch (~40 P3 / housekeeping items 跨 D8..D80)** — defer batch sweep window
-- **EAASP 与 Grid 分仓** — 分仓时点由后续 milestone 决定, Phase 5 不动
+- **D-batch sweep** — actual count 102 open D-row, classify in v3.2 TRIAGE-01..03, then schedule P1/P2 sweep phases in v3.3+ per module grouping
+- **EAASP 与 Grid 分仓** — 分仓时点由后续 milestone 决定
 - **grid-platform / grid-desktop / web* 增量功能开发** — dormant per ADR-V2-024 双轴 framework
 
 ---
@@ -104,14 +131,22 @@
 | WATCH-06 | 5.5 | ✅ (NEW-E2) — closed 2026-05-22 Plan 01 @ `2303b3d`+`e84a57e`; F3 WARN 33 → 12 explicit-strategic |
 | WATCH-07 | 5.4 | (NEW-E3 — D142/D143 关闭后顺接) |
 | INTERFACE-01 | 5.5 | ✅ (ADR-only, ADR-V2-029 Accepted) — closed 2026-05-22 Plan 01 @ `0b23a01`; V2-030 + V2-031 reserved v3.2+ |
+| CI-01 | 6.0 (TBD by /gsd-roadmapper) | (NEW-X4 pytest fixture-scope fix) |
+| CLI-X2 | 6.1 (TBD by /gsd-roadmapper) | (NEW-X2 sibling kill_session anti-pattern) |
+| CLI-X3 | 6.1 (TBD by /gsd-roadmapper) | (NEW-X3 --all-features grid-engine errors investigation) |
+| TRIAGE-01 | 6.2 (TBD by /gsd-roadmapper) | (102 D-row + 3 NEW-X classify) |
+| TRIAGE-02 | 6.2 (TBD by /gsd-roadmapper) | (DEAD row archive migration) |
+| TRIAGE-03 | 6.2 (TBD by /gsd-roadmapper) | (v3.3-INBOX.md generation) |
 
-**Total v3.1 requirements:** 23 REQ-IDs (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1)
-**Granularity:** 6 phases (Phase 5.0 → 5.5)
-**Mapping density:** ~3.8 REQ/phase (23 REQ / 6 phase, 在 GSD standard 3-5 plans/phase 范围)
-**Watchlist strategy:** spread (8 watchlist items 分散到相关 phase 顺手解决)
+**Total v3.1 requirements:** 23 REQ-IDs (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1) — ✅ CLOSED 2026-05-22
+**Total v3.2 requirements:** 6 REQ-IDs (CI 1 + CLI 2 + TRIAGE 3) — defining 2026-05-23
+**Granularity:** v3.1 = 6 phases; v3.2 = 3 phases estimated (Phase 6.0 / 6.1 / 6.2), exact by `/gsd-roadmapper`
+**Mapping density:** v3.2 ~2 REQ/phase (light, intentional for triage milestone)
 
 ---
 
-*Requirements 来源: Phase 4 milestone close + ADR-V2-024 §1 双轴 framework + Open Item #2/#3 工时 baseline + 优先发力组合 + 用户 Phase 5 决策 (CONTRACT 中等选项 + 7 runtime 分级 review + D134 must fix + INTERFACE ADR-only). Defined 2026-04-29 via `/gsd-new-milestone` Step 9 conversation-mode (no research).*
+*v3.1 Requirements 来源: Phase 4 milestone close + ADR-V2-024 §1 双轴 framework + Open Item #2/#3 工时 baseline + 优先发力组合 + 用户 Phase 5 决策. Defined 2026-04-29 via `/gsd-new-milestone` Step 9 conversation-mode (no research).*
 
-*Milestone v3.1 ✅ CLOSED 2026-05-22 — all 23 REQ-IDs traced to completed phases (CLI-01..06 → 5.2; SERVER-01..05 → 5.4; CONTRACT-00 → 5.1; CONTRACT-01/02 → 5.3; WATCH-00/02 → 5.0; WATCH-01/03 → 5.3; WATCH-04/07 → 5.4; WATCH-05 → 5.1; WATCH-06 → 5.5; INTERFACE-01 → 5.5). Closed via Plan 05.5-02 close cascade (Task 02.04).*
+*Milestone v3.1 ✅ CLOSED 2026-05-22 — all 23 REQ-IDs traced to completed phases. Closed via Plan 05.5-02 close cascade (Task 02.04).*
+
+*v3.2 Requirements 来源: v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (REQUIREMENTS 原 ~40 估算严重低估). Defined 2026-05-23 via `/gsd-new-milestone` Step 9 conversation-mode (no research — scope concrete & pre-locked).*
