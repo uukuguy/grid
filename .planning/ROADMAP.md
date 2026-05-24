@@ -59,7 +59,9 @@
   1. `pytest tests/contract/cases/test_chunk_type_contract.py -v` 在本地不再抛 `ScopeMismatch` error; fixture `runtime_name` (function-scoped) 与 session-scoped requesting fixture 之间的 scope 冲突已修, 7 runtime case 各自能 setup 进入实际 assert (PASS / FAIL / XFAIL by runtime, 不再是 fixture-装配-阶段-error)
   2. Phase 3 Contract Matrix workflow (`.github/workflows/phase3-contract.yml` 或等价 CI workflow) 跑过后 ≥ 4 of 7 jobs PASS (per ADR-V2-025 tier strategy 允许某些 runtime XFAIL, 但不能因 fixture-scope-error 整体 RED); CI run URL + commit hash 写入 SUMMARY.md
   3. NEW-X4 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash, 遵循 row-edit-on-close convention (per Phase 4.0 CLEANUP-02 precedent + Phase 5.4 NEW-A2/E3 precedent); ledger row include 修复 commit hash + CI run URL
-**Plans**: TBD by `/gsd-plan-phase 6.0` (推测 1 plan, scope 小, ≤5 task)
+**Plans:** 1 plan
+Plans:
+- [ ] 06.0-01-PLAN.md — Pytest fixture-scope rename (3 sites: runtime_name → expected_runtime) + REQUIREMENTS/ROADMAP wording stretch + LEDGER NEW-X4 closure + Phase 3 Contract Matrix CI verify
 **UI hint**: no
 
 ### Phase 6.1: grid-cli Anti-pattern Sweep
