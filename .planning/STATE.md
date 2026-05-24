@@ -4,8 +4,8 @@ milestone: v3.2
 milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
 status: executing
 stopped_at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
-last_updated: "2026-05-24T08:04:30.239Z"
-last_activity: 2026-05-24 -- Phase 6.0 planning complete
+last_updated: "2026-05-24T08:14:26.509Z"
+last_activity: 2026-05-24 -- Phase 6.0 execution started
 progress:
   total_phases: 3
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** v3.2 — Tech-Debt Triage & CI Red Line Clearance
+**Current focus:** Phase 6.0 — CI Red Clearance
 
 ## Current Position
 
-Phase: **Phase 6.0 (Not started, ready for `/gsd-discuss-phase 6.0`)**
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-24 -- Phase 6.0 planning complete
+Phase: 6.0 (CI Red Clearance) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 6.0
+Last activity: 2026-05-24 -- Phase 6.0 execution started
 
 Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 / 6.1 / 6.2 mapped 2026-05-23 by `/gsd-roadmapper`)
 
