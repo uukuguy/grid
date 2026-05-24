@@ -1,7 +1,7 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.2
-milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
+milestone_name: Tech-Debt Triage & CI Red Line Clearance
 status: executing
 stopped_at: Phase 6.0 Plan 01 COMPLETE 2026-05-24 — NEW-X4 ✅ CLOSED via parametrize rename @ e27e300; ZERO ScopeMismatch confirmed across all 7 completed Phase 3 Contract Matrix jobs (CI run 26356947711); 3 PASS (claude-code/goose/hermes) + 4 PRE-EXISTING D136 fail + grid in_progress at SUMMARY write. Next: Phase 6.1 grid-cli Anti-pattern Sweep.
 last_updated: "2026-05-24T10:51:00.000Z"
