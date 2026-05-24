@@ -112,7 +112,7 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 6.0 CI Red Clearance | 0/1 | Not started | — |
+| 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs; 3 PASS + 4 PRE-EXISTING D136 fail + grid in_progress); NEW-X4 ✅ CLOSED @ `e27e300` |
 | 6.1 grid-cli Anti-pattern Sweep | 0/1 | Not started | — |
 | 6.2 Debt Ledger Triage | 0/1 | Not started | — |
 

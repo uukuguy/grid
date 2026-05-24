@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
 status: executing
-stopped_at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
-last_updated: "2026-05-24T08:14:26.509Z"
-last_activity: 2026-05-24 -- Phase 6.0 execution started
+stopped_at: Phase 6.0 Plan 01 COMPLETE 2026-05-24 — NEW-X4 ✅ CLOSED via parametrize rename @ e27e300; ZERO ScopeMismatch confirmed across all 7 completed Phase 3 Contract Matrix jobs (CI run 26356947711); 3 PASS (claude-code/goose/hermes) + 4 PRE-EXISTING D136 fail + grid in_progress at SUMMARY write. Next: Phase 6.1 grid-cli Anti-pattern Sweep.
+last_updated: "2026-05-24T10:51:00.000Z"
+last_activity: 2026-05-24 -- Phase 6.0 Plan 01 COMPLETE — NEW-X4 ✅ CLOSED @ e27e300 (parametrize rename 3 sites, 0 ScopeMismatch in CI)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 ## Current Position
 
-Phase: 6.0 (CI Red Clearance) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 6.0
-Last activity: 2026-05-24 -- Phase 6.0 execution started
+Phase: 6.0 (CI Red Clearance) — **COMPLETE 2026-05-24**
+Plan: 1 of 1 ✅
+Status: Phase 6.0 COMPLETE — Next: Phase 6.1
+Last activity: 2026-05-24 -- Phase 6.0 Plan 01 COMPLETE — NEW-X4 ✅ CLOSED via parametrize rename
 
-Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 / 6.1 / 6.2 mapped 2026-05-23 by `/gsd-roadmapper`)
+Progress: [███░░░░░░░] 33% (1/3 phases complete; Phase 6.0 ✅ → 6.1 / 6.2 next)
 
 **Phase-to-REQ mapping (v3.2)**:
 
@@ -67,7 +67,7 @@ Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 /
 
 | Phase | Plans | Status | Notes |
 |-------|-------|--------|-------|
-| 6.0 CI Red Clearance | 0/1 | Not started | Ready for `/gsd-discuss-phase 6.0` — NEW-X4 fixture-scope fix scope locked |
+| 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs); NEW-X4 ✅ CLOSED @ `e27e300` + CI run 26356947711; parametrize-layer rename at 3 sites |
 | 6.1 grid-cli Anti-pattern Sweep | 0/1 | Not started | Depends on 6.0 sequencing — NEW-X2 + NEW-X3 paired |
 | 6.2 Debt Ledger Triage | 0/1 | Not started | Soft-depends on 6.1 (NEW-X2/X3 final status入 triage tag) — 102 D-row classify + DEAD archive + INBOX |
 
@@ -125,7 +125,7 @@ Items acknowledged and carried forward from previous milestone close (v3.1):
 | Functional | grid-cli `mod output` E0583 — pre-existing | ✅ CLOSED (verified clean) Phase 5.5 Plan 01 Task 01.B3 | 2026-05-20 Phase 5.3 OOS | 5.5 (closed) |
 | Functional | NEW-L1 — HNSW disk leak + meta.json schema gap | ✅ CLOSED Phase 5.5 Plan 01 @ `0bdf70c` — HNSW_HARD_CAP + max_elements persist | 2026-05-20 Phase 5.3 OOS forensics | 5.5 (closed) |
 | ADR | INTERFACE-01 — ADR-V2-029 engine vs data/integration boundary | ✅ CLOSED Phase 5.5 Plan 01 @ `0b23a01` | Phase 5.5 ROADMAP scope | 5.5 (closed) |
-| **v3.2 carry-over** | **NEW-X4 — `test_chunk_type_contract.py` fixture-scope mismatch (Phase 3 Contract Matrix CI RED)** | 🟠 P2 mapped to **Phase 6.0** | 2026-05-23 v3.1 close cascade post-push CI scan | **6.0 (in progress)** |
+| **v3.2 carry-over** | **NEW-X4 — `test_chunk_type_contract.py` + `test_hook_event_contract.py` parametrize-layer fixture-scope mismatch (Phase 3 Contract Matrix CI RED)** | ✅ CLOSED Phase 6.0 Plan 01 @ `e27e300` — parametrize rename 3 sites, 0 ScopeMismatch in CI run 26356947711 | 2026-05-23 v3.1 close cascade post-push CI scan | **6.0 (closed)** |
 | **v3.2 carry-over** | **NEW-X2 — sibling delete_session + export_session same anti-pattern as NEW-A3** | 🟡 P3 mapped to **Phase 6.1** | Phase 5.5 Plan 01 Task B1 scope-limit | **6.1 (in progress)** |
 | **v3.2 carry-over** | **NEW-X3 — `cargo build -p grid-cli --all-features` 12 grid-engine errors** | 🟡 P3 mapped to **Phase 6.1** | Phase 5.5 Plan 02 close cascade | **6.1 (in progress)** |
 
