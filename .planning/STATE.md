@@ -4,12 +4,12 @@ milestone: v3.2
 milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
 status: executing
 stopped_at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
-last_updated: "2026-05-23T11:22:53.906Z"
-last_activity: 2026-05-23 — v3.2 ROADMAP created (3 phases / 6 REQ-IDs mapped)
+last_updated: "2026-05-24T08:04:30.239Z"
+last_activity: 2026-05-24 -- Phase 6.0 planning complete
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
+  total_plans: 1
   completed_plans: 0
   percent: 0
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 Phase: **Phase 6.0 (Not started, ready for `/gsd-discuss-phase 6.0`)**
 Plan: —
-Status: Ready to execute (roadmap created, awaiting phase discuss)
-Last activity: 2026-05-23 — v3.2 ROADMAP created (3 phases / 6 REQ-IDs mapped)
+Status: Ready to execute
+Last activity: 2026-05-24 -- Phase 6.0 planning complete
 
 Progress: [░░░░░░░░░░] 0% (3-phase milestone — Phase 6.0 / 6.1 / 6.2 mapped 2026-05-23 by `/gsd-roadmapper`)
 
