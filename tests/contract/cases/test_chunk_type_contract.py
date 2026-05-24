@@ -136,10 +136,10 @@ def test_unspecified_is_zero() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("runtime_name", ADR_V2_025_ACTIVE_RUNTIMES)
+@pytest.mark.parametrize("expected_runtime", ADR_V2_025_ACTIVE_RUNTIMES)
 def test_chunk_type_contract(
     request: pytest.FixtureRequest,
-    runtime_name: str,
+    expected_runtime: str,
 ) -> None:
     """ADR-V2-021: chunks carry ChunkType enum, wire strings in whitelist.
 
@@ -167,9 +167,9 @@ def test_chunk_type_contract(
             "--runtime not supplied; ADR-V2-025 tier matrix requires "
             "--runtime=<name> from the CI job to pick the active runtime."
         )
-    if cli_runtime != runtime_name:
+    if cli_runtime != expected_runtime:
         pytest.skip(
-            f"parametrized runtime={runtime_name!r} does not match CI "
+            f"parametrized expected_runtime={expected_runtime!r} does not match CI "
             f"--runtime={cli_runtime!r}; this case runs in a different "
             f"matrix job per ADR-V2-025."
         )
@@ -186,7 +186,7 @@ def test_chunk_type_contract(
     payload = common_pb2.SessionPayload(
         session_id="chunk-type-contract-1",
         user_id="u",
-        runtime_id=f"{runtime_name}-contract-test",
+        runtime_id=f"{expected_runtime}-contract-test",
     )
     init_resp = runtime_grpc_stub.Initialize(
         runtime_pb2.InitializeRequest(payload=payload)
@@ -244,15 +244,15 @@ def test_chunk_type_contract(
     ]
 
     assert not violations, (
-        f"runtime={runtime_name!r} emitted non-conformant chunks:\n  - "
+        f"runtime={expected_runtime!r} emitted non-conformant chunks:\n  - "
         + "\n  - ".join(violations)
         + f"\nobserved wire trace: {wire_trace}"
     )
     assert observed, (
-        f"runtime={runtime_name!r} emitted zero SendResponse chunks; "
+        f"runtime={expected_runtime!r} emitted zero SendResponse chunks; "
         f"contract requires ≥1 DONE chunk per turn"
     )
     assert common_pb2.CHUNK_TYPE_DONE in observed, (
-        f"runtime={runtime_name!r} did not emit CHUNK_TYPE_DONE; "
+        f"runtime={expected_runtime!r} did not emit CHUNK_TYPE_DONE; "
         f"observed wire trace: {wire_trace}"
     )

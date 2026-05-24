@@ -12,7 +12,7 @@
 
 ### A. CI — Phase 3 Contract Matrix CI Red Line Clearance
 
-- [ ] **CI-01**: NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修 — `runtime_name` fixture 与 session-scoped requesting fixture 在 `tests/contract/conftest.py` 或 `cases/test_chunk_type_contract.py` 中的 scope 冲突。修复后 `pytest tests/contract/cases/test_chunk_type_contract.py -v` 跨 7 个 L1 runtime (claude-code / goose / nanobot / pydantic-ai / claw-code / ccb / grid) 都通过 fixture 装配 (test 内容是否 PASS 取决于 runtime 实现; 关键 success criterion = 不再 ScopeMismatch error)。Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4 of 7 jobs PASS, 因为有些 runtime contract test 本来就有 XFAIL 不算 RED)。
+- [ ] **CI-01**: NEW-X4 pytest **parametrize-layer** fixture-scope mismatch 修 — 3 parametrize sites across 2 files (`tests/contract/cases/test_chunk_type_contract.py:139` + `tests/contract/cases/test_hook_event_contract.py:203` (`test_subagent_start_envelope_live`) + `tests/contract/cases/test_hook_event_contract.py:238` (`test_task_checkpoint_envelope_live`)) all decorate with `@pytest.mark.parametrize("runtime_name", ADR_V2_025_ACTIVE_RUNTIMES)`, shadowing the session-scoped `runtime_name(request)` fixture at `tests/contract/conftest.py:113`. Rename the parametrize identifier to `expected_runtime` at all 3 sites (session fixture UNTOUCHED) so pytest no longer raises `ScopeMismatch: You tried to access the function scoped fixture runtime_name with a session scoped request object`. Fixture装配通过后, 跨 7 个 L1 runtime (claude-code / goose / nanobot / pydantic-ai / claw-code / ccb / grid) 都能进入实际 assert (PASS / FAIL / XFAIL by runtime, 不再是 fixture-装配-阶段-error)。Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4 of 7 jobs PASS, 因为 reference-tier runtimes 允许 XFAIL per ADR-V2-025)。
 
 ### B. CLI — grid-cli Anti-pattern Sweep
 

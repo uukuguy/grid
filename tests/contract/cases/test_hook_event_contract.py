@@ -200,10 +200,10 @@ def test_task_checkpoint_hook_has_top_level_fields() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("runtime_name", ADR_V2_025_ACTIVE_RUNTIMES)
+@pytest.mark.parametrize("expected_runtime", ADR_V2_025_ACTIVE_RUNTIMES)
 def test_subagent_start_envelope_live(
     request: pytest.FixtureRequest,
-    runtime_name: str,
+    expected_runtime: str,
 ) -> None:
     """ADR-V2-006 §2.3 — SubagentStart envelope shape over live runtime.
 
@@ -219,14 +219,14 @@ def test_subagent_start_envelope_live(
         pytest.skip(
             "--runtime not supplied; ADR-V2-025 tier matrix requires --runtime"
         )
-    if cli_runtime != runtime_name:
+    if cli_runtime != expected_runtime:
         pytest.skip(
-            f"parametrized runtime={runtime_name!r} does not match "
+            f"parametrized expected_runtime={expected_runtime!r} does not match "
             f"CI --runtime={cli_runtime!r}"
         )
-    if runtime_name in TIER_REFERENCE:
+    if expected_runtime in TIER_REFERENCE:
         pytest.xfail(
-            f"ADR-V2-025 reference tier runtime {runtime_name!r} may not "
+            f"ADR-V2-025 reference tier runtime {expected_runtime!r} may not "
             f"implement subagent spawning — selective xfail allowed"
         )
     pytest.skip(
@@ -235,10 +235,10 @@ def test_subagent_start_envelope_live(
     )
 
 
-@pytest.mark.parametrize("runtime_name", ADR_V2_025_ACTIVE_RUNTIMES)
+@pytest.mark.parametrize("expected_runtime", ADR_V2_025_ACTIVE_RUNTIMES)
 def test_task_checkpoint_envelope_live(
     request: pytest.FixtureRequest,
-    runtime_name: str,
+    expected_runtime: str,
 ) -> None:
     """ADR-V2-006 §2.3 — TaskCheckpoint envelope shape over live runtime.
 
@@ -249,14 +249,14 @@ def test_task_checkpoint_envelope_live(
         pytest.skip(
             "--runtime not supplied; ADR-V2-025 tier matrix requires --runtime"
         )
-    if cli_runtime != runtime_name:
+    if cli_runtime != expected_runtime:
         pytest.skip(
-            f"parametrized runtime={runtime_name!r} does not match "
+            f"parametrized expected_runtime={expected_runtime!r} does not match "
             f"CI --runtime={cli_runtime!r}"
         )
-    if runtime_name in TIER_REFERENCE:
+    if expected_runtime in TIER_REFERENCE:
         pytest.xfail(
-            f"ADR-V2-025 reference tier runtime {runtime_name!r} may not "
+            f"ADR-V2-025 reference tier runtime {expected_runtime!r} may not "
             f"emit TaskCheckpoint — selective xfail allowed"
         )
     pytest.skip(

@@ -56,7 +56,7 @@
 **Depends on**: Nothing (milestone 第一个 phase; CI red 不阻塞 local work 但是心理性 blocker / signal pollution, 优先消除给后续 phase 干净的 CI baseline)
 **Requirements**: CI-01
 **Success Criteria** (what must be TRUE):
-  1. `pytest tests/contract/cases/test_chunk_type_contract.py -v` 在本地不再抛 `ScopeMismatch` error; fixture `runtime_name` (function-scoped) 与 session-scoped requesting fixture 之间的 scope 冲突已修, 7 runtime case 各自能 setup 进入实际 assert (PASS / FAIL / XFAIL by runtime, 不再是 fixture-装配-阶段-error)
+  1. `pytest tests/contract/cases/test_chunk_type_contract.py tests/contract/cases/test_hook_event_contract.py -v --runtime=<X>` 在本地不再抛 `ScopeMismatch` error; **parametrize 层 3 sites 重命名 `runtime_name` → `expected_runtime`** (1 in `test_chunk_type_contract.py:139` + 2 in `test_hook_event_contract.py:203 + 238`); session fixture `runtime_name(request)` at `tests/contract/conftest.py:113` UNTOUCHED; 7 runtime case 各自能 setup 进入实际 assert (PASS / FAIL / XFAIL by runtime, 不再是 fixture-装配-阶段-error)
   2. Phase 3 Contract Matrix workflow (`.github/workflows/phase3-contract.yml` 或等价 CI workflow) 跑过后 ≥ 4 of 7 jobs PASS (per ADR-V2-025 tier strategy 允许某些 runtime XFAIL, 但不能因 fixture-scope-error 整体 RED); CI run URL + commit hash 写入 SUMMARY.md
   3. NEW-X4 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash, 遵循 row-edit-on-close convention (per Phase 4.0 CLEANUP-02 precedent + Phase 5.4 NEW-A2/E3 precedent); ledger row include 修复 commit hash + CI run URL
 **Plans:** 1 plan
