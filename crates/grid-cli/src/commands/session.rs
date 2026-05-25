@@ -96,10 +96,17 @@ async fn delete_session(session_id: String, state: &AppState) -> Result<()> {
     let session_store = state.agent_runtime.session_store();
     let sid = SessionId::from_string(&session_id);
 
+    // Check if session exists (Phase 6.1 CLI-X2 / NEW-X2 — ports the NEW-A3
+    // typed-error pattern from kill_session: return typed GridError so main.rs
+    // downcast preserves ExitCode::SessionNotFound (= 4). Previously the
+    // eprintln-then-Ok branch produced a silent exit 0 on missing sessions.
+    if session_store.get_session(&sid).await.is_none() {
+        eprintln!("Session not found: {}", session_id);
+        return Err(crate::error::GridError::session_not_found(session_id).into());
+    }
+
     if session_store.delete_session(&sid).await {
         println!("Deleted session: {}", session_id);
-    } else {
-        eprintln!("Session not found: {}", session_id);
     }
     Ok(())
 }

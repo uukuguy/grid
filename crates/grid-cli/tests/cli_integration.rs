@@ -169,3 +169,21 @@ fn test_kill_nonexistent_session_exits_4() {
         String::from_utf8_lossy(&out.stderr)
     );
 }
+
+// Phase 6.1 CLI-X2: delete_session NEW-X2 sibling of NEW-A3 — `grid session delete <missing-id>`
+// must exit with ExitCode::SessionNotFound (= 4), not the silent exit 0 it returned before
+// (eprintln-then-Ok bug per CONTEXT.md D-05).
+#[test]
+fn test_delete_nonexistent_session_exits_4() {
+    let out = grid_bin()
+        .args(["session", "delete", "does-not-exist-xyz"])
+        .output()
+        .expect("failed to run grid session delete");
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "delete_session on missing id should exit 4 (SessionNotFound), got {:?}; stderr: {}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
