@@ -118,19 +118,19 @@ impl HookHandler for WasmHookHandler {
         store.set_fuel(WASM_HOOK_MAX_FUEL)?;
 
         let mut linker = wasmtime::component::Linker::new(&self.engine);
-        super::bindings::OctoHookPlugin::add_to_linker::<
+        super::bindings::GridHookPlugin::add_to_linker::<
             HookHostState,
             wasmtime::component::HasSelf<HookHostState>,
         >(&mut linker, |state| state)?;
 
         let plugin =
-            super::bindings::OctoHookPlugin::instantiate(&mut store, &self.component, &linker)?;
+            super::bindings::GridHookPlugin::instantiate(&mut store, &self.component, &linker)?;
 
         // Serialize context to JSON for the guest
         let context_json = serde_json::to_string(context)?;
 
         // Call the guest's execute function
-        let hook_handler = plugin.octo_hook_hook_handler();
+        let hook_handler = plugin.grid_hook_hook_handler();
         let result = hook_handler.call_execute(&mut store, &context_json)?;
 
         match result {

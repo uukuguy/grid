@@ -14,16 +14,16 @@ pub mod loader;
 #[cfg(feature = "sandbox-wasm")]
 pub mod manifest;
 
-/// Generated bindings from the `octo-hook.wit` interface via `wasmtime::component::bindgen!`.
+/// Generated bindings from the `grid-hook.wit` interface via `wasmtime::component::bindgen!`.
 ///
 /// This produces:
-/// - `octo::hook::host::Host` trait (host-side implementation)
-/// - `OctoHookPlugin` struct (guest component instantiation)
+/// - `grid::hook::host::Host` trait (host-side implementation)
+/// - `GridHookPlugin` struct (guest component instantiation)
 /// - `hook_handler::HookHandler` guest export interface
 #[cfg(feature = "sandbox-wasm")]
 pub mod bindings {
     wasmtime::component::bindgen!({
         world: "grid-hook-plugin",
-        path: "wit/octo-hook.wit",
+        path: "wit/grid-hook.wit",
     });
 }

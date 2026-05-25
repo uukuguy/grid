@@ -1,4 +1,4 @@
-package octo:hook@1.0.0;
+package grid:hook@1.0.0;
 
 /// Host capabilities imported by hook plugins.
 interface host {
@@ -39,7 +39,7 @@ interface hook-handler {
 }
 
 /// Plugin world combining host imports and handler exports.
-world octo-hook-plugin {
+world grid-hook-plugin {
     import host;
     export hook-handler;
 }

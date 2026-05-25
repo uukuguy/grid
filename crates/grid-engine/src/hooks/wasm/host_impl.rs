@@ -1,6 +1,6 @@
 //! Host import implementations for WASM hook plugins.
 //!
-//! Implements the 5 host functions defined in `octo-hook.wit`:
+//! Implements the 5 host functions defined in `grid-hook.wit`:
 //! - `log(level, message)` — structured logging
 //! - `get-context()` — full HookContext as JSON
 //! - `get-secret(key)` — capability-gated secret retrieval
@@ -44,9 +44,9 @@ impl HookHostState {
 
 /// Implementation of the WIT `host` interface.
 ///
-/// Uses the generated `Host` trait from `bindings::octo::hook::host::Host`.
+/// Uses the generated `Host` trait from `bindings::grid::hook::host::Host`.
 #[cfg(feature = "sandbox-wasm")]
-impl super::bindings::octo::hook::host::Host for HookHostState {
+impl super::bindings::grid::hook::host::Host for HookHostState {
     fn log(&mut self, level: String, message: String) {
         match level.as_str() {
             "trace" => tracing::trace!(plugin = %self.plugin_name, "{}", message),
@@ -163,7 +163,7 @@ impl super::bindings::octo::hook::host::Host for HookHostState {
 mod tests {
     use super::*;
     #[cfg(feature = "sandbox-wasm")]
-    use super::super::bindings::octo::hook::host::Host;
+    use super::super::bindings::grid::hook::host::Host;
 
     fn make_state(capabilities: &[&str]) -> HookHostState {
         let mut context = HookContext::default();
