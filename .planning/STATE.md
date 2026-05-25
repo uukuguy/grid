@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Tech-Debt Triage & CI Red Line Clearance
 status: executing
-stopped_at: "Phase 6.1 COMPLETE 2026-05-25 — 6 commits @ 0595e31..f7276a2; SC#1-4 all PASS; D-01..D-10 honored; cargo build -p grid-cli --all-features exit 0; 578 tests pass; NEW-X2 + NEW-X3 ✅ CLOSED in LEDGER. Next: Phase 6.2 Debt Ledger Triage (TRIAGE-01/02/03)."
-last_updated: "2026-05-25T13:30:00.000Z"
-last_activity: 2026-05-25 -- Phase 6.1 Plan 01 COMPLETE — CLI-X2 + CLI-X3 closed (6 commits + SUMMARY)
+stopped_at: "Phase 6.2 context gathered — D-01 tag prepend to col 3 keep emoji; D-02 4 DEAD criteria (octo/deleted/ADR-superseded/dormant-by-ADR with ADR-section cite); D-03 12 modules (11 ROADMAP + cross-cutting), hybrid placed in PRIMARY by file path; D-04 4 tasks (TRIAGE-01 classify 128 → 02 archive DEAD → 03 INBOX → 04 milestone close cascade); scope reality 128 not 102 D-rows"
+last_updated: "2026-05-25T15:31:17.656Z"
+last_activity: 2026-05-25 -- Phase 6.2 CONTEXT.md gathered (4 decisions D-01..D-04), ready for /gsd-plan-phase 6.2
 progress:
   total_phases: 3
   completed_phases: 2
@@ -133,8 +133,8 @@ Items acknowledged and carried forward from previous milestone close (v3.1):
 
 ## Session Continuity
 
-Last session: 2026-05-25T13:30:00.000Z
-Stopped at: Phase 6.1 COMPLETE — 6 work commits (0595e31 delete + a0a6c28 export + adf2c08 BucketB+C + 97f59e5 BucketA atomic WIT rename + edc9b30 LEDGER + f7276a2 SUMMARY); verifier `## VERIFICATION PASSED` (all 4 SC, all D-01..D-10, CLAUDE.md compliance, 578 tests pass). Next: `/gsd-discuss-phase 6.2` for Debt Ledger Triage (TRIAGE-01 102 D-row classify + TRIAGE-02 DEAD archive + TRIAGE-03 v3.3-INBOX).
+Last session: 2026-05-25T15:31:17.652Z
+Stopped at: Phase 6.2 context gathered — D-01 tag prepend to col 3 keep emoji; D-02 4 DEAD criteria (octo/deleted/ADR-superseded/dormant-by-ADR with ADR-section cite); D-03 12 modules (11 ROADMAP + cross-cutting), hybrid placed in PRIMARY by file path; D-04 4 tasks (TRIAGE-01 classify 128 → 02 archive DEAD → 03 INBOX → 04 milestone close cascade); scope reality 128 not 102 D-rows
 Resume path: **Next action: `/gsd-discuss-phase 6.2`** — Debt Ledger Triage (doc-only phase, 102 D-row classify + DEAD archive + INBOX; closes v3.2 milestone).
 Local commits ahead of origin: ~37 unpushed commits await user push (per project rule: push decision deferred to user; 6 from Phase 6.1 added this session).
 Worktrees: cleaned (no active worktrees this session — sequential execution).
