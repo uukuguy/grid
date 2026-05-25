@@ -4,14 +4,14 @@ milestone: v3.2
 milestone_name: Tech-Debt Triage & CI Red Line Clearance
 status: executing
 stopped_at: "Phase 6.1 context gathered — D-01 Option (a) fix all 12 errors; D-02 3-bucket split (A: wit rename, B: HashMap+_config, C: let mut); D-04 copy kill_session pattern verbatim no helper; D-05 delete_session has 2 bugs (silent exit 0 + missing guard); D-07 2 integration tests no stderr assertion; D-08 plan ≤6 task; D-10 full archaeology in X3 close-out"
-last_updated: "2026-05-25T10:57:31.203Z"
-last_activity: 2026-05-25 -- Phase 6.1 CONTEXT.md gathered (10 decisions D-01..D-10), ready for /gsd-plan-phase 6.1
+last_updated: "2026-05-25T11:52:34.989Z"
+last_activity: 2026-05-25 -- Phase 6.1 planning complete
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 1
+  total_plans: 2
   completed_plans: 1
-  percent: 33
+  percent: 50
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 Phase: 6.0 (CI Red Clearance) — **COMPLETE 2026-05-24**
 Plan: 1 of 1 ✅
-Status: Phase 6.0 COMPLETE — Next: Phase 6.1
-Last activity: 2026-05-24 -- Phase 6.0 Plan 01 COMPLETE — NEW-X4 ✅ CLOSED via parametrize rename
+Status: Ready to execute
+Last activity: 2026-05-25 -- Phase 6.1 planning complete
 
 Progress: [███░░░░░░░] 33% (1/3 phases complete; Phase 6.0 ✅ → 6.1 / 6.2 next)
 

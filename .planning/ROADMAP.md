@@ -44,7 +44,7 @@
 
 **Milestone Goal:** 消除 Phase 3 Contract Matrix CI 红线 (持续 RED 自 2026-05-04) + grid-cli 残留 anti-pattern 收尾 + 对 102 D-row + 3 NEW-X row 历史债做一次性 triage 分类, 为后续 milestone (v3.3+) 的代码工作建立优先级地图。**NOT mega-debt-sweep** — 代码修复仅限 3 个具体 row (CI-01 NEW-X4 fixture-scope fix + CLI-X2 NEW-X2 sibling typed GridError 补 + CLI-X3 NEW-X3 --all-features 调查); 102 D-row 仅做分类不做修复, mega sweep 留给 v3.3+ 按 triage 结果立 phase。
 
-- [ ] **Phase 6.0: CI Red Clearance** — NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修, Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4/7 jobs PASS)
+- [x] **Phase 6.0: CI Red Clearance** — NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修, Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4/7 jobs PASS)
 - [ ] **Phase 6.1: grid-cli Anti-pattern Sweep** — NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) + NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter
 - [ ] **Phase 6.2: Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 一次性 triage 分类 (P1/P2/P3/DEAD) + DEAD 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md + `.planning/v3.3-INBOX.md` 按 module 分组喂下轮
 
@@ -61,7 +61,7 @@
   3. NEW-X4 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash, 遵循 row-edit-on-close convention (per Phase 4.0 CLEANUP-02 precedent + Phase 5.4 NEW-A2/E3 precedent); ledger row include 修复 commit hash + CI run URL
 **Plans:** 1 plan
 Plans:
-- [ ] 06.0-01-PLAN.md — Pytest fixture-scope rename (3 sites: runtime_name → expected_runtime) + REQUIREMENTS/ROADMAP wording stretch + LEDGER NEW-X4 closure + Phase 3 Contract Matrix CI verify
+- [x] 06.0-01-PLAN.md — Pytest fixture-scope rename (3 sites: runtime_name → expected_runtime) + REQUIREMENTS/ROADMAP wording stretch + LEDGER NEW-X4 closure + Phase 3 Contract Matrix CI verify
 **UI hint**: no
 
 ### Phase 6.1: grid-cli Anti-pattern Sweep
@@ -72,9 +72,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `delete_session` (`crates/grid-cli/src/commands/session.rs:99-103`) + `export_session` (L157) 改用 `GridError::session_not_found()` typed error; `main.rs` 既有的 `downcast_ref::<GridError>` arm (Phase 5.5 Plan 01 Task B1 落地) 自动 catch, 用户敲 `grid session delete <nonexistent-id>` + `grid session export <nonexistent-id>` 都 exit 4 而非 exit 1
   2. `crates/grid-cli/tests/` 下新增 2 个 integration test (`test_delete_nonexistent_session_exits_4` + `test_export_nonexistent_session_exits_4`) 均 PASS; 既有 147 + 6 grid-cli test 全部 no regression (`cargo test -p grid-cli` 全 PASS)
-  3. `cargo build -p grid-cli --all-features` 状态 = **(a) 编译 clean** (12 个 grid-engine errors 修复 或 经调查为真 dead code 删除) **OR (b) 矩阵窄化** (`grid-cli` Cargo.toml `--all-features` feature set 显式排除引发错误的 feature, 留一个能 build 的子集), 选择写入 LEDGER NEW-X3 row 的 close-out 注释, 包含 root cause 一句话 + 决策 rationale
-  4. NEW-X2 + NEW-X3 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; 如 NEW-X3 决定走 (b) 矩阵窄化路径, 在 `grid-cli/Cargo.toml` 或 `Makefile` 中加 comment 注释为何排除某 feature, 防止下个 contributor 误以为是漏配
-**Plans**: TBD by `/gsd-plan-phase 6.1` (推测 1 plan, 2 task block 顺序执行 X2 → X3, 总 ≤6 task)
+  3. `cargo build -p grid-cli --all-features` 状态 = **(a) 编译 clean** (12 个 grid-engine errors 修复 或 经调查为真 dead code 删除) **OR (b) 矩阵窄化** (`grid-cli` Cargo.toml `--all-features` feature set 显式排除引发错误的 feature, 留一个能 build 的子集), 选择写入 LEDGER NEW-X3 row 的 close-out 注释, 包含 root cause 一句话 + 决策 rationale (per CONTEXT.md D-01: locked to Option (a) Fix-all 全修)
+  4. NEW-X2 + NEW-X3 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; D-01 锁定 Option (a) 故 Cargo.toml/Makefile 无 feature 排除注释 (D-04 locked: 无 helper 抽取, 复制 kill_session pattern verbatim)
+**Plans:** 1 plan
+Plans:
+- [ ] 06.1-01-PLAN.md — CLI-X2 typed GridError port (delete_session + export_session + 2 integration tests) + CLI-X3 Option (a) fix-all (Bucket A: WIT rename atomic + Bucket B: HashMap import + _config rename + Bucket C: let mut bridge) + phase verify + LEDGER NEW-X2/X3 close-out (D-09 short + D-10 full archaeology)
 **UI hint**: no
 
 ### Phase 6.2: Debt Ledger Triage
@@ -113,7 +115,7 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs; 3 PASS + 4 PRE-EXISTING D136 fail + grid in_progress); NEW-X4 ✅ CLOSED @ `e27e300` |
-| 6.1 grid-cli Anti-pattern Sweep | 0/1 | Not started | — |
+| 6.1 grid-cli Anti-pattern Sweep | 0/1 | Planned 2026-05-25 (1 plan, 6 tasks: X2 delete + X2 export + X3 Bucket B+C + X3 Bucket A + verify + LEDGER close) | — |
 | 6.2 Debt Ledger Triage | 0/1 | Not started | — |
 
 (v3.1 progress table preserved in collapsed v3.1 summary above; 6/6 phases ✅ as of 2026-05-22)
@@ -182,3 +184,5 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 ---
 
 *Roadmap v3.2 section added 2026-05-23 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.2). Source: REQUIREMENTS.md v3.2 section (6 REQ-IDs) + PROJECT.md §Current Milestone v3.2 + v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (原 ~40 估算严重低估). v3.1 milestone ✅ CLOSED 2026-05-22 — section collapsed for traceability lineage. v3.0 milestone ✅ CLOSED 2026-04-28.*
+
+*Phase 6.1 plan finalized 2026-05-25 by `/gsd-plan-phase 6.1` — 1 plan (06.1-01-PLAN.md), 6 sequential tasks honoring CONTEXT.md D-01..D-10 (Option (a) fix-all per D-01; copy kill_session verbatim per D-04; atomic WIT rename per specifics).*
