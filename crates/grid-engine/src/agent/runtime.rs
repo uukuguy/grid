@@ -715,7 +715,7 @@ impl AgentRuntime {
                             // Register DeclarativeHookBridge for each configured hook point
                             let hook_points = collect_declarative_hook_points(&hc);
                             for hp in hook_points {
-                                let bridge = crate::hooks::declarative::DeclarativeHookBridge::new(hc.clone(), hp);
+                                let mut bridge = crate::hooks::declarative::DeclarativeHookBridge::new(hc.clone(), hp);
                                 // Wire WASM handlers into bridge
                                 #[cfg(feature = "sandbox-wasm")]
                                 for (name, handler) in &wasm_handlers {
