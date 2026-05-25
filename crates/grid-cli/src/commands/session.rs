@@ -164,7 +164,12 @@ async fn export_session(
     let session = session_store
         .get_session(&sid)
         .await
-        .ok_or_else(|| anyhow::anyhow!("Session not found: {}", session_id))?;
+        .ok_or_else(|| {
+            // Phase 6.1 CLI-X2 / NEW-X2: typed GridError so main.rs downcast
+            // preserves ExitCode::SessionNotFound (= 4). Previously anyhow!()
+            // collapsed to ExitCode::General (= 1).
+            anyhow::Error::from(crate::error::GridError::session_not_found(session_id.clone()))
+        })?;
 
     let messages = session_store
         .get_messages(&sid)

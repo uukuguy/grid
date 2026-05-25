@@ -187,3 +187,22 @@ fn test_delete_nonexistent_session_exits_4() {
         String::from_utf8_lossy(&out.stderr)
     );
 }
+
+// Phase 6.1 CLI-X2: export_session NEW-X2 sibling of NEW-A3 — `grid session export <missing-id>`
+// must exit with ExitCode::SessionNotFound (= 4), not the generic exit 1 that anyhow!() produces.
+// Note: --format is omitted; the typed-error short-circuit happens BEFORE format dispatch,
+// so the format arg is irrelevant for this test (per CONTEXT.md D-06).
+#[test]
+fn test_export_nonexistent_session_exits_4() {
+    let out = grid_bin()
+        .args(["session", "export", "does-not-exist-xyz"])
+        .output()
+        .expect("failed to run grid session export");
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "export_session on missing id should exit 4 (SessionNotFound), got {:?}; stderr: {}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
