@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Tech-Debt Triage & CI Red Line Clearance
 status: executing
-stopped_at: Phase 6.0 Plan 01 COMPLETE 2026-05-24 — NEW-X4 ✅ CLOSED via parametrize rename @ e27e300; ZERO ScopeMismatch confirmed across all 7 completed Phase 3 Contract Matrix jobs (CI run 26356947711); 3 PASS (claude-code/goose/hermes) + 4 PRE-EXISTING D136 fail + grid in_progress at SUMMARY write. Next: Phase 6.1 grid-cli Anti-pattern Sweep.
-last_updated: "2026-05-24T10:51:00.000Z"
-last_activity: 2026-05-24 -- Phase 6.0 Plan 01 COMPLETE — NEW-X4 ✅ CLOSED @ e27e300 (parametrize rename 3 sites, 0 ScopeMismatch in CI)
+stopped_at: "Phase 6.1 context gathered — D-01 Option (a) fix all 12 errors; D-02 3-bucket split (A: wit rename, B: HashMap+_config, C: let mut); D-04 copy kill_session pattern verbatim no helper; D-05 delete_session has 2 bugs (silent exit 0 + missing guard); D-07 2 integration tests no stderr assertion; D-08 plan ≤6 task; D-10 full archaeology in X3 close-out"
+last_updated: "2026-05-25T10:57:31.203Z"
+last_activity: 2026-05-25 -- Phase 6.1 CONTEXT.md gathered (10 decisions D-01..D-10), ready for /gsd-plan-phase 6.1
 progress:
   total_phases: 3
   completed_phases: 1
@@ -133,9 +133,9 @@ Items acknowledged and carried forward from previous milestone close (v3.1):
 
 ## Session Continuity
 
-Last session: 2026-05-23T11:22:53.902Z
-Stopped at: Phase 6.0 context gathered — D-01 rename runtime_name→expected_runtime (Fix A); D-02 3 sites in 2 files; D-03 REQUIREMENTS CI-01 wording stretch in plan; D-04 local grid + collect-only + CI 7-matrix; D-05 1 plan ~5-6 task; D-06 scope-creep guard
-Resume path: **Next action: `/gsd-discuss-phase 6.0`** — CI Red Clearance (NEW-X4 fixture-scope fix; 1 REQ-ID = CI-01; scope tight, expect single small plan).
+Last session: 2026-05-25T10:57:31.199Z
+Stopped at: Phase 6.1 context gathered — D-01 Option (a) fix all 12 errors; D-02 3-bucket split (A: wit rename, B: HashMap+_config, C: let mut); D-04 copy kill_session pattern verbatim no helper; D-05 delete_session has 2 bugs (silent exit 0 + missing guard); D-07 2 integration tests no stderr assertion; D-08 plan ≤6 task; D-10 full archaeology in X3 close-out
+Resume path: **Next action: `/gsd-discuss-phase 6.1`** — grid-cli Anti-pattern Sweep (CLI-X2 NEW-X2 sibling + CLI-X3 NEW-X3 --all-features 12 grid-engine errors; scope per ROADMAP v3.2 §Phase 6.1).
 Local commits ahead of origin: 30+ unpushed commits await user push (per project rule: push decision deferred to user).
 Worktrees: cleaned (no active worktrees this session — sequential execution per recovery context)
 
