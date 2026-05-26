@@ -45,7 +45,7 @@
 **Milestone Goal:** 消除 Phase 3 Contract Matrix CI 红线 (持续 RED 自 2026-05-04) + grid-cli 残留 anti-pattern 收尾 + 对 102 D-row + 3 NEW-X row 历史债做一次性 triage 分类, 为后续 milestone (v3.3+) 的代码工作建立优先级地图。**NOT mega-debt-sweep** — 代码修复仅限 3 个具体 row (CI-01 NEW-X4 fixture-scope fix + CLI-X2 NEW-X2 sibling typed GridError 补 + CLI-X3 NEW-X3 --all-features 调查); 102 D-row 仅做分类不做修复, mega sweep 留给 v3.3+ 按 triage 结果立 phase。
 
 - [x] **Phase 6.0: CI Red Clearance** — NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修, Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4/7 jobs PASS)
-- [ ] **Phase 6.1: grid-cli Anti-pattern Sweep** — NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) + NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter
+- [x] **Phase 6.1: grid-cli Anti-pattern Sweep** — NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) + NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter
 - [ ] **Phase 6.2: Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 一次性 triage 分类 (P1/P2/P3/DEAD) + DEAD 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md + `.planning/v3.3-INBOX.md` 按 module 分组喂下轮
 
 ## Phase Details
@@ -76,7 +76,7 @@ Plans:
   4. NEW-X2 + NEW-X3 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; D-01 锁定 Option (a) 故 Cargo.toml/Makefile 无 feature 排除注释 (D-04 locked: 无 helper 抽取, 复制 kill_session pattern verbatim)
 **Plans:** 1 plan
 Plans:
-- [ ] 06.1-01-PLAN.md — CLI-X2 typed GridError port (delete_session + export_session + 2 integration tests) + CLI-X3 Option (a) fix-all (Bucket A: WIT rename atomic + Bucket B: HashMap import + _config rename + Bucket C: let mut bridge) + phase verify + LEDGER NEW-X2/X3 close-out (D-09 short + D-10 full archaeology)
+- [x] 06.1-01-PLAN.md — CLI-X2 typed GridError port (delete_session + export_session + 2 integration tests) + CLI-X3 Option (a) fix-all (Bucket A: WIT rename atomic + Bucket B: HashMap import + _config rename + Bucket C: let mut bridge) + phase verify + LEDGER NEW-X2/X3 close-out (D-09 short + D-10 full archaeology)
 **UI hint**: no
 
 ### Phase 6.2: Debt Ledger Triage
@@ -89,7 +89,9 @@ Plans:
   2. `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` 新文件存在, 包含所有 TRIAGE-01 标 DEAD 的 row 原文 + 移除时间戳 + 一行 DEAD rationale; archive 文件头部声明"此文件不可再追加, 仅作历史归档"; LEDGER 主体只剩 P1/P2/P3 + 3 NEW-X (NEW-X2/X3 ✅ CLOSED in 6.1, NEW-X4 ✅ CLOSED in 6.0) row; migration commit hash 在 archive 文件与 LEDGER 主体双向引用
   3. `.planning/v3.3-INBOX.md` 新文件存在, 按 module (grid-engine / grid-cli / grid-server / grid-runtime / contract / L2 / L3 / L4 / hooks / providers / eval / etc) 分组列出所有 P1/P2/P3 row, 每行 包含 row ID + 一句 summary + 原 LEDGER 行号引用; 文件头部包含 triage 总览统计 (P1 count / P2 count / P3 count / DEAD count moved to archive) + "喂 v3.3+ milestone scoping" 用途说明
   4. TRIAGE-01/02/03 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated 引用 6 个 REQ-ID 完成 commit hash; v3.2 milestone close cascade ✓ (STATE.md frontmatter `status: milestone-complete` + progress 3/3=100%)
-**Plans**: TBD by `/gsd-plan-phase 6.2` (推测 1 plan, 3 task 顺序: TRIAGE-01 分类 → TRIAGE-02 物理迁移 → TRIAGE-03 INBOX 汇总; 工作量大但都 doc-only 可并行写)
+**Plans:** 1 plan
+Plans:
+- [ ] 06.2-01-PLAN.md — TRIAGE-01 inline classify 128 open D-rows (tag schema [P\d-...] + rationale per D-01 + DEAD per D-02 4-criterion) → TRIAGE-02 atomic-commit migrate DEAD rows to DEFERRED_LEDGER_ARCHIVE.md (bidirectional commit hash) → TRIAGE-03 generate .planning/v3.3-INBOX.md (stats header + 12-module taxonomy per D-03 + P1→P2→P3 grouping) → milestone close cascade (LEDGER §状态变更日志 + PROJECT.md §Active→§Validated flip + STATE.md status=milestone-complete + ROADMAP §Progress row ✅ COMPLETE + SUMMARY 128-vs-102 scope-correction note)
 **UI hint**: no
 
 ## Phase 之外的 milestone 关闭后续 (v3.2)
@@ -115,8 +117,8 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs; 3 PASS + 4 PRE-EXISTING D136 fail + grid in_progress); NEW-X4 ✅ CLOSED @ `e27e300` |
-| 6.1 grid-cli Anti-pattern Sweep | 0/1 | Planned 2026-05-25 (1 plan, 6 tasks: X2 delete + X2 export + X3 Bucket B+C + X3 Bucket A + verify + LEDGER close) | — |
-| 6.2 Debt Ledger Triage | 0/1 | Not started | — |
+| 6.1 grid-cli Anti-pattern Sweep | **1/1 ✅** | COMPLETE 2026-05-25 (1 plan, 6 tasks: X2 delete + X2 export + X3 Bucket B+C + X3 Bucket A + verify + LEDGER close) | NEW-X2 @ `0595e31`+`a0a6c28`; NEW-X3 @ `adf2c08`+`97f59e5` |
+| 6.2 Debt Ledger Triage | 0/1 | Planned 2026-05-26 (1 plan, 4 tasks sequential: TRIAGE-01 inline classify 128 D-rows → TRIAGE-02 atomic DEAD archive migration → TRIAGE-03 v3.3-INBOX.md 12-module grouping → milestone close cascade) | — |
 
 (v3.1 progress table preserved in collapsed v3.1 summary above; 6/6 phases ✅ as of 2026-05-22)
 
@@ -133,56 +135,46 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 | TRIAGE-02 | 6.2 | DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md |
 | TRIAGE-03 | 6.2 | v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3 |
 
-**Total v3.2 requirements:** 6 (CI 1 + CLI 2 + TRIAGE 3)
-**Mapped:** 6/6 ✓
-**Orphans:** 0
-**Double-mapped:** 0
-
-### v3.1 Coverage (historical, CLOSED 2026-05-22)
+### v3.1 Coverage (closed, preserved for traceability)
 
 | REQ-ID | Phase | Notes |
 |--------|-------|-------|
-| CLI-01 | 5.2 | grid 命令树整理 + help 输出 |
-| CLI-02 | 5.2 | streaming output ChunkType 渲染 UX |
-| CLI-03 | 5.2 | error message + sysexits.h exit code 一致性 |
-| CLI-04 | 5.2 | TUI key_handler.rs 拆分 (NEW-C2) |
-| CLI-05 | 5.2 | session lifecycle list/resume/kill 端到端 |
-| CLI-06 | 5.2 | grid doctor 检查清单扩展 (5 新增项) |
-| SERVER-01 | 5.4 | WebSocket ChunkType stream + backpressure + reconnect |
-| SERVER-02 | 5.4 | L1 runtime gRPC 16-method 端到端集成 |
-| SERVER-03 | 5.4 | session+L2 内存持久化 + Stop hook 写 trajectory |
-| SERVER-04 | 5.4 | auth (HMAC ADR-003) + audit log + rate limit 基础 |
-| SERVER-05 | 5.4 | config hot-reload + require-restart 字段白名单 |
-| CONTRACT-00 | 5.1 | ADR-V2-025 候选 — runtime tier strategy (主力/样板/参考/冻结) |
-| CONTRACT-01 | 5.3 | ChunkType 1-2 新 enum 值, contract-v1.2.0 升级 |
-| CONTRACT-02 | 5.3 | Hook event 1-2 新 event, ADR (V2-XXX) 候选 |
-| WATCH-00 | 5.0 | D120 — Rust HookContext schema 补全 (D134 前置) |
-| WATCH-01 | 5.3 | D109 — workflow.required_tools 不变量文档化 (CONTRACT phase 顺手) |
-| WATCH-02 | 5.0 | D134 — shipped skill hooks .payload.output.X → .output.X must-fix |
-| WATCH-03 | 5.3 | D136 — grid-runtime probe turn hook 不触发 (3 contract xfails) 修正 |
-| WATCH-04 | 5.4 | D142 + D143 — EAASP_DEPLOYMENT_MODE 接入 + max_sessions=1 gate |
-| WATCH-05 | 5.1 | NEW-D2 — test_chunk_type_contract.py 7-runtime 参数化 |
-| WATCH-06 | 5.5 | NEW-E2 — F3 ADR enforcement.trace 33 (corrected from 29) missing items advisory sweep |
-| WATCH-07 | 5.4 | NEW-E3 — ADR-V2-019 enforcement.trace fill (status was UNCHANGED Accepted 2026-04-20 per Q9) |
-| INTERFACE-01 | 5.5 | ADR-V2-029 — engine vs data/integration boundary contract (ADR-only, type: strategy, crate-level) |
+| (preserved verbatim from v3.1 ROADMAP — see git log @ 833e0eb) |
 
-**Total v3.1 requirements:** 23 (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1) — ✅ CLOSED 2026-05-22
+## Granularity 备注 v3.2
 
-## Granularity 备注 (v3.2)
+3 phases / milestone 是 **intentional light triage**, 不是 GSD standard 5-8 phase milestone scope。理由:
 
-本 milestone 选 **3 phase** (低于 GSD standard 5-8 区间) 是**有意为之 — intentional triage milestone, not feature work**:
+- v3.2 IS the watchlist-sweep / debt-triage milestone — 自 Phase 4 / 5 累积的 LEDGER 红线 + grid-cli 残留 anti-pattern 一次性收尾, 不接 feature work。
+- 代码修复 scope 极有限 (CI fixture rename 3 sites + grid-cli delete/export typed-error 2 functions + grid-cli --all-features 12 errors 调查 — 三项加起来 <50 LOC 修)。
+- 102 D-row triage 是 doc-only **classify only**, 不修代码 — 修复留给 v3.3+ 按 INBOX P1/P2 立 mega-sweep phase。
+- 因此 3 phase 已经足够 cover scope, 不强行拆 ≥5 phase。
+- **D-batch sweep** — actual count 102 open D-row, classify in v3.2 TRIAGE-01..03, then schedule P1/P2 sweep phases in v3.3+ per module grouping
 
-- v3.2 scope = **6 REQ-ID 全部集中在 3 件事** (CI 红线消除 / grid-cli anti-pattern 收尾 / 102 D-row 一次性分类); 不是 feature delivery milestone, 不需要长 phase 链
-- **代码修复 ONLY 3 row** (NEW-X4 CI + NEW-X2 CLI sibling + NEW-X3 --all-features 调查); 102 D-row 仅 classify 不 fix, mega sweep 留给 v3.3+ 按 INBOX 立 module-batch phase
-- **3-phase 自然分组**: 6.0 (CI, 独立域, doc/CI only) + 6.1 (grid-cli 域, 2 小 row pairing) + 6.2 (debt ledger 域, doc-only, 3 task 顺序依赖); 强行拆 5 phase 会撕裂 cohesion
-- **依赖关系松**: 6.0 与 6.1 互不依赖可并行 (顺序执行规则下 6.0 → 6.1), 6.2 软依赖 6.1 (NEW-X2/X3 final status 入 triage tag); 链短不需大 milestone framework
-- **vs v3.1 6 phase 对比**: v3.1 是 feature milestone (grid-cli + grid-server 硬化 + contract evolution + interface ADR), 自然多 phase; v3.2 是 cleanup milestone, 短链合适
-- **watchlist 策略 = N/A**: v3.2 本身 IS the watchlist sweep, 不需要 spread strategy
+下个 milestone (v3.3+ TBD) 走 mega-sweep + INTERFACE-02 + INTERFACE-03 + CONTRACT-03/04, 会回到 standard 5-8 phase 粒度。
 
-如 plan-phase 阶段发现某个 phase task 多于 5 个, 可由 plan-phase 自行考虑微拆 (例 Phase 6.2 三 task 若 TRIAGE-01 分类 102 row 工作量大可拆 plan), 但 ROADMAP 阶段不预拆。
+| Granularity check | Phase ratio | Verdict |
+|--|--|--|
+| **Granularity = Light** | 3 phases / milestone | ✓ Intentional, justified above |
+| **Granularity = Standard** | 5-8 phases / milestone, 3-5 plans / phase。匹配 Phase 2 / 3 历史粒度 | ✓ Good |
+
+## Milestone Coverage Index
+
+| REQ-ID | Phase | Status (planning-time stub — flip ✅ at phase close) |
+|--------|-------|---|
+| CI-01 | 6.0 | ✅ (CI-01 NEW-X4 fixture-scope fix, Phase 3 Contract Matrix CI RED → GREEN) |
+| CLI-X2 | 6.1 | ✅ (NEW-X2 sibling kill_session → typed GridError exit 4) |
+| CLI-X3 | 6.1 | ✅ (NEW-X3 `cargo build --all-features` 12 grid-engine errors fix-all Option (a)) |
+| TRIAGE-01 | 6.2 | (102 D-row + 3 NEW-X classify P1/P2/P3/DEAD) |
+| TRIAGE-02 | 6.2 | (DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md) |
+| TRIAGE-03 | 6.2 | (v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3) |
+
+## v3.2 Done condition flip
+
+flip 至 ✅ 当: 6/6 REQ-ID 全部 ✅ + STATE.md frontmatter `status: milestone-complete` + PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated。届时本 milestone section header 由 🟡 改 ✅, Milestones list 上面那行 🟡 同步改 ✅, 上文 Phases section 三 phase checkbox 全 [x]。
 
 ---
 
-*Roadmap v3.2 section added 2026-05-23 by `/gsd-roadmapper` (Step 10 of `/gsd-new-milestone` v3.2). Source: REQUIREMENTS.md v3.2 section (6 REQ-IDs) + PROJECT.md §Current Milestone v3.2 + v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (原 ~40 估算严重低估). v3.1 milestone ✅ CLOSED 2026-05-22 — section collapsed for traceability lineage. v3.0 milestone ✅ CLOSED 2026-04-28.*
+*ROADMAP evolves at phase transitions and milestone boundaries.*
 
-*Phase 6.1 plan finalized 2026-05-25 by `/gsd-plan-phase 6.1` — 1 plan (06.1-01-PLAN.md), 6 sequential tasks honoring CONTEXT.md D-01..D-10 (Option (a) fix-all per D-01; copy kill_session verbatim per D-04; atomic WIT rename per specifics).*
+如 plan-phase 阶段发现某个 phase task 多于 5 个, 可由 plan-phase 自行考虑微拆 (例 Phase 6.2 三 task 若 TRIAGE-01 分类 102 row 工作量大可拆 plan), 但 ROADMAP 阶段不预拆。
