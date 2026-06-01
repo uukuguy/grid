@@ -733,6 +733,20 @@ fn find_head_boundary(messages: &[ChatMessage]) -> usize {
 /// Walk backwards over `messages` accumulating estimated tokens until the
 /// running total reaches `tail_budget_tokens`. Returns the start index of
 /// the protected tail window. Returns `messages.len()` when the budget is 0.
+///
+/// # Complexity (ENGINE-05 / D103 measured baseline 2026-06-01)
+///
+/// O(sum of message sizes), NOT true O(N²) as the original LEDGER row
+/// L233 conservatively flagged. Per-message work is
+/// `ContextBudgetManager::estimate_messages_tokens` on a single-element
+/// slice (linear in the content size of that one message). The loop
+/// runs at most `messages.len()` iterations, so the total is the sum
+/// of all content bytes touched — bounded by `tail_budget_tokens` once
+/// the running total crosses the budget. Regression canary lives at
+/// `crates/grid-engine/tests/find_tail_boundary_perf.rs` (200-turn ×
+/// 200k tail wall-clock under 50ms). If a real O(N²) hot path emerges
+/// (e.g. someone replaces the single-slice estimator with one that
+/// re-walks the full message list per call), this test trips first.
 fn find_tail_boundary(messages: &[ChatMessage], tail_budget_tokens: u64) -> usize {
     if tail_budget_tokens == 0 || messages.is_empty() {
         return messages.len();
@@ -753,6 +767,18 @@ fn find_tail_boundary(messages: &[ChatMessage], tail_budget_tokens: u64) -> usiz
         idx = next;
     }
     idx
+}
+
+/// Test-only re-export of `find_tail_boundary` for the ENGINE-05 perf
+/// regression canary. Keep `#[doc(hidden)]` so it does not appear in
+/// the public API surface but is reachable from `crates/grid-engine/
+/// tests/` (which only see `pub` items).
+#[doc(hidden)]
+pub fn find_tail_boundary_for_tests(
+    messages: &[ChatMessage],
+    tail_budget_tokens: u64,
+) -> usize {
+    find_tail_boundary(messages, tail_budget_tokens)
 }
 
 // ---------------------------------------------------------------------------

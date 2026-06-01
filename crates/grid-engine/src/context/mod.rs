@@ -21,6 +21,8 @@ pub use compaction_pipeline::{
     CompactionContext, CompactionPipeline, CompactionPipelineConfig, CompactionResult,
     CompactionTrigger, SNIP_MARKER,
 };
+#[doc(hidden)]
+pub use compaction_pipeline::find_tail_boundary_for_tests;
 pub use flush::MemoryFlusher;
 pub use fork::ContextFork;
 pub use manager::{ContextBudgetSnapshot, ContextManager, EstimateCounter, TokenCounter};
