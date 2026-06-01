@@ -137,7 +137,6 @@
 
 | ID | 标题 | 状态 | 备注 |
 |----|------|------|------|
-| **D27** | L4 session_orchestrator `Initialize`/`Send` 占位 | [DEAD-archived] 🔄 superseded by D54 rationale: Row reads '🔄 superseded by D54'; D54 closed Phase 0.5 S1 per ADR-V2-004; DEAD-(c) ADR-superseded | ADR-V2-004 精化 |
 | **D28** | L4 无全局 exception handler (D22 复现) | [P3-async-when-touched] 🧹 tech-debt rationale: L4 global exception handler (D22 duplicate); touch when L4 next refactors | 与 D22 合并 |
 | **D29** | L4 `/v1/sessions/{id}/*` path param 未校验 | [P3-async-when-touched] 🧹 tech-debt rationale: L4 path-param validation; touch when L4 next refactors | 与 D18 合并 |
 | **D30** | L2/L3 `busy_timeout=5000` 未统一 | [P3-async-when-touched] 🧹 tech-debt rationale: L2/L3 busy_timeout unification; touch when eaasp_common.connect() refactors | `eaasp_common.connect()` |
@@ -145,12 +144,10 @@
 | **D32** | L4 无并发 `create_session` 压力测试 | [P3-async-when-touched] 📦 long-term rationale: L4 concurrent create_session load test; ops-side, deferred | 运维侧 load test |
 | **D33** | L4 SESSION_CREATED 事件 payload 重复存储 | [P3-async-when-touched] 🧹 tech-debt rationale: L4 SESSION_CREATED reference-mode rewrite; touch when L4 event payload next refactors | 改引用式 |
 | **D34** | L4 无 Intent → skill_id NLU 解析 | [P2-next-milestone] 🔴 phase3-gated rationale: Phase 3 NLU intent→skill_id; batch with phase3-gated L4 mega-sweep | Phase 3+ NLU 或 L5 portal |
-| **D35** | L4 无 WebSocket / SSE event streaming | [DEAD-archived] 🔥 P0-active rationale: Row reads '🔥 P0-active' but body says '合并到 D84 S4.T2'; D84 closed Phase 0.5 S4.T2 @ `bd55bc4`; DEAD-(c) ADR-superseded via D84 merge | **合并到 D84 S4.T2** |
 | **D36** | L4 event window 无 cursor (>10k 事件触发) | [P3-async-when-touched] 📦 long-term rationale: L4 event window cursor; ops-side scale concern, deferred to Phase 3+ | Phase 3+ |
 | **D37** | L4 `context_assembly` 硬编码 `allow_trim_p4=False` | [P3-async-when-touched] 🤔 revisit-after-S2 rationale: L4 allow_trim_p4 hardcode; chained to D3 decision, touch together | 与 D3 关联 |
 | **D38** | L4 `L2Client.search_memory` 未传 `user_id` | [P2-next-milestone] 🔴 phase3-gated rationale: L4 search_memory user_id propagation; pairs with D8/D9/D46 in RBAC batch | 跨租户隔离，Phase 3 RBAC |
 | **D39** | L4 `PolicyContext.policy_version` 用 `str(int)` 而非哈希 | [P3-async-when-touched] 🧹 tech-debt rationale: L4 PolicyContext.policy_version hashing; touch when evidence-chain refactor lands | evidence chain 时顺带 |
-| **D40** | L4 `sessions.status` 三态机未实现 | [DEAD-archived] 🔄 superseded by D54 rationale: Row reads '🔄 superseded by D54'; D54 closed Phase 0.5 S1 per ADR-V2-004; DEAD-(c) ADR-superseded | — |
 | **D41** | eaasp-cli-v2 `session list` 无后端 endpoint | [P2-next-milestone] 🔴 phase3-gated rationale: eaasp-cli-v2 session list endpoint; batch with phase3-gated tenancy items | 多租户同步 |
 | **D42** | cli-v2 test_client 未覆盖 5xx exit_code=4 | [P3-async-when-touched] 🧹 tech-debt rationale: cli-v2 test_client 5xx exit_code coverage; touch when cli-v2 test suite refactors | 补测 |
 | **D43** | cli-v2 pyproject `respx>=0.21` 未使用 | [P3-async-when-touched] 🧹 tech-debt rationale: cli-v2 unused dep removal; mechanical, touch when next pyproject sweep | 删除 dep |
@@ -187,11 +184,7 @@
 
 | ID | 标题 | 状态 | 备注 |
 |----|------|------|------|
-| **D62** | Per-session tool-sandbox container lifecycle | [DEAD-archived] 🔴 phase3-gated rationale: ADR-V2-024 §1 双轴 model — Sandbox Tiers tier-3 never built and grid-platform dormant under 双轴 framework; DEAD-(d) dormant-by-ADR | Sandbox Tiers 未就绪 |
-| **D63** | Tool-sandbox 通用基础镜像 + OCI artifact | [DEAD-archived] 🔴 phase3-gated rationale: ADR-V2-024 §1 双轴 model — Sandbox Tiers OCI artifact never built; per D62 dormancy; DEAD-(d) dormant-by-ADR | 与 D62 |
-| **D64** | T0/T1 runtime 工具容器化 | [DEAD-archived] 🔴 phase3-gated rationale: ADR-V2-024 §1 双轴 model — T0/T1 runtime containerization never built; per D62 dormancy; DEAD-(d) dormant-by-ADR | 与 D62 |
 | **D65** | MCP server 多实例 / 连接池 | [P3-async-when-touched] 🧹 tech-debt rationale: MCP server multi-instance/pool; touch when next L2/L3 MCP scale work lands | Phase 2 S2 或 Phase 3 顺带 |
-| **D66** | hermes 内置工具与 MCP monkey-patch | [DEAD-archived] ⏸️ frozen rationale: ADR-V2-017 §hermes 冻结决策 'lang/hermes-runtime-python/ 立即冻结, 不再投入修复 D88 / fork 崩溃' — hermes Frozen, replaced by goose + nanobot; DEAD-(c) ADR-superseded | ADR-V2-017 hermes 冻结 → goose 替代 |
 
 ### D67–D72: 保留未用
 
@@ -223,7 +216,6 @@
 | **D85** | `STOP` event `response_text` 空 | ✅ closed 2026-04-14 | S1.T5 @ `bdc5b8b`+`d0e6cb0` |
 | **D86** | claude-code-runtime SDK wrapper 丢 `ToolResultBlock` | ✅ closed 2026-04-14 | S1.T3 @ `d0e6cb0` |
 | **D87** 🚨 | grid-engine agent loop 多步工作流过早终止 | ✅ closed 2026-04-14 | ADR-V2-016 · `bdc4fd5`/`c0f98f9`/`8a738b1` · Multi-model E2E |
-| **D88** 🚨 | hermes-runtime stdio MCP 缺失 | [DEAD-archived] ⏸️ frozen / superseded rationale: ADR-V2-017 §hermes 冻结决策 'lang/hermes-runtime-python/ 立即冻结, 不再投入修复 D88 / fork 崩溃' — D88 explicitly cited as one of the 5 abandoned issues; DEAD-(c) ADR-superseded | ADR-V2-017 → Phase 2.5 goose |
 | **D89** | CLI `session close` 未实现 | ✅ closed 2026-04-15 | S4.T1 @ `28e6b21` |
 | **D90** | `ServerMessage::ToolResult` WS schema 缺 `tool_name` 字段（grid-server + grid-platform） | [P3-async-when-touched] 🟡 P1-defer rationale: ServerMessage WS tool_name field; gated on frontend workbench/platform UI decision (grid-server dormant per ADR-V2-024 §1) | 下游 TS 类型级联改造，衍生自 D83。前置条件：frontend workbench/platform UI 决定是否需要工具名显示。目前 CLI / L4 gRPC 已有 tool_name；仅 WS 端丢失 |
 | **D91** | HNSW 软删 tombstone rebuild 策略 | [P2-next-milestone] 🟡 P1-defer rationale: HNSW tombstone rebuild compaction; pairs with D94/D98/L2 in v3.3+ L2 mega-sweep batch | `mark_deleted` 标签单调累积；达到 N% 删除率后索引膨胀/搜索延迟劣化。需要触发阈值（建议 30%）+ 后台 compaction 任务。衍生自 S2.T1 → **Phase 2.5** |
@@ -381,6 +373,13 @@
 | 2026-04-12 | D27, D40 | active → 🔄 superseded by D54 | ADR-V2-004 精化 |
 | 2026-04-12 | D54 | active → ✅ closed | Phase 0.5 S1 实装 |
 | 2026-04-11 | D7 | active → ✅ closed | Phase 1 Event Engine |
+
+### 2026-05-26 Phase 6.2 Plan 01 (TRIAGE-01/02/03 milestone v3.2 close)
+
+- **TRIAGE-01 ✅ CLOSED 2026-05-26 Phase 6.2 Plan 01 Task 1 @ `9842dda`** — 93 open main-namespace D-row triage classify: tag schema `[P1-actionable-now|P2-next-milestone|P3-async-when-touched|DEAD-archived]` prepended to the emoji-anchored cell (column 3 in 4-col rows, column 4 in 5-col rows) + one-line rationale citing code/ADR (with 5-15 word body excerpt for DEAD-(c)/(d))/commit/phase. Per Phase 6.2 CONTEXT.md D-01 schema + D-02 4-criterion DEAD test. Distribution: P1=0 / P2=15 / P3=70 / DEAD=8 (DEAD-(c)=5 + DEAD-(d)=3 + DEAD-(a)/(b)=0). **Scope methodology correction**: ROADMAP estimated 102; an earlier scout claimed 128 (also wrong — grep-methodology error missing non-literal closures); actual = 93 main-namespace open rows (81 4-col + 12 5-col). REQUIREMENTS.md left unchanged per CONTEXT.md §specifics.
+- **TRIAGE-02 ✅ CLOSED 2026-05-26 Phase 6.2 Plan 01 Task 2 @ `<task2-commit-1>`+`<task2-commit-2>`** — DEAD-archived row physical migration: 8 rows moved verbatim to `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` (closed-text file, 不可再追加 per CONTEXT.md §specifics); main LEDGER stripped of all `[DEAD-archived]` rows (117 → 109 in `## D 编号详细登记`); archive header cites this entry's commit hash and this entry cites archive create commit (bidirectional via 2-commit pattern: placeholder + sed-replace, NOT git --amend). Filled by commit 2 sed-replace: archive create commit = `<task2-commit-1>`.
+- **TRIAGE-03 ✅ CLOSED 2026-05-26 Phase 6.2 Plan 01 Task 3 @ `<task3-commit>`** — `.planning/v3.3-INBOX.md` created: stats header (P1:0 | P2:15 | P3:70 | DEAD-archived:8) + 12-module taxonomy per CONTEXT.md D-03 (grid-engine / grid-cli / grid-server / grid-runtime / contract / L2 / L3 / L4 / hooks / providers / eval / cross-cutting); rows grouped P1→P2→P3 with format `- <RowID>: <summary> (LEDGER L<N>)`. Snapshot superseded once v3.3 ROADMAP created.
+- **Milestone v3.2 CLOSED 2026-05-26** — all 3 phases complete (6.0 ✅ + 6.1 ✅ + 6.2 ✅), all 6 REQ-IDs traced (CI-01 @ `e27e300` + CLI-X2 @ `0595e31`+`a0a6c28` + CLI-X3 @ `adf2c08`+`97f59e5` + TRIAGE-01/02/03 @ `<this-phase-commits>`); PROJECT.md §Active "Phase 6 milestone (v3.2)" flipped to §Validated; STATE.md frontmatter `status: milestone-complete`, `progress.percent: 100`; ROADMAP §Progress table row 6.2 = ✅ COMPLETE.
 
 ---
 
