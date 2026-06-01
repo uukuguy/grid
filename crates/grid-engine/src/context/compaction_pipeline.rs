@@ -7,6 +7,8 @@
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use anyhow::{anyhow, Result};
 use grid_types::skill::SkillDefinition;
 use grid_types::{ChatMessage, CompletionRequest, ContentBlock, MessageRole, SandboxId, SessionId, UserId};
@@ -39,7 +41,8 @@ use crate::agent::harness::is_prompt_too_long;
 /// - `summary_min_tokens`: floor for `max_tokens` of the summarizer call.
 /// - `reactive_only`: when `true`, harness skips the proactive threshold
 ///   check and only runs compaction in response to errors.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CompactionPipelineConfig {
     /// Model to use for the summary LLM call. `None` reuses the session model.
     pub compact_model: Option<String>,
@@ -1023,5 +1026,49 @@ mod tests {
             ContentBlock::Text { text } => assert_eq!(text, "[image]"),
             other => panic!("Expected Text, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn compaction_config_roundtrip_via_yaml() {
+        // ENGINE-01 (D102): proves Serialize + Deserialize derives survive a
+        // full round-trip via the same serde_yaml backend that grid-server's
+        // config loader uses. If a future field is added without a default
+        // or with a non-roundtrippable type, this canary trips immediately.
+        let original = CompactionPipelineConfig::default();
+        let yaml = serde_yaml::to_string(&original).expect("serialize");
+        let decoded: CompactionPipelineConfig =
+            serde_yaml::from_str(&yaml).expect("deserialize");
+        assert_eq!(decoded.compact_model, original.compact_model);
+        assert_eq!(decoded.summary_max_tokens, original.summary_max_tokens);
+        assert_eq!(decoded.keep_recent_messages, original.keep_recent_messages);
+        assert_eq!(decoded.max_ptl_retries, original.max_ptl_retries);
+        assert_eq!(decoded.proactive_threshold_pct, original.proactive_threshold_pct);
+        assert_eq!(decoded.tail_protect_tokens, original.tail_protect_tokens);
+        assert!((decoded.summary_ratio - original.summary_ratio).abs() < 1e-6);
+        assert!((decoded.reactive_summary_ratio - original.reactive_summary_ratio).abs() < 1e-6);
+        assert_eq!(decoded.summary_min_tokens, original.summary_min_tokens);
+        assert_eq!(decoded.reactive_only, original.reactive_only);
+    }
+
+    #[test]
+    fn compaction_config_rejects_unknown_field() {
+        // ENGINE-01 (D102) strict-by-default per ADR-V2-028: a YAML payload
+        // with an unknown key under compaction MUST fail to deserialize,
+        // not silently drop. This guards against typos like `tail_protect_tokenz`
+        // that would otherwise silently fall back to the default.
+        let bad_yaml = "summary_max_tokens: 4000\nbogus_unknown_field: 42\n";
+        let result: std::result::Result<CompactionPipelineConfig, _> =
+            serde_yaml::from_str(bad_yaml);
+        assert!(
+            result.is_err(),
+            "deny_unknown_fields must reject `bogus_unknown_field`, got Ok({:?})",
+            result
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("bogus_unknown_field") || err.contains("unknown field"),
+            "error should mention the offending key, got: {}",
+            err
+        );
     }
 }
