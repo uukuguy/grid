@@ -138,10 +138,15 @@ impl GridHarness {
     /// - [{memory_type}] {content}
     /// ```
     ///
-    /// Returns an empty string when `memory_refs` is empty. Exposed at
-    /// `pub(crate)` so D2 behavior can be covered by unit tests without
-    /// spinning up a full AgentRuntime.
-    pub(crate) fn build_memory_preamble(memory_refs: &[MemoryRef]) -> String {
+    /// Returns an empty string when `memory_refs` is empty.
+    ///
+    /// Public so cross-crate integration tests
+    /// (`crates/grid-runtime/tests/harness_payload_integration.rs`) can
+    /// reuse a single source of truth for the preamble format — D57
+    /// (ENGINE-03) DRY closure. The helper is a pure function with no
+    /// internal-state dependency; promotion to `pub` is a 1-char API
+    /// surface change with no security or invariant implications.
+    pub fn build_memory_preamble(memory_refs: &[MemoryRef]) -> String {
         if memory_refs.is_empty() {
             return String::new();
         }
@@ -150,6 +155,46 @@ impl GridHarness {
             s.push_str(&format!("- [{}] {}\n", m.memory_type, m.content));
         }
         s
+    }
+
+    /// Build the initial `Vec<ChatMessage>` that `initialize()` passes into
+    /// the engine's `start_session_with_tool_filter`. Pulled out so D58
+    /// (ENGINE-04) Send-path integration tests can observe the exact
+    /// content that would land in the executor's initial history.
+    ///
+    /// Two System-role messages may be produced (in order):
+    /// 1. P4 skill prose, when `payload.skill_instructions` carries non-empty
+    ///    content.
+    /// 2. P3 memory preamble (`build_memory_preamble`), when
+    ///    `payload.memory_refs` is non-empty.
+    ///
+    /// Empty input yields an empty Vec.
+    pub fn build_initial_history_for_payload(payload: &SessionPayload) -> Vec<ChatMessage> {
+        let mut initial_history: Vec<ChatMessage> = Vec::new();
+
+        // P4 — inject skill prose as system prompt so agent knows its task.
+        let skill_prose = payload
+            .skill_instructions
+            .as_ref()
+            .map(|s| s.content.clone())
+            .unwrap_or_default();
+        if !skill_prose.is_empty() {
+            initial_history.push(ChatMessage {
+                role: MessageRole::System,
+                content: vec![ContentBlock::Text { text: skill_prose }],
+            });
+        }
+
+        // D2 — P3 memory_refs preamble.
+        if !payload.memory_refs.is_empty() {
+            let preamble = Self::build_memory_preamble(&payload.memory_refs);
+            initial_history.push(ChatMessage {
+                role: MessageRole::System,
+                content: vec![ContentBlock::Text { text: preamble }],
+            });
+        }
+
+        initial_history
     }
 
     /// Parse `mcp:*` dependencies into McpServerConfig list.
@@ -614,29 +659,10 @@ impl RuntimeContract for GridHarness {
         // Build initial_history with System messages:
         // 1. P4 Skill prose (workflow instructions for the agent)
         // 2. P3 Memory refs preamble (prior session context)
-        let mut initial_history: Vec<ChatMessage> = Vec::new();
-
-        // P4 — inject skill prose as system prompt so agent knows its task.
-        let skill_prose = payload
-            .skill_instructions
-            .as_ref()
-            .map(|s| s.content.clone())
-            .unwrap_or_default();
-        if !skill_prose.is_empty() {
-            initial_history.push(ChatMessage {
-                role: MessageRole::System,
-                content: vec![ContentBlock::Text { text: skill_prose }],
-            });
-        }
-
-        // D2 — P3 memory_refs preamble.
-        if !payload.memory_refs.is_empty() {
-            let preamble = Self::build_memory_preamble(&payload.memory_refs);
-            initial_history.push(ChatMessage {
-                role: MessageRole::System,
-                content: vec![ContentBlock::Text { text: preamble }],
-            });
-        }
+        // Extracted as a pure helper so integration tests can observe the
+        // exact messages that would be sent into start_session (D58 /
+        // ENGINE-04 Send-path coverage).
+        let initial_history = Self::build_initial_history_for_payload(&payload);
         let memory_refs_count = payload.memory_refs.len();
 
         // Extract MCP dependencies and scoped hooks from P4 BEFORE start_session.

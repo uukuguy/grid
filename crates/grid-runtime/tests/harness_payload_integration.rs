@@ -155,6 +155,12 @@ async fn initialize_injects_memory_refs_as_system_preamble() {
     let payload = payload_with_policy_and_memories();
     assert_eq!(payload.memory_refs.len(), 2);
 
+    // D58 (ENGINE-04): snapshot the initial history that initialize()
+    // builds from the payload BEFORE the payload is consumed. The same
+    // builder runs inside initialize(), so this is the exact Vec that
+    // gets shipped into start_session_with_tool_filter.
+    let observed_initial = GridHarness::build_initial_history_for_payload(&payload);
+
     let handle = harness
         .initialize(payload)
         .await
@@ -184,10 +190,54 @@ async fn initialize_injects_memory_refs_as_system_preamble() {
             tags: Default::default(),
         },
     ];
-    let preamble = expected_preamble(&refs);
+    let preamble = GridHarness::build_memory_preamble(&refs);
     assert!(preamble.starts_with("## Prior memories from previous sessions\n"));
     assert!(preamble.contains("- [fact] Transformer-001 last calibrated 2026-04-01"));
     assert!(preamble.contains("- [preference] Operator prefers conservative thresholds"));
+
+    // D58 (ENGINE-04): Send-path coverage. The static helper above only
+    // proves the preamble format. To verify the preamble actually lands in
+    // the executor's initial history (the Vec<ChatMessage> shipped into
+    // start_session_with_tool_filter), assert on the snapshot we captured
+    // BEFORE initialize() consumed the payload — initialize() runs the
+    // identical builder internally, so the snapshot is bit-equal to what
+    // the engine received.
+    //
+    // We cannot read session_store().get_messages() here because the
+    // engine only persists history after a real agent turn (UserMessage
+    // -> provider call -> set_messages); driving a real turn would require
+    // a live LLM. The shared-helper observation is the tightest non-LLM
+    // coverage of the Send path.
+    assert!(
+        !observed_initial.is_empty(),
+        "initial history must be non-empty when memory_refs is populated"
+    );
+    let system_texts: Vec<String> = observed_initial
+        .iter()
+        .filter(|m| matches!(m.role, grid_types::MessageRole::System))
+        .flat_map(|m| m.content.iter())
+        .filter_map(|c| match c {
+            grid_types::ContentBlock::Text { text } => Some(text.clone()),
+            _ => None,
+        })
+        .collect();
+    let combined = system_texts.join("\n");
+    assert!(
+        combined.contains("## Prior memories from previous sessions"),
+        "memory preamble must appear in a System-role message; \
+         got system texts: {:?}",
+        system_texts
+    );
+    assert!(
+        combined.contains("- [fact] Transformer-001 last calibrated 2026-04-01"),
+        "preamble must contain the fact entry; combined: {}",
+        combined
+    );
+    assert!(
+        combined.contains("- [preference] Operator prefers conservative thresholds"),
+        "preamble must contain the preference entry; combined: {}",
+        combined
+    );
 
     harness.terminate(&handle).await.ok();
 }
@@ -467,17 +517,3 @@ async fn block_write_scada_hook_allows_non_scada_tools() {
     );
 }
 
-/// Mirrors `GridHarness::build_memory_preamble` for cross-crate assertions.
-/// Kept in sync with the harness implementation; if the format ever
-/// changes, this helper and `build_memory_preamble_formats_entries` in
-/// `harness::tests` must be updated together.
-fn expected_preamble(refs: &[MemoryRef]) -> String {
-    if refs.is_empty() {
-        return String::new();
-    }
-    let mut s = String::from("## Prior memories from previous sessions\n\n");
-    for m in refs {
-        s.push_str(&format!("- [{}] {}\n", m.memory_type, m.content));
-    }
-    s
-}
