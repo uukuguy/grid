@@ -520,6 +520,25 @@ async fn run_agent_loop_inner(
 
     // === Main loop ===
     for round in 0..max_rounds {
+        // -----------------------------------------------------------------
+        // ENGINE-06 (D104) — Per-turn reactive-compaction guard invariant
+        // -----------------------------------------------------------------
+        // ADR-V2-018 §D5 requires that a single agent loop turn trigger
+        // reactive compaction AT MOST ONCE (prevents back-to-back compact
+        // calls when the second 413 fires before the first summary lands).
+        // The guard is a harness-local `bool` rather than a field on
+        // `CompactionPipeline` because — as of 2026-06-01 —
+        // `CompactionPipeline::compact()` has exactly one caller: this
+        // loop. If a second caller (e.g. an external batch compactor, a
+        // CLI `/compact` command path that bypasses the harness, or a
+        // multi-agent coordinator) emerges, promote this guard into the
+        // pipeline itself so the invariant holds across all callers —
+        // see DEFERRED_LEDGER L234 / D104. Until then, keeping the guard
+        // here keeps the invariant local to the call site that actually
+        // exercises it, with no scaffolding cost. No ADR-V2-030 candidate
+        // drafted — see CONTEXT.md D-05 for the explicit "no ADR"
+        // rationale.
+        // -----------------------------------------------------------------
         // ADR-V2-018 §D5: per-turn reactive guard. Set `true` after the loop
         // triggers a reactive compaction; a second 413 in the same turn falls
         // through to retry/fallback rather than re-compacting.
