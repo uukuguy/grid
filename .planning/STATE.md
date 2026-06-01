@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
-status: milestone-complete
-stopped_at: "milestone v3.2 CLOSED 2026-05-26 Phase 6.2 Plan 01 — 3/3 phases ✅; 6/6 REQ-IDs traced (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01/02/03); LEDGER 93 main-NS open D-rows triaged + DEFERRED_LEDGER_ARCHIVE.md created + v3.3-INBOX.md ready for next milestone scoping; PROJECT.md §Active → §Validated; ready for /gsd-new-milestone (v3.3 TBD)"
-last_updated: "2026-06-01T02:00:00.000Z"
-last_activity: 2026-05-26 -- Phase 6.2 Plan 01 COMPLETE — milestone v3.2 CLOSED (3/3 phases, 6/6 REQ-IDs, 93 main-NS triage + archive + INBOX)
+status: **Milestone v3.2 CLOSED 2026-05-26** — Ready for /gsd-new-milestone or pause
+stopped_at: Session resumed 2026-06-01 — Phase 6.2 CONTEXT + PLAN ready, user elected to proceed to execute-phase. Routing to `/gsd-execute-phase 6.2`.
+last_updated: "2026-06-01T03:05:19.499Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 3
   completed_phases: 3
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 ## Current Position
 
-Phase: 6.2 (Debt Ledger Triage) — **COMPLETE 2026-05-26**
-Plan: 1 of 1 ✅
+Phase: 06.2
+Plan: Not started
 Status: **Milestone v3.2 CLOSED 2026-05-26** — Ready for /gsd-new-milestone or pause
-Last activity: 2026-05-26 -- Phase 6.2 Plan 01 COMPLETE — TRIAGE-01/02/03 closed; 93 main-NS triage + archive + INBOX delivered
+Last activity: 2026-06-01
 
 Progress: [██████████] 100% (3/3 phases complete; Phase 6.0 ✅ + 6.1 ✅ + 6.2 ✅)
 

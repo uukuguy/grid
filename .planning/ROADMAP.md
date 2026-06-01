@@ -91,7 +91,7 @@ Plans:
   4. TRIAGE-01/02/03 在 DEFERRED_LEDGER 标 ✅ CLOSED 并附 commit hash; PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated 引用 6 个 REQ-ID 完成 commit hash; v3.2 milestone close cascade ✓ (STATE.md frontmatter `status: milestone-complete` + progress 3/3=100%)
 **Plans:** 1 plan
 Plans:
-- [ ] 06.2-01-PLAN.md — TRIAGE-01 inline classify 128 open D-rows (tag schema [P\d-...] + rationale per D-01 + DEAD per D-02 4-criterion) → TRIAGE-02 atomic-commit migrate DEAD rows to DEFERRED_LEDGER_ARCHIVE.md (bidirectional commit hash) → TRIAGE-03 generate .planning/v3.3-INBOX.md (stats header + 12-module taxonomy per D-03 + P1→P2→P3 grouping) → milestone close cascade (LEDGER §状态变更日志 + PROJECT.md §Active→§Validated flip + STATE.md status=milestone-complete + ROADMAP §Progress row ✅ COMPLETE + SUMMARY 128-vs-102 scope-correction note)
+- [x] 06.2-01-PLAN.md — TRIAGE-01 inline classify 128 open D-rows (tag schema [P\d-...] + rationale per D-01 + DEAD per D-02 4-criterion) → TRIAGE-02 atomic-commit migrate DEAD rows to DEFERRED_LEDGER_ARCHIVE.md (bidirectional commit hash) → TRIAGE-03 generate .planning/v3.3-INBOX.md (stats header + 12-module taxonomy per D-03 + P1→P2→P3 grouping) → milestone close cascade (LEDGER §状态变更日志 + PROJECT.md §Active→§Validated flip + STATE.md status=milestone-complete + ROADMAP §Progress row ✅ COMPLETE + SUMMARY 128-vs-102 scope-correction note)
 **UI hint**: no
 
 ## Phase 之外的 milestone 关闭后续 (v3.2)
