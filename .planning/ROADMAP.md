@@ -9,7 +9,7 @@
 
 - ✅ **v3.0 Phase 4 — Product Scope Decision** — Phases 4.0/4.1/4.2 (shipped 2026-04-28, ADR-V2-024 Accepted)
 - ✅ **v3.1 Phase 5 — Engine Hardening (grid-cli + grid-server)** — SHIPPED 2026-05-22 (Phases 5.0/5.1/5.2/5.3/5.4/5.5 all complete, 23/23 REQ-IDs, 6 ADRs Accepted V2-025/026/027/028/029/032)
-- 🟡 **v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance** — STARTED 2026-05-23 (Phases 6.0/6.1/6.2 planned)
+- ✅ **v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance** — SHIPPED 2026-05-26 (Phases 6.0/6.1/6.2 all complete, 6/6 REQ-IDs ✅)
 
 ## Phases
 
@@ -46,7 +46,7 @@
 
 - [x] **Phase 6.0: CI Red Clearance** — NEW-X4 `test_chunk_type_contract.py` fixture-scope mismatch 修, Phase 3 Contract Matrix workflow 由 RED 转 GREEN (≥4/7 jobs PASS)
 - [x] **Phase 6.1: grid-cli Anti-pattern Sweep** — NEW-X2 sibling kill_session anti-pattern (delete_session + export_session) + NEW-X3 `cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter
-- [ ] **Phase 6.2: Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 一次性 triage 分类 (P1/P2/P3/DEAD) + DEAD 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md + `.planning/v3.3-INBOX.md` 按 module 分组喂下轮
+- [x] **Phase 6.2: Debt Ledger Triage** — 93 open main-namespace D-row 一次性 triage 分类 (P1=0 / P2=15 / P3=70 / DEAD=8) + 8 DEAD 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md + `.planning/v3.3-INBOX.md` 按 module 分组喂下轮 (scope methodology correction: 93 actual vs ROADMAP 102 est. vs scout 128 grep-error)
 
 ## Phase Details
 
@@ -118,7 +118,7 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 |-------|----------------|--------|-----------|
 | 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs; 3 PASS + 4 PRE-EXISTING D136 fail + grid in_progress); NEW-X4 ✅ CLOSED @ `e27e300` |
 | 6.1 grid-cli Anti-pattern Sweep | **1/1 ✅** | COMPLETE 2026-05-25 (1 plan, 6 tasks: X2 delete + X2 export + X3 Bucket B+C + X3 Bucket A + verify + LEDGER close) | NEW-X2 @ `0595e31`+`a0a6c28`; NEW-X3 @ `adf2c08`+`97f59e5` |
-| 6.2 Debt Ledger Triage | 0/1 | Planned 2026-05-26 (1 plan, 4 tasks sequential: TRIAGE-01 inline classify 128 D-rows → TRIAGE-02 atomic DEAD archive migration → TRIAGE-03 v3.3-INBOX.md 12-module grouping → milestone close cascade) | — |
+| 6.2 Debt Ledger Triage | **1/1 ✅** | COMPLETE 2026-05-26 (1 plan, 5 commits: TRIAGE-01 @ `9842dda` + TRIAGE-02 @ `e2a6349`+`835de4e`+`0f600b6` + TRIAGE-03 @ `24ee8ed`) | 4/4 SC PASS; TRIAGE-01 93 main-NS open D-rows tagged (P1=0 / P2=15 / P3=70 / DEAD=8) — scope methodology correction (ROADMAP est. 102; scout claim 128 was grep error; actual 93 = 81 4-col + 12 5-col); TRIAGE-02 8 DEAD rows migrated to `docs/design/EAASP/DEFERRED_LEDGER_ARCHIVE.md` via 2-commit sed-replace bidirectional hash pattern; TRIAGE-03 `.planning/v3.3-INBOX.md` 12-module grouping (9 populated, 3 elided) ready for v3.3 scoping; milestone v3.2 CLOSED |
 
 (v3.1 progress table preserved in collapsed v3.1 summary above; 6/6 phases ✅ as of 2026-05-22)
 
@@ -165,13 +165,13 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 | CI-01 | 6.0 | ✅ (CI-01 NEW-X4 fixture-scope fix, Phase 3 Contract Matrix CI RED → GREEN) |
 | CLI-X2 | 6.1 | ✅ (NEW-X2 sibling kill_session → typed GridError exit 4) |
 | CLI-X3 | 6.1 | ✅ (NEW-X3 `cargo build --all-features` 12 grid-engine errors fix-all Option (a)) |
-| TRIAGE-01 | 6.2 | (102 D-row + 3 NEW-X classify P1/P2/P3/DEAD) |
-| TRIAGE-02 | 6.2 | (DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md) |
-| TRIAGE-03 | 6.2 | (v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3) |
+| TRIAGE-01 | 6.2 | ✅ (93 main-NS open D-row classify P1=0 / P2=15 / P3=70 / DEAD=8 @ `9842dda`) |
+| TRIAGE-02 | 6.2 | ✅ (8 DEAD rows 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md via 2-commit sed-replace bidirectional hash @ `e2a6349`+`835de4e`+`0f600b6`) |
+| TRIAGE-03 | 6.2 | ✅ (`.planning/v3.3-INBOX.md` 12-module grouping 9 populated + 3 elided @ `24ee8ed`) |
 
 ## v3.2 Done condition flip
 
-flip 至 ✅ 当: 6/6 REQ-ID 全部 ✅ + STATE.md frontmatter `status: milestone-complete` + PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated。届时本 milestone section header 由 🟡 改 ✅, Milestones list 上面那行 🟡 同步改 ✅, 上文 Phases section 三 phase checkbox 全 [x]。
+**FLIPPED ✅ 2026-05-26 Phase 6.2 Plan 01 Task 4** — 6/6 REQ-ID 全 ✅ + STATE.md frontmatter `status: milestone-complete` + PROJECT.md §Active "Phase 6 milestone (v3.2)" 行 flip 入 §Validated 完成。Milestone section header 已由 🟡 改 ✅, Milestones list 同步改 ✅, Phases section 三 phase checkbox 全 [x]。
 
 ---
 

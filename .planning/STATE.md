@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.2
-milestone_name: Tech-Debt Triage & CI Red Line Clearance
-status: executing
-stopped_at: Phase 6.2 context gathered — D-01 tag prepend to col 3 keep emoji; D-02 4 DEAD criteria (octo/deleted/ADR-superseded/dormant-by-ADR with ADR-section cite); D-03 12 modules (11 ROADMAP + cross-cutting), hybrid placed in PRIMARY by file path; D-04 4 tasks (TRIAGE-01 classify 128 → 02 archive DEAD → 03 INBOX → 04 milestone close cascade); scope reality 128 not 102 D-rows
-last_updated: "2026-05-26T01:16:02.582Z"
-last_activity: 2026-05-26 -- Phase 6.2 planning complete
+milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
+status: milestone-complete
+stopped_at: "milestone v3.2 CLOSED 2026-05-26 Phase 6.2 Plan 01 — 3/3 phases ✅; 6/6 REQ-IDs traced (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01/02/03); LEDGER 93 main-NS open D-rows triaged + DEFERRED_LEDGER_ARCHIVE.md created + v3.3-INBOX.md ready for next milestone scoping; PROJECT.md §Active → §Validated; ready for /gsd-new-milestone (v3.3 TBD)"
+last_updated: "2026-06-01T02:00:00.000Z"
+last_activity: 2026-05-26 -- Phase 6.2 Plan 01 COMPLETE — milestone v3.2 CLOSED (3/3 phases, 6/6 REQ-IDs, 93 main-NS triage + archive + INBOX)
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 6.2 — Debt Ledger Triage
+**Current focus:** Milestone v3.2 CLOSED — awaiting /gsd-new-milestone (v3.3 TBD)
 
 ## Current Position
 
-Phase: 6.1 (grid-cli Anti-pattern Sweep) — **COMPLETE 2026-05-25**
+Phase: 6.2 (Debt Ledger Triage) — **COMPLETE 2026-05-26**
 Plan: 1 of 1 ✅
-Status: Ready to execute
-Last activity: 2026-05-26 -- Phase 6.2 planning complete
+Status: **Milestone v3.2 CLOSED 2026-05-26** — Ready for /gsd-new-milestone or pause
+Last activity: 2026-05-26 -- Phase 6.2 Plan 01 COMPLETE — TRIAGE-01/02/03 closed; 93 main-NS triage + archive + INBOX delivered
 
-Progress: [██████░░░░] 67% (2/3 phases complete; Phase 6.0 ✅ + 6.1 ✅ → 6.2 next)
+Progress: [██████████] 100% (3/3 phases complete; Phase 6.0 ✅ + 6.1 ✅ + 6.2 ✅)
 
 **Phase-to-REQ mapping (v3.2)**:
 
@@ -69,12 +69,12 @@ Progress: [██████░░░░] 67% (2/3 phases complete; Phase 6.0 �
 |-------|-------|--------|-------|
 | 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs); NEW-X4 ✅ CLOSED @ `e27e300` + CI run 26356947711; parametrize-layer rename at 3 sites |
 | 6.1 grid-cli Anti-pattern Sweep | **1/1 ✅** | COMPLETE 2026-05-25 (1 plan, 6 commits) | 4/4 SC PASS, all D-01..D-10 honored; `cargo build -p grid-cli --all-features` exit 0 (was 11 errors); 578 tests pass under --features studio; 3 exit-4 tests (kill+delete+export); WIT renamed atomically (`octo-hook.wit`→`grid-hook.wit` 96% similarity); NEW-X2 ✅ CLOSED @ `0595e31`+`a0a6c28` + NEW-X3 ✅ CLOSED @ `adf2c08`+`97f59e5` with full Phase BA archaeology; 3 non-blocking deviations documented |
-| 6.2 Debt Ledger Triage | 0/1 | Not started | NEW-X2/X3 now CLOSED with final commit hashes — ready for triage tag assignment in 102 D-row classify + DEAD archive + INBOX |
+| 6.2 Debt Ledger Triage | **1/1 ✅** | COMPLETE 2026-05-26 (1 plan, 5 commits: TRIAGE-01 @ `9842dda` + TRIAGE-02 @ `e2a6349`+`835de4e`+`0f600b6` + TRIAGE-03 @ `24ee8ed`) | 4/4 SC PASS; 93 main-NS D-rows tagged P1=0 / P2=15 / P3=70 / DEAD=8; DEFERRED_LEDGER_ARCHIVE.md created with 8 DEAD rows + bidirectional commit-hash cross-ref via 2-commit sed-replace pattern (NOT --amend); v3.3-INBOX.md groups 85 P1/P2/P3 rows across 9 of 12 modules (grid-cli/grid-runtime/providers elided); scope methodology correction documented (ROADMAP est. 102 / scout claim 128 / actual 93) |
 
 **Recent Trend:**
 
-- Last 5 plans: [06.1-01 ✅ 2026-05-25, 06.0-01 ✅ 2026-05-24, 05.5-02 ✅ 2026-05-22, 05.5-01 ✅ 2026-05-22, 05.4-02 ✅ 2026-05-21]
-- Trend: milestone v3.1 CLOSED 2026-05-22 — Plan 02 close cascade (4-doc edit + 5-row LEDGER sweep + phase gate) landed cleanly atop Plan 01 deliverables; 6 ADRs Accepted across milestone, 23/23 REQ-IDs traced, 18 D-items closed, F3 baseline 33 → 12 explicit-strategic (beats ≤13 target). v3.2 ROADMAP created 2026-05-23 — 3 phases (6.0/6.1/6.2), 6 REQ-IDs mapped (CI-01 + CLI-X2 + CLI-X3 + TRIAGE-01..03), intentional light triage milestone per Granularity 备注
+- Last 5 plans: [06.2-01 ✅ 2026-05-26, 06.1-01 ✅ 2026-05-25, 06.0-01 ✅ 2026-05-24, 05.5-02 ✅ 2026-05-22, 05.5-01 ✅ 2026-05-22]
+- Trend: milestone v3.2 CLOSED 2026-05-26 — Phase 6.2 Plan 01 close cascade (LEDGER triage 93 main-NS open D-rows + DEFERRED_LEDGER_ARCHIVE.md + v3.3-INBOX.md + PROJECT/STATE/ROADMAP flips) landed atop Phase 6.0/6.1 code fixes. 3/3 phases, 6/6 REQ-IDs, 0 ADRs Accepted (intentional light-triage milestone). v3.2 was a watchlist-sweep / triage milestone, NOT feature work; mega debt sweep deferred to v3.3+ per TRIAGE-03 output. Ready for /gsd-new-milestone (v3.3 TBD).
 
 *Updated after each plan completion*
 
@@ -133,9 +133,9 @@ Items acknowledged and carried forward from previous milestone close (v3.1):
 
 ## Session Continuity
 
-Last session: 2026-05-25T15:31:17.652Z
-Stopped at: Phase 6.2 context gathered — D-01 tag prepend to col 3 keep emoji; D-02 4 DEAD criteria (octo/deleted/ADR-superseded/dormant-by-ADR with ADR-section cite); D-03 12 modules (11 ROADMAP + cross-cutting), hybrid placed in PRIMARY by file path; D-04 4 tasks (TRIAGE-01 classify 128 → 02 archive DEAD → 03 INBOX → 04 milestone close cascade); scope reality 128 not 102 D-rows
-Resume path: **Next action: `/gsd-discuss-phase 6.2`** — Debt Ledger Triage (doc-only phase, 102 D-row classify + DEAD archive + INBOX; closes v3.2 milestone).
+Last session: 2026-06-01T00:00:00.000Z
+Stopped at: Session resumed 2026-06-01 — Phase 6.2 CONTEXT + PLAN ready, user elected to proceed to execute-phase. Routing to `/gsd-execute-phase 6.2`.
+Resume path: **Next action: `/gsd-execute-phase 6.2`** — Debt Ledger Triage (doc-only phase, 93-row D-LEDGER tag + DEAD archive + v3.3-INBOX + cascade close v3.2).
 Local commits ahead of origin: ~37 unpushed commits await user push (per project rule: push decision deferred to user; 6 from Phase 6.1 added this session).
 Worktrees: cleaned (no active worktrees this session — sequential execution).
 
