@@ -1,80 +1,68 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
-status: **Milestone v3.2 CLOSED 2026-05-26** — Ready for /gsd-new-milestone or pause
-stopped_at: Session resumed 2026-06-01 — Phase 6.2 CONTEXT + PLAN ready, user elected to proceed to execute-phase. Routing to `/gsd-execute-phase 6.2`.
-last_updated: "2026-06-01T03:05:19.499Z"
+milestone: v3.3
+milestone_name: Phase 7 — Engine + Platform Debt Sweep (Focused)
+status: **Milestone v3.3 STARTED 2026-06-01** — Defining requirements (PROJECT.md updated, REQUIREMENTS.md + ROADMAP.md pending)
+stopped_at: Session 2026-06-01 — v3.3 scope locked (4 modules, ~30 rows), skip research, continues phase numbering from 6.2 → 7.0. PROJECT.md + STATE.md committed; REQUIREMENTS + ROADMAP next.
+last_updated: "2026-06-01T03:40:00.000Z"
 last_activity: 2026-06-01
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-22 — v3.2 milestone section added)
+See: .planning/PROJECT.md (updated 2026-06-01 — v3.3 Current Milestone section)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Milestone v3.2 CLOSED — awaiting /gsd-new-milestone (v3.3 TBD)
+**Current focus:** Milestone v3.3 — focused debt sweep across grid-engine + contract + L2 + L3 (4 phases, ~30 rows from `.planning/v3.3-INBOX.md`)
 
 ## Current Position
 
-Phase: 06.2
-Plan: Not started
-Status: **Milestone v3.2 CLOSED 2026-05-26** — Ready for /gsd-new-milestone or pause
-Last activity: 2026-06-01
+Phase: Not started (defining requirements)
+Plan: —
+Status: **Defining requirements** (PROJECT.md updated; REQUIREMENTS.md + ROADMAP.md pending)
+Last activity: 2026-06-01 — Milestone v3.3 started
 
-Progress: [██████████] 100% (3/3 phases complete; Phase 6.0 ✅ + 6.1 ✅ + 6.2 ✅)
+Progress: [░░░░░░░░░░] 0% (0/4 phases planned)
 
-**Phase-to-REQ mapping (v3.2)**:
+**Phase-to-REQ mapping (v3.3, planning-time stub — will be filled by /gsd-roadmapper)**:
 
-- Phase 6.0 CI Red Clearance — CI-01 (NEW-X4 fixture-scope fix; Phase 3 Contract Matrix CI RED → GREEN)
-- Phase 6.1 grid-cli Anti-pattern Sweep — CLI-X2 (NEW-X2 sibling) + CLI-X3 (NEW-X3 --all-features)
-- Phase 6.2 Debt Ledger Triage — TRIAGE-01 (105-row classify) + TRIAGE-02 (DEAD archive migration) + TRIAGE-03 (v3.3-INBOX.md)
+- Phase 7.0 grid-engine harness wiring — ENGINE-01 (D102 AgentLoopConfig YAML) + ENGINE-02..ENGINE-NN (S3.T1 cleanup P3)
+- Phase 7.1 contract observability + bridge — CONTRACT-01 (D137 multi-turn observability) + CONTRACT-02 (D138 deny-path mock LLM) + CONTRACT-03..NN (envelope migrations P3)
+- Phase 7.2 L2 connection-pool + Pipeline — L2-01 (D12 connection-per-call) + L2-02 (D94 MemoryStore 单例) + L2-03 (D91 HNSW tombstone) + L2-04 (D93 embed_batch) + L2-05 (D98 HybridIndex 重建) + L2-NN (cross-cutting P3)
+- Phase 7.3 L3 RBAC + hardening — L3-01 (D8 access_scope RBAC) + L3-02 (D9 skill_usage 真实遥测) + L3-03 (D46 namespace 校验) + L3-NN (hardening P3)
 
-**Previous milestone closure**: v3.1 Phase 5 — Engine Hardening ✅ SHIPPED 2026-05-22 — 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5), 23/23 REQ-IDs ✅, 6 ADRs Accepted (V2-025/026/027/028/029/032), 18 D-items closed, F3 baseline 33 → 12 explicit-strategic. 24 commits pushed to origin/main @ `833e0eb`.
+**Previous milestone closure**: v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance ✅ SHIPPED 2026-05-26 — 3/3 phases (6.0/6.1/6.2), 6/6 REQ-IDs ✅ (CI-01/CLI-X2/CLI-X3/TRIAGE-01/02/03), 0 ADRs Accepted (intentional light-triage), 8 DEAD rows archived to DEFERRED_LEDGER_ARCHIVE.md, 85 P2/P3 rows seeded to `.planning/v3.3-INBOX.md`. 8 unpushed commits await user push.
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (historical, through v3.2):**
 
-- Total plans completed (executed): 11 ✅ (4.0 + 4.1 + 4.2 + 5.0 + 5.1 + 5.2 + 5.3-01 + 5.3-02 + 5.4-01 + 5.4-02 + 5.5-01 + 5.5-02 across v3.0+v3.1)
-- Total plans planned (ready to execute): 0 (v3.2 plans TBD by /gsd-plan-phase per phase)
-- Average duration: ~75 min (Phase 4.0 ~25 min mechanical + Phase 4.1 ~3.5h audit + 4 plan iterations + cross-AI review)
-- Total execution time: ~4h cumulative
+- Total plans completed (executed): 14 ✅ (across v3.0 + v3.1 + v3.2)
+- Total plans planned (ready to execute): 0 (v3.3 plans TBD by /gsd-plan-phase per phase)
+- Average duration: ~75 min per plan (v3.0 4.0/4.1/4.2) + variable per phase 5.0-5.5/6.0-6.2
+- Total execution time across milestones: ~varies (see individual SUMMARY.md per phase)
 
-**By Phase (v3.0 + v3.1 historical):**
-
-| Phase | Plans | Status | Notes |
-|-------|-------|--------|-------|
-| 4.0 Bootstrap & Cleanup | **1/1 ✅** | COMPLETE 2026-04-27 (5 commits + SUMMARY) | 5/5 SC PASS, 7/7 must-haves PASS, 0 deviations |
-| 4.1 Discuss & Audit | **1/1 ✅** | COMPLETE 2026-04-27 (8 commits + SUMMARY + VERIFICATION) | 14/15 must-haves PASS, SC#4 GOVERNANCE-03 deferred per cross-AI Q4 consensus + user decision; 4-iteration plan 经过 cross-AI review (4 reviewers: claude/gemini/opencode-glm5.4/codex) + 5 fixes + B1+B2 fixes |
-| 4.2 Decide & Document | **1/1 ✅** | COMPLETE 2026-04-28 (13 commits + SUMMARY + Phase Gate PASS) | 8/8 tasks PASS, 5/5 SC ✅, ADR-V2-024 Accepted (supersedes V2-023), GOVERNANCE-03 闭环 (3/3 ✓ verdict in SUMMARY §T6), audit-fidelity-grep modality 实证 (T1+T2+T3) |
-| 5.0 Hook Envelope Baseline | **1/1 ✅** | COMPLETE 2026-05-19 (commit 584b1cf) | D134 GA1 resolved, stop scope test added, 11 tests PASS |
-| 5.1 Runtime Tier ADR + Contract Test Parametrization | **1/1 ✅** | COMPLETE 2026-05-02 (5 task commits + SUMMARY + VERIFICATION) | 4/4 SC PASS, 4/4 must-haves PASS, NEW-D2 closed, ADR-V2-025 Accepted, CONTRACT-00 + WATCH-05 ✓ |
-| 5.2 CLI Hardening | **1/1 ✅** | COMPLETE 2026-05-17 (19/19 tasks) | T-01.14 cross-mode integration tests (3) + T-01.19 CLI smoke tests (5) closed sub-plan; 575/575 PASS under --features studio; pre-existing vim_normal/vim_insert test bugs fixed inline |
-| 5.3 Contract Evolution | **2/2 ✅** | COMPLETE 2026-05-20 (Plan A 11 + Plan B 7 tasks, 20 commits) | All 4 SCs PASS, 5 deferred items closed (D109/D136/NEW-E4/NEW-F1/NEW-F2), 2 ADRs Accepted (V2-026 + V2-027), L1 contract-v1.2.0 live across 7 runtimes |
-| 5.4 Server Hardening | **2/2 ✅** | COMPLETE 2026-05-21 (Plan 01: 9 commits + Plan 02: 12 commits + 2 closures = 23 commits) | All 5/5 SC PASS, all 7/7 REQ-IDs covered (SERVER-01..05 + WATCH-04 + WATCH-07); ADR-V2-028 Accepted (Strict-by-default Config Validation); ADR-V2-019 enforcement.trace filled (status UNCHANGED 2026-04-20 per Q9); 5-row LEDGER close (D142+D143+NEW-A2+NEW-E3+NEW-F3); phase gate 2698 release tests PASS + ADR audit 164/0/0 + schema-coverage gate sessions+turns; W0-03 spike Verdict YES (tracing_subscriber::reload viable); 2 advisory drift items (ROADMAP SC#4 "4 modes" stale wording vs Q3-correction 3-mode; NEW-F4 LEDGER row needs retag to Phase 5.5) — non-blocking |
-| 5.5 Interface ADR + Milestone Close | **2/2 ✅** | COMPLETE 2026-05-22 | Plan 01 (8 commits: 3fb9e2b W0 + 7 task): ADR-V2-029 (engine vs data/integration boundary, strategy) + ADR-V2-032 (TUI log path convention, record) Accepted; F3 WARN 33 → 12 explicit-strategic (target was ≤13); NEW-A3 + NEW-F4 + NEW-L1 closed; grid-cli mod output verified clean. Plan 02 (close cascade): 4 doc files edited (PROJECT/ROADMAP/STATE/REQUIREMENTS) + 5-row LEDGER sweep (NEW-E2/NEW-A3/NEW-L1/grid-cli mod output ADD + NEW-F4 EDIT) + 2 new P3 rows (NEW-X2 kill anti-pattern siblings, NEW-X3 grid-cli --all-features grid-engine 12 errors); phase gate ALL GREEN (ADR lint 0 FAIL F3 WARN ≤13; grid-cli + studio + workspace check + vector_index pytest all PASS) |
-
-**By Phase (v3.2 current):**
+**By Phase (v3.3 current — planning-time stub):**
 
 | Phase | Plans | Status | Notes |
 |-------|-------|--------|-------|
-| 6.0 CI Red Clearance | **1/1 ✅** | COMPLETE 2026-05-24 (1 plan, 2 commits) | 3/3 SC PASS (SC#2 substantive: 0 ScopeMismatch across all 7 completed jobs); NEW-X4 ✅ CLOSED @ `e27e300` + CI run 26356947711; parametrize-layer rename at 3 sites |
-| 6.1 grid-cli Anti-pattern Sweep | **1/1 ✅** | COMPLETE 2026-05-25 (1 plan, 6 commits) | 4/4 SC PASS, all D-01..D-10 honored; `cargo build -p grid-cli --all-features` exit 0 (was 11 errors); 578 tests pass under --features studio; 3 exit-4 tests (kill+delete+export); WIT renamed atomically (`octo-hook.wit`→`grid-hook.wit` 96% similarity); NEW-X2 ✅ CLOSED @ `0595e31`+`a0a6c28` + NEW-X3 ✅ CLOSED @ `adf2c08`+`97f59e5` with full Phase BA archaeology; 3 non-blocking deviations documented |
-| 6.2 Debt Ledger Triage | **1/1 ✅** | COMPLETE 2026-05-26 (1 plan, 5 commits: TRIAGE-01 @ `9842dda` + TRIAGE-02 @ `e2a6349`+`835de4e`+`0f600b6` + TRIAGE-03 @ `24ee8ed`) | 4/4 SC PASS; 93 main-NS D-rows tagged P1=0 / P2=15 / P3=70 / DEAD=8; DEFERRED_LEDGER_ARCHIVE.md created with 8 DEAD rows + bidirectional commit-hash cross-ref via 2-commit sed-replace pattern (NOT --amend); v3.3-INBOX.md groups 85 P1/P2/P3 rows across 9 of 12 modules (grid-cli/grid-runtime/providers elided); scope methodology correction documented (ROADMAP est. 102 / scout claim 128 / actual 93) |
+| 7.0 grid-engine harness wiring | 0/0 | 🟡 STARTED (requirements pending) | D102 P2 + S3.T1 cleanup P3 selective |
+| 7.1 contract observability + bridge | 0/0 | 🟡 STARTED (requirements pending) | D137+D138 P2 + envelope migrations P3 selective |
+| 7.2 L2 connection-pool + Pipeline | 0/0 | 🟡 STARTED (requirements pending) | 5 P2 (D12/D91/D93/D94/D98) + cross-cutting P3 |
+| 7.3 L3 RBAC + hardening | 0/0 | 🟡 STARTED (requirements pending) | 3 P2 (D8/D9/D46) + hardening P3 |
 
-**Recent Trend:**
+**Recent Trend (last 5 across milestones):**
 
 - Last 5 plans: [06.2-01 ✅ 2026-05-26, 06.1-01 ✅ 2026-05-25, 06.0-01 ✅ 2026-05-24, 05.5-02 ✅ 2026-05-22, 05.5-01 ✅ 2026-05-22]
-- Trend: milestone v3.2 CLOSED 2026-05-26 — Phase 6.2 Plan 01 close cascade (LEDGER triage 93 main-NS open D-rows + DEFERRED_LEDGER_ARCHIVE.md + v3.3-INBOX.md + PROJECT/STATE/ROADMAP flips) landed atop Phase 6.0/6.1 code fixes. 3/3 phases, 6/6 REQ-IDs, 0 ADRs Accepted (intentional light-triage milestone). v3.2 was a watchlist-sweep / triage milestone, NOT feature work; mega debt sweep deferred to v3.3+ per TRIAGE-03 output. Ready for /gsd-new-milestone (v3.3 TBD).
+- Trend: milestone v3.2 CLOSED 2026-05-26; v3.3 STARTED 2026-06-01 with focused scope (4 modules, ~30 rows). 8 unpushed commits from v3.2 close cascade await push.
 
 *Updated after each plan completion*
 
@@ -86,9 +74,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - **GSD takeover (2026-04-26)**: 接管自 dev-phase-manager + superpowers,Phase 4 起以 GSD 体系驱动,但 DEFERRED_LEDGER / WORK_LOG / ADR plugin 全部保留作 SSOT 例外
-- **Milestone v3.1 granularity = 6 phases**: 在 standard 5-8 区间内偏低端, watchlist-spread strategy (8 watchlist 项分散到 5 phase) 避免单独 watchlist phase 阻塞主线
-- **Milestone v3.2 granularity = 3 phases (intentional light)**: triage milestone, not feature work; 代码修复 only 3 row, 102 D-row classify only; mega sweep defer 到 v3.3+ 按 INBOX 立 module-batch phase (see ROADMAP §Granularity 备注 v3.2)
-- **Quality profile (Opus) + parallelization=true**: Phase 6 plan-phase 阶段沿用 Phase 4/5 体系, plan-phase 评估各 phase 是否需要 parallel plans (6.0/6.1 互不依赖, 但 GSD 顺序执行规则下排在 6.0 后)
+- **Milestone v3.3 scope = focused (4 phases, ~30 rows)**: 不全 drain INBOX 85 rows; L4/hooks/eval/grid-server/cross-cutting 延后到 v3.4+ untouched in INBOX. Choice rationale: matches v3.2 3-phase precedent in shape, prioritizes high-yield P2-heavy modules first
+- **Skip research for v3.3**: debt rows concrete with LEDGER references; no domain ecosystem unknowns to discover
+- **Phase numbering continues from 6.2**: v3.3 starts at Phase 7.0 (per --reset-phase-numbers absent)
+- **Quality profile (Opus) + parallelization=true**: 沿用 Phase 4/5/6 体系
 
 ### Pending Todos
 
@@ -96,76 +85,57 @@ None yet — `/gsd-add-todo` 暂未使用。
 
 ### Blockers/Concerns
 
-- **None blocking Phase 6.0 start.** ROADMAP.md v3.2 section 创建后 Phase 6.0 (CI Red Clearance) 进入 ready-to-plan 状态; 无前置阻塞。
-- **CI red 心理性 blocker** (Phase 3 Contract Matrix CI 持续 RED 自 2026-05-04): 不阻塞本地工作但是 signal pollution; v3.2 优先消除给后续 milestone 干净 CI baseline。
+- **None blocking Phase 7.0 start.** REQUIREMENTS.md + ROADMAP.md 创建后 Phase 7.0 进入 ready-to-discuss/plan 状态。
+- **Carry-forward from v3.2**: 8 unpushed commits await user push to origin/main (per project rule, push timing is user's call); 3 cosmetic verifier observations from v3.2 close non-blocking (ROADMAP L43 section header, DEFERRED_LEDGER_ARCHIVE.md L10 meta-prose, 3 DEAD-(c) row D-closure refs).
 - **Local environment caveat (still valid from 2026-05-19)**: `.env` 已清理 stale `RUST_LOG=octo_*` (pre-Phase-BA); `OPENAI_NO_PROXY=1` 对 Clash 环境用户必设; `LLM_PROVIDER=openai` 代码默认。
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close (v3.1):
+Items carried forward from previous milestone close (v3.2). See `docs/design/EAASP/DEFERRED_LEDGER.md` for the SSOT (GSD exception); table below is summary view only.
 
 | Category | Item | Status | Deferred At | Phase Mapping |
 |----------|------|--------|-------------|---------------|
-| Functional | D109 — workflow.required_tools 不变量未文档化 | ✅ CLOSED Phase 5.3 | Phase 2 S3.T2 (历史) | 5.3 (closed) |
-| Functional | D120 — Rust HookContext schema 缺 event/skill_id 字段 | ✅ CLOSED Phase 5.0 | Phase 2 S3.T5 (历史) | 5.0 (closed) |
-| Functional | D134 — Shipped skill hooks read nested `.payload.output.X` 但 ADR-V2-006 §2.3 是 top-level | ✅ CLOSED Phase 5.0 @ `584b1cf` | Phase 2.5 S0.T3 (历史) | 5.0 (closed) |
-| Functional | D136 — grid-runtime hook 在 probe turn 不触发(3 contract xfails) | ✅ CLOSED Phase 5.3 | Phase 2.5 S0.T4 (历史) | 5.3 (closed) |
-| Functional | D142 — grid-runtime 不读 EAASP_DEPLOYMENT_MODE | ✅ CLOSED Phase 5.4 Plan 02 @ `d12f6ec` | ADR-V2-019 audit (历史) | 5.4 (closed) |
-| Functional | D143 — claude-code-runtime 不读 EAASP_DEPLOYMENT_MODE + 无 max_sessions=1 gate | ✅ CLOSED Phase 5.4 Plan 02 @ `2453447` | ADR-V2-019 audit (历史) | 5.4 (closed) |
-| Contract | NEW-D2 — test_chunk_type_contract.py 仅 3 tests,not 7-runtime parametric | ✅ CLOSED Phase 5.1 | Phase 4a project review | 5.1 (closed) |
-| ADR | NEW-E2 — F3 reports 33 missing `enforcement.trace` items | ✅ CLOSED Phase 5.5 Plan 01 @ `2303b3d`+`e84a57e` — F3 WARN 33 → 12 | Phase 4a session-04-26 audit | 5.5 (closed) |
-| ADR | NEW-E3 — ADR-V2-019 enforcement.trace empty | ✅ CLOSED Phase 5.4 Plan 02 @ `70b5e94` — trace filled with 4 anchors | Phase 4a session-04-26 audit | 5.4 (closed) |
-| ADR/Functional | NEW-E4 — ADR-V2-016 实现漂移 → ADR-V2-026 supersede | ✅ CLOSED Phase 5.3 | 2026-05-16 deepseek shakedown | 5.3 (closed) |
-| Refactor | NEW-C2 — TUI key_handler.rs 大文件拆分 | ✅ CLOSED Phase 5.2 @ `92b7710`+`cfcffd6` | Phase 4a review | 5.2 (closed) |
-| Refactor | NEW-C1/C3 — harness.rs / grid-eval 大文件 | 🟡 P3 deferred 直到 second consumer (NOT in v3.2) | Phase 4a review | v3.3+ |
-| Tech-debt | **102 open D-row** (corrected from earlier ~40 estimate) | 🟡 v3.2 TRIAGE-01..03 will classify P1/P2/P3/DEAD | 累积自 Phase 0 → 3.6 | **6.2 (in progress)** |
-| Functional | NEW-A2 — `migrate()` in `grid-engine/src/db/mod.rs:29` 非原子 | ✅ CLOSED Phase 5.4 Plan 02 @ `74e6472`+`bf26cb8` | 2026-05-16 NEW-A1 forensics | 5.4 (closed) |
-| Functional | NEW-A3 — `kill_session` returns exit 1 instead of 4 | ✅ CLOSED Phase 5.5 Plan 01 @ `8c25223` | 2026-05-17 T-01.19 smoke test | 5.5 (closed) |
-| Functional | NEW-F4 — TUI log path moved to `./logs/tui.log` + ADR | ✅ CLOSED Phase 5.5 Plan 01: ADR @ `1b9afd1` + code @ `ba3ba26` | 2026-05-19 NEW-F1..F4 cascade | 5.5 (closed) |
-| Functional | grid-cli `mod output` E0583 — pre-existing | ✅ CLOSED (verified clean) Phase 5.5 Plan 01 Task 01.B3 | 2026-05-20 Phase 5.3 OOS | 5.5 (closed) |
-| Functional | NEW-L1 — HNSW disk leak + meta.json schema gap | ✅ CLOSED Phase 5.5 Plan 01 @ `0bdf70c` — HNSW_HARD_CAP + max_elements persist | 2026-05-20 Phase 5.3 OOS forensics | 5.5 (closed) |
-| ADR | INTERFACE-01 — ADR-V2-029 engine vs data/integration boundary | ✅ CLOSED Phase 5.5 Plan 01 @ `0b23a01` | Phase 5.5 ROADMAP scope | 5.5 (closed) |
-| **v3.2 carry-over** | **NEW-X4 — `test_chunk_type_contract.py` + `test_hook_event_contract.py` parametrize-layer fixture-scope mismatch (Phase 3 Contract Matrix CI RED)** | ✅ CLOSED Phase 6.0 Plan 01 @ `e27e300` — parametrize rename 3 sites, 0 ScopeMismatch in CI run 26356947711 | 2026-05-23 v3.1 close cascade post-push CI scan | **6.0 (closed)** |
-| **v3.2 carry-over** | **NEW-X2 — sibling delete_session + export_session same anti-pattern as NEW-A3** | 🟡 P3 mapped to **Phase 6.1** | Phase 5.5 Plan 01 Task B1 scope-limit | **6.1 (in progress)** |
-| **v3.2 carry-over** | **NEW-X3 — `cargo build -p grid-cli --all-features` 12 grid-engine errors** | 🟡 P3 mapped to **Phase 6.1** | Phase 5.5 Plan 02 close cascade | **6.1 (in progress)** |
+| **v3.3 in-scope** | **D102 — AgentLoopConfig YAML wiring (P2)** | 🟡 P2 mapped to **Phase 7.0** | v3.2 TRIAGE-01 | **7.0 (pending)** |
+| **v3.3 in-scope** | **D137 — multi-turn observability + MCP bridge + PRE_COMPACT 阈值 (P2)** | 🟡 P2 mapped to **Phase 7.1** | v3.2 TRIAGE-01 | **7.1 (pending)** |
+| **v3.3 in-scope** | **D138 — skill-workflow deny-path mock LLM (P2)** | 🟡 P2 mapped to **Phase 7.1** | v3.2 TRIAGE-01 | **7.1 (pending)** |
+| **v3.3 in-scope** | **D12/D91/D93/D94/D98 — L2 5×P2 (connection-pool + tombstone + embed_batch + HybridIndex)** | 🟡 P2 mapped to **Phase 7.2** | v3.2 TRIAGE-01 | **7.2 (pending)** |
+| **v3.3 in-scope** | **D8/D9/D46 — L3 3×P2 (RBAC + telemetry + namespace)** | 🟡 P2 mapped to **Phase 7.3** | v3.2 TRIAGE-01 | **7.3 (pending)** |
+| Defer to v3.4+ | L4 / hooks / eval / grid-server / cross-cutting (~50 rows) | 🟡 P2/P3 in INBOX, untouched | v3.2 TRIAGE-01..03 | v3.4+ |
 
-> 这些 Deferred 的 SSOT 仍是 `docs/design/EAASP/DEFERRED_LEDGER.md`(GSD 例外保留),本表只为 STATE.md 单 view 摘要。Phase Mapping 列由 ROADMAP.md Coverage 表 反向回填, 关闭时 SSOT 双向更新 (LEDGER + ROADMAP)。
+> Full v3.2 closed deferred history removed from STATE.md (was in v3.2 STATE.md); see `docs/design/EAASP/DEFERRED_LEDGER.md` for complete ledger + ARCHIVE.md for 8 DEAD-archived rows. Phase Mapping column will be filled in detail by /gsd-roadmapper.
 
 ## Session Continuity
 
-Last session: 2026-06-01T00:00:00.000Z
-Stopped at: Session resumed 2026-06-01 — Phase 6.2 CONTEXT + PLAN ready, user elected to proceed to execute-phase. Routing to `/gsd-execute-phase 6.2`.
-Resume path: **Next action: `/gsd-execute-phase 6.2`** — Debt Ledger Triage (doc-only phase, 93-row D-LEDGER tag + DEAD archive + v3.3-INBOX + cascade close v3.2).
-Local commits ahead of origin: ~37 unpushed commits await user push (per project rule: push decision deferred to user; 6 from Phase 6.1 added this session).
-Worktrees: cleaned (no active worktrees this session — sequential execution).
+Last session: 2026-06-01T03:40:00.000Z
+Stopped at: Session 2026-06-01 — v3.3 milestone scope locked (4 modules: grid-engine + contract + L2 + L3, ~30 rows), skip research, phase numbering continues 6.2 → 7.0. PROJECT.md + STATE.md updates committed; REQUIREMENTS.md + ROADMAP.md next.
+Resume path: **Next action: `/gsd-roadmapper` (auto-invoked by this workflow)** — generates REQUIREMENTS.md from v3.3-INBOX selected rows + ROADMAP.md with 4 phases (7.0 → 7.3).
+Local commits ahead of origin: 8 unpushed (from v3.2 close cascade) + 1 v3.3 milestone-start commit on this session = ~9 pending (per project rule: push decision deferred to user).
+Worktrees: none active.
 
 Prior sessions:
 
-- 2026-05-25: **Phase 6.1 CLOSED** — discuss → plan → execute → verify in single session; CLI-X2 + CLI-X3 fully resolved (`cargo build --all-features` clean for first time since Phase BA 2026-04-04 rename)
-- 2026-05-22: Milestone v3.1 CLOSED — Plan 05.5-02 close cascade (4-doc edit + 5-row LEDGER sweep + phase gate ALL GREEN)
-- 2026-05-22: Phase 5.5 Plan 01 — ADR-V2-029 + V2-032 Accepted + F3 sweep + 4 OOS code fixes
-- 2026-05-21: Phase 5.4 Plan 02 close + Plan 01 close (23 commits total, ADR-V2-028 Accepted)
-- 2026-05-20: Phase 5.3 closure — Plan A + Plan B + L1 contract-v1.2.0 live + ADR-V2-026/027 Accepted
-- 2026-05-19: LLM provider fix + Phase 5.3 plan-phase (`/gsd-discuss-phase 5.3` + `/gsd-plan-phase 5.3`)
-- 2026-05-17: Phase 5.2 closure (T-01.14/19) — 19/19 PASS
-- 2026-05-16: DeepSeek shakedown + ExecutionMode RFC + commit `f1999fb` impl
+- 2026-05-26: **Milestone v3.2 CLOSED** — Phase 6.2 Plan 01 close cascade (TRIAGE-01/02/03 + v3.3-INBOX.md seeding)
+- 2026-05-25: **Phase 6.1 CLOSED** — CLI-X2 + CLI-X3 fully resolved (`cargo build --all-features` clean for first time since Phase BA 2026-04-04)
+- 2026-05-24: **Phase 6.0 CLOSED** — NEW-X4 fixture-scope rename, Phase 3 Contract Matrix CI RED → GREEN (CI run 26356947711, 0 ScopeMismatch)
+- 2026-05-22: **Milestone v3.1 CLOSED** — Phase 5.5 close cascade
+- 2026-05-21: Phase 5.4 Plan 02 close + Plan 01 close (23 commits, ADR-V2-028 Accepted)
+- 2026-05-20: Phase 5.3 closure — L1 contract-v1.2.0 live + ADR-V2-026/027 Accepted
 
-### v3.2 Phase 6.0 anchor (next plan-phase input)
+### v3.3 Phase 7.0 anchor (next plan-phase input)
 
-When `/gsd-discuss-phase 6.0` runs, focus on:
+When `/gsd-discuss-phase 7.0` runs, focus on:
 
-- **NEW-X4 root cause**: `runtime_name` fixture (function-scoped) vs session-scoped requesting fixture in `tests/contract/conftest.py` / `cases/test_chunk_type_contract.py` — exact ScopeMismatch source unknown until investigation, likely Phase 5.1's parametrize extension (commit history `tests/contract/cases/test_chunk_type_contract.py` since Phase 5.1) introduced a scope-promotion that broke when conftest fixtures were later re-scoped (per CI scan post-push 2026-05-23)
-- **CI workflow target**: `.github/workflows/phase3-contract.yml` (or equivalent post-Phase-5 workflow); ≥4 of 7 jobs PASS = acceptable per ADR-V2-025 tier strategy (some runtimes have XFAIL by design)
-- **Test scope**: targeted `pytest tests/contract/cases/test_chunk_type_contract.py -v` — NOT full pytest suite (per CLAUDE.md test discipline)
-- **LEDGER row update convention**: NEW-X4 row already filed in DEFERRED_LEDGER per v3.1 close cascade; close-out edit-in-place adds ✅ CLOSED + commit hash + CI run URL (per Phase 4.0 CLEANUP-02 precedent)
+- **D102 primary scope**: `AgentLoopConfig.compaction` 字段未接 YAML 配置层 (LEDGER L232). Inspect `crates/grid-engine/src/agent_loop/config.rs` for AgentLoopConfig struct, then `crates/grid-server/src/config.rs` (which already wires LLM/Auth/Hook configs) for the YAML→struct flow precedent.
+- **P3 cleanup candidate set** (pick 3-5 to keep phase shippable): D3 (harness `payload.user_preferences` + `trim_for_budget()`); D57 (`harness_payload_integration.rs` copy of `build_memory_preamble`); D58 (`test_initialize_injects_memory_refs_preamble` Send path); D103 (`find_tail_boundary()` O(N²)); D104 (反应式 guard in harness vs pipeline); D105 (`HookPoint::ContextDegraded` 字符串别名); D106 (`MAX_TURNS_FOR_BUDGET=50` 硬编码); D130 (Session-lifetime vs per-turn cancel token).
+- **Test scope**: `cargo test -p grid-engine` targeted; full release test gate deferred to phase gate at close.
+- **No new ADR expected** unless D102 wiring forces a config-precedence-clarification ADR (similar to ADR-V2-028 strict-by-default lineage); check `/adr:trace crates/grid-engine/src/agent_loop/config.rs` before plan-phase.
 
 ### Local environment caveat (user side, still valid from 2026-05-19)
 
-- `.env` cleaned of stale `RUST_LOG=octo_*` 2026-05-19; should now be `RUST_LOG=grid_engine=debug,grid_cli=info,tower_http=debug` (or unset — `--verbose` will provide a fallback filter)
-- `OPENAI_NO_PROXY=1` set in `.env` for Clash-environment users; OpenRouter users should NOT have this set
-- `LLM_PROVIDER=openai` is the new code-level default (changed from `anthropic`); explicit `.env` value still overrides
-- `data/l2-memory/hnsw-mock-bge-m3-fp16/` was deleted 2026-05-20 + NEW-L1 fix landed Phase 5.5 (HNSW_HARD_CAP + max_elements persist); regeneration is now safe
+- `.env` cleaned of stale `RUST_LOG=octo_*` 2026-05-19; should be `RUST_LOG=grid_engine=debug,grid_cli=info,tower_http=debug` (or unset)
+- `OPENAI_NO_PROXY=1` set in `.env` for Clash-environment users
+- `LLM_PROVIDER=openai` is code-level default
 
 ---
 
-*State updated 2026-05-23 by `/gsd-roadmapper` after v3.2 ROADMAP creation. Next: `/gsd-discuss-phase 6.0`.*
+*State updated 2026-06-01 by `/gsd-new-milestone` after v3.3 scope confirmation. Next: REQUIREMENTS.md draft → /gsd-roadmapper → ROADMAP.md → /gsd-discuss-phase 7.0.*

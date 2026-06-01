@@ -16,25 +16,27 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.2 Tech-Debt Triage & CI Red Line Clearance
+## Current Milestone: v3.3 Engine + Platform Debt Sweep (Focused)
 
-**Goal:** 消除 Phase 3 Contract Matrix CI 红线 (持续 RED 自 2026-05-04) + grid-cli 残留 anti-pattern + 对 102 D-row 历史债做一次性 triage 分类, 为后续 milestone 的代码工作建立优先级地图。**NOT mega-debt-sweep** (代码修复仅限 3 个具体 P2/P3 row)。
+**Goal:** Drain the highest-yield debt rows from `.planning/v3.3-INBOX.md` across 4 modules (grid-engine + contract + L2 + L3), prioritizing P2 over P3 within each module. ~30 rows over 4 phases. **NOT a full INBOX drain** — L4 / hooks / eval / grid-server / cross-cutting defer to v3.4+ untouched in INBOX.
 
-**Target features:**
-- **CI Red Clearance** — NEW-X4 fixture-scope 修, Phase 3 Contract Matrix CI 由 RED 转 GREEN
-- **grid-cli Anti-pattern Sweep** — NEW-X2 (delete_session / export_session sibling typed GridError 补全) + NEW-X3 (`cargo build --all-features` 12 grid-engine errors 调查 + 决定 fix vs filter)
-- **Debt Ledger Triage** — 102 open D-row + 3 NEW-X row 全部分类为 P1-当动 / P2-下轮 / P3-异步 / DEAD-archive, 写入 LEDGER, 喂 v3.3+ scoping
+**Target features (per-module batches):**
+- **grid-engine harness wiring** — D102 (AgentLoopConfig YAML 配置层接入, P2) + S3.T1 harness/pipeline cleanup (D3/D57/D58/D103-D106/D130 selective P3)
+- **contract observability + bridge** — D137 (Multi-turn observability + MCP bridge live + PRE_COMPACT 阈值, P2) + D138 (skill-workflow enforcement deny-path mock LLM, P2) + telemetry envelope migrations (D5/D6/D55/D74/D139 selective P3)
+- **L2 connection-pool + Pipeline** — D12 (connection-per-call rewrite, P2) + D94 (MemoryStore 单例收尾, P2) + D91 (HNSW tombstone rebuild, P2) + D93 (embed_batch 顺序实现, P2) + D98 (HybridIndex 重建消除, P2) + L2 cross-cutting P3 (D11/D13/D14/D15/D30/D65 selective)
+- **L3 RBAC + hardening** — D8 (`access_scope` 真实 RBAC, P2) + D9 (`skill_usage` 真实遥测, P2) + D46 (Skill access_scope namespace 校验, P2) + L3 hardening P3 (D16-D23/D25/D26 selective)
 
-**Granularity:** 3 phases (Phase 6.0 → 6.2), continues numbering from Phase 5.5.
+**Granularity:** 4 phases (Phase 7.0 → 7.3), continues numbering from Phase 6.2. Per-phase row budget ≤10 to keep phases shippable.
 
 **Key context:**
-- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2)
-- 优先发力组合不变: grid-cli + grid-server (per ADR-V2-024 Open Item #3); 其余 (grid-platform / grid-desktop / web*) 保持 dormant
-- 双轴框架: engine vs data/integration (per ADR-V2-024 §1)
-- v3.1 close cascade carry-over: NEW-X4 (P2) blocks Phase 3 Contract Matrix CI; NEW-X2/X3 (P3) Anti-pattern
-- 102 D-row 大部分预计 stale (Phase BA Grid 重命名前的 octo_* 老 row), triage 验证
+- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2). L2/L3 phases consume EAASP 30% allocation.
+- 优先发力组合不变: grid-cli + grid-server stays priority axis per ADR-V2-024 Open Item #3; 其余 (grid-platform / grid-desktop / web*) 保持 dormant. v3.3 phases do not touch dormant crates.
+- 双轴框架: engine vs data/integration (per ADR-V2-024 §1) — all v3.3 phases sit on engine 接入面.
+- **Skip research** — debt rows are concrete with LEDGER references; no domain ecosystem unknowns.
+- **v3.3-INBOX.md superseded once v3.3 ROADMAP is created** (per its own header) — unselected rows remain visible via the still-open D-rows in DEFERRED_LEDGER.md main namespace.
+- 0 P1 rows in INBOX — milestone is "should fix" not "must fix"; new P1 surfacing during execution allowed to interrupt/insert.
 
-**Previous milestone:** v3.1 Phase 5 Engine Hardening ✅ SHIPPED 2026-05-22 (6 phases / 10 plans / 23/23 REQ-IDs / 6 ADRs Accepted: V2-025/026/027/028/029/032)
+**Previous milestone:** v3.2 Tech-Debt Triage & CI Red Line Clearance ✅ SHIPPED 2026-05-26 (3 phases / 3 plans / 6/6 REQ-IDs / 0 ADRs Accepted — intentional light-triage milestone)
 
 ## Core Value
 
@@ -65,7 +67,9 @@
 
 ### Active
 
-<!-- Milestone v3.2 closed 2026-05-26. Awaiting /gsd-new-milestone for v3.3 TBD. -->
+<!-- Milestone v3.3 started 2026-06-01. Requirements scoped per /gsd-roadmapper output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
+
+- [ ] **Phase 7 milestone (v3.3) Engine + Platform Debt Sweep** (started 2026-06-01) — 4 phases / ~30 rows / scoped per `.planning/v3.3-INBOX.md` 4-module focus (grid-engine + contract + L2 + L3). Requirements + REQ-IDs created in this milestone's REQUIREMENTS.md.
 
 ### Out of Scope
 
@@ -136,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-05-22 — Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22. 6/6 phases (5.0/5.1/5.2/5.3/5.4/5.5) complete, 23/23 REQ-IDs traceability, 6 ADRs Accepted (V2-025/V2-026/V2-027/V2-028/V2-029/V2-032), 18 D-items closed, F3 ADR WARN 33 → 12 explicit-strategic. Phase 4 milestone v3.0 ✅ CLOSED 2026-04-28 with ADR-V2-024 Accepted (commit `f497eef`). Ready for /gsd-new-milestone (v3.2 TBD) or pause.*
+*Last updated: 2026-06-01 — Milestone v3.3 (Phase 7 — Engine + Platform Debt Sweep) STARTED 2026-06-01. 4 phases planned (7.0 grid-engine + 7.1 contract + 7.2 L2 + 7.3 L3) seeded from `.planning/v3.3-INBOX.md` (85 P2/P3 rows across 9 modules — v3.3 drains ~30 rows from 4 high-yield modules; L4/hooks/eval/grid-server/cross-cutting defer to v3.4+). Milestone v3.2 (Phase 6 — Tech-Debt Triage & CI Red Line Clearance) ✅ CLOSED 2026-05-26. Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22.*
