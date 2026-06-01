@@ -186,37 +186,37 @@
 | TRIAGE-01 | 6.2 | (102 D-row + 3 NEW-X classify P1/P2/P3/DEAD) |
 | TRIAGE-02 | 6.2 | (DEAD row 物理迁移到 DEFERRED_LEDGER_ARCHIVE.md) |
 | TRIAGE-03 | 6.2 | ✅ (v3.3-INBOX.md 按 module 分组汇总 P1/P2/P3 @ `24ee8ed`) |
-| ENGINE-01 | 7.0 | (D102 AgentLoopConfig YAML wiring) |
-| ENGINE-02 | 7.0 | (D3 harness payload.user_preferences + trim_for_budget) |
-| ENGINE-03 | 7.0 | (D57 build_memory_preamble DRY) |
-| ENGINE-04 | 7.0 | (D58 test_initialize_injects_memory_refs_preamble Send path) |
-| ENGINE-05 | 7.0 | (D103 find_tail_boundary O(N²)) |
-| ENGINE-06 | 7.0 | (D104 反应式 guard in pipeline) |
-| CONTRACT-01 | 7.1 | (D137 multi-turn observability + MCP bridge + PRE_COMPACT 阈值) |
-| CONTRACT-02 | 7.1 | (D138 skill-workflow deny-path mock LLM) |
-| CONTRACT-03 | 7.1 | (D5 grpc_integration v2 telemetry envelope migration) |
-| CONTRACT-04 | 7.1 | (D6 certifier SessionPayload P1-P5 字段断言) |
-| CONTRACT-05 | 7.1 | (D55 proto3 submessage HasField 统一) |
-| L2-01 | 7.2 | (D12 connection-per-call 延迟) |
-| L2-02 | 7.2 | (D94 MemoryStore 单例 + 共享连接) |
-| L2-03 | 7.2 | (D91 HNSW 软删 tombstone rebuild) |
-| L2-04 | 7.2 | (D93 embed_batch 并发) |
-| L2-05 | 7.2 | (D98 HybridIndex 重建消除) |
-| L2-06 | 7.2 | (D11 skill-registry scope after LIMIT bug) |
-| L2-07 | 7.2 | (D13 L2 archive() FTS 仍可搜) |
-| L2-08 | 7.2 | (D30 busy_timeout 统一) |
-| L3-01 | 7.3 | (D8 access_scope 真实 RBAC) |
-| L3-02 | 7.3 | (D9 skill_usage 真实遥测) |
-| L3-03 | 7.3 | (D46 Skill access_scope namespace 校验) |
-| L3-04 | 7.3 | (D22 L3 global FastAPI exception handler) |
-| L3-05 | 7.3 | (D23 L3 loguru/logging 初始化) |
-| L3-06 | 7.3 | (D17 hook_id KeyError 风险) |
-| L3-07 | 7.3 | (D18 session_id path param 校验) |
-| L3-08 | 7.3 | (D26 time.sleep flaky 测试) |
+| ENGINE-01 | 7.0 | 🟡 STARTED 2026-06-01 (D102 AgentLoopConfig YAML wiring) |
+| ENGINE-02 | 7.0 | 🟡 STARTED 2026-06-01 (D3 harness payload.user_preferences + trim_for_budget) |
+| ENGINE-03 | 7.0 | 🟡 STARTED 2026-06-01 (D57 build_memory_preamble DRY) |
+| ENGINE-04 | 7.0 | 🟡 STARTED 2026-06-01 (D58 test_initialize_injects_memory_refs_preamble Send path) |
+| ENGINE-05 | 7.0 | 🟡 STARTED 2026-06-01 (D103 find_tail_boundary O(N²)) |
+| ENGINE-06 | 7.0 | 🟡 STARTED 2026-06-01 (D104 反应式 guard in pipeline) |
+| CONTRACT-01 | 7.1 | 🟡 STARTED 2026-06-01 (D137 multi-turn observability + MCP bridge + PRE_COMPACT 阈值) |
+| CONTRACT-02 | 7.1 | 🟡 STARTED 2026-06-01 (D138 skill-workflow deny-path mock LLM) |
+| CONTRACT-03 | 7.1 | 🟡 STARTED 2026-06-01 (D5 grpc_integration v2 telemetry envelope migration) |
+| CONTRACT-04 | 7.1 | 🟡 STARTED 2026-06-01 (D6 certifier SessionPayload P1-P5 字段断言) |
+| CONTRACT-05 | 7.1 | 🟡 STARTED 2026-06-01 (D55 proto3 submessage HasField 统一) |
+| L2-01 | 7.2 | 🟡 STARTED 2026-06-01 (D12 connection-per-call 延迟) |
+| L2-02 | 7.2 | 🟡 STARTED 2026-06-01 (D94 MemoryStore 单例 + 共享连接) |
+| L2-03 | 7.2 | 🟡 STARTED 2026-06-01 (D91 HNSW 软删 tombstone rebuild) |
+| L2-04 | 7.2 | 🟡 STARTED 2026-06-01 (D93 embed_batch 并发) |
+| L2-05 | 7.2 | 🟡 STARTED 2026-06-01 (D98 HybridIndex 重建消除) |
+| L2-06 | 7.2 | 🟡 STARTED 2026-06-01 (D11 skill-registry scope after LIMIT bug) |
+| L2-07 | 7.2 | 🟡 STARTED 2026-06-01 (D13 L2 archive() FTS 仍可搜) |
+| L2-08 | 7.2 | 🟡 STARTED 2026-06-01 (D30 busy_timeout 统一) |
+| L3-01 | 7.3 | 🟡 STARTED 2026-06-01 (D8 access_scope 真实 RBAC) |
+| L3-02 | 7.3 | 🟡 STARTED 2026-06-01 (D9 skill_usage 真实遥测) |
+| L3-03 | 7.3 | 🟡 STARTED 2026-06-01 (D46 Skill access_scope namespace 校验) |
+| L3-04 | 7.3 | 🟡 STARTED 2026-06-01 (D22 L3 global FastAPI exception handler) |
+| L3-05 | 7.3 | 🟡 STARTED 2026-06-01 (D23 L3 loguru/logging 初始化) |
+| L3-06 | 7.3 | 🟡 STARTED 2026-06-01 (D17 hook_id KeyError 风险) |
+| L3-07 | 7.3 | 🟡 STARTED 2026-06-01 (D18 session_id path param 校验) |
+| L3-08 | 7.3 | 🟡 STARTED 2026-06-01 (D26 time.sleep flaky 测试) |
 
 **Total v3.1 requirements:** 23 REQ-IDs (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1) — ✅ CLOSED 2026-05-22
 **Total v3.2 requirements:** 6 REQ-IDs (CI 1 + CLI 2 + TRIAGE 3) — ✅ CLOSED 2026-05-26
-**Total v3.3 requirements:** 27 REQ-IDs (ENGINE 6 + CONTRACT 5 + L2 8 + L3 8) — mapping pending `/gsd-roadmapper` (Phase 7.0 / 7.1 / 7.2 / 7.3)
+**Total v3.3 requirements:** 27 REQ-IDs (ENGINE 6 + CONTRACT 5 + L2 8 + L3 8) — 🟡 STARTED 2026-06-01 via `/gsd-roadmapper` (Phase 7.0 / 7.1 / 7.2 / 7.3); 27/27 mapped, 0 orphans, 0 double-mapped
 **Granularity:** v3.1 = 6 phases; v3.2 = 3 phases; v3.3 = 4 phases (Phase 7.0 / 7.1 / 7.2 / 7.3) per per-module batching
 **Mapping density v3.3:** 6 REQ/phase (7.0) + 5 REQ/phase (7.1) + 8 REQ/phase (7.2) + 8 REQ/phase (7.3), avg ≈7 — within "≤10 per phase" cohesion limit per INBOX guidance
 
@@ -228,4 +228,4 @@
 
 *v3.2 Requirements 来源: v3.1 close cascade carry-over (NEW-X4 P2 from Phase 3 Contract Matrix CI scan post-push 2026-05-23; NEW-X2/X3 P3 from Phase 5.5 Plan 01 scope-limit) + LEDGER 102 D-row 实际计数 surprise (REQUIREMENTS 原 ~40 估算严重低估). Defined 2026-05-23 via `/gsd-new-milestone` Step 9 conversation-mode (no research — scope concrete & pre-locked). Phase mapping 完成 2026-05-23 via `/gsd-roadmapper` Step 10 — 6/6 REQ-IDs ✓, 0 orphans, 0 double-mapped. ✅ CLOSED 2026-05-26.*
 
-*v3.3 Requirements 来源: v3.2 close cascade output `.planning/v3.3-INBOX.md` (TRIAGE-03 2026-05-26 @ commit `24ee8ed`) — 85 P2/P3 rows across 9 modules. Defined 2026-06-01 via `/gsd-new-milestone` Step 9 conversation-mode (skip research per user — debt rows concrete with LEDGER references). Module selection: grid-engine + contract + L2 + L3 (4 highest-yield buckets, all P2 prioritized + selective P3 stretch). Phase mapping pending `/gsd-roadmapper` Step 10 — target 27/27 REQ-IDs covered across 4 phases (7.0/7.1/7.2/7.3), 0 orphans, 0 double-mapped.*
+*v3.3 Requirements 来源: v3.2 close cascade output `.planning/v3.3-INBOX.md` (TRIAGE-03 2026-05-26 @ commit `24ee8ed`) — 85 P2/P3 rows across 9 modules. Defined 2026-06-01 via `/gsd-new-milestone` Step 9 conversation-mode (skip research per user — debt rows concrete with LEDGER references). Module selection: grid-engine + contract + L2 + L3 (4 highest-yield buckets, all P2 prioritized + selective P3 stretch). Phase mapping ✅ completed 2026-06-01 via `/gsd-roadmapper` Step 10 — 27/27 REQ-IDs covered across 4 phases (7.0/7.1/7.2/7.3), 0 orphans, 0 double-mapped.*

@@ -175,6 +175,154 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 
 ---
 
+## Milestone v3.3 — Engine + Platform Debt Sweep (Focused) [🟡 STARTED 2026-06-01]
+
+**Status**: 🟡 STARTED 2026-06-01
+**Scope**: 4 phases / 27 REQ-IDs / ~30 D-rows from `.planning/v3.3-INBOX.md` (focused subset of 85 P2/P3 INBOX rows — L4/hooks/eval/grid-server/cross-cutting defer to v3.4+)
+**Granularity**: per-module batching (≤10 rows/phase per INBOX guidance); P2 before P3 within each phase
+**Skip research** (debt rows concrete with LEDGER references, no domain ecosystem unknowns)
+**Done condition for milestone**: 4 phases 全 ✅; 27/27 REQ-ID traceability ✅; ~11 P2 row 全 ✅ CLOSED in DEFERRED_LEDGER.md; ~19 P3 row 视实施时间 selective ✅ (允许部分 carry-forward to v3.4+); PROJECT.md §Active "Phase 7 milestone (v3.3)" 行 flip 入 §Validated; STATE.md frontmatter `status: milestone-complete` + progress 4/4=100%。
+
+### Milestones list update
+
+- ✅ **v3.0 Phase 4 — Product Scope Decision** — shipped 2026-04-28
+- ✅ **v3.1 Phase 5 — Engine Hardening** — shipped 2026-05-22
+- ✅ **v3.2 Phase 6 — Tech-Debt Triage & CI Red Line Clearance** — shipped 2026-05-26
+- 🟡 **v3.3 Phase 7 — Engine + Platform Debt Sweep (Focused)** — STARTED 2026-06-01
+
+### Phases list
+
+- [ ] Phase 7.0 grid-engine harness wiring (6 REQ-IDs: ENGINE-01..06)
+- [ ] Phase 7.1 contract observability + bridge (5 REQ-IDs: CONTRACT-01..05)
+- [ ] Phase 7.2 L2 connection-pool + Pipeline (8 REQ-IDs: L2-01..08)
+- [ ] Phase 7.3 L3 RBAC + hardening (8 REQ-IDs: L3-01..08)
+
+### Phase Details
+
+#### Phase 7.0: grid-engine harness wiring [🟡 STARTED]
+
+**Goal**: 把 `AgentLoopConfig.compaction` 字段贯通 YAML 配置层 (D102 P2), 并顺手清掉 Phase 2 S3.T1 遗留的 harness/pipeline P3 杂项 (D3 / D57 / D58 / D103 / D104), 让 grid-engine harness 内部状态与 ADR-V2-026 ExecutionMode + ADR-V2-028 strict-by-default 两条 lineage 对齐。
+
+**Depends on**: Nothing (milestone 第一个 phase)
+**Requirements**: ENGINE-01 (P2, D102) + ENGINE-02..06 (P3, D3/D57/D58/D103/D104)
+
+**Success criteria** (what must be TRUE):
+1. `config.yaml` 中 `compaction:` block 经 `crates/grid-server/src/config.rs` YAML→struct 流贯通到 `AgentLoopConfig.compaction`; round-trip test (`cargo test -p grid-server -p grid-engine` targeted) 覆盖 "写 → load → assert struct 值匹配"; 未识别字段按 ADR-V2-028 strict-by-default 报错而非 silent drop
+2. `cargo test -p grid-engine` 在 `harness_payload_integration.rs` + `test_initialize_injects_memory_refs_preamble` 套件下 PASS, 且 `build_memory_preamble` 仅在 grid-engine 一处实现 (DRY violation 消除, D57); `test_initialize_injects_memory_refs_preamble` assert Send 全路径 (D58)
+3. ENGINE-01..06 全 6 REQ-ID 在 `docs/design/EAASP/DEFERRED_LEDGER.md` 标 ✅ CLOSED 并附 commit hash (允许 ENGINE-02..06 部分以 "decision: defer-with-justification + LEDGER row 保留 P3" 形式收口, 但 ENGINE-01 D102 必须真修)
+4. `find_tail_boundary()` 在 long-conversation profile (≥200 turn) 下行为有 measured baseline (D103); 决定要么修 O(N²) 要么落 doc-only warning + rationale 写入 LEDGER row close-out
+5. 反应式 guard 位置决策记录 (D104): 维持 harness 或迁 pipeline, 二选一; 若决定迁 pipeline 且涉及 ExecutionMode lineage 跨界则起草 ADR 候选 (check `/adr:trace crates/grid-engine/src/agent_loop/` before plan-phase)
+
+**Notes**: D104 (反应式 guard in pipeline) 是潜在 ADR 候选 — 若 plan-phase 阶段判定迁 pipeline 涉及 ADR-V2-026 ExecutionMode 边界, 走 ADR 流水。D106 (MAX_TURNS_FOR_BUDGET=50 硬编码) 与 D105 (HookPoint::ContextDegraded 字符串别名) 留 INBOX 不入此 phase (P3 stretch, defer to v3.4+ 保持 phase 实操 ≤6 rows 内)。
+
+#### Phase 7.1: contract observability + bridge [🟡 STARTED]
+
+**Goal**: 把 Phase 2.5 S0.T4/T5 遗留的 multi-turn observability + MCP bridge live + PRE_COMPACT 阈值 (D137 P2) + skill-workflow deny-path mock LLM (D138 P2) 落地, 顺带把 contract-v1.2 升级后落下的 telemetry envelope migration + certifier schema 锁定 P3 项 (D5/D6/D55) 收口。让 7-runtime 契约层在 observability 与可重复 deny-path 测试上达到生产就绪。
+
+**Depends on**: Nothing on 7.0 (grid-engine harness 与 contract 层无强代码依赖, 可与 7.0 并行)
+**Requirements**: CONTRACT-01 (P2, D137) + CONTRACT-02 (P2, D138) + CONTRACT-03..05 (P3, D5/D6/D55)
+
+**Success criteria** (what must be TRUE):
+1. `grid-runtime` 在 multi-turn 场景下吐出 turn-by-turn telemetry chunk (与 nanobot/goose 一致), MCP bridge 在 grid-runtime live, PRE_COMPACT 阈值由 ChunkType 触发而非 hard-coded (D137); contract test `make v2-phase3-e2e` 跑过后, grid-runtime job 新增的 multi-turn observability assertion 全 PASS
+2. skill-workflow enforcement 测试支持 mock LLM 复现 deny-path 场景 (D138); `cargo test` 或 `pytest tests/contract/` 下新增可重复 deny-path test 全 PASS, 不依赖 live LLM
+3. `tests/grpc_integration*.rs` (或等价测试) 全部用 v2 telemetry envelope; 旧 envelope shape 引用 0 (`rg "telemetry_v1" -t rust crates/ tests/` 0 hit, D5)
+4. certifier 套件覆盖 SessionPayload P1-P5 字段断言 (D6); `make verify-dual-runtime` 跑过后 certifier 报告含 SessionPayload schema 断言行
+5. proto3 submessage presence 跨 7 runtime 统一用 `HasField` 而非 truthy fallback (D55); cross-runtime parity test 验证 absence 路径 (Python + Rust + TS 三侧一致); CONTRACT-01..05 全 5 REQ-ID 在 LEDGER 标 ✅ CLOSED 附 commit hash
+
+**Notes**: D137 涉及 grid-runtime ↔ MCP bridge ↔ ChunkType 三层交互, 是 phase 内最重 task — plan-phase 阶段考虑微拆 plan。D138 可以 leverage Phase 5.3 OpenAI Quirks 的 mock provider 同套基础设施。D74 (EmitEvent gRPC 反向通道) 与 D139 (双 Terminate 语义) 留 INBOX 不入此 phase (defer to v3.4+ 控规模)。
+
+#### Phase 7.2: L2 connection-pool + Pipeline [🟡 STARTED]
+
+**Goal**: 把 L2 memory-engine 性能与正确性两条主线一次性扫掉 — connection pool (D12+D94 P2 双胞胎) + HNSW tombstone rebuild (D91 P2) + embed_batch 并发 (D93 P2) + HybridIndex.search 重建消除 (D98 P2) 五项 P2 形成本 milestone 的 keystone phase, 顺手清理 L2 P3 三项 (D11/D13/D30)。让 L2 在高并发 + 长 lifetime + 大索引场景下达到生产就绪。
+
+**Depends on**: Nothing 强阻塞 (L2 域代码与 7.0/7.1 解耦), 但建议在 7.0/7.1 后启动以便 P2 重活集中精力
+**Requirements**: L2-01..05 (P2, D12/D94/D91/D93/D98) + L2-06..08 (P3, D11/D13/D30)
+
+**Success criteria** (what must be TRUE):
+1. `MemoryStore` 改为单例持有 connection pool (sqlite-pool 或等价), 不再 connection-per-call (D12+D94 双胞胎收尾); `pytest tools/eaasp-l2-memory-engine/tests/` 全 PASS, 新增 high-concurrency throughput test (>10 并发 read/write) 跑过后 SQLite `database is locked` 0 命中
+2. HNSW 软删 tombstone 达到阈值 (e.g., 30% tombstone) 触发自动 rebuild (D91); `pytest -k "tombstone"` 套件 PASS, rebuild 行为有 measured before/after recall 指标; HybridIndex.search 不再 per-call rebuild HNSWVectorIndex (D98) — pytest benchmark 显示 search latency p99 下降 ≥ 50% (vs Phase 5.5 baseline)
+3. `embed_batch` 并发 fan-out (D93) 实施 + respect provider rate limit; `pytest -k "embed_batch"` 套件 PASS, batch=10 场景下耗时不超过 sequential 的 30% (i.e., 真实并发证据); 配 rate-limit-respect test
+4. skill-registry `scope` 过滤改为 WHERE 子句 (D11) — `LIMIT` 之前 filter; pytest 覆盖 "scope=X + limit=5 应返回 ≤5 且全 scope=X" assertion PASS; L2 `archive()` 真正 hide rows from FTS (D13) — archived row 在 search 调用下不出现, pytest 覆盖 PASS
+5. `busy_timeout` 统一为 const (D30) — L2/L3 不再散落 magic number; L2-01..08 全 8 REQ-ID 在 LEDGER 标 ✅ CLOSED 附 commit hash
+
+**Notes**: 此 phase 是 v3.3 keystone — 5 P2 集中 + 性能 / 并发 / 正确性三条线交织。plan-phase 阶段强烈建议拆为 ≥2 plan: connection-pool + MemoryStore 单例 (D12+D94) 为一 plan, HNSW + embed_batch + HybridIndex (D91+D93+D98) 为另一 plan, P3 三项 (D11+D13+D30) 为第三 plan 收尾。L2 P3 大量 row (D14/D15/D59/D65/D75-D80/D92/D95-D101) 留 INBOX 不入此 phase。
+
+#### Phase 7.3: L3 RBAC + hardening [🟡 STARTED]
+
+**Goal**: 把 L3 governance 三个 RBAC 相关 P2 (D8 access_scope 真实强制 + D9 skill_usage 真实遥测 + D46 Skill namespace 校验) 落地, 顺带把 L3 FastAPI 层 hardening P3 (D17/D18/D22/D23/D26) 收口, 让 L3 在企业 RBAC 场景下可用且 FastAPI 异常行为符合产品规范。
+
+**Depends on**: Nothing 强阻塞, 但 D9 skill_usage 真实遥测需 L2 audit log query 接口 (轻依赖 7.2 connection pool 就绪后查询性能更好, 但不阻塞 7.3 启动)
+**Requirements**: L3-01..03 (P2, D8/D9/D46) + L3-04..08 (P3, D22/D23/D17/D18/D26)
+
+**Success criteria** (what must be TRUE):
+1. `access_scope` 真实 RBAC 中间件落地 (D8): 用户 token 携带 scope, 调用 skill / memory 时由 middleware 校验; `pytest tools/eaasp-l3-governance/tests/test_rbac.py` (新增) 全 PASS, 覆盖 allow + deny + scope-mismatch 三类路径
+2. `skill_usage` endpoint 返回真实遥测 (D9): 从 L2 audit log query 而非 mock; pytest 覆盖 "skill A 调用 N 次后 endpoint 返回 N" 端到端 assertion PASS
+3. Skill manifest `access_scope` namespace 部署时校验 (D46): skill registry 注册时 reject 与已部署 skill namespace 冲突的声明; pytest 覆盖 conflict path PASS, 错误信息含冲突 namespace + 已占用方
+4. L3 FastAPI 全局 exception handler 落地 (D22) — 5xx 异常不再 leak stack trace, 返回标准 `{"error": {...}}` shape; loguru 初始化 (D23) — 启动时显式配置; `pytest -k "exception_handler or logging"` 套件 PASS
+5. `validate_session()` 的 `hook["hook_id"]` 改 `.get()` + 缺失 raise typed error (D17); `session_id` path param 加 UUID/format 校验 (D18); flaky `time.sleep(1.1)` 改 monotonic clock 或 mock time (D26); L3-01..08 全 8 REQ-ID 在 LEDGER 标 ✅ CLOSED 附 commit hash
+
+**Notes**: D8/D46 是 RBAC 双胞胎 — 一个是运行时 enforcement, 一个是部署期 namespace 隔离, plan-phase 可并排做但不同 plan。D9 skill_usage 真实遥测需要 L2 audit log query 接口已 ready — 与 7.2 connection pool 收尾后可获得更好查询性能。L3 P3 大量 row (D10/D16/D19/D20/D21/D25) 留 INBOX 不入此 phase。
+
+### Coverage Index (v3.3)
+
+| REQ-ID | Phase | Status |
+|--------|-------|---|
+| ENGINE-01 | 7.0 | 🟡 STARTED 2026-06-01 |
+| ENGINE-02 | 7.0 | 🟡 STARTED 2026-06-01 |
+| ENGINE-03 | 7.0 | 🟡 STARTED 2026-06-01 |
+| ENGINE-04 | 7.0 | 🟡 STARTED 2026-06-01 |
+| ENGINE-05 | 7.0 | 🟡 STARTED 2026-06-01 |
+| ENGINE-06 | 7.0 | 🟡 STARTED 2026-06-01 |
+| CONTRACT-01 | 7.1 | 🟡 STARTED 2026-06-01 |
+| CONTRACT-02 | 7.1 | 🟡 STARTED 2026-06-01 |
+| CONTRACT-03 | 7.1 | 🟡 STARTED 2026-06-01 |
+| CONTRACT-04 | 7.1 | 🟡 STARTED 2026-06-01 |
+| CONTRACT-05 | 7.1 | 🟡 STARTED 2026-06-01 |
+| L2-01 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-02 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-03 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-04 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-05 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-06 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-07 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L2-08 | 7.2 | 🟡 STARTED 2026-06-01 |
+| L3-01 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-02 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-03 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-04 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-05 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-06 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-07 | 7.3 | 🟡 STARTED 2026-06-01 |
+| L3-08 | 7.3 | 🟡 STARTED 2026-06-01 |
+
+**Total v3.3 coverage**: 27/27 REQ-IDs mapped (ENGINE 6 + CONTRACT 5 + L2 8 + L3 8); 0 orphans; 0 double-mapped.
+
+### Progress (v3.3)
+
+**Execution Order:**
+Phases execute in numeric order: 7.0 → 7.1 → 7.2 → 7.3 (parallelization allowed per GSD config; 7.0/7.1 strongly decoupled and parallelizable per phase Depends-on analysis; 7.2 keystone benefits from sequential focus; 7.3 lightly depends on 7.2 L2 audit query readiness)
+
+| Phase | Plans Complete | Status | Notes |
+|-------|----------------|--------|-------|
+| 7.0 grid-engine harness wiring | 0/0 | 🟡 STARTED 2026-06-01 | 6 REQ-IDs (1 P2 + 5 P3); next: `/gsd-discuss-phase 7.0` |
+| 7.1 contract observability + bridge | 0/0 | 🟡 STARTED 2026-06-01 | 5 REQ-IDs (2 P2 + 3 P3) |
+| 7.2 L2 connection-pool + Pipeline | 0/0 | 🟡 STARTED 2026-06-01 | 8 REQ-IDs (5 P2 + 3 P3) — keystone |
+| 7.3 L3 RBAC + hardening | 0/0 | 🟡 STARTED 2026-06-01 | 8 REQ-IDs (3 P2 + 5 P3) |
+
+### Granularity rationale (v3.3)
+
+v3.3 = 4 phases per per-module batching. Module choice (grid-engine + contract + L2 + L3) + ≤10-rows-per-phase budget + P2-before-P3 within each phase follow `.planning/v3.3-INBOX.md` §"Notes for v3.3+ scoping" guidance literally. Compared to v3.1 (6 phases, watchlist-spread across CLI/SERVER/CONTRACT/WATCHLIST/INTERFACE) and v3.2 (3 phases, intentional light triage with code work scope-limited to 3 rows), v3.3 sits between — focused debt sweep on 4 high-yield modules, not full INBOX drain. L4 / hooks / eval / grid-server (1 row) / cross-cutting modules in INBOX (~50 rows) defer to v3.4+ untouched.
+
+| Granularity check | Phase ratio | Verdict |
+|--|--|--|
+| **Granularity = Light-Standard** | 4 phases / milestone | ✓ Intentional, between v3.2 light (3) and v3.1 standard (6) |
+| **Mapping density** | avg ≈6.75 REQ/phase (range 5-8) | ✓ Within "≤10 per phase" cohesion limit per INBOX guidance |
+| **P2 distribution** | 11 P2 across 4 phases (1/2/5/3) | ✓ 7.2 keystone identified; 7.0 minimum P2 (single D102) |
+
+下个 milestone (v3.4+ TBD) 由 v3.3 close cascade 决定, 候选方向: L4 / hooks / eval / grid-server / cross-cutting 模块清扫 + INTERFACE-02/03 (V2-030/031 reserved) + CONTRACT-03/04 (新 RPC / SubAgent first-class) + grid-platform / grid-desktop / web* dormant 模块状态评估。
+
+---
+
 *ROADMAP evolves at phase transitions and milestone boundaries.*
 
-如 plan-phase 阶段发现某个 phase task 多于 5 个, 可由 plan-phase 自行考虑微拆 (例 Phase 6.2 三 task 若 TRIAGE-01 分类 102 row 工作量大可拆 plan), 但 ROADMAP 阶段不预拆。
+如 plan-phase 阶段发现某个 phase task 多于 5 个, 可由 plan-phase 自行考虑微拆 (例 Phase 7.2 keystone 5 P2 + 3 P3 = 8 row 高度推荐拆 ≥2 plan), 但 ROADMAP 阶段不预拆。

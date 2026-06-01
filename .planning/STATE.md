@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Phase 7 — Engine + Platform Debt Sweep (Focused)
-status: **Milestone v3.3 STARTED 2026-06-01** — Defining requirements (PROJECT.md updated, REQUIREMENTS.md + ROADMAP.md pending)
-stopped_at: Session 2026-06-01 — v3.3 scope locked (4 modules, ~30 rows), skip research, continues phase numbering from 6.2 → 7.0. PROJECT.md + STATE.md committed; REQUIREMENTS + ROADMAP next.
+status: **Milestone v3.3 STARTED 2026-06-01** — ROADMAP.md created (4 phases / 27 REQ-IDs mapped); ready to /gsd-discuss-phase 7.0
+stopped_at: Session 2026-06-01 — v3.3 scope locked (4 modules, ~30 rows), skip research, continues phase numbering from 6.2 → 7.0. PROJECT.md + STATE.md + REQUIREMENTS.md + ROADMAP.md complete; next /gsd-discuss-phase 7.0.
 last_updated: "2026-06-01T03:40:00.000Z"
 last_activity: 2026-06-01
 progress:
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-01 — v3.3 Current Milestone section
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (ready to /gsd-discuss-phase 7.0)
 Plan: —
-Status: **Defining requirements** (PROJECT.md updated; REQUIREMENTS.md + ROADMAP.md pending)
-Last activity: 2026-06-01 — Milestone v3.3 started
+Status: **ROADMAP.md created** (4 phases / 27 REQ-IDs mapped, 0 orphans, 0 double-mapped); ready for phase discuss
+Last activity: 2026-06-01 — Milestone v3.3 ROADMAP.md created via `/gsd-roadmapper`
 
 Progress: [░░░░░░░░░░] 0% (0/4 phases planned)
 
@@ -54,10 +54,10 @@ Progress: [░░░░░░░░░░] 0% (0/4 phases planned)
 
 | Phase | Plans | Status | Notes |
 |-------|-------|--------|-------|
-| 7.0 grid-engine harness wiring | 0/0 | 🟡 STARTED (requirements pending) | D102 P2 + S3.T1 cleanup P3 selective |
-| 7.1 contract observability + bridge | 0/0 | 🟡 STARTED (requirements pending) | D137+D138 P2 + envelope migrations P3 selective |
-| 7.2 L2 connection-pool + Pipeline | 0/0 | 🟡 STARTED (requirements pending) | 5 P2 (D12/D91/D93/D94/D98) + cross-cutting P3 |
-| 7.3 L3 RBAC + hardening | 0/0 | 🟡 STARTED (requirements pending) | 3 P2 (D8/D9/D46) + hardening P3 |
+| 7.0 grid-engine harness wiring | 0/0 | 🟡 STARTED (ready to /gsd-discuss-phase 7.0) | 6 REQ-IDs (ENGINE-01..06): 1 P2 (D102) + 5 P3 (D3/D57/D58/D103/D104) |
+| 7.1 contract observability + bridge | 0/0 | 🟡 STARTED (ready to /gsd-discuss-phase 7.1) | 5 REQ-IDs (CONTRACT-01..05): 2 P2 (D137/D138) + 3 P3 (D5/D6/D55) |
+| 7.2 L2 connection-pool + Pipeline | 0/0 | 🟡 STARTED (ready to /gsd-discuss-phase 7.2) | 8 REQ-IDs (L2-01..08): 5 P2 (D12/D91/D93/D94/D98) + 3 P3 (D11/D13/D30) — keystone phase |
+| 7.3 L3 RBAC + hardening | 0/0 | 🟡 STARTED (ready to /gsd-discuss-phase 7.3) | 8 REQ-IDs (L3-01..08): 3 P2 (D8/D9/D46) + 5 P3 (D17/D18/D22/D23/D26) |
 
 **Recent Trend (last 5 across milestones):**
 
