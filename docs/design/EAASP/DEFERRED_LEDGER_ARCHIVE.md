@@ -6,7 +6,7 @@
 **Total DEAD rows migrated**: 8
 **Migration timestamp**: 2026-05-26
 **Migrated from**: `docs/design/EAASP/DEFERRED_LEDGER.md` @ commit `9842dda` (TRIAGE-01 — main-namespace classification pass)
-**Migrated by**: Phase 6.2 Plan 01 Task 2 (TRIAGE-02) @ commit `<self-hash>` (this commit; placeholder filled by sed-replace commit 2)
+**Migrated by**: Phase 6.2 Plan 01 Task 2 (TRIAGE-02) @ commit `e2a6349` (this commit; placeholder filled by sed-replace commit 2)
 **Bidirectional cross-ref**: this commit hash filled by commit 2 (sed-replace); LEDGER §状态变更日志 cites this commit hash in entry below
 
 **Triage criteria applied** (per Phase 6.2 CONTEXT.md D-02):
