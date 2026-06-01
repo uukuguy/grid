@@ -1,4 +1,5 @@
 use grid_engine::auth::AuthConfigYaml;
+use grid_engine::context::CompactionPipelineConfig;
 use grid_engine::providers::{ProviderChainConfig, ProviderConfig, SmartRoutingConfig};
 use grid_engine::scheduler::SchedulerConfig;
 use serde::{Deserialize, Serialize};
@@ -86,6 +87,15 @@ pub struct Config {
     /// Multi-session configuration
     #[serde(default)]
     pub sessions: SessionsConfig,
+    /// Compaction pipeline configuration (ADR-V2-018 / D102 / ENGINE-01).
+    ///
+    /// When omitted from `config.yaml`, falls back to
+    /// `CompactionPipelineConfig::default()` via `#[serde(default)]`.
+    /// When present but containing an unknown key, deserialization fails
+    /// per ADR-V2-028 strict-by-default (`deny_unknown_fields` lives on
+    /// the inner struct).
+    #[serde(default)]
+    pub compaction: CompactionPipelineConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -718,6 +728,54 @@ impl Config {
             defaults.sync.enabled
         ));
         output.push_str("#   node_id: null          # Node identifier (auto-generated UUID if not set)\n");
+
+        // Compaction (ADR-V2-018 / D102 / ENGINE-01)
+        output.push_str(
+            "\n# Compaction pipeline configuration (ADR-V2-018 / D102 / ENGINE-01)\n",
+        );
+        output.push_str(
+            "# Strict-by-default per ADR-V2-028: unknown keys reject; omit the\n",
+        );
+        output.push_str(
+            "# block entirely to accept all CompactionPipelineConfig defaults.\n",
+        );
+        output.push_str("# compaction:\n");
+        output.push_str(&format!(
+            "#   summary_max_tokens: {}    # Maximum output tokens for the summary LLM call\n",
+            defaults.compaction.summary_max_tokens
+        ));
+        output.push_str(&format!(
+            "#   keep_recent_messages: {} # Legacy count-based tail fallback\n",
+            defaults.compaction.keep_recent_messages
+        ));
+        output.push_str(&format!(
+            "#   max_ptl_retries: {}        # Max PTL retries when summary call itself overflows\n",
+            defaults.compaction.max_ptl_retries
+        ));
+        output.push_str(&format!(
+            "#   proactive_threshold_pct: {} # Usage %% (0-100) above which proactive compact may run\n",
+            defaults.compaction.proactive_threshold_pct
+        ));
+        output.push_str(&format!(
+            "#   tail_protect_tokens: {}  # Token budget preserved verbatim at conversation tail\n",
+            defaults.compaction.tail_protect_tokens
+        ));
+        output.push_str(&format!(
+            "#   summary_ratio: {}        # Default compaction ratio for proactive triggers\n",
+            defaults.compaction.summary_ratio
+        ));
+        output.push_str(&format!(
+            "#   reactive_summary_ratio: {} # Compaction ratio for reactive (413/overflow) triggers\n",
+            defaults.compaction.reactive_summary_ratio
+        ));
+        output.push_str(&format!(
+            "#   summary_min_tokens: {}   # Floor for the summarizer max_tokens\n",
+            defaults.compaction.summary_min_tokens
+        ));
+        output.push_str(&format!(
+            "#   reactive_only: {}        # Skip proactive checks; only compact on PTL/overflow\n",
+            defaults.compaction.reactive_only
+        ));
 
         output
     }

@@ -73,6 +73,12 @@ pub struct AgentRuntimeConfig {
     pub sandbox_profile: Option<String>,
     /// Maximum concurrent sessions (Phase AJ-T5, default: 64)
     pub max_concurrent_sessions: Option<usize>,
+    /// Compaction pipeline configuration (D102 / ENGINE-01). Forwarded
+    /// into every `AgentLoopConfig` built by the executor at round
+    /// start. `None` preserves the historical default (executor falls
+    /// back to `CompactionPipelineConfig::default()` at struct-literal
+    /// expansion).
+    pub compaction: Option<crate::context::CompactionPipelineConfig>,
 }
 
 impl AgentRuntimeConfig {
@@ -95,6 +101,7 @@ impl AgentRuntimeConfig {
             grid_root: None,
             sandbox_profile: None,
             max_concurrent_sessions: None,
+            compaction: None,
         }
     }
 
@@ -261,6 +268,12 @@ pub struct AgentRuntime {
     /// (typically once at process startup).
     pub(crate) execution_mode:
         StdMutex<super::loop_config::ExecutionMode>,
+
+    /// ENGINE-01 (D102): YAML-configured compaction config forwarded into
+    /// every spawned `AgentExecutor` via `set_compaction_config`. `None`
+    /// preserves the historical default (executor falls back to
+    /// `CompactionPipelineConfig::default()` at AgentLoopConfig construction).
+    pub(crate) compaction: Option<crate::context::CompactionPipelineConfig>,
 }
 
 impl AgentRuntime {
@@ -609,6 +622,7 @@ impl AgentRuntime {
             session_stop_hooks: DashMap::new(),
             session_interrupts: SessionInterruptRegistry::new(),
             execution_mode: StdMutex::new(super::loop_config::ExecutionMode::default()),
+            compaction: config.compaction.clone(),
             catalog,
             provider,
             tools: Arc::new(StdMutex::new(tools)),
@@ -1596,6 +1610,11 @@ impl AgentRuntime {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         executor.set_execution_mode(mode);
+
+        // ENGINE-01 (D102): forward YAML-configured compaction config into the
+        // per-session executor so the harness picks it up at AgentLoopConfig
+        // construction time.
+        executor.set_compaction_config(self.compaction.clone());
 
         // D130: create the session/turn token tree and wire it into the executor.
         // The session_cancellation_token() is returned to the caller so it can

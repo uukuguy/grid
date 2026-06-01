@@ -202,6 +202,10 @@ pub struct AgentExecutor {
     // harness dispatches them at the natural termination boundary.
     // Empty by default — the harness skips dispatch entirely when empty.
     stop_hooks: Vec<Arc<dyn super::stop_hooks::StopHook>>,
+    // ENGINE-01 (D102): forwarded into every AgentLoopConfig built at
+    // round start. `None` keeps `AgentLoopConfig::default()` fallback
+    // semantics; `Some(cfg)` overrides per user YAML.
+    compaction_config: Option<crate::context::CompactionPipelineConfig>,
 }
 
 impl AgentExecutor {
@@ -277,6 +281,7 @@ impl AgentExecutor {
             execution_mode: super::loop_config::ExecutionMode::default(),
             required_tools: None,
             stop_hooks: Vec::new(),
+            compaction_config: None,
         }
     }
 
@@ -296,6 +301,19 @@ impl AgentExecutor {
     /// `Conversational` value in place.
     pub fn set_execution_mode(&mut self, mode: super::loop_config::ExecutionMode) {
         self.execution_mode = mode;
+    }
+
+    /// ENGINE-01 (D102): forward YAML-configured `CompactionPipelineConfig`
+    /// into the per-session executor. `AgentRuntime::build_and_spawn_executor_filtered`
+    /// calls this with `self.compaction.clone()` so each per-turn
+    /// `AgentLoopConfig` picks up the user-authored `compaction:` block from
+    /// `config.yaml`. `None` keeps the historical `AgentLoopConfig::default()`
+    /// fallback semantics.
+    pub fn set_compaction_config(
+        &mut self,
+        cfg: Option<crate::context::CompactionPipelineConfig>,
+    ) {
+        self.compaction_config = cfg;
     }
 
     /// S3.T5 (G7): install Stop hooks for this executor's session.
@@ -541,6 +559,12 @@ impl AgentExecutor {
                         tool_choice_supported: self.tool_choice_supported,
                         required_tools: self.required_tools.clone(),
                         execution_mode: self.execution_mode,
+                        // ENGINE-01 (D102): forward YAML-configured
+                        // compaction config (from grid-server Config →
+                        // AgentRuntimeConfig → AgentRuntime →
+                        // AgentExecutor) into the per-round loop config so
+                        // the harness honors user-authored thresholds.
+                        compaction_config: self.compaction_config.clone(),
                         // S3.T5 (G7): forward Stop hooks (e.g. bash hooks
                         // bridged by `ScopedStopHookBridge`) into the
                         // per-round AgentLoopConfig so the harness fires

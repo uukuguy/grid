@@ -142,6 +142,10 @@ async fn main() -> Result<()> {
     .with_grid_root(grid_root);
     let runtime_config = AgentRuntimeConfig {
         max_concurrent_sessions: Some(cfg.sessions.max_concurrent),
+        // ENGINE-01 (D102): forward YAML-configured compaction config
+        // through to AgentRuntime so each spawned AgentExecutor honors the
+        // user-authored `compaction:` block from config.yaml.
+        compaction: Some(cfg.compaction.clone()),
         ..runtime_config
     };
 

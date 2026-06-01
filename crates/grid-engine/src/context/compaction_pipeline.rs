@@ -42,7 +42,7 @@ use crate::agent::harness::is_prompt_too_long;
 /// - `reactive_only`: when `true`, harness skips the proactive threshold
 ///   check and only runs compaction in response to errors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct CompactionPipelineConfig {
     /// Model to use for the summary LLM call. `None` reuses the session model.
     pub compact_model: Option<String>,
