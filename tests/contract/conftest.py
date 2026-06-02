@@ -35,6 +35,10 @@ import uvicorn
 
 from tests.contract.harness import mock_anthropic_server, mock_openai_server
 from tests.contract.harness.hook_probe import HookProbe
+from tests.contract.harness.mcp_subprocess import (  # noqa: F401 — re-exports fixtures
+    mcp_subprocess,
+    mcp_subprocess_command,
+)
 from tests.contract.harness.runtime_launcher import RuntimeConfig, RuntimeLauncher
 
 
