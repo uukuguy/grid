@@ -34,7 +34,7 @@ import pytest
 import uvicorn
 
 from tests.contract.harness import mock_anthropic_server, mock_openai_server
-from tests.contract.harness.hook_probe import HookProbe
+from tests.contract.harness.hook_probe import HookCapture, HookProbe
 from tests.contract.harness.mcp_subprocess import (  # noqa: F401 — re-exports fixtures
     mcp_subprocess,
     mcp_subprocess_command,
@@ -626,7 +626,7 @@ def _fresh_probe_out(probe_out_dir: Path) -> None:
 
 def _run_hook_probe(
     stub: runtime_pb2_grpc.RuntimeServiceStub, probe_out_dir: Path
-) -> dict[str, object]:
+) -> dict[str, HookCapture]:
     """Drive one probe turn and return captures keyed by event name."""
     _fresh_probe_out(probe_out_dir)
     probe = HookProbe(
