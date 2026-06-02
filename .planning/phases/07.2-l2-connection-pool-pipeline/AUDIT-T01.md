@@ -63,4 +63,21 @@ D12 + D94 substantively shipped in Phase 2.5 S2.T1/T6 and remains correctly cons
 
 ---
 
-(D98 cache verdict will be appended by T03.)
+## D98 cache verdict (T03 appendix)
+
+**Verdict:** ALREADY CACHED at `index.py:158` + `index.py:240-249`.
+
+Inspection of `tools/eaasp-l2-memory-engine/src/eaasp_l2_memory_engine/index.py`:
+
+- `HybridIndex.__init__` line 158: `self._hnsw_cache: dict[tuple[str, int], Any] = {}`
+- `HybridIndex.search` lines 239-249: builds `cache_key = (embedder_model_id, embedder_dim)`, checks `if cache_key in self._hnsw_cache:` before constructing a new `HNSWVectorIndex`. On `(ModelIdMismatchError, DimensionMismatchError)` degrades to keyword-only without poisoning the cache.
+
+Non-regression test added at `tools/eaasp-l2-memory-engine/tests/test_hybrid_index_cache.py` — confirms (a) cache empty before first search, (b) cache holds exactly 1 entry after one successful search, (c) cache pointer identity preserved across 5 additional searches. Run with `EAASP_EMBEDDING_PROVIDER=mock`:
+
+```
+EAASP_EMBEDDING_PROVIDER=mock uv run --project tools/eaasp-l2-memory-engine \
+    pytest tools/eaasp-l2-memory-engine/tests/test_hybrid_index_cache.py -v
+→ 1 passed in 0.11s
+```
+
+CONTEXT.md D-07 path (3) applied. No source change for D98; the cache shipped earlier and the test guards against future refactor regression.
