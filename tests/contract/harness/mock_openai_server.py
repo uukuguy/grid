@@ -171,14 +171,22 @@ def build_app(
     """Return a FastAPI app implementing the minimum OpenAI surface.
 
     Args:
-        tool_script: Optional ordered list of tool-call descriptors. Each
-            entry dict must carry ``"tool_name"`` and ``"arguments"`` (a
-            JSON-serializable dict). The Nth chat-completion request is
-            answered with ``tool_calls=[{tool_script[N]}]`` and
-            ``finish_reason="tool_calls"``. When the script is exhausted,
-            subsequent requests fall back to the plain "mock response"
-            terminal-stop reply. Pass ``None`` to disable scripting
-            entirely (matches pre-S0.T4 behaviour).
+        tool_script: Optional ordered list of turn descriptors. Two
+            entry shapes are accepted (Phase 7.1 T01 / D137 multi-turn
+            extension):
+
+            * tool turn — ``{"tool_name": str, "arguments": dict,
+              "id": str}``. The Nth chat-completion request is answered
+              with ``tool_calls=[{...}]`` and
+              ``finish_reason="tool_calls"``.
+            * text turn — ``{"kind": "text", "content": str}``. The Nth
+              chat-completion request is answered with a terminal-stop
+              reply carrying the supplied ``content`` string.
+
+            When the script is exhausted, subsequent requests fall back
+            to a plain ``"mock response"`` terminal-stop reply. Pass
+            ``None`` to disable scripting entirely (matches pre-S0.T4
+            behaviour).
 
     Endpoints:
 
@@ -212,12 +220,23 @@ def build_app(
         # from the same script counter for both synchronous and SSE paths.
         if idx < len(script):
             entry = script[idx]
-            shape = {
-                "kind": "tool_calls",
-                "tool_name": entry["tool_name"],
-                "arguments": entry.get("arguments", {}),
-                "tool_id": entry.get("id", f"call_{idx}"),
-            }
+            if entry.get("kind") == "text":
+                # T01 (CONTRACT-01 / D137): multi-turn TEXT turn.
+                # Emit the same terminal-stop shape the fallback path
+                # uses, but with the script-supplied content. This lets
+                # MultiTurnFixture interleave tool_call + text turns
+                # deterministically.
+                shape = {
+                    "kind": "stop",
+                    "content": entry.get("content", "mock response"),
+                }
+            else:
+                shape = {
+                    "kind": "tool_calls",
+                    "tool_name": entry["tool_name"],
+                    "arguments": entry.get("arguments", {}),
+                    "tool_id": entry.get("id", f"call_{idx}"),
+                }
         else:
             shape = {
                 "kind": "stop",

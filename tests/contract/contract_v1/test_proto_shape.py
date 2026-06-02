@@ -103,14 +103,36 @@ def test_events_stream_yields_eventstreamentry(runtime_config):
     assert entry.event_type == runtime_pb2.HookEventType.PRE_TOOL_USE
 
 
-def test_events_stream_emits_stop_at_turn_end(runtime_config):
+def test_events_stream_emits_stop_at_turn_end(runtime_grpc_stub):
     """A terminal STOP event MUST close the Send stream for the turn.
 
-    Deferred: requires driving the stream past the scripted first
-    tool_call to observe the terminal ``chunk_type="done"`` response.
-    Multi-turn harness support lands in S0.T6.
+    CONTRACT-01 (D137 part 1, T01): drive a 1-turn session via the
+    multi-turn replay framework and assert the final chunk on the Send
+    stream is ``CHUNK_TYPE_DONE`` per proto/eaasp/runtime/v2/common.proto.
     """
-    pytest.xfail("D137: terminal-stop stream observation deferred to S0.T6")
+    from tests.contract.harness.multi_turn import (
+        MultiTurnFixture,
+        TurnScript,
+        drive_session,
+    )
+    runtime_pb2, common_pb2 = _import_proto()
+
+    fixture = MultiTurnFixture(
+        script=[TurnScript(kind="text", content="done")],
+        user_messages=["any user input"],
+    )
+    per_turn = drive_session(
+        runtime_grpc_stub,
+        runtime_pb2,
+        common_pb2,
+        fixture,
+        session_id="t01-stop-at-turn-end",
+    )
+    assert len(per_turn) == 1
+    assert per_turn[0], "expected at least one SendResponse chunk"
+    assert per_turn[0][-1].chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_DONE, (
+        f"final chunk must be DONE; got {per_turn[0][-1].chunk_type}"
+    )
 
 
 def test_close_request_accepts_session_id(runtime_grpc_stub):
