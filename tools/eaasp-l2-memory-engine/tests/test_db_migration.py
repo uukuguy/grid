@@ -113,7 +113,7 @@ async def test_idx_embedding_model_exists(tmp_path: Path) -> None:
         db.row_factory = aiosqlite.Row
         # PRAGMA index_info returns one row per indexed column.
         cur = await db.execute("PRAGMA index_info(idx_memory_files_embedding_model)")
-        rows = await cur.fetchall()
+        rows = list(await cur.fetchall())
 
     assert len(rows) == 1
     assert rows[0]["name"] == "embedding_model_id"
