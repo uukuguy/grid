@@ -324,9 +324,12 @@ impl SkillStore {
 
     /// Search skills by optional tag, text query, status, scope, and limit.
     ///
-    /// `scope` filters by the `access_scope` field parsed from a skill's v2
-    /// frontmatter. Because that field lives on the filesystem (not SQL),
-    /// scope filtering is applied as a post-query in-memory filter.
+    /// `scope` filters by the `access_scope` column. Filter is applied as
+    /// an SQL WHERE clause BEFORE `LIMIT N`, so the result is always
+    /// "<=N rows, all matching scope" (D11 / L2-06 / Phase 7.2 Plan 03).
+    /// Rows whose `access_scope` is NULL (e.g. legacy v1 skills that have
+    /// no v2 frontmatter) are EXCLUDED from a `Some(...)` scope filter and
+    /// INCLUDED when `scope` is `None`.
     pub async fn search(
         &self,
         tag: Option<String>,
@@ -361,6 +364,16 @@ impl SkillStore {
                 if let Some(ref s) = status {
                     sql.push_str(&format!(" AND status = ?{idx}"));
                     params.push(Box::new(s.clone()));
+                    idx += 1;
+                }
+
+                // D11 / L2-06 (Phase 7.2 Plan 03 T02) — scope filter is
+                // now an SQL WHERE clause backed by the `access_scope`
+                // column added in T01. Filter is applied BEFORE LIMIT so
+                // the result is "<=N rows, all matching scope".
+                if let Some(ref s) = scope {
+                    sql.push_str(&format!(" AND access_scope = ?{idx}"));
+                    params.push(Box::new(s.clone()));
                     #[allow(unused_assignments)]
                     {
                         idx += 1;
@@ -385,33 +398,11 @@ impl SkillStore {
             .await
             .context("search skills")?;
 
-        // Post-query scope filter: for each candidate, read its full content
-        // and compare `parsed_v2.access_scope`. O(N) — acceptable for MVP.
-        let Some(scope_value) = scope else {
-            return Ok(base);
-        };
-
-        let mut filtered = Vec::with_capacity(base.len());
-        for meta in base {
-            match self
-                .read_skill(meta.id.clone(), Some(meta.version.clone()))
-                .await?
-            {
-                Some(content) => {
-                    let matches = content
-                        .parsed_v2
-                        .as_ref()
-                        .and_then(|v| v.access_scope.as_ref())
-                        .map(|s| s == &scope_value)
-                        .unwrap_or(false);
-                    if matches {
-                        filtered.push(meta);
-                    }
-                }
-                None => continue,
-            }
-        }
-        Ok(filtered)
+        // D11 / L2-06 (Phase 7.2 Plan 03 T02) — scope filter is now an
+        // SQL WHERE clause backed by the `access_scope` column added in
+        // T01. `base` is already the filtered + limited result; return
+        // as-is.
+        Ok(base)
     }
 
     /// Promote a skill version to a new status.
