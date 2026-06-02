@@ -793,6 +793,26 @@ impl RuntimeContract for GridHarness {
             )
             .await;
 
+        // Phase 7.1 T02 (CONTRACT-01 / D137 part 2): register PreCompact
+        // observability hook. When `GRID_CONTRACT_PROBE_OUT` is set the
+        // hook appends a `PRE_COMPACT` JSON line to `<probe_out>/events.jsonl`
+        // every time `compaction_pipeline.rs:349` fires the PreCompact
+        // hook (i.e. when `CompactionPipelineConfig.proactive_threshold_pct`
+        // is breached). Production runs leave `GRID_CONTRACT_PROBE_OUT`
+        // unset and pay zero cost. The hook DOES NOT emit a wire-level
+        // `EventStreamEntry` itself — the existing `emit_event` RPC at
+        // `service.rs:597` is the wire path for L2→L4 event publishing;
+        // this hook is the test-side observation surface that pins the
+        // contract from the OTHER side of the same channel.
+        let pre_compact_hook = crate::pre_compact_emitter::PreCompactEmitter::from_env();
+        self.runtime
+            .hook_registry()
+            .register(
+                grid_engine::hooks::HookPoint::PreCompact,
+                std::sync::Arc::new(pre_compact_hook),
+            )
+            .await;
+
         info!(
             session_id = %session_id,
             user = %user_id_str,

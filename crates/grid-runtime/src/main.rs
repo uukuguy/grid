@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
         model: Some(config.model.clone()),
     };
 
-    let runtime_config = AgentRuntimeConfig::from_parts(
+    let mut runtime_config = AgentRuntimeConfig::from_parts(
         db_path,
         provider_config,
         vec![], // no skill dirs for runtime
@@ -67,6 +67,35 @@ async fn main() -> anyhow::Result<()> {
         None,   // no working dir
         true,   // enable event bus for telemetry
     );
+
+    // Phase 7.1 T02 (CONTRACT-01 / D137 part 2): optional env-var override
+    // for the compaction proactive-threshold so contract tests can trip
+    // PRE_COMPACT emission on small synthetic payloads without large
+    // fixtures. When `GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT` is unset
+    // the historical `CompactionPipelineConfig::default()` path applies
+    // (executor falls back at struct-literal expansion). YAML wiring per
+    // Phase 7.0 / commit 3a23ecb lives in grid-server; grid-runtime gets
+    // the env-var path because it does not load a YAML config today.
+    if let Ok(pct_str) = std::env::var("GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT") {
+        match pct_str.parse::<u8>() {
+            Ok(pct) if pct <= 100 => {
+                let mut cfg = grid_engine::context::CompactionPipelineConfig::default();
+                cfg.proactive_threshold_pct = pct;
+                runtime_config.compaction = Some(cfg);
+                info!(
+                    threshold_pct = pct,
+                    "grid-runtime: GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT override applied"
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    value = %pct_str,
+                    "grid-runtime: GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT ignored \
+                     (must be 0-100 integer)"
+                );
+            }
+        }
+    }
 
     let catalog = Arc::new(AgentCatalog::new());
     let tenant_context = TenantContext::for_single_user(

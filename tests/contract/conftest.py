@@ -281,6 +281,11 @@ def runtime_config(
                 "OPENAI_BASE_URL": f"http://127.0.0.1:{mock_openai_server_port}/v1",
                 "OPENAI_MODEL_NAME": "gpt-4o",
                 "GRID_PROBE_STRATEGY": "lazy",
+                # Phase 7.1 T02 (CONTRACT-01 / D137 part 2): drive the
+                # compaction proactive-threshold low so the contract suite
+                # can trip PRE_COMPACT EventStreamEntry emission on modest
+                # synthetic payloads (no large-context fixtures needed).
+                "GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT": "5",
                 "RUST_LOG": "grid_runtime=warn,grid_engine=warn",
                 # Scoped-hook wiring: EAASP_SKILL_CACHE_DIR + the
                 # per-skill subdirectory under it resolve ${SKILL_DIR}.

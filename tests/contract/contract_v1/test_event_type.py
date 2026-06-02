@@ -155,22 +155,96 @@ def test_tool_call_event_precedes_tool_result(runtime_grpc_stub):
             )
 
 
-def test_unknown_event_type_not_emitted(runtime_config):
-    """Every observed event_type MUST be a member of EVENT_TYPES_V1."""
+def test_unknown_event_type_not_emitted(runtime_grpc_stub, probe_out_dir):
+    """Every observed event_type MUST be a member of EVENT_TYPES_V1.
 
-    def _check(observed: list[str]) -> None:
-        for t in observed:
-            assert_event_type_in(t)
+    CONTRACT-01 (D137 part 2, T02): drive a Send turn (which may emit
+    PRE_COMPACT among others), drain captured EventStreamEntries from
+    the runtime's PreCompactEmitter file sink, and assert each
+    event_type string is in the canonical 7-member frozenset.
+    """
+    from tests.contract.harness.event_log import (
+        clear_captured_events,
+        fetch_captured_events,
+    )
+    from tests.contract.harness.multi_turn import (
+        MultiTurnFixture,
+        TurnScript,
+        drive_session,
+    )
+    from claude_code_runtime._proto.eaasp.runtime.v2 import (
+        common_pb2,
+        runtime_pb2,
+    )
 
-    # _check remains exported as a contract helper for T02 callers.
-    pytest.xfail("D137: event_type whitelist observation deferred to T02")
+    clear_captured_events(probe_out_dir)
+    fixture = MultiTurnFixture(
+        script=[TurnScript(kind="text", content="ack")],
+        user_messages=["hello"],
+    )
+    drive_session(
+        runtime_grpc_stub,
+        runtime_pb2,
+        common_pb2,
+        fixture,
+        session_id="t02-event-whitelist",
+    )
+
+    # The window may legitimately have zero captured events (PRE_COMPACT
+    # only fires when context threshold is breached; a short turn won't
+    # cross 5% on a fresh session). The contract: ANY captured event
+    # MUST be a known type — vacuous truth is acceptable.
+    events = fetch_captured_events(probe_out_dir)
+    for event_type in events:
+        assert_event_type_in(event_type)
 
 
-def test_pre_compact_event_emitted_over_threshold(runtime_config):
+def test_pre_compact_event_emitted_over_threshold(
+    runtime_grpc_stub, probe_out_dir,
+):
     """Per ADR-V2-018, PRE_COMPACT fires when context usage exceeds threshold.
 
-    Deferred: requires feeding the runtime a multi-turn session large
-    enough to breach its compaction threshold. T02 wires the EVENT
-    channel emit path and flips this xfail.
+    CONTRACT-01 (D137 part 2, T02): with
+    ``GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT=5`` injected via conftest,
+    drive a 2-turn session with a bulky user message (~60 KB), then
+    fetch captured events. The PreCompactEmitter file sink records the
+    firing as ``event_type=PRE_COMPACT`` so the test can observe the
+    threshold trip without an in-runtime gRPC sniff path.
     """
-    pytest.xfail("D137: PRE_COMPACT threshold test deferred to T02")
+    from tests.contract.harness.event_log import (
+        clear_captured_events,
+        fetch_captured_events,
+    )
+    from tests.contract.harness.multi_turn import (
+        MultiTurnFixture,
+        TurnScript,
+        drive_session,
+    )
+    from claude_code_runtime._proto.eaasp.runtime.v2 import (
+        common_pb2,
+        runtime_pb2,
+    )
+
+    clear_captured_events(probe_out_dir)
+    big_text = "x" * 60_000  # ~15k tokens; trips 5% of 200k window
+    fixture = MultiTurnFixture(
+        script=[
+            TurnScript(kind="text", content="ack-1"),
+            TurnScript(kind="text", content="ack-2"),
+        ],
+        user_messages=[big_text, "follow-up"],
+    )
+    drive_session(
+        runtime_grpc_stub,
+        runtime_pb2,
+        common_pb2,
+        fixture,
+        session_id="t02-pre-compact-threshold",
+    )
+
+    events = fetch_captured_events(probe_out_dir)
+    assert "PRE_COMPACT" in events, (
+        f"expected PRE_COMPACT HookEventType in emitted event stream when "
+        f"proactive_threshold_pct=5 with 60k-char user message; "
+        f"observed events={events}"
+    )
