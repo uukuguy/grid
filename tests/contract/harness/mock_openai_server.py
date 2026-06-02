@@ -23,7 +23,7 @@ import json
 import threading
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -165,8 +165,72 @@ async def _sse_delta_response(
     yield b"data: [DONE]\n\n"
 
 
+def _render_sync(model: str, idx: int, shape: dict[str, Any]) -> dict[str, Any]:
+    """Render the synchronous (non-SSE) OpenAI chat completion JSON.
+
+    Mirrors the original inline branches so the scenario-routing path
+    (T04) and the script-counter path can share the same exit shape.
+    """
+    if shape["kind"] == "tool_calls":
+        return {
+            "id": f"chatcmpl-mock-{idx}",
+            "object": "chat.completion",
+            "created": 0,
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": shape["tool_id"],
+                                "type": "function",
+                                "function": {
+                                    "name": shape["tool_name"],
+                                    "arguments": json.dumps(
+                                        shape.get("arguments", {})
+                                    ),
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 2,
+                "total_tokens": 2,
+            },
+        }
+    return {
+        "id": f"chatcmpl-mock-{idx}",
+        "object": "chat.completion",
+        "created": 0,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": shape.get("content", "mock response"),
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 2,
+            "total_tokens": 2,
+        },
+    }
+
+
 def build_app(
     tool_script: list[dict[str, Any]] | None = None,
+    scenario_responses: dict[str, dict[str, Any]] | None = None,
 ) -> FastAPI:
     """Return a FastAPI app implementing the minimum OpenAI surface.
 
@@ -209,12 +273,40 @@ def build_app(
     counter_lock = threading.Lock()
     counter = {"n": 0}
     script = list(tool_script or [])
+    scenarios: dict[str, dict[str, Any]] = dict(scenario_responses or {})
+    # T04 (CONTRACT-02 / D138): per-request capture of `tool_choice`.
+    # Tests assert what the runtime forwarded via `__test/last_tool_choice`.
+    observed_tool_choice: dict[str, Any] = {"value": None}
 
     @app.post("/v1/chat/completions")
-    async def chat_completions(req: _ChatRequest):
+    async def chat_completions(req: _ChatRequest, request: Request):
         with counter_lock:
             idx = counter["n"]
             counter["n"] += 1
+
+        observed_tool_choice["value"] = req.tool_choice
+
+        # T04 (CONTRACT-02 / D138): scenario header routes BEFORE the
+        # script counter. Tests forward `x-test-scenario` via the
+        # in-contract `UserMessage.metadata` map; grid-engine reads
+        # the metadata and sets the `X-Test-Scenario` HTTP header on
+        # the outbound provider call. Header lookup is case-insensitive
+        # via FastAPI's Request.headers.get.
+        scenario = (
+            request.headers.get("x-test-scenario")
+            or request.headers.get("X-Test-Scenario")
+        )
+        if scenario and scenario in scenarios:
+            shape = dict(scenarios[scenario])
+            # Backfill tool_id when absent so the SSE emitter has a
+            # stable id to thread through chunks.
+            shape.setdefault("tool_id", f"call_scn_{idx}")
+            if req.stream:
+                return StreamingResponse(
+                    _sse_delta_response(req.model, idx, shape),
+                    media_type="text/event-stream",
+                )
+            return _render_sync(req.model, idx, shape)
 
         # Resolve the response shape (scripted tool_use OR terminal stop)
         # from the same script counter for both synchronous and SSE paths.
@@ -311,6 +403,12 @@ def build_app(
                 "total_tokens": 2,
             },
         }
+
+    @app.get("/__test/last_tool_choice")
+    async def last_tool_choice() -> dict[str, Any]:
+        # T04 (CONTRACT-02 / D138): tests poll this endpoint to assert
+        # the runtime forwarded the expected `tool_choice` value.
+        return {"tool_choice": observed_tool_choice["value"]}
 
     @app.get("/health")
     async def health() -> dict[str, str]:

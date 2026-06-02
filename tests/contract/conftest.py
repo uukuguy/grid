@@ -142,6 +142,8 @@ def mock_openai_server_port() -> Iterator[int]:
     poll the ``/health`` endpoint before yielding so tests never race
     against a not-yet-bound port.
     """
+    from tests.contract.harness.scenario_fixtures import OPENAI_DENY_SCENARIOS
+
     port = _free_port()
     app = mock_openai_server.build_app(
         tool_script=[
@@ -153,7 +155,11 @@ def mock_openai_server_port() -> Iterator[int]:
                 },
                 "id": "call_probe_0",
             }
-        ]
+        ],
+        # Phase 7.1 T04 (CONTRACT-02 / D138): expose deny-path
+        # scenarios via X-Test-Scenario header routing. T05 consumes
+        # them through UserMessage.metadata propagation.
+        scenario_responses=OPENAI_DENY_SCENARIOS,
     )
 
     config = uvicorn.Config(
@@ -204,8 +210,14 @@ def mock_anthropic_server_port() -> Iterator[int]:
     drains Send (which happens before the RPC sweep). No tool scripting
     is required or implemented.
     """
+    from tests.contract.harness.scenario_fixtures import (
+        ANTHROPIC_DENY_SCENARIOS,
+    )
+
     port = _free_port()
-    app = mock_anthropic_server.build_app()
+    app = mock_anthropic_server.build_app(
+        scenario_responses=ANTHROPIC_DENY_SCENARIOS,
+    )
 
     config = uvicorn.Config(
         app,

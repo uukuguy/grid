@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
 
@@ -40,12 +40,70 @@ class _MessagesRequest(BaseModel):
     system: Any = None
 
 
-def build_app() -> FastAPI:
-    """Return a FastAPI app implementing the minimum Anthropic surface."""
+def build_app(
+    scenario_responses: dict[str, dict[str, Any]] | None = None,
+) -> FastAPI:
+    """Return a FastAPI app implementing the minimum Anthropic surface.
+
+    Args:
+        scenario_responses: Phase 7.1 T04 (CONTRACT-02 / D138) — optional
+            map of scenario name → Anthropic-shaped response fixture
+            (``{"shape": "tool_use", "name": str, "input": dict}`` or
+            ``{"shape": "text", "text": str}``). When the inbound
+            request carries ``X-Test-Scenario: <name>`` and the name
+            matches a key here, the mock returns the fixture instead of
+            the default terminal-text reply.
+    """
     app = FastAPI(title="contract-harness-mock-anthropic")
+    scenarios: dict[str, dict[str, Any]] = dict(scenario_responses or {})
+    observed_tool_choice: dict[str, Any] = {"value": None}
 
     @app.post("/v1/messages")
-    async def messages(req: _MessagesRequest) -> dict[str, Any]:
+    async def messages(
+        req: _MessagesRequest, request: Request
+    ) -> dict[str, Any]:
+        observed_tool_choice["value"] = req.tool_choice
+
+        # T04 (CONTRACT-02 / D138): scenario header routes BEFORE the
+        # default response. See OpenAI mock for the full path narrative.
+        scenario = (
+            request.headers.get("x-test-scenario")
+            or request.headers.get("X-Test-Scenario")
+        )
+        if scenario and scenario in scenarios:
+            fixture = scenarios[scenario]
+            shape = fixture.get("shape", "text")
+            if shape == "tool_use":
+                return {
+                    "id": "msg-mock-scenario",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": fixture.get("id", "toolu_mock_0"),
+                            "name": fixture.get("name", "unknown_tool"),
+                            "input": fixture.get("input", {}),
+                        }
+                    ],
+                    "model": req.model,
+                    "stop_reason": "tool_use",
+                    "stop_sequence": None,
+                    "usage": {"input_tokens": 0, "output_tokens": 2},
+                }
+            return {
+                "id": "msg-mock-scenario",
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": fixture.get("text", "mock response")}
+                ],
+                "model": req.model,
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 0, "output_tokens": 2},
+            }
+
         # Deterministic terminal-text response. The claude CLI parses this
         # into an AssistantMessage with a single TextBlock, which the
         # Python SDK wrapper then surfaces to Send as a text_delta chunk.
@@ -59,6 +117,10 @@ def build_app() -> FastAPI:
             "stop_sequence": None,
             "usage": {"input_tokens": 0, "output_tokens": 2},
         }
+
+    @app.get("/__test/last_tool_choice")
+    async def last_tool_choice() -> dict[str, Any]:
+        return {"tool_choice": observed_tool_choice["value"]}
 
     @app.get("/health")
     async def health() -> dict[str, str]:
