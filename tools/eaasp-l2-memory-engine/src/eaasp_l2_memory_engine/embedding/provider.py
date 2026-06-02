@@ -16,6 +16,7 @@ MEMORY.md "Ollama 已知问题" for precedent in reqwest / grid-engine OpenAIPro
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 import os
@@ -23,6 +24,39 @@ import random
 from typing import Protocol
 
 import httpx
+
+
+# D93 / L2-04 (Phase 7.2 Plan 02 T03) — per-provider concurrency caps
+# for embed_batch. Mock has no real I/O so 100 is effectively no limit;
+# Ollama-local typically saturates at 5 concurrent embed requests
+# (see CONTEXT.md D-03). The L2_EMBED_BATCH_CONCURRENCY env var, if set,
+# overrides BOTH per-provider defaults globally for tuning / tests.
+#
+# Strict-by-default per ADR-V2-028: malformed env value raises
+# ValueError, no silent fallback.
+EMBED_BATCH_CONCURRENCY_MOCK_DEFAULT = 100
+EMBED_BATCH_CONCURRENCY_OLLAMA_DEFAULT = 5
+
+
+def _load_embed_batch_concurrency_override() -> int | None:
+    raw = os.environ.get("L2_EMBED_BATCH_CONCURRENCY")
+    if raw is None:
+        return None
+    try:
+        parsed = int(raw)
+    except ValueError as e:
+        raise ValueError(
+            f"L2_EMBED_BATCH_CONCURRENCY={raw!r} is not an integer "
+            f"(strict-by-default per ADR-V2-028)"
+        ) from e
+    if parsed < 1:
+        raise ValueError(
+            f"L2_EMBED_BATCH_CONCURRENCY={parsed} must be >= 1"
+        )
+    return parsed
+
+
+_EMBED_BATCH_CONCURRENCY_OVERRIDE = _load_embed_batch_concurrency_override()
 
 # bge-m3 family embedding dimension (fixed).
 BGE_M3_DIMENSION = 1024
@@ -66,6 +100,12 @@ class OllamaEmbedding:
         self.ollama_url = ollama_url.rstrip("/")
         # Fixed for bge-m3 family. Extend if adding other models.
         self._dim = BGE_M3_DIMENSION
+        # D93 / L2-04 — per-provider concurrency cap, overridable via env.
+        self._concurrency_limit = (
+            _EMBED_BATCH_CONCURRENCY_OVERRIDE
+            if _EMBED_BATCH_CONCURRENCY_OVERRIDE is not None
+            else EMBED_BATCH_CONCURRENCY_OLLAMA_DEFAULT
+        )
 
     async def embed(self, text: str) -> list[float]:
         # trust_env=False: bypass macOS proxy (Clash/etc) which breaks localhost.
@@ -79,10 +119,14 @@ class OllamaEmbedding:
             return data["embedding"]
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        vecs: list[list[float]] = []
-        for text in texts:
-            vecs.append(await self.embed(text))
-        return vecs
+        # D93 / L2-04 — asyncio.gather + per-provider semaphore.
+        sem = asyncio.Semaphore(self._concurrency_limit)
+
+        async def _one(t: str) -> list[float]:
+            async with sem:
+                return await self.embed(t)
+
+        return await asyncio.gather(*(_one(t) for t in texts))
 
     @property
     def dimension(self) -> int:
@@ -104,6 +148,12 @@ class MockEmbedding:
     def __init__(self, model: str = "mock-bge-m3:fp16") -> None:
         self.model = model
         self._dim = BGE_M3_DIMENSION
+        # D93 / L2-04 — per-provider concurrency cap, overridable via env.
+        self._concurrency_limit = (
+            _EMBED_BATCH_CONCURRENCY_OVERRIDE
+            if _EMBED_BATCH_CONCURRENCY_OVERRIDE is not None
+            else EMBED_BATCH_CONCURRENCY_MOCK_DEFAULT
+        )
 
     async def embed(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
@@ -117,7 +167,17 @@ class MockEmbedding:
         return [v / norm for v in samples]
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        return [await self.embed(text) for text in texts]
+        # D93 / L2-04 — asyncio.gather + per-provider semaphore.
+        # Mock has no real I/O; the semaphore exists only so the
+        # rate-limit-respect test can verify the bounding mechanism
+        # works (same code path as Ollama).
+        sem = asyncio.Semaphore(self._concurrency_limit)
+
+        async def _one(t: str) -> list[float]:
+            async with sem:
+                return await self.embed(t)
+
+        return await asyncio.gather(*(_one(t) for t in texts))
 
     @property
     def dimension(self) -> int:
