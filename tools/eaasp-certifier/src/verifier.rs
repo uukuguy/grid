@@ -48,8 +48,23 @@ pub struct VerificationReport {
     pub optional_total: usize,
     pub optional_present: usize,
     pub placeholder_present: bool,
+    /// Phase 7.1 T07 (CONTRACT-04 / D6): strict-by-default per ADR-V2-028.
+    /// `true` ⇔ the SessionPayload the certifier sent into Initialize
+    /// carried all 5 priority blocks (P1 PolicyContext, P2 EventContext,
+    /// P3 MemoryRef[], P4 SkillInstructions, P5 UserPreferences) AND
+    /// session_id / user_id were non-empty. `false` = the schema check
+    /// FAILED — surfaced as a `SessionPayload schema | FAIL` row in
+    /// `report.rs::to_markdown` and pushes `passed=false`.
+    #[serde(default = "default_schema_passed")]
+    pub session_payload_schema_passed: bool,
     pub results: Vec<MethodResult>,
     pub timestamp: String,
+}
+
+fn default_schema_passed() -> bool {
+    // Default for backward-compat deserialization (e.g. reading old
+    // certifier reports). New runs always populate the field explicitly.
+    true
 }
 
 impl VerificationReport {
@@ -141,6 +156,18 @@ pub async fn verify_endpoint(endpoint: &str) -> anyhow::Result<VerificationRepor
 
     // MUST: Initialize (must run before session-bound tests)
     let init_result = verify_initialize(&mut client).await;
+    // Phase 7.1 T07 (CONTRACT-04 / D6): if Initialize FAILED for the
+    // schema-check reason (`"SessionPayload schema FAIL: ..."` from
+    // assert_session_payload_p1_p5), record schema_passed=false so
+    // the report row + overall pass gate reflect the violation.
+    // Initialize failing for OTHER reasons (transport, runtime
+    // misconfig, etc.) leaves the schema field at default `true` —
+    // the schema check was not reached.
+    let session_payload_schema_passed = !init_result
+        .error
+        .as_deref()
+        .map(|e| e.contains("SessionPayload schema FAIL"))
+        .unwrap_or(false);
     let session_id = init_result
         .notes
         .clone()
@@ -202,6 +229,7 @@ pub async fn verify_endpoint(endpoint: &str) -> anyhow::Result<VerificationRepor
         optional_total,
         optional_present,
         placeholder_present,
+        session_payload_schema_passed,
         results,
         timestamp: chrono::Utc::now().to_rfc3339(),
     };
@@ -302,26 +330,116 @@ async fn verify_get_capabilities(
     })
 }
 
+/// Build the SessionPayload the certifier sends into Initialize.
+///
+/// Phase 7.1 T07 (CONTRACT-04 / D6): populate ALL 5 priority blocks
+/// (P1 PolicyContext, P2 EventContext, P3 MemoryRef[], P4
+/// SkillInstructions, P5 UserPreferences) so the certifier exercises
+/// the full payload surface and `assert_session_payload_p1_p5` has a
+/// non-trivial input to verify. Prior to T07 only P5 was populated;
+/// that meant the certifier silently never exercised the P1-P4 paths.
+pub fn build_certifier_payload() -> proto::SessionPayload {
+    proto::SessionPayload {
+        // P1 — PolicyContext (required, never removable per ADR-V2-018)
+        policy_context: Some(proto::PolicyContext {
+            org_unit: "certifier-tenant".into(),
+            policy_version: "v1".into(),
+            ..Default::default()
+        }),
+        // P2 — EventContext (optional; populated to exercise full surface)
+        event_context: Some(proto::EventContext {
+            event_id: "certifier-event-1".into(),
+            event_type: "certifier.exercise".into(),
+            ..Default::default()
+        }),
+        // P3 — MemoryRefs (one entry to exercise repeated field)
+        memory_refs: vec![proto::MemoryRef {
+            memory_id: "certifier-mem-1".into(),
+            memory_type: "fact".into(),
+            content: "certifier baseline memory".into(),
+            ..Default::default()
+        }],
+        // P4 — SkillInstructions
+        skill_instructions: Some(proto::SkillInstructions {
+            skill_id: "certifier-skill".into(),
+            name: "certifier-skill".into(),
+            ..Default::default()
+        }),
+        // P5 — UserPreferences (existing)
+        user_preferences: Some(proto::UserPreferences {
+            user_id: "certifier-user".into(),
+            language: "en".into(),
+            ..Default::default()
+        }),
+        allow_trim_p5: true,
+        user_id: "certifier-user".into(),
+        runtime_id: "certifier".into(),
+        ..Default::default()
+    }
+}
+
+/// Strict per ADR-V2-028: returns `Err(reason)` on FIRST missing P-block.
+///
+/// Phase 7.1 T07 (CONTRACT-04 / D6). Called immediately after
+/// `Initialize` succeeds against a live runtime; an `Err` here surfaces
+/// as `session_payload_schema_passed = false` on the report, which
+/// `report.rs::to_markdown` renders as `| SessionPayload schema | FAIL |`
+/// and downgrades the overall status.
+pub fn assert_session_payload_p1_p5(
+    payload: &proto::SessionPayload,
+) -> Result<String, String> {
+    if payload.policy_context.is_none() {
+        return Err("P1 (policy_context) missing".into());
+    }
+    // P2 is "optional only when session was event-triggered" per proto
+    // comment; the certifier exercises the full surface so it SHOULD
+    // be set.
+    if payload.event_context.is_none() {
+        return Err("P2 (event_context) missing".into());
+    }
+    if payload.memory_refs.is_empty() {
+        return Err(
+            "P3 (memory_refs) empty — at least one expected for certifier exercise"
+                .into(),
+        );
+    }
+    if payload.skill_instructions.is_none() {
+        return Err("P4 (skill_instructions) missing".into());
+    }
+    if payload.user_preferences.is_none() {
+        return Err("P5 (user_preferences) missing".into());
+    }
+    if payload.session_id.is_empty() && payload.user_id.is_empty() {
+        return Err("session_id+user_id both empty".into());
+    }
+    Ok("P1✓ P2✓ P3✓ P4✓ P5✓".into())
+}
+
 async fn verify_initialize(client: &mut RuntimeServiceClient<Channel>) -> MethodResult {
     timed_verify!("initialize", {
+        let payload = build_certifier_payload();
         let resp = client
             .initialize(proto::InitializeRequest {
-                payload: Some(proto::SessionPayload {
-                    user_id: "certifier-user".into(),
-                    runtime_id: "certifier".into(),
-                    user_preferences: Some(proto::UserPreferences {
-                        user_id: "certifier-user".into(),
-                        language: "en".into(),
-                        ..Default::default()
-                    }),
-                    allow_trim_p5: true,
-                    ..Default::default()
-                }),
+                payload: Some(payload.clone()),
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         let init = resp.into_inner();
         info!(session_id = %init.session_id, "Initialize OK");
+
+        // CONTRACT-04 (D6 / T07): assert SessionPayload P1-P5 schema
+        // strictly (ADR-V2-028 lineage). An Err here propagates up as
+        // a failed `verify_initialize` MethodResult AND is later
+        // reflected in `report.session_payload_schema_passed`.
+        match assert_session_payload_p1_p5(&payload) {
+            Ok(summary) => info!(schema = %summary, "SessionPayload schema OK"),
+            Err(reason) => {
+                return Err(anyhow::anyhow!(
+                    "SessionPayload schema FAIL: {}",
+                    reason,
+                ))
+            }
+        }
         Ok(Some(init.session_id))
     })
 }
@@ -684,6 +802,7 @@ mod tests {
             optional_total: 0,
             optional_present: 0,
             placeholder_present: true,
+            session_payload_schema_passed: true,
             results: vec![
                 result("initialize", true),
                 result("send", true),
@@ -715,6 +834,7 @@ mod tests {
             optional_total: 0,
             optional_present: 0,
             placeholder_present: false,
+            session_payload_schema_passed: true,
             results: vec![result("initialize", false)],
             timestamp: "2026-04-11T12:00:00Z".into(),
         };
@@ -739,6 +859,7 @@ mod tests {
             optional_total: 1,
             optional_present: 0,
             placeholder_present: false,
+            session_payload_schema_passed: true,
             results: vec![
                 result("initialize", true),
                 result("health", false),
