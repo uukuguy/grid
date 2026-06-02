@@ -268,6 +268,11 @@ class HybridIndex:
         # ------------------------------------------------------------------
         # M2: join against (memory_id, MAX(version)) inside the query instead
         # of doing one _is_latest() call per candidate row.
+        #
+        # D13 / L2-07 (Phase 7.2 Plan 03 T03) — defense-in-depth: even
+        # though archive() deletes FTS rows for archived memory_ids,
+        # this filter ensures the join never surfaces an `archived`
+        # memory_files row via the HNSW union path further down.
         sql = """
             SELECT mf.*, bm25(memory_fts) AS rank
             FROM memory_fts
@@ -281,6 +286,7 @@ class HybridIndex:
             ) latest
               ON mf.memory_id = latest.memory_id AND mf.version = latest.mv
             WHERE memory_fts MATCH ?
+              AND mf.status != 'archived'
         """
         params: list[Any] = [fts_query]
         if scope is not None:
@@ -361,6 +367,8 @@ class HybridIndex:
                 ]
                 if missing_ids:
                     placeholders = ",".join("?" * len(missing_ids))
+                    # D13 / L2-07: also exclude archived from the HNSW
+                    # union fetch (same reason as the FTS path above).
                     fetch_sql = f"""
                         SELECT mf.*
                         FROM memory_files mf
@@ -372,6 +380,7 @@ class HybridIndex:
                           ON mf.memory_id = latest.memory_id
                          AND mf.version = latest.mv
                         WHERE mf.memory_id IN ({placeholders})
+                          AND mf.status != 'archived'
                     """
                     fetch_params: list[Any] = list(missing_ids)
                     if scope is not None:

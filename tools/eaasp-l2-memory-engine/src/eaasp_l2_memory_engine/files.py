@@ -282,7 +282,21 @@ class MemoryFileStore:
         return [_row_to_memory(r) for r in rows]
 
     async def archive(self, memory_id: str) -> MemoryFileOut:
-        """Transition status → archived (creates new version)."""
+        """Transition status → archived (creates new version + removes from FTS).
+
+        D13 / L2-07 (Phase 7.2 Plan 03 T03): after creating the new
+        archived version via the normal write() path, we DELETE every
+        memory_fts row for this memory_id so subsequent search() calls
+        never surface archived content. The memory_files rows (including
+        the new archived version) are preserved for replay / audit.
+
+        Note: the new archived-version write() call momentarily inserts
+        a memory_fts row for the new version (~tens of microseconds);
+        we then delete ALL memory_fts rows for this memory_id below
+        (including the just-inserted one). This is intentional — both
+        the historical confirmed/suggested versions AND the new
+        archived version must be gone from FTS.
+        """
         latest = await self.read_latest(memory_id)
         if latest is None:
             raise KeyError(
@@ -294,7 +308,7 @@ class MemoryFileStore:
             raise InvalidStatusTransition(
                 f"Cannot transition {latest.status} → archived for {memory_id}"
             )
-        return await self.write(
+        archived = await self.write(
             MemoryFileIn(
                 memory_id=memory_id,
                 scope=latest.scope,
@@ -304,6 +318,21 @@ class MemoryFileStore:
                 status="archived",
             )
         )
+
+        # D13 / L2-07: hide ALL versions of this memory_id from FTS.
+        db = await get_shared_connection(self.db_path)
+        async with get_write_lock(self.db_path):
+            await db.execute("BEGIN IMMEDIATE")
+            try:
+                await db.execute(
+                    "DELETE FROM memory_fts WHERE memory_id = ?",
+                    (memory_id,),
+                )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
+        return archived
 
     async def confirm(self, memory_id: str) -> MemoryFileOut:
         latest = await self.read_latest(memory_id)
