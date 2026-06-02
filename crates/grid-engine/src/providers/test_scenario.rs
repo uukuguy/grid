@@ -23,16 +23,33 @@
 //!
 //! ## Threading model
 //!
-//! Process-global `RwLock<HashMap<session_id, String>>`. The set/clear
-//! pair brackets the executor's Send turn. The OpenAI provider reads
-//! the value via [`current_session_scenario`] at request-build time;
-//! when no session is in scope (the typical "no test" case) the lookup
-//! resolves to `None` and no header is emitted.
+//! Process-global `OnceLock<RwLock<ScenarioState>>` holding a single
+//! `current: Option<String>` cell — NOT a `HashMap<session_id, _>`.
+//! Despite the `*_session_*` naming on the public API
+//! ([`set_session_scenario`] / [`clear_session_scenario`] /
+//! [`current_session_scenario`]), the storage is a single shared cell
+//! that the OpenAI provider reads at request-build time. The set/clear
+//! pair brackets the executor's Send turn; when no session is in scope
+//! the cell resolves to `None` and no header is emitted.
 //!
-//! Session is identified by the **current** in-flight session id, set
-//! by [`set_session_scenario`]. Since the OpenAI provider does not
-//! know the session id at request-build time, we shortcut to a
-//! "current scenario" cell that is set/cleared around the Send call.
+//! ## Concurrency caveat (Phase 7.1 reviewer F2)
+//!
+//! Concurrent Send turns from different sessions in the same process
+//! WOULD race on the shared cell — turn B can overwrite turn A's
+//! scenario between A's set and A's clear, causing the wrong scenario
+//! header to be emitted. This is acceptable in the current test-fixture
+//! usage because:
+//!   * Pytest serialises contract tests within a worker
+//!   * The cell defaults to `None` (no header emitted) outside the
+//!     bracketed `set → Send → clear` window
+//!   * The only production caller is the grid-runtime harness's deny-path
+//!     mock contract tests (T05 / CONTRACT-02), not multi-session
+//!     production traffic
+//!
+//! If multi-session concurrent test runs become necessary (e.g., pytest
+//! `-n auto` with xdist sharing a single runtime process), promote to
+//! a real per-session `RwLock<HashMap<SessionId, String>>` and have the
+//! OpenAI provider thread the session_id through `ProviderRequest`.
 
 use std::sync::{OnceLock, RwLock};
 
