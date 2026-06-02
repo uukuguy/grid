@@ -127,7 +127,9 @@ async def connect(path: str) -> aiosqlite.Connection:
     await db.execute("PRAGMA foreign_keys=ON")
     # M4 (reviewer): wait up to 5s on SQLITE_BUSY instead of failing immediately —
     # avoids spurious errors when /sessions/create and /sessions/{id}/message
-    # race on WAL write locks. Matches the remediation recommended for
-    # S3.T2 / S3.T3 as well (tracked as D30).
+    # race on WAL write locks. D30 / L2-08 (Phase 7.2 Plan 01) unified the
+    # constant in L2 (BUSY_TIMEOUT_MS in eaasp_l2_memory_engine.db). L4
+    # retains the literal until the eaasp_common.connect() helper lands
+    # (deferred to v3.4+ per CONTEXT D-06 scope ceiling).
     await db.execute("PRAGMA busy_timeout=5000")
     return db

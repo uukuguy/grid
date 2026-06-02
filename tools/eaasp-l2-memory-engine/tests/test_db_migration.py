@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import aiosqlite
+import pytest
 
 from eaasp_l2_memory_engine.db import (
     apply_embedding_migration,
@@ -116,3 +117,21 @@ async def test_idx_embedding_model_exists(tmp_path: Path) -> None:
 
     assert len(rows) == 1
     assert rows[0]["name"] == "embedding_model_id"
+
+
+@pytest.mark.asyncio
+async def test_busy_timeout_pragma_applied(db_path: str) -> None:
+    """D30 / L2-08: shared connection should carry the BUSY_TIMEOUT_MS pragma."""
+    from eaasp_l2_memory_engine.db import (
+        BUSY_TIMEOUT_MS,
+        get_shared_connection,
+    )
+
+    db = await get_shared_connection(db_path)
+    cur = await db.execute("PRAGMA busy_timeout")
+    row = await cur.fetchone()
+    assert row is not None
+    # SQLite returns the configured value as the first column.
+    assert int(row[0]) == BUSY_TIMEOUT_MS, (
+        f"PRAGMA busy_timeout = {row[0]} (expected {BUSY_TIMEOUT_MS})"
+    )

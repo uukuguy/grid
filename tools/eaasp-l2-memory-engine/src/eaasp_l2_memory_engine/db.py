@@ -20,6 +20,41 @@ _init_locks: dict[str, asyncio.Lock] = {}
 _write_locks: dict[str, asyncio.Lock] = {}
 
 
+# D30 / L2-08 (Phase 7.2 Plan 01 T04) — unified SQLite busy_timeout for
+# all L2 connections. Mirrors the same default already applied at L4
+# (tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/db.py:132) and
+# grid-engine (crates/grid-engine/src/db/connection.rs:48).
+#
+# ADR-V2-028 lineage: strict-by-default. A malformed L2_BUSY_TIMEOUT_MS
+# env value raises ValueError at import time rather than silently
+# falling back. The fallback IS the validated baseline default (5000ms).
+BUSY_TIMEOUT_MS_DEFAULT = 5000
+
+
+def _load_busy_timeout_ms() -> int:
+    import os
+
+    raw = os.environ.get("L2_BUSY_TIMEOUT_MS")
+    if raw is None:
+        return BUSY_TIMEOUT_MS_DEFAULT
+    try:
+        parsed = int(raw)
+    except ValueError as e:
+        raise ValueError(
+            f"L2_BUSY_TIMEOUT_MS={raw!r} is not an integer "
+            f"(strict-by-default per ADR-V2-028)"
+        ) from e
+    if parsed < 0:
+        raise ValueError(
+            f"L2_BUSY_TIMEOUT_MS={parsed} must be >= 0 "
+            f"(0 disables the wait; negative is meaningless)"
+        )
+    return parsed
+
+
+BUSY_TIMEOUT_MS = _load_busy_timeout_ms()
+
+
 async def get_shared_connection(path: str) -> aiosqlite.Connection:
     """Return the cached aiosqlite.Connection for *path*, creating it on first call.
 
@@ -37,6 +72,10 @@ async def get_shared_connection(path: str) -> aiosqlite.Connection:
             if path not in _shared_connections:
                 db = await aiosqlite.connect(path)
                 db.row_factory = aiosqlite.Row
+                # D30 / L2-08: pin busy_timeout on the singleton connection
+                # so the per-path lock + WAL combination tolerates short
+                # contention bursts without raising OperationalError.
+                await db.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
                 _shared_connections[path] = db
     return _shared_connections[path]
 
@@ -157,6 +196,9 @@ async def apply_embedding_migration(db: aiosqlite.Connection) -> None:
 async def init_db(path: str) -> None:
     """Create schema if absent and apply idempotent Phase 2 migrations."""
     async with aiosqlite.connect(path) as db:
+        # D30 / L2-08: set busy_timeout before any DDL/DML to avoid
+        # spurious SQLITE_BUSY during concurrent init across coroutines.
+        await db.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
         await db.executescript(SCHEMA)
         await db.commit()
         # Phase 2 S2.T1 — embedding columns (idempotent).
