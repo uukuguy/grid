@@ -25,28 +25,136 @@ impl SkillStore {
         db.call(|conn| {
             conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS skills (
-                    id          TEXT NOT NULL,
-                    version     TEXT NOT NULL,
-                    name        TEXT NOT NULL,
-                    description TEXT NOT NULL DEFAULT '',
-                    status      TEXT NOT NULL DEFAULT 'draft',
-                    author      TEXT,
-                    tags        TEXT NOT NULL DEFAULT '[]',
-                    created_at  TEXT NOT NULL,
-                    updated_at  TEXT NOT NULL,
-                    git_commit  TEXT,
+                    id            TEXT NOT NULL,
+                    version       TEXT NOT NULL,
+                    name          TEXT NOT NULL,
+                    description   TEXT NOT NULL DEFAULT '',
+                    status        TEXT NOT NULL DEFAULT 'draft',
+                    author        TEXT,
+                    tags          TEXT NOT NULL DEFAULT '[]',
+                    created_at    TEXT NOT NULL,
+                    updated_at    TEXT NOT NULL,
+                    git_commit    TEXT,
+                    access_scope  TEXT,
                     PRIMARY KEY (id, version)
-                );",
+                );
+                CREATE INDEX IF NOT EXISTS idx_skills_access_scope
+                    ON skills(access_scope);",
             )?;
             Ok(())
         })
         .await
         .context("create skills table")?;
 
-        Ok(Self {
+        let store = Self {
             db,
             base_dir: base_dir.to_path_buf(),
-        })
+        };
+        store.migrate_add_access_scope().await?;
+        store.backfill_access_scope_from_frontmatter().await?;
+        Ok(store)
+    }
+
+    /// D11 / L2-06 (Phase 7.2 Plan 03 T01) — idempotent migration that
+    /// adds the `access_scope` column to pre-existing `skills` tables.
+    ///
+    /// SQLite's `PRAGMA table_info` is the standard idempotency probe.
+    /// If `access_scope` is already a column (either from the fresh
+    /// schema in `open()` or from a prior migration run), this is a
+    /// no-op. We also (re-)create the `idx_skills_access_scope` index
+    /// — `CREATE INDEX IF NOT EXISTS` makes this idempotent.
+    async fn migrate_add_access_scope(&self) -> Result<()> {
+        self.db
+            .call(|conn| {
+                let mut stmt = conn.prepare("PRAGMA table_info(skills)")?;
+                let cols: Vec<String> = stmt
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .filter_map(|r| r.ok())
+                    .collect();
+                if !cols.iter().any(|c| c == "access_scope") {
+                    conn.execute(
+                        "ALTER TABLE skills ADD COLUMN access_scope TEXT",
+                        [],
+                    )?;
+                }
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_skills_access_scope \
+                     ON skills(access_scope)",
+                    [],
+                )?;
+                Ok(())
+            })
+            .await
+            .context("migrate access_scope column")?;
+        Ok(())
+    }
+
+    /// D11 / L2-06 (Phase 7.2 Plan 03 T01) — one-pass backfill of the
+    /// `access_scope` column for rows that already existed before the
+    /// migration. For each row whose access_scope IS NULL, we read the
+    /// on-disk SKILL.md, parse v2 frontmatter, and UPDATE the row in
+    /// place. Rows without v2 frontmatter (legacy v1, or unparseable)
+    /// stay NULL — which scope-filter queries treat as "no scope".
+    ///
+    /// Idempotent: rows already with a non-NULL value are skipped.
+    async fn backfill_access_scope_from_frontmatter(&self) -> Result<()> {
+        // List candidates first (cheap; metadata only). For each, read
+        // SKILL.md from the filesystem and update.
+        let candidates: Vec<(String, String)> = self
+            .db
+            .call(|conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT id, version FROM skills WHERE access_scope IS NULL",
+                )?;
+                let rows = stmt
+                    .query_map([], |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                    })?
+                    .filter_map(|r| r.ok())
+                    .collect();
+                Ok(rows)
+            })
+            .await
+            .context("list candidates for backfill")?;
+
+        for (id, version) in candidates {
+            let skill_path = self
+                .base_dir
+                .join("skills")
+                .join(&id)
+                .join(&version)
+                .join("SKILL.md");
+            if !skill_path.exists() {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(&skill_path) else {
+                continue;
+            };
+            let (frontmatter_yaml, _prose) = parse_skill_md(&content);
+            let Ok(parsed_v2) =
+                crate::skill_parser::parse_v2_frontmatter(&frontmatter_yaml)
+            else {
+                continue;
+            };
+            let Some(scope_value) = parsed_v2.access_scope else {
+                continue;
+            };
+            let id_clone = id.clone();
+            let version_clone = version.clone();
+            let scope_clone = scope_value.clone();
+            self.db
+                .call(move |conn| {
+                    conn.execute(
+                        "UPDATE skills SET access_scope = ?1 \
+                         WHERE id = ?2 AND version = ?3",
+                        rusqlite::params![scope_clone, id_clone, version_clone],
+                    )?;
+                    Ok(())
+                })
+                .await
+                .context("backfill access_scope")?;
+        }
+        Ok(())
     }
 
     /// Submit a new skill draft. Writes SKILL.md to the filesystem and
@@ -103,12 +211,17 @@ impl SkillStore {
 
         let m = meta.clone();
         let tags_json_clone = tags_json.clone();
+        // D11 / L2-06 (Phase 7.2 Plan 03 T01) — compute access_scope from
+        // the v2 frontmatter (if any) BEFORE the move into the closure.
+        let access_scope: Option<String> = crate::skill_parser::parse_v2_frontmatter(&req.frontmatter_yaml)
+            .ok()
+            .and_then(|v2| v2.access_scope);
         self.db
             .call(move |conn| {
                 conn.execute(
                     "INSERT OR REPLACE INTO skills
-                        (id, version, name, description, status, author, tags, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                        (id, version, name, description, status, author, tags, created_at, updated_at, access_scope)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                     rusqlite::params![
                         m.id,
                         m.version,
@@ -119,6 +232,7 @@ impl SkillStore {
                         tags_json_clone,
                         m.created_at,
                         m.updated_at,
+                        access_scope,
                     ],
                 )?;
                 Ok(())
