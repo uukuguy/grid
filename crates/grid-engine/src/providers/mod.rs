@@ -13,6 +13,7 @@ pub mod quirks;
 pub mod response_cache;
 pub mod retry;
 pub mod smart_router;
+pub mod test_scenario;
 pub mod traits;
 pub mod usage_recorder;
 

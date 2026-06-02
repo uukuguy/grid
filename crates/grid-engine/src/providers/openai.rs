@@ -467,14 +467,22 @@ impl Provider for OpenAIProvider {
             tool_choice,
         };
 
-        let resp = self
+        // T05 (CONTRACT-02 / D138): add X-Test-Scenario when the
+        // grid-runtime harness forwarded a `x-test-scenario` value via
+        // `UserMessage.metadata`. Read from the process-scoped
+        // helper; production traffic has no scenario set and pays
+        // zero header cost.
+        let mut builder = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("content-type", "application/json")
-            .json(&api_req)
-            .send()
-            .await?;
+            .header("content-type", "application/json");
+        if let Some(scenario) =
+            crate::providers::test_scenario::current_session_scenario()
+        {
+            builder = builder.header("X-Test-Scenario", scenario);
+        }
+        let resp = builder.json(&api_req).send().await?;
 
         if !resp.status().is_success() {
             let status_code = resp.status().as_u16();
@@ -625,14 +633,22 @@ impl Provider for OpenAIProvider {
             tool_choice,
         };
 
-        let resp = self
+        // T05 (CONTRACT-02 / D138): add X-Test-Scenario when the
+        // grid-runtime harness forwarded a `x-test-scenario` value via
+        // `UserMessage.metadata`. Read from the process-scoped
+        // helper; production traffic has no scenario set and pays
+        // zero header cost.
+        let mut builder = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("content-type", "application/json")
-            .json(&api_req)
-            .send()
-            .await?;
+            .header("content-type", "application/json");
+        if let Some(scenario) =
+            crate::providers::test_scenario::current_session_scenario()
+        {
+            builder = builder.header("X-Test-Scenario", scenario);
+        }
+        let resp = builder.json(&api_req).send().await?;
 
         if !resp.status().is_success() {
             let status_code = resp.status().as_u16();

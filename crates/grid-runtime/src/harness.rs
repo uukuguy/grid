@@ -859,6 +859,22 @@ impl RuntimeContract for GridHarness {
         // Subscribe to events before sending to avoid missing early events
         let rx = executor_handle.subscribe();
 
+        // Phase 7.1 T05 (CONTRACT-02 / D138): forward in-contract
+        // `x-test-scenario` metadata into the process-scoped
+        // test_scenario cell so the OpenAI provider can add it as an
+        // outbound `X-Test-Scenario` header. NO env-var shim —
+        // metadata-forward is the sole path per ADR-V2-028 strict-by-
+        // default lineage. When the metadata key is absent (the
+        // production case) we clear the cell so a previous turn's
+        // value does not leak into the next.
+        if let Some(scenario) = message.metadata.get("x-test-scenario") {
+            grid_engine::providers::test_scenario::set_session_scenario(
+                scenario.clone(),
+            );
+        } else {
+            grid_engine::providers::test_scenario::clear_session_scenario();
+        }
+
         // Send user message
         executor_handle
             .send(AgentMessage::UserMessage {
