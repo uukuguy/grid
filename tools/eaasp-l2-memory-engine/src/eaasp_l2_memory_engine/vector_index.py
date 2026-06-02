@@ -37,6 +37,12 @@ import hnswlib
 HNSW_HARD_CAP = 1_000_000
 
 
+# D91 / L2-03 — rebuild trigger ratio. Crossing this on the next add()
+# call rebuilds the index in-place. CONTEXT.md D-02 documents the choice
+# of 30% (matches ROADMAP wording verbatim + common HNSW practice).
+TOMBSTONE_REBUILD_THRESHOLD = 0.30
+
+
 # ---------------------------------------------------------------------------
 # Public error types
 # ---------------------------------------------------------------------------
@@ -136,6 +142,15 @@ class HNSWVectorIndex:
         self._id_to_label: dict[str, int] = {}
         self._label_to_id: dict[int, str] = {}
         self._next_label = 0
+        # D91 / L2-03 (Phase 7.2 Plan 02 T01) — tombstone bookkeeping.
+        # Increments on every successful mark_deleted; rebuild trigger is
+        # `_deleted_count / total >= TOMBSTONE_REBUILD_THRESHOLD`. After
+        # rebuild the counter resets to 0 and the index is repacked.
+        #
+        # `_deleted_count` is the monotonic counter of soft-delete events
+        # for THIS process lifetime. Persisted across save() so reload
+        # restores the tombstone debt (avoids accidental rebuild loss).
+        self._deleted_count = 0
         self._loaded = False
         self._write_lock = asyncio.Lock()
 
@@ -180,6 +195,10 @@ class HNSWVectorIndex:
             # JSON object keys are strings; labels are ints.
             self._label_to_id = {int(k): v for k, v in meta["label_to_id"].items()}
             self._next_label = int(meta["next_label"])
+            # D91 / L2-03 — restore tombstone debt across restarts.
+            # Older meta.json files written before D91 lack this key —
+            # default to 0 (which means "no rebuild debt yet").
+            self._deleted_count = int(meta.get("deleted_count", 0))
             self._loaded = True
         else:
             self._index.init_index(
@@ -221,13 +240,28 @@ class HNSWVectorIndex:
                 self._index.resize_index(new_max)
                 self._max_elements = new_max
 
+            # D91 / L2-03 — rebuild if tombstone ratio crossed threshold.
+            # `total` excludes nothing — get_current_count includes
+            # tombstones, which is what we want as denominator. Numerator
+            # is the monotonic counter from mark_deleted.
+            total = self._index.get_current_count()
+            if (
+                total > 0
+                and self._deleted_count / total >= TOMBSTONE_REBUILD_THRESHOLD
+            ):
+                await self._rebuild_locked()
+
             if id in self._id_to_label:
                 old_label = self._id_to_label[id]
                 self._label_to_id.pop(old_label, None)
                 try:
                     self._index.mark_deleted(old_label)
+                    self._deleted_count += 1
                 except (RuntimeError, Exception):  # noqa: BLE001
                     # Label may already be marked deleted; idempotent.
+                    # Do NOT bump counter — that would double-count
+                    # the same tombstone if add() is called repeatedly
+                    # on a re-used id.
                     pass
 
             label = self._next_label
@@ -245,8 +279,79 @@ class HNSWVectorIndex:
             self._label_to_id.pop(label, None)
             try:
                 self._index.mark_deleted(label)
+                self._deleted_count += 1
             except (RuntimeError, Exception):  # noqa: BLE001
+                # Label may already be marked deleted; idempotent.
+                # Do NOT bump counter — that would double-count.
                 pass
+
+    async def _rebuild_locked(self) -> None:
+        """Repack the HNSW index in-place. Caller MUST hold ``self._write_lock``.
+
+        D91 / L2-03 (Phase 7.2 Plan 02 T01). Trigger: tombstone ratio >=
+        ``TOMBSTONE_REBUILD_THRESHOLD``. Strategy:
+          1. Build a fresh ``hnswlib.Index`` of the same params + the
+             current ``self._max_elements`` cap.
+          2. Replay every LIVE label (i.e. label present in
+             ``self._label_to_id``) into the new index via ``add_items``.
+          3. Swap the inner ``self._index`` pointer to the new instance.
+          4. Reset ``self._deleted_count`` to 0 + persist via ``save()``.
+
+        Recall is preserved within the hnswlib ``M`` / ``ef_construction``
+        bounds; pre/post recall on a fixed query set should match within
+        ±0.05 (T02 measures this).
+        """
+        # Step 1 — snapshot live data BEFORE mutating self._index.
+        # We need the vectors back from the OLD index. hnswlib provides
+        # `get_items(labels)` for this; it returns the raw vectors keyed
+        # by label, including tombstoned ones (which we skip).
+        live_labels = sorted(self._label_to_id.keys())
+        if not live_labels:
+            # All-tombstoned edge case: build an empty index, no replay.
+            live_vectors: list[list[float]] = []
+        else:
+            # `get_items(list[int])` -> ndarray|list[list[float]] in order.
+            # Cast through list() so the downstream add_items receives a
+            # plain Python list of lists, matching the type of the original
+            # add() call sites.
+            raw = self._index.get_items(live_labels)
+            live_vectors = [list(v) for v in raw]
+
+        # Step 2 — fresh index, same construction params.
+        new_index = hnswlib.Index(space=self.space, dim=self.dim)  # type: ignore[arg-type]
+        new_index.init_index(
+            max_elements=self._max_elements,
+            M=self.M,
+            ef_construction=self.ef_construction,
+        )
+        new_index.set_ef(max(self.ef_construction, 50))
+
+        # Step 3 — replay. Labels stay identical so _id_to_label / _label_to_id
+        # need no remapping; tombstones simply vanish.
+        if live_vectors:
+            new_index.add_items(live_vectors, live_labels)
+
+        # Step 4 — swap + reset counter + persist.
+        self._index = new_index
+        self._deleted_count = 0
+        self._index.save_index(str(self.index_path))
+        # meta.json refresh — save() also acquires the write_lock which we
+        # already hold. Inline the meta write:
+        meta = {
+            "model_id": self.model_id,
+            "dim": self.dim,
+            "space": self.space,
+            "M": self.M,
+            "ef_construction": self.ef_construction,
+            "max_elements": self._max_elements,
+            "next_label": self._next_label,
+            "id_to_label": self._id_to_label,
+            "label_to_id": {
+                str(k): v for k, v in self._label_to_id.items()
+            },
+            "deleted_count": self._deleted_count,
+        }
+        self.meta_path.write_text(json.dumps(meta))
 
     async def save(self) -> None:
         """Persist the index and metadata to disk."""
@@ -265,6 +370,8 @@ class HNSWVectorIndex:
                 "id_to_label": self._id_to_label,
                 # Stringify keys for JSON; parsed back to int on load.
                 "label_to_id": {str(k): v for k, v in self._label_to_id.items()},
+                # D91 / L2-03 — persist tombstone debt across restarts.
+                "deleted_count": self._deleted_count,
             }
             self.meta_path.write_text(json.dumps(meta))
 
