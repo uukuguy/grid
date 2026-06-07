@@ -76,7 +76,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07.1-01-PLAN.md — Verify all 5 CONTRACT D-items (D137/D138/D5/D6/D55) ✅ CLOSED + tests pass + close-out
+- [x] 07.1-01-PLAN.md — Verify all 5 CONTRACT D-items (D137/D138/D5/D6/D55) ✅ CLOSED + tests pass + close-out
 
 **UI hint**: no
 
