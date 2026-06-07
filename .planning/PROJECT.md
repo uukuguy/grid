@@ -16,27 +16,38 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.3 Engine + Platform Debt Sweep (Focused)
+## Current Milestone: v3.4 Full INBOX Drain (Debt Sweep II)
 
-**Goal:** Drain the highest-yield debt rows from `.planning/v3.3-INBOX.md` across 4 modules (grid-engine + contract + L2 + L3), prioritizing P2 over P3 within each module. ~30 rows over 4 phases. **NOT a full INBOX drain** — L4 / hooks / eval / grid-server / cross-cutting defer to v3.4+ untouched in INBOX.
+**Goal:** Drain ALL remaining rows from `.planning/v3.3-INBOX.md` — fold the 3 unfinished v3.3 phases (7.0 grid-engine + 7.1 contract + 7.2 L2) + sweep the 5 untouched modules (L4 / hooks / L3 leftovers / eval / cross-cutting). ~85 rows over ~10 phases. **Full INBOX drain** — v3.3-INBOX.md is fully consumed at milestone close, zero carry-forward to v3.5.
 
-**Target features (per-module batches):**
-- **grid-engine harness wiring** — D102 (AgentLoopConfig YAML 配置层接入, P2) + S3.T1 harness/pipeline cleanup (D3/D57/D58/D103-D106/D130 selective P3)
-- **contract observability + bridge** — D137 (Multi-turn observability + MCP bridge live + PRE_COMPACT 阈值, P2) + D138 (skill-workflow enforcement deny-path mock LLM, P2) + telemetry envelope migrations (D5/D6/D55/D74/D139 selective P3)
-- **L2 connection-pool + Pipeline** — D12 (connection-per-call rewrite, P2) + D94 (MemoryStore 单例收尾, P2) + D91 (HNSW tombstone rebuild, P2) + D93 (embed_batch 顺序实现, P2) + D98 (HybridIndex 重建消除, P2) + L2 cross-cutting P3 (D11/D13/D14/D15/D30/D65 selective)
-- **L3 RBAC + hardening** — D8 (`access_scope` 真实 RBAC, P2) + D9 (`skill_usage` 真实遥测, P2) + D46 (Skill access_scope namespace 校验, P2) + L3 hardening P3 (D16-D23/D25/D26 selective)
+**Target features (carry-forward from v3.3, Phase 7.0–7.2):**
+- **grid-engine harness wiring** (7.0) — 6 REQ-IDs: D102 (AgentLoopConfig YAML, P2) + D3/D57/D58/D103/D104 (harness/pipeline P3)
+- **contract observability + bridge** (7.1) — 5 REQ-IDs: D137 (multi-turn observability, P2) + D138 (deny-path mock LLM, P2) + D5/D6/D55 (telemetry/schema P3)
+- **L2 connection-pool + Pipeline** (7.2) — 8 REQ-IDs: D12/D94/D91/D93/D98 (5 P2 keystone) + D11/D13/D30 (3 P3)
 
-**Granularity:** 4 phases (Phase 7.0 → 7.3), continues numbering from Phase 6.2. Per-phase row budget ≤10 to keep phases shippable.
+**Target features (new v3.4, Phase 8.0+):**
+- **L4 orchestration** — D34/D38/D41 (3 P2: Intent→skill NLU, L2Client user_id, session list endpoint) + ~15 P3 (exception handler, loguru, event window, CLI hardening)
+- **hooks** — D108 (1 P2: script regression tests) + D48/D50/D107 (3 P3: matcher/filter, Prompt executor, jq fragment)
+- **L2 leftovers** — ~22 P3 (pipeline multi-worker, MCP pool, embedding/indexing, memory_id parsing)
+- **L3 leftovers** — 6 P3 (D10 MCP REST upgrade, D16 deploy created_at, D19-D21/D25)
+- **grid-engine leftovers** — 3 P3 (D105 HookPoint alias, D106 MAX_TURNS hardcode, D130 cancel token)
+- **grid-server** — D90 (1 P3: WS schema tool_name)
+- **contract leftovers** — D74/D139 (2 P3: EmitEvent gRPC, 双 Terminate 语义)
+- **eval** — 5 P3 (D56 verify cleanup, D126-D129 assertion/polish)
+- **cross-cutting** — D24/D73 (2 P3: IDE Pyright, Event Room)
+
+**Granularity:** ~10 phases (7.0/7.1/7.2 carry-forward + 8.0+ new). Phase numbering continues from Phase 7.3 (v3.3 last completed). Per-phase row budget ≤10 for cohesion.
 
 **Key context:**
-- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2). L2/L3 phases consume EAASP 30% allocation.
-- 优先发力组合不变: grid-cli + grid-server stays priority axis per ADR-V2-024 Open Item #3; 其余 (grid-platform / grid-desktop / web*) 保持 dormant. v3.3 phases do not touch dormant crates.
-- 双轴框架: engine vs data/integration (per ADR-V2-024 §1) — all v3.3 phases sit on engine 接入面.
+- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2).
+- 优先发力组合不变: grid-cli + grid-server stays priority axis per ADR-V2-024 Open Item #3; 其余 (grid-platform / grid-desktop / web*) 保持 dormant.
+- 双轴框架: engine vs data/integration (per ADR-V2-024 §1) — all v3.4 phases sit on engine 接入面.
 - **Skip research** — debt rows are concrete with LEDGER references; no domain ecosystem unknowns.
-- **v3.3-INBOX.md superseded once v3.3 ROADMAP is created** (per its own header) — unselected rows remain visible via the still-open D-rows in DEFERRED_LEDGER.md main namespace.
-- 0 P1 rows in INBOX — milestone is "should fix" not "must fix"; new P1 surfacing during execution allowed to interrupt/insert.
+- **Full INBOX drain** — v3.3-INBOX.md ceases to be a live doc after v3.4 ROADMAP creation. All remaining 85 P2/P3 rows consumed within this milestone.
+- 4 P2 total in new scope (L4: D34/D38/D41, hooks: D108) — majority is P3 stretch.
+- 0 P1 rows — milestone is "should fix" not "must fix"; new P1 surfacing during execution allowed to interrupt/insert.
 
-**Previous milestone:** v3.2 Tech-Debt Triage & CI Red Line Clearance ✅ SHIPPED 2026-05-26 (3 phases / 3 plans / 6/6 REQ-IDs / 0 ADRs Accepted — intentional light-triage milestone)
+**Previous milestone:** v3.3 Engine + Platform Debt Sweep (Focused) ✅ SHIPPED 2026-06-07 (1 phase completed: 7.3 L3 RBAC 8/8 REQ-IDs; 7.0/7.1/7.2 carry-forward to v3.4)
 
 ## Core Value
 
@@ -69,7 +80,7 @@
 
 <!-- Milestone v3.3 started 2026-06-01. Requirements scoped per /gsd-roadmapper output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
 
-- [ ] **Phase 7 milestone (v3.3) Engine + Platform Debt Sweep** (started 2026-06-01) — 4 phases / ~30 rows / scoped per `.planning/v3.3-INBOX.md` 4-module focus (grid-engine + contract + L2 + L3). Requirements + REQ-IDs created in this milestone's REQUIREMENTS.md.
+- [ ] **Phase 8 milestone (v3.4) Full INBOX Drain** (started 2026-06-07) — ~10 phases / ~85 rows / carry-forward 7.0–7.2 from v3.3 + new 8.0+ from remaining INBOX modules (L4 / hooks / L2 leftovers / L3 leftovers / grid-engine leftovers / grid-server / contract leftovers / eval / cross-cutting). Full drain — v3.3-INBOX.md zero remaining rows at milestone close. Requirements + REQ-IDs created in this milestone's REQUIREMENTS.md.
 
 ### Out of Scope
 
@@ -140,4 +151,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-06-01 — Milestone v3.3 (Phase 7 — Engine + Platform Debt Sweep) STARTED 2026-06-01. 4 phases planned (7.0 grid-engine + 7.1 contract + 7.2 L2 + 7.3 L3) seeded from `.planning/v3.3-INBOX.md` (85 P2/P3 rows across 9 modules — v3.3 drains ~30 rows from 4 high-yield modules; L4/hooks/eval/grid-server/cross-cutting defer to v3.4+). Milestone v3.2 (Phase 6 — Tech-Debt Triage & CI Red Line Clearance) ✅ CLOSED 2026-05-26. Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22.*
+*Last updated: 2026-06-07 — Milestone v3.4 (Full INBOX Drain — Debt Sweep II) STARTED 2026-06-07. ~10 phases planned (7.0/7.1/7.2 carry-forward from v3.3 + 8.0+ new from remaining INBOX modules) draining all ~85 P2/P3 rows from `.planning/v3.3-INBOX.md`. Full drain — zero carry-forward to v3.5. Milestone v3.3 (Phase 7 — Engine + Platform Debt Sweep) ✅ CLOSED 2026-06-07 (Phase 7.3 only completed, 8/8 REQ-IDs; 7.0/7.1/7.2 carry-forward). Milestone v3.2 (Phase 6 — Tech-Debt Triage & CI Red Line Clearance) ✅ CLOSED 2026-05-26. Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22.*
