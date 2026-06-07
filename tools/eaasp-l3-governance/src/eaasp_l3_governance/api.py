@@ -13,11 +13,14 @@ Endpoints (MVP scope):
 
 from __future__ import annotations
 
+import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
+from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 
 from .audit import AuditStore, TelemetryEventIn
@@ -36,9 +39,28 @@ class SessionValidateRequest(BaseModel):
     runtime_tier: str | None = None
 
 
+# D23 / L3-01 — valid loguru levels
+_VALID_LOG_LEVELS: frozenset[str] = frozenset(
+    {"TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"}
+)
+
+
 def create_app(db_path: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # D23 / L3-01 — loguru structured logging
+        logger.remove()  # clear default handler
+        log_level = os.environ.get("L3_LOG_LEVEL", "INFO").upper()
+        if log_level not in _VALID_LOG_LEVELS:
+            raise ValueError(
+                f"L3_LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, "
+                f"got {log_level!r}"
+            )
+        logger.add(
+            sys.stderr,
+            format="{time:ISO} | {level: <8} | {name}:{function}:{line} | {message}",
+            level=log_level,
+        )
         await init_db(db_path)
         yield
 
@@ -74,6 +96,9 @@ def create_app(db_path: str) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         result = await policy.deploy(settings)
+        logger.info(
+            "Policy deployed", version=result.version, hook_count=result.hook_count
+        )
         return result.model_dump()
 
     @app.get("/v1/policies/versions")
@@ -84,9 +109,7 @@ def create_app(db_path: str) -> FastAPI:
         return {"versions": [v.model_dump() for v in versions]}
 
     @app.put("/v1/policies/{hook_id}/mode")
-    async def switch_hook_mode(
-        hook_id: str, body: ModeSwitchRequest
-    ) -> dict[str, Any]:
+    async def switch_hook_mode(hook_id: str, body: ModeSwitchRequest) -> dict[str, Any]:
         try:
             ensure_mode(body.mode)
         except ValueError as exc:
@@ -98,6 +121,7 @@ def create_app(db_path: str) -> FastAPI:
     @app.post("/v1/telemetry/events")
     async def ingest_telemetry(event: TelemetryEventIn) -> dict[str, Any]:
         result = await audit.ingest(event)
+        logger.debug("Telemetry ingested", event_id=result.event_id)
         return {
             "event_id": result.event_id,
             "received_at": result.received_at,
@@ -139,6 +163,11 @@ def create_app(db_path: str) -> FastAPI:
                 merged["mode"] = override.mode
             hooks_to_attach.append(merged)
 
+        logger.debug(
+            "Session validated",
+            session_id=session_id,
+            hook_count=len(hooks_to_attach),
+        )
         return {
             "session_id": session_id,
             "hooks_to_attach": hooks_to_attach,
@@ -159,9 +188,7 @@ def _sanitize_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if key == "ctx" and isinstance(value, dict):
                 safe[key] = {
                     ctx_key: (
-                        str(ctx_val)
-                        if isinstance(ctx_val, BaseException)
-                        else ctx_val
+                        str(ctx_val) if isinstance(ctx_val, BaseException) else ctx_val
                     )
                     for ctx_key, ctx_val in value.items()
                 }
