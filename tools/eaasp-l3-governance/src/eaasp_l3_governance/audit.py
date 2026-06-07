@@ -23,6 +23,10 @@ class TelemetryEventIn(BaseModel):
 
     ``payload`` is free-form — the whole hook POST body is stashed here so
     evidence-chain consumers can reconstruct the original signal.
+
+    ``_tiebreaker`` (D26) is a monotonic counter for deterministic test
+    ordering. Default 0 — production code never sets it; two events with
+    same tiebreaker fall back to ``received_at`` ordering.
     """
 
     session_id: str = Field(..., min_length=1)
@@ -30,6 +34,7 @@ class TelemetryEventIn(BaseModel):
     hook_id: str | None = None
     phase: str | None = None  # "PreToolUse" | "PostToolUse" | "Stop" | ...
     payload: dict[str, Any] = Field(default_factory=dict)
+    tiebreaker: int = Field(default=0, alias="_tiebreaker")
 
 
 class TelemetryEventOut(BaseModel):
@@ -40,6 +45,7 @@ class TelemetryEventOut(BaseModel):
     phase: str | None
     payload: dict[str, Any]
     received_at: str
+    tiebreaker: int
 
 
 class AuditStore:
@@ -63,8 +69,8 @@ class AuditStore:
                 await db.execute(
                     """
                     INSERT INTO telemetry_events
-                        (event_id, session_id, agent_id, hook_id, phase, payload_json)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (event_id, session_id, agent_id, hook_id, phase, payload_json, tiebreaker)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         event_id,
@@ -73,10 +79,11 @@ class AuditStore:
                         event.hook_id,
                         event.phase,
                         payload_json,
+                        event.tiebreaker,
                     ),
                 )
                 cur = await db.execute(
-                    "SELECT received_at FROM telemetry_events WHERE event_id = ?",
+                    "SELECT received_at, tiebreaker FROM telemetry_events WHERE event_id = ?",
                     (event_id,),
                 )
                 row = await cur.fetchone()
@@ -96,6 +103,7 @@ class AuditStore:
             phase=event.phase,
             payload=event.payload,
             received_at=row["received_at"],
+            tiebreaker=row["tiebreaker"],
         )
 
     async def query(
@@ -124,10 +132,10 @@ class AuditStore:
 
         sql = f"""
             SELECT event_id, session_id, agent_id, hook_id, phase,
-                   payload_json, received_at
+                   payload_json, received_at, tiebreaker
             FROM telemetry_events
             {where_clause}
-            ORDER BY received_at DESC, event_id DESC
+            ORDER BY received_at DESC, tiebreaker DESC, event_id DESC
             LIMIT ?
         """
         params.append(safe_limit)
@@ -147,7 +155,7 @@ class AuditStore:
             cur = await db.execute(
                 """
                 SELECT event_id, session_id, agent_id, hook_id, phase,
-                       payload_json, received_at
+                       payload_json, received_at, tiebreaker
                 FROM telemetry_events WHERE event_id = ?
                 """,
                 (event_id,),
@@ -219,6 +227,7 @@ def _row_to_event(row: Any) -> TelemetryEventOut:
         phase=row["phase"],
         payload=payload,
         received_at=row["received_at"],
+        tiebreaker=row["tiebreaker"],
     )
 
 

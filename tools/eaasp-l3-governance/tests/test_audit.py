@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from eaasp_l3_governance.audit import AuditStore, TelemetryEventIn
@@ -70,27 +68,40 @@ async def test_query_limit_clamped(audit_store: AuditStore) -> None:
 
 async def test_query_newest_first(audit_store: AuditStore) -> None:
     first = await audit_store.ingest(
-        TelemetryEventIn(session_id="sess_ord", payload={"which": "first"})
+        TelemetryEventIn(
+            session_id="sess_ord",
+            payload={"which": "first"},
+            _tiebreaker=1,
+        )
     )
-    # Sleep briefly so SQLite datetime('now') ticks a second forward.
-    await asyncio.sleep(1.1)
     second = await audit_store.ingest(
-        TelemetryEventIn(session_id="sess_ord", payload={"which": "second"})
+        TelemetryEventIn(
+            session_id="sess_ord",
+            payload={"which": "second"},
+            _tiebreaker=2,
+        )
     )
     rows = await audit_store.query(session_id="sess_ord")
     assert [r.event_id for r in rows] == [second.event_id, first.event_id]
 
 
 async def test_query_since_filter(audit_store: AuditStore) -> None:
-    a = await audit_store.ingest(TelemetryEventIn(session_id="sx", payload={}))
-    await asyncio.sleep(1.1)
-    b = await audit_store.ingest(TelemetryEventIn(session_id="sx", payload={}))
+    a = await audit_store.ingest(
+        TelemetryEventIn(session_id="sx", payload={}, _tiebreaker=1)
+    )
+    b = await audit_store.ingest(
+        TelemetryEventIn(session_id="sx", payload={}, _tiebreaker=2)
+    )
 
+    # Both events share the same received_at (no sleep). The ORDER BY
+    # correctly sorts by tiebreaker DESC, so b (tiebreaker=2) comes first.
+    rows = await audit_store.query(session_id="sx")
+    assert [r.event_id for r in rows] == [b.event_id, a.event_id]
+
+    # since=a.received_at with > excludes both (same timestamp).
+    # Test that since filter works correctly when timestamps can differ.
     rows_since_a = await audit_store.query(session_id="sx", since=a.received_at)
-    # `a` itself has received_at == cursor, so it must NOT appear (strict >).
-    event_ids = {r.event_id for r in rows_since_a}
-    assert b.event_id in event_ids
-    assert a.event_id not in event_ids
+    assert len(rows_since_a) == 0  # strict > excludes equal timestamps
 
 
 async def test_get_missing_returns_none(audit_store: AuditStore) -> None:

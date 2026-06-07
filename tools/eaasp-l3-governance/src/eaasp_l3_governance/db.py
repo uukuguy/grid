@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
     hook_id      TEXT,
     phase        TEXT,
     payload_json TEXT NOT NULL,
-    received_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    received_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    tiebreaker   INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_session
@@ -56,10 +57,21 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_received_at
 
 
 async def init_db(path: str) -> None:
-    """Create schema if absent."""
+    """Create schema if absent, then apply idempotent migrations."""
     async with aiosqlite.connect(path) as db:
         await db.executescript(SCHEMA)
         await db.commit()
+
+    # D26 / L3-08 — add tiebreaker column (idempotent via PRAGMA table_info probe)
+    async with aiosqlite.connect(path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("PRAGMA table_info(telemetry_events)")
+        columns = [row[1] async for row in cur]
+        if "tiebreaker" not in columns:
+            await db.execute(
+                "ALTER TABLE telemetry_events ADD COLUMN tiebreaker INTEGER NOT NULL DEFAULT 0"
+            )
+            await db.commit()
 
 
 async def connect(path: str) -> aiosqlite.Connection:
