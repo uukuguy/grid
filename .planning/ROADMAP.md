@@ -52,7 +52,7 @@
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07.0-01-PLAN.md — Verify 5 closed D-items + implement D3 (user_preferences + budget-driven trim)
+- [x] 07.0-01-PLAN.md — Verify 5 closed D-items + implement D3 (user_preferences + budget-driven trim)
 **UI hint**: no
 
 ---
