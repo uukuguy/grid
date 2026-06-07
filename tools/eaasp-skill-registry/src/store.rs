@@ -216,6 +216,40 @@ impl SkillStore {
         let access_scope: Option<String> = crate::skill_parser::parse_v2_frontmatter(&req.frontmatter_yaml)
             .ok()
             .and_then(|v2| v2.access_scope);
+
+        // D46 / L3-03 — namespace conflict guard.
+        // Reject if another skill already claims this access_scope.
+        // Wildcard scope "*" and None scope skip the check.
+        if let Some(ref scope) = access_scope {
+            if scope != "*" {
+                let scope_clone = scope.clone();
+                let id_clone = m.id.clone();
+                let conflict: Option<String> = self
+                    .db
+                    .call(move |conn| {
+                        let mut stmt = conn.prepare(
+                            "SELECT id FROM skills WHERE access_scope = ?1 AND id != ?2 LIMIT 1",
+                        )?;
+                        let mut rows = stmt.query_map(
+                            rusqlite::params![scope_clone, id_clone],
+                            |row| row.get::<_, String>(0),
+                        )?;
+                        Ok(rows.next().transpose()?)
+                    })
+                    .await
+                    .context("check namespace conflict")?;
+
+                if let Some(existing_id) = conflict {
+                    return Err(anyhow::anyhow!(
+                        "namespace_conflict: access_scope '{}' is already claimed by skill '{}'. \
+                         Each access_scope can be owned by at most one skill",
+                        scope,
+                        existing_id
+                    ));
+                }
+            }
+        }
+
         self.db
             .call(move |conn| {
                 conn.execute(

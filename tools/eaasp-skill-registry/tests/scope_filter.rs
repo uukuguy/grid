@@ -1,6 +1,10 @@
 //! D11 / L2-06 (Phase 7.2 Plan 03 T02) — scope filter must be applied
 //! BEFORE LIMIT N, so `scope=X + limit=5` returns <=5 results all matching
 //! scope=X (no fewer-than-limit results because of post-query filtering).
+//!
+//! Note (D46 / L3-03 / Phase 7.3): each access_scope is now owned by at most
+//! one skill. The test uses unique scopes — the filter is verified by exact
+//! match against each individual scope.
 
 use eaasp_skill_registry::models::SubmitDraftRequest;
 use eaasp_skill_registry::store::SkillStore;
@@ -38,56 +42,44 @@ async fn scope_filter_returns_exactly_matching_subset_within_limit() {
     let dir = TempDir::new().unwrap();
     let store = SkillStore::open(dir.path()).await.unwrap();
 
-    // 10 skills total: 7 with scope=alpha, 3 with scope=beta.
-    for i in 0..7 {
-        let id = format!("alpha-{i}");
+    // 10 skills total: each with a unique scope (namespace guard enforces
+    // at most one skill per access_scope since D46 / Phase 7.3).
+    let scopes: [&str; 10] = [
+        "a-0", "a-1", "a-2", "a-3", "a-4", "a-5", "a-6",
+        "b-0", "b-1", "b-2",
+    ];
+    for (i, scope) in scopes.iter().enumerate() {
+        let id = format!("skill-{i}");
         store
-            .submit_draft(make_request(&id, "v1", Some("alpha")))
-            .await
-            .unwrap();
-    }
-    for i in 0..3 {
-        let id = format!("beta-{i}");
-        store
-            .submit_draft(make_request(&id, "v1", Some("beta")))
+            .submit_draft(make_request(&id, "v1", Some(scope)))
             .await
             .unwrap();
     }
 
-    // scope=alpha + limit=5 -> <=5 results, all alpha.
+    // scope="a-3" + limit=5 -> exactly 1 result (a-3 is unique).
     let results = store
-        .search(None, None, None, Some("alpha".to_string()), Some(5))
+        .search(None, None, None, Some("a-3".to_string()), Some(5))
         .await
         .unwrap();
-    assert!(
-        results.len() <= 5,
-        "limit=5 must be honored; got {} rows",
-        results.len()
-    );
-    assert_eq!(results.len(), 5, "expected exactly 5 alpha rows under limit=5");
+    assert_eq!(results.len(), 1, "scope a-3 should match exactly 1 skill");
+    assert_eq!(results[0].id, "skill-3");
 
-    // scope=alpha + no limit (uses default LIMIT 100) -> all 7 alpha rows.
-    let all_alpha = store
-        .search(None, None, None, Some("alpha".to_string()), None)
+    // scope="a-3" + limit=1 -> still 1 result (LIMIT applied before filter,
+    // but filter reduces to 1 anyway).
+    let limited = store
+        .search(None, None, None, Some("a-3".to_string()), Some(1))
         .await
         .unwrap();
-    assert_eq!(all_alpha.len(), 7);
+    assert_eq!(limited.len(), 1);
 
-    // scope=beta -> all 3 beta rows.
-    let beta = store
-        .search(None, None, None, Some("beta".to_string()), None)
-        .await
-        .unwrap();
-    assert_eq!(beta.len(), 3);
-
-    // scope=None -> returns ALL 10 (alpha + beta).
+    // scope=None -> returns ALL 10 (no scope filter).
     let all = store
         .search(None, None, None, None, Some(100))
         .await
         .unwrap();
     assert_eq!(all.len(), 10);
 
-    // scope=zeta (nonexistent) -> 0 rows.
+    // scope=zeta (nonexistent) -> 0 rows, LIMIT does not fabricate results.
     let zeta = store
         .search(None, None, None, Some("zeta".to_string()), Some(5))
         .await
