@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.4
-milestone_name: Full INBOX Drain (Debt Sweep II)
-status: roadmap-ready
-stopped_at: Roadmap created — 10 phases defined, 55/55 REQ-IDs mapped
-last_updated: "2026-06-07"
-last_activity: 2026-06-07
+milestone_name: Full INBOX Drain
+status: planning
+stopped_at: Phase 7.0 context gathered
+last_updated: "2026-06-07T15:11:51.727Z"
+last_activity: 2026-06-07 — ROADMAP.md + STATE.md + REQUIREMENTS.md traceability written
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
 ---
 
 # Project State
@@ -35,6 +34,7 @@ Progress: 0/10 phases, 0/0 plans (TBD per phase)
 **Phase-to-REQ mapping (v3.4)**:
 
 ### Carry-forward from v3.3 (Verify & Close)
+
 | Phase | REQ-IDs | Pattern |
 |-------|---------|---------|
 | 7.0 grid-engine harness wiring (V&C) | ENGINE-01..06 | Verify LEDGER ✅ CLOSED has commit hash; fix if open |
@@ -42,6 +42,7 @@ Progress: 0/10 phases, 0/0 plans (TBD per phase)
 | 7.2 L2 connection-pool + Pipeline (V&C) | L2-01..08 | Same verify-then-close pattern |
 
 ### New v3.4 phases (8.0+)
+
 | Phase | REQ-IDs | Summary |
 |-------|---------|---------|
 | 8.0 L3 Leftovers + eaasp_common | L3-09..13 | L3 P3 fixes + shared error package (D20 foundation) |
@@ -79,6 +80,7 @@ Progress: 0/10 phases, 0/0 plans (TBD per phase)
 | 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Pending | 6 REQ-IDs: final polish |
 
 **Parallelization opportunities** (per GSD config `parallelization: true`):
+
 - 7.0 ∥ 7.1 ∥ 7.2: All verify-only, no shared deps
 - 8.0 ∥ 8.1: L3 vs contract, no shared files
 - 8.2 → 8.3: Sequential (L4 hardening builds on foundation)
@@ -144,8 +146,8 @@ Items carried forward from v3.3-INBOX.md (remaining ~85 P2/P3 rows, now mapped t
 
 ## Session Continuity
 
-Last session: 2026-06-07
-Stopped at: Roadmap created — ROADMAP.md + STATE.md + REQUIREMENTS.md traceability written
+Last session: 2026-06-07T15:11:51.723Z
+Stopped at: Phase 7.0 context gathered
 Resume path: **Next action: `/gsd-discuss-phase 7.0`** (or `/gsd-plan-phase 7.0` if discussion skipped) — begin Phase 7.0 grid-engine harness wiring verify-and-close.
 Local commits ahead of origin: 8+ unpushed (from v3.2+v3.3 close cascades). Per project rule: push decision deferred to user.
 Worktrees: none active.
