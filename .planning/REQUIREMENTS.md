@@ -209,20 +209,105 @@
 
 ## Traceability
 
-> Filled by `/gsd-roadmapper` after Step 10.
+> Filled by `/gsd-roadmapper` 2026-06-07. 67/67 REQ-IDs mapped (19 carry-forward + 48 new), 0 orphans, 0 double-mapped. 9 items explicitly deferred (DEFER-01..09).
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| (TBD after roadmapper) |
+### Carry-Forward (Phase 7.0–7.2 — Verify & Close)
+
+| Requirement | D-ID | Phase | Priority | Status |
+|-------------|------|-------|----------|--------|
+| ENGINE-01 | D102 | 7.0 (V&C) | P2 | Pending |
+| ENGINE-02 | D3 | 7.0 (V&C) | P3 | Pending |
+| ENGINE-03 | D57 | 7.0 (V&C) | P3 | Pending |
+| ENGINE-04 | D58 | 7.0 (V&C) | P3 | Pending |
+| ENGINE-05 | D103 | 7.0 (V&C) | P3 | Pending |
+| ENGINE-06 | D104 | 7.0 (V&C) | P3 | Pending |
+| CONTRACT-01 | D137 | 7.1 (V&C) | P2 | Pending |
+| CONTRACT-02 | D138 | 7.1 (V&C) | P2 | Pending |
+| CONTRACT-03 | D5 | 7.1 (V&C) | P3 | Pending |
+| CONTRACT-04 | D6 | 7.1 (V&C) | P3 | Pending |
+| CONTRACT-05 | D55 | 7.1 (V&C) | P3 | Pending |
+| L2-01 | D12 | 7.2 (V&C) | P2 | Pending |
+| L2-02 | D94 | 7.2 (V&C) | P2 | Pending |
+| L2-03 | D91 | 7.2 (V&C) | P2 | Pending |
+| L2-04 | D93 | 7.2 (V&C) | P2 | Pending |
+| L2-05 | D98 | 7.2 (V&C) | P2 | Pending |
+| L2-06 | D11 | 7.2 (V&C) | P3 | Pending |
+| L2-07 | D13 | 7.2 (V&C) | P3 | Pending |
+| L2-08 | D30 | 7.2 (V&C) | P3 | Pending |
+
+### New v3.4 (Phase 8.0–8.6)
+
+| Requirement | D-ID | Phase | Priority | Status |
+|-------------|------|-------|----------|--------|
+| L3-09 | D10 | 8.0 | P3 | Pending |
+| L3-10 | D16 | 8.0 | P3 | Pending |
+| L3-11 | D19 | 8.0 | P3 | Pending |
+| L3-12 | D20 | 8.0 | P3 | Pending |
+| L3-13 | D25 | 8.0 | P3 | Pending |
+| CONTRACT-06 | D74 | 8.1 | P3 ⚠️ ADR | Pending |
+| CONTRACT-07 | D139 | 8.1 | P3 ⚠️ ADR | Pending |
+| ENGINE-07 | D106 | 8.1 | P3 | Pending |
+| ENGINE-08 | D130 | 8.1 | P3 | Pending |
+| SERVER-06 | D90 | 8.1 | P3 | Pending |
+| L4-01 | D34 | 8.2 | P2 🌟 | Pending |
+| L4-02 | D38 | 8.2 | P2 | Pending |
+| L4-03 | D41 | 8.2 | P2 | Pending |
+| L4-04 | D28 | 8.2 | P3 | Pending |
+| L4-05 | D29 | 8.2 | P3 | Pending |
+| L4-06 | D31 | 8.2 | P3 | Pending |
+| L4-08 | D39 | 8.2 | P3 | Pending |
+| L4-07 | D37 | 8.3 | P3 | Pending |
+| L4-09 | D42 | 8.3 | P3 | Pending |
+| L4-10 | D43 | 8.3 | P3 | Pending |
+| L4-11 | D44 | 8.3 | P3 | Pending |
+| L4-12 | D45 | 8.3 | P3 | Pending |
+| L4-13 | D61 | 8.3 | P3 | Pending |
+| L4-14 | D125 | 8.3 | P3 | Pending |
+| L4-15 | D110 | 8.3 | P3 | Pending |
+| L4-16 | D33 | 8.3 | P3 | Pending |
+| L2-09 | D14 | 8.4 | P3 | Pending |
+| L2-10 | D15 | 8.4 | P3 | Pending |
+| L2-11 | D59 | 8.4 | P3 | Pending |
+| L2-12 | D99 | 8.4 | P3 | Pending |
+| L2-13 | D96 | 8.4 | P3 | Pending |
+| L2-14 | D97 | 8.4 | P3 | Pending |
+| L2-15 | D92 | 8.4 | P3 | Pending |
+| L2-16 | D101 | 8.4 | P3 | Pending |
+| L2-17 | D65 | 8.5 | P3 | Pending |
+| L2-18 | D95 | 8.5 | P3 | Pending |
+| L2-19 | D100 | 8.5 | P3 | Pending |
+| HOOK-01 | D108 | 8.5 | P2 | Pending |
+| HOOK-02 | D48 | 8.5 | P3 | Pending |
+| HOOK-03 | D50 | 8.5 | P3 ⚠️ AI-SPEC | Pending |
+| HOOK-04 | D105 | 8.5 | P3 | Pending |
+| HOOK-05 | D107 | 8.5 | P3 | Pending |
+| EVAL-01 | D126 | 8.6 | P3 | Pending |
+| EVAL-02 | D127 | 8.6 | P3 | Pending |
+| EVAL-03 | D128 | 8.6 | P3 | Pending |
+| EVAL-04 | D129 | 8.6 | P3 | Pending |
+| EVAL-05 | D24 | 8.6 | P3 | Pending |
+| EVAL-06 | D56 | 8.6 | P3 | Pending |
+
+### Deferred (out of v3.4 scope)
+
+| Requirement | D-ID | Rationale |
+|-------------|------|-----------|
+| DEFER-01 | D75 | NATS JetStream — premature; keep SQLite EventStream |
+| DEFER-02 | D76 | Push-based subscribe — keep polling for now |
+| DEFER-03 | D79 | Pipeline multi-worker — profile first |
+| DEFER-04 | D77 | TopologyAwareClusterer — no ontology service consumer |
+| DEFER-05 | D80 | Causal graph clusterer — no DAG consumer |
+| DEFER-06 | D73 | Event Room — no product design doc |
+| DEFER-07 | D36 | Event window cursor — no >10k events in production |
+| DEFER-08 | D21 | L3 retention policy — no production data volume |
+| DEFER-09 | D32 | L4 concurrency E2E — targeted unit tests sufficient |
 
 **Coverage:**
-- v3.4 carry-forward: 19 REQ-IDs (ENGINE-01..06 + CONTRACT-01..05 + L2-01..08)
-- v3.4 new: 36 REQ-IDs (L4-01..16 + L3-09..13 + L2-09..19 + HOOK-01..05 + CONTRACT-06..07 + ENGINE-07..08 + SERVER-06 + EVAL-01..06)
-- Deferred: 9 items (DEFER-01..09)
-- v3.3 completed: 8 REQ-IDs (L3-01..08 ✅)
-- Total: 55 REQ-IDs scoped for v3.4
+- ✅ 67/67 REQ-IDs mapped (19 carry-forward + 48 new); 0 orphans; 0 double-mapped
+- 9 items explicitly deferred (DEFER-01..09)
+- v3.3 completed: 8 REQ-IDs (L3-01..08 ✅) — historical reference
 
 ---
 
 *Requirements defined: 2026-06-07 via v3.4 new-milestone Step 9 (research-complemented scoping). Source: `.planning/v3.3-INBOX.md` remaining rows + `.planning/research/SUMMARY.md` deferral recommendations.*
-*Last updated: 2026-06-07 after initial definition*
+*Traceability filled: 2026-06-07 by /gsd-roadmapper — 55/55 REQ-IDs mapped across 10 phases.*
