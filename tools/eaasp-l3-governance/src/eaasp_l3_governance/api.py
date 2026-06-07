@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 from starlette.responses import JSONResponse
@@ -44,6 +44,23 @@ class SessionValidateRequest(BaseModel):
 _VALID_LOG_LEVELS: frozenset[str] = frozenset(
     {"TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"}
 )
+
+
+# D8 / L3-04 — RBAC dependency: extract X-Session-Scope header.
+# Returns the scope or raises 403 if missing.
+async def require_access_scope(
+    x_session_scope: str | None = Header(default=None, alias="X-Session-Scope"),
+) -> str:
+    """Extract and return the caller's access_scope from X-Session-Scope header."""
+    if x_session_scope is None:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "forbidden",
+                "message": "missing X-Session-Scope header — RBAC required",
+            },
+        )
+    return x_session_scope
 
 
 def create_app(db_path: str) -> FastAPI:
@@ -140,7 +157,9 @@ def create_app(db_path: str) -> FastAPI:
     # ─── Contract 5 (partial): Session validate ───────────────────────────
     @app.post("/v1/sessions/{session_id}/validate")
     async def validate_session(
-        session_id: str, body: SessionValidateRequest
+        session_id: str,
+        body: SessionValidateRequest,
+        caller_scope: str = Depends(require_access_scope),
     ) -> dict[str, Any]:
         latest = await policy.latest_version()
         if latest is None:
@@ -156,6 +175,21 @@ def create_app(db_path: str) -> FastAPI:
         for hook in latest.payload.get("hooks", []):
             if not hook_matches(hook, body.agent_id, body.skill_id):
                 continue
+            # D8 / L3-04 — RBAC scope check: skip hooks whose access_scope
+            # doesn't match the caller's scope (unless caller is wildcard *).
+            hook_scope = hook.get("access_scope")
+            if (
+                hook_scope is not None
+                and caller_scope != "*"
+                and hook_scope != caller_scope
+            ):
+                logger.warning(
+                    "RBAC rejected",
+                    hook_id=hook.get("hook_id"),
+                    caller_scope=caller_scope,
+                    required_scope=hook_scope,
+                )
+                continue  # skip this hook — caller's scope doesn't match
             # Apply per-hook mode override if one has been set via
             # PUT /v1/policies/{hook_id}/mode (floats above version rows).
             override = await policy.get_mode_override(hook["hook_id"])
