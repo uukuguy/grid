@@ -137,6 +137,20 @@ pub fn apply_budget_decrement(remaining: u64, input_tokens: u64, output_tokens: 
 }
 
 /// ADR-V2-018 §D4 — pure helper: does the current `remaining` budget allow
+/// the loop to start another turn? Returns `true` when `remaining` exceeds
+/// [`MIN_TURN_BUDGET`] (strict `>`), because a turn at the floor is almost
+/// certain to cost more tokens than remain.
+pub fn budget_can_continue(remaining: u64) -> bool {
+    remaining > MIN_TURN_BUDGET
+}
+
+/// D3 (ENGINE-02): pure helper — is the remaining token budget "tight"
+/// enough that proactive compaction is worth its cost? Returns `true` only
+/// when `remaining < MIN_TURN_BUDGET`. When budget is still plentiful,
+/// proactive compaction is an unnecessary CPU / LLM expense.
+pub fn is_budget_tight(remaining: u64) -> bool {
+    remaining < MIN_TURN_BUDGET
+}
 /// another LLM round? Returns `false` when `remaining < MIN_TURN_BUDGET`.
 pub fn has_budget_for_next_turn(remaining: u64) -> bool {
     remaining >= MIN_TURN_BUDGET
@@ -967,10 +981,22 @@ async fn run_agent_loop_inner(
         // Runs before the LLM call when actual token usage crossed
         // `proactive_threshold_pct`. Skipped when `reactive_only=true`,
         // already done this turn, or no pipeline available.
+        //
+        // D3 (ENGINE-02): Budget-driven compaction — skip proactive
+        // compaction when we have enough token budget remaining. Only
+        // compact when budget is genuinely tight, meaning less than
+        // MIN_TURN_BUDGET tokens remain (the next turn may not fit).
+        // This avoids unnecessary LLM compaction calls on every turn
+        // boundary when budget headroom is ample.
         if !compaction_cfg.reactive_only && !proactive_compact_done_this_turn {
             if let Some(usage_pct) = budget.usage_pct() {
                 if usage_pct >= compaction_cfg.proactive_threshold_pct {
-                    if let Some(ref pipeline) = config.compaction_pipeline {
+                    // D3 budget gate: only compact when budget is tight.
+                    // When task_budget_remaining >= MIN_TURN_BUDGET,
+                    // we have headroom — skip the expensive compaction.
+                    let budget_tight = task_budget_remaining < MIN_TURN_BUDGET;
+                    if budget_tight {
+                        if let Some(ref pipeline) = config.compaction_pipeline {
                         let ctx = CompactionContext {
                             memory: config.memory.clone(),
                             memory_store: config.memory_store.clone(),
@@ -1026,6 +1052,14 @@ async fn run_agent_loop_inner(
                                 warn!(error = %e, "Proactive compaction failed, continuing");
                             }
                         }
+                        }
+                    } else {
+                        debug!(
+                            threshold = compaction_cfg.proactive_threshold_pct,
+                            usage_pct,
+                            task_budget_remaining,
+                            "Proactive compaction skipped — sufficient budget headroom"
+                        );
                     }
                 }
             }

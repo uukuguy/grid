@@ -630,6 +630,24 @@ impl RuntimeContract for GridHarness {
         let user_id = UserId::from_string(&user_id_str);
         let sandbox_id = SandboxId::from_string("default");
 
+        // D3 (ENGINE-02): extract user_preferences from the session
+        // payload and surface them into the engine's AgentLoopConfig via
+        // the AgentRuntime → AgentExecutor → AgentLoopConfig path. The
+        // HashMap<String,String> prefs field from the runtime contract
+        // type is intentionally not carried over — the core fields
+        // (language, timezone, provider/model hints) are what the
+        // harness / system-prompt builder use.
+        if let Some(ref payload_prefs) = payload.user_preferences {
+            let engine_prefs = grid_engine::agent::loop_config::UserPreferences {
+                user_id: payload_prefs.user_id.clone(),
+                language: payload_prefs.language.clone(),
+                timezone: payload_prefs.timezone.clone(),
+                llm_provider: payload_prefs.llm_provider.clone(),
+                llm_model: payload_prefs.llm_model.clone(),
+            };
+            self.runtime.set_user_preferences(Some(engine_prefs));
+        }
+
         // D1 — read P1 PolicyContext metadata (best-effort, read-only).
         // Hook installation/execution is deferred to Phase 2 (D50/D53).
         let org_unit = payload

@@ -79,6 +79,10 @@ pub struct AgentRuntimeConfig {
     /// back to `CompactionPipelineConfig::default()` at struct-literal
     /// expansion).
     pub compaction: Option<crate::context::CompactionPipelineConfig>,
+    /// D3 (ENGINE-02): user preferences surfaced from the session payload.
+    /// Forwarded into every spawned `AgentExecutor`; forwarded from there
+    /// into every `AgentLoopConfig` built at round start.
+    pub user_preferences: Option<super::loop_config::UserPreferences>,
 }
 
 impl AgentRuntimeConfig {
@@ -102,6 +106,7 @@ impl AgentRuntimeConfig {
             sandbox_profile: None,
             max_concurrent_sessions: None,
             compaction: None,
+            user_preferences: None,
         }
     }
 
@@ -260,6 +265,11 @@ pub struct AgentRuntime {
     /// `Arc<AtomicBool>`: cancelling session A does not affect session B.
     /// See `docs/design/EAASP/AGENT_LOOP_PATTERNS_TO_ADOPT.md` #10.
     pub(crate) session_interrupts: SessionInterruptRegistry,
+
+    /// D3 (ENGINE-02): user preferences forwarded into every spawned
+    /// `AgentExecutor` via `set_user_preferences`. `None` when the
+    /// session payload carries no user preference block.
+    pub(crate) user_preferences: StdMutex<Option<super::loop_config::UserPreferences>>,
 
     /// 2026-05-16 RFC: process-global execution mode hint forwarded into
     /// each spawned `AgentExecutor`. grid-runtime sets `LongWorkflow` at
@@ -623,6 +633,7 @@ impl AgentRuntime {
             session_interrupts: SessionInterruptRegistry::new(),
             execution_mode: StdMutex::new(super::loop_config::ExecutionMode::default()),
             compaction: config.compaction.clone(),
+            user_preferences: StdMutex::new(config.user_preferences.clone()),
             catalog,
             provider,
             tools: Arc::new(StdMutex::new(tools)),
@@ -1000,6 +1011,18 @@ impl AgentRuntime {
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
         *guard = mode;
+    }
+
+    /// D3 (ENGINE-02): set user preferences for the next session.
+    /// Called by runtime wrappers (e.g. `grid-runtime::GridHarness`)
+    /// before `start_session_with_tool_filter` so each session receives
+    /// its own `UserPreferences` from the EAASP payload.
+    pub fn set_user_preferences(&self, prefs: Option<super::loop_config::UserPreferences>) {
+        let mut guard = self
+            .user_preferences
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        *guard = prefs;
     }
 
     /// Shared capability matrix. Harness looks up (provider, model, base_url)
@@ -1615,6 +1638,16 @@ impl AgentRuntime {
         // per-session executor so the harness picks it up at AgentLoopConfig
         // construction time.
         executor.set_compaction_config(self.compaction.clone());
+
+        // D3 (ENGINE-02): forward user preferences into the per-session
+        // executor so the harness picks it up at AgentLoopConfig
+        // construction time.
+        executor.set_user_preferences(
+            self.user_preferences
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone(),
+        );
 
         // D130: create the session/turn token tree and wire it into the executor.
         // The session_cancellation_token() is returned to the caller so it can

@@ -206,6 +206,11 @@ pub struct AgentExecutor {
     // round start. `None` keeps `AgentLoopConfig::default()` fallback
     // semantics; `Some(cfg)` overrides per user YAML.
     compaction_config: Option<crate::context::CompactionPipelineConfig>,
+    // D3 (ENGINE-02): forwarded into every AgentLoopConfig built at
+    // round start. `None` when the session payload carries no user
+    // preference block; `Some(prefs)` surfaces language / timezone /
+    // provider hints from the EAASP session payload.
+    user_preferences: Option<super::loop_config::UserPreferences>,
 }
 
 impl AgentExecutor {
@@ -282,6 +287,7 @@ impl AgentExecutor {
             required_tools: None,
             stop_hooks: Vec::new(),
             compaction_config: None,
+            user_preferences: None,
         }
     }
 
@@ -314,6 +320,17 @@ impl AgentExecutor {
         cfg: Option<crate::context::CompactionPipelineConfig>,
     ) {
         self.compaction_config = cfg;
+    }
+
+    /// D3 (ENGINE-02): set the user preferences for this executor's
+    /// session. Called by `AgentRuntime::build_and_spawn_executor_filtered`
+    /// after construction. The value is cloned into every
+    /// `AgentLoopConfig` built at round start.
+    pub fn set_user_preferences(
+        &mut self,
+        prefs: Option<super::loop_config::UserPreferences>,
+    ) {
+        self.user_preferences = prefs;
     }
 
     /// S3.T5 (G7): install Stop hooks for this executor's session.
@@ -466,7 +483,13 @@ impl AgentExecutor {
                                 canary_token: self.canary_token.clone(),
                                 // Observability: inherit recorder for tool execution tracking
                                 recorder: self.recorder.clone(),
-                                ..AgentLoopConfig::default()
+                        // D3 (ENGINE-02): forward user preferences from the
+                        // session payload (via AgentRuntimeConfig →
+                        // AgentRuntime → AgentExecutor) into the
+                        // per-round loop config so the harness can
+                        // inject language / timezone / provider hints.
+                        user_preferences: self.user_preferences.clone(),
+                        ..AgentLoopConfig::default()
                             });
                             let mut agent_tool = crate::tools::subagent::AgentTool::new(
                                 subagent_mgr.clone(),

@@ -21,11 +21,11 @@ use crate::tools::ToolRegistry;
 use super::autonomous::{AutonomousConfig, AutonomousControl};
 use super::config::AgentConfig;
 use super::entry::AgentManifest;
-use super::events::AgentLoopResult;
 use super::estop::EmergencyStop;
-use super::self_repair::SelfRepairManager;
+use super::events::AgentLoopResult;
 use super::loop_guard::LoopGuard;
 use super::prompt_executor::{build_prompt_executor_from_env, PromptExecutor};
+use super::self_repair::SelfRepairManager;
 use super::stop_hooks::StopHook;
 use super::subagent::SubAgentManager;
 use super::CancellationToken;
@@ -64,6 +64,31 @@ pub enum ExecutionMode {
     Conversational,
     /// Non-interactive skill execution (grid-runtime serving EAASP L4).
     LongWorkflow,
+}
+
+/// Lightweight user preferences for AgentLoopConfig (P5 data).
+///
+/// Mirrors grid-runtime's `UserPreferences` (from contract.rs) but keeps
+/// grid-engine independent of the runtime crate's contract types. The
+/// runtime's `HashMap<String, String> prefs` field is intentionally
+/// omitted — the core fields (language, timezone, llm_provider, llm_model)
+/// are what the harness/system-prompt builder uses.
+///
+/// D3 (ENGINE-02): surfacing `payload.user_preferences` from the EAASP
+/// session payload into the agent loop so the harness can inject
+/// language / timezone / provider hints.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct UserPreferences {
+    /// User identifier from the session payload.
+    pub user_id: String,
+    /// Preferred language (e.g. "zh-CN", "en").
+    pub language: String,
+    /// IANA timezone (e.g. "Asia/Shanghai", "UTC").
+    pub timezone: String,
+    /// LLM provider hint (e.g. "anthropic", "openai"). L1 runtime env takes precedence.
+    pub llm_provider: String,
+    /// LLM model hint (e.g. "claude-sonnet-4-20250514"). L1 runtime env takes precedence.
+    pub llm_model: String,
 }
 
 /// Agent Loop configuration — serves as the complete dependency injection container
@@ -136,6 +161,10 @@ pub struct AgentLoopConfig {
     pub session_id: SessionId,
     /// User ID.
     pub user_id: UserId,
+    /// D3 (ENGINE-02): optional user preferences surfaced from the session
+    /// payload. When Some, the harness / system-prompt builder can inject
+    /// language, timezone, and provider hints into the agent context.
+    pub user_preferences: Option<UserPreferences>,
     /// Sandbox ID.
     pub sandbox_id: SandboxId,
     /// Tool execution context.
@@ -310,6 +339,7 @@ impl Default for AgentLoopConfig {
             interceptor: None,
             session_id: SessionId::default(),
             user_id: UserId::default(),
+            user_preferences: None,
             sandbox_id: SandboxId::default(),
             tool_ctx: None,
             cancel_token: CancellationToken::new(),
