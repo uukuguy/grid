@@ -305,3 +305,49 @@ async def test_validate_rejects_hook_missing_hook_id(app: AsyncClient) -> None:
             assert "missing required field: hook_id" in detail["message"]
     finally:
         os.unlink(db_test_path)
+
+
+# ─── D18 / L3-06 — session_id path param validation ─────────────────────
+
+
+async def test_validate_rejects_empty_session_id(app: AsyncClient) -> None:
+    """Empty path segment → 404 (route not matched)."""
+    # Double-slash routing: FastAPI returns 404 since the route doesn't match.
+    resp = await app.post(
+        "/v1/sessions//validate",
+        json={"agent_id": "agent_threshold"},
+        headers=_SCOPE_HEADER,
+    )
+    assert resp.status_code == 404
+
+
+async def test_validate_rejects_invalid_chars_session_id(app: AsyncClient) -> None:
+    """session_id with invalid chars (space) → 422 (pattern mismatch)."""
+    # Use a space character which is valid in URL paths but rejected by pattern.
+    resp = await app.post(
+        "/v1/sessions/sess%20bad/validate",
+        json={"agent_id": "agent_threshold"},
+        headers=_SCOPE_HEADER,
+    )
+    assert resp.status_code == 422
+
+
+async def test_validate_accepts_valid_session_id(app: AsyncClient) -> None:
+    """Valid session_id (alphanumeric + - + _) → normal processing."""
+    await _deploy(
+        app,
+        [
+            {
+                "hook_id": "h_test",
+                "phase": "PostToolUse",
+                "mode": "enforce",
+                "agent_id": "*",
+            },
+        ],
+    )
+    resp = await app.post(
+        "/v1/sessions/sess-abc_123/validate",
+        json={"agent_id": "agent_threshold"},
+        headers=_SCOPE_HEADER,
+    )
+    assert resp.status_code == 200

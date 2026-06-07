@@ -17,7 +17,7 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
 from loguru import logger
@@ -173,7 +173,9 @@ def create_app(db_path: str) -> FastAPI:
     # ─── Contract 5 (partial): Session validate ───────────────────────────
     @app.post("/v1/sessions/{session_id}/validate")
     async def validate_session(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         body: SessionValidateRequest,
         caller_scope: str = Depends(require_access_scope),
     ) -> dict[str, Any]:
