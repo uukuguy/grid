@@ -195,7 +195,7 @@ Phases execute in numeric order: 6.0 → 6.1 → 6.2
 - [ ] Phase 7.0 grid-engine harness wiring (6 REQ-IDs: ENGINE-01..06)
 - [ ] Phase 7.1 contract observability + bridge (5 REQ-IDs: CONTRACT-01..05)
 - [ ] Phase 7.2 L2 connection-pool + Pipeline (8 REQ-IDs: L2-01..08)
-- [ ] Phase 7.3 L3 RBAC + hardening (8 REQ-IDs: L3-01..08)
+- [x] Phase 7.3 L3 RBAC + hardening (8 REQ-IDs: L3-01..08) (completed 2026-06-07)
 
 ### Phase Details
 
@@ -307,7 +307,7 @@ Phases execute in numeric order: 7.0 → 7.1 → 7.2 → 7.3 (parallelization al
 | 7.0 grid-engine harness wiring | 0/0 | 🟡 STARTED 2026-06-01 | 6 REQ-IDs (1 P2 + 5 P3); next: `/gsd-discuss-phase 7.0` |
 | 7.1 contract observability + bridge | 0/0 | 🟡 STARTED 2026-06-01 | 5 REQ-IDs (2 P2 + 3 P3) |
 | 7.2 L2 connection-pool + Pipeline | 0/0 | 🟡 STARTED 2026-06-01 | 8 REQ-IDs (5 P2 + 3 P3) — keystone |
-| 7.3 L3 RBAC + hardening | 0/0 | 🟡 STARTED 2026-06-01 | 8 REQ-IDs (3 P2 + 5 P3) |
+| 7.3 L3 RBAC + hardening | 1/1 | Complete   | 2026-06-07 |
 
 ### Granularity rationale (v3.3)
 

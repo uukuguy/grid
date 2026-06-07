@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Phase 6 — Tech-Debt Triage & CI Red Line Clearance
-status: executing
-stopped_at: Phase 7.2 context gathered
-last_updated: "2026-06-02T08:23:05.701Z"
-last_activity: 2026-06-02 -- Phase 07.2 execution started
+status: verifying
+stopped_at: Completed 07.3-01-PLAN.md
+last_updated: "2026-06-07T11:58:42.945Z"
+last_activity: 2026-06-07
 progress:
   total_phases: 3
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — v3.3 Current Milestone section)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 07.2 — L2 connection-pool + Pipeline
+**Current focus:** Phase 07.3 — l3-rbac-hardening
 
 ## Current Position
 
-Phase: 07.2 (L2 connection-pool + Pipeline) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 07.2
-Last activity: 2026-06-02 -- Phase 07.2 execution started
+Phase: 07.3 (l3-rbac-hardening) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-07
 
 Progress: [░░░░░░░░░░] 0% (0/4 phases planned)
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0% (0/4 phases planned)
 - Trend: milestone v3.2 CLOSED 2026-05-26; v3.3 STARTED 2026-06-01 with focused scope (4 modules, ~30 rows). 8 unpushed commits from v3.2 close cascade await push.
 
 *Updated after each plan completion*
+| Phase 07.3 P01 | 1034 | 8 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,10 @@ Recent decisions affecting current work:
 - **Skip research for v3.3**: debt rows concrete with LEDGER references; no domain ecosystem unknowns to discover
 - **Phase numbering continues from 6.2**: v3.3 starts at Phase 7.0 (per --reset-phase-numbers absent)
 - **Quality profile (Opus) + parallelization=true**: 沿用 Phase 4/5/6 体系
+- [Phase 07.3]: RBAC as FastAPI Depends() not global middleware
+- [Phase 07.3]: L2-primary + L3-fallback telemetry query with 5s timeout
+- [Phase 07.3]: loguru strict-by-default L3_LOG_LEVEL validation at startup (ADR-V2-028)
+- [Phase 07.3]: tiebreaker column over freezegun — zero new test deps
 
 ### Pending Todos
 
@@ -106,8 +111,8 @@ Items carried forward from previous milestone close (v3.2). See `docs/design/EAA
 
 ## Session Continuity
 
-Last session: 2026-06-02T06:17:15.152Z
-Stopped at: Phase 7.2 context gathered
+Last session: 2026-06-07T11:58:42.941Z
+Stopped at: Completed 07.3-01-PLAN.md
 Resume path: **Next action: `/gsd-roadmapper` (auto-invoked by this workflow)** — generates REQUIREMENTS.md from v3.3-INBOX selected rows + ROADMAP.md with 4 phases (7.0 → 7.3).
 Local commits ahead of origin: 8 unpushed (from v3.2 close cascade) + 1 v3.3 milestone-start commit on this session = ~9 pending (per project rule: push decision deferred to user).
 Worktrees: none active.

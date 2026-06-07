@@ -42,14 +42,14 @@
 
 ### D. L3 — L3 RBAC + hardening (Phase 7.3)
 
-- [ ] **L3-01**: D8 — `access_scope` 真实 RBAC 执行 (P2). 当前 access_scope 字段记录但不强制; user role/scope 通过 token 携带但没有 enforcement gate。Implement RBAC middleware。LEDGER L111。
-- [ ] **L3-02**: D9 — `skill_usage` 返回真实遥测 (P2). 当前 endpoint 返回 mock 数据; 接真实 audit log query。LEDGER L112。
-- [ ] **L3-03**: D46 — Skill `access_scope` 无 RBAC / 命名空间校验 (P2). skill manifest 声明 access_scope 但部署/调用时不验; 与 L3-01 关联。LEDGER L161。
-- [ ] **L3-04**: D22 — L3 无全局 FastAPI exception handler (P3). 异常 leak 内部 stack trace 给客户端; 加 global handler 返回标准 error shape。LEDGER L130。
-- [ ] **L3-05**: D23 — L3 无 loguru/logging 初始化 (P3). 启动时没显式配置 logging; 跟 grid-server 配置惯例不一致。LEDGER L131。
-- [ ] **L3-06**: D17 — L3 validate_session() `hook["hook_id"]` KeyError 风险 (P3). 字典 access 假设 key 存在; 用 `.get()` + 缺失 raise typed error。LEDGER L125。
-- [ ] **L3-07**: D18 — L3 validate_session() 对 `session_id` path param 不校验 (P3). 接受任意字符串 session_id; 应该 validate UUID/format。LEDGER L126。
-- [ ] **L3-08**: D26 — L3 tests 用 `time.sleep(1.1)` 防撞秒 (P3). flaky 测试 anti-pattern; 改成 monotonic clock 或 mock time。LEDGER L134。
+- [x] **L3-01**: D8 — `access_scope` 真实 RBAC 执行 (P2). 当前 access_scope 字段记录但不强制; user role/scope 通过 token 携带但没有 enforcement gate。Implement RBAC middleware。LEDGER L111。
+- [x] **L3-02**: D9 — `skill_usage` 返回真实遥测 (P2). 当前 endpoint 返回 mock 数据; 接真实 audit log query。LEDGER L112。
+- [x] **L3-03**: D46 — Skill `access_scope` 无 RBAC / 命名空间校验 (P2). skill manifest 声明 access_scope 但部署/调用时不验; 与 L3-01 关联。LEDGER L161。
+- [x] **L3-04**: D22 — L3 无全局 FastAPI exception handler (P3). 异常 leak 内部 stack trace 给客户端; 加 global handler 返回标准 error shape。LEDGER L130。
+- [x] **L3-05**: D23 — L3 无 loguru/logging 初始化 (P3). 启动时没显式配置 logging; 跟 grid-server 配置惯例不一致。LEDGER L131。
+- [x] **L3-06**: D17 — L3 validate_session() `hook["hook_id"]` KeyError 风险 (P3). 字典 access 假设 key 存在; 用 `.get()` + 缺失 raise typed error。LEDGER L125。
+- [x] **L3-07**: D18 — L3 validate_session() 对 `session_id` path param 不校验 (P3). 接受任意字符串 session_id; 应该 validate UUID/format。LEDGER L126。
+- [x] **L3-08**: D26 — L3 tests 用 `time.sleep(1.1)` 防撞秒 (P3). flaky 测试 anti-pattern; 改成 monotonic clock 或 mock time。LEDGER L134。
 
 ---
 
