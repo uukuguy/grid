@@ -206,9 +206,19 @@ def create_app(db_path: str) -> FastAPI:
                     required_scope=hook_scope,
                 )
                 continue  # skip this hook — caller's scope doesn't match
+            # D17 / L3-05 — hook_id guard: use .get() not [] to avoid KeyError.
+            hook_id = hook.get("hook_id")
+            if hook_id is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "invalid_hook",
+                        "message": f"hook missing required field: hook_id (hook data: {hook})",
+                    },
+                )
             # Apply per-hook mode override if one has been set via
             # PUT /v1/policies/{hook_id}/mode (floats above version rows).
-            override = await policy.get_mode_override(hook["hook_id"])
+            override = await policy.get_mode_override(hook_id)
             merged = dict(hook)
             if override is not None:
                 merged["mode"] = override.mode

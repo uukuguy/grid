@@ -240,3 +240,68 @@ async def test_validate_hook_without_scope_included(app: AsyncClient) -> None:
     hooks = resp.json()["hooks_to_attach"]
     hook_ids = [h["hook_id"] for h in hooks]
     assert set(hook_ids) == {"h_no_scope", "h_scoped"}
+
+
+# ─── D17 / L3-05 — hook_id KeyError guard ────────────────────────────────
+
+
+async def test_validate_rejects_hook_missing_hook_id(app: AsyncClient) -> None:
+    """Validate must reject a hook with missing hook_id (defense-in-depth).
+
+    ManagedSettings Pydantic model requires hook_id, so the deploy endpoint
+    catches missing hook_id before it reaches the DB. This test bypasses
+    the deploy endpoint by inserting raw JSON directly into
+    managed_settings_versions, exercising the validate_session guard.
+    """
+    import json
+    import os
+    import tempfile
+
+    from httpx import ASGITransport, AsyncClient as HClient
+
+    from eaasp_l3_governance.api import create_app
+    from eaasp_l3_governance.db import connect, init_db as _init_db
+
+    # Create a fresh DB with a malformed version row.
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_test_path = f.name
+    try:
+        await _init_db(db_test_path)
+
+        payload = {
+            "version": "v_malformed",
+            "hooks": [{"phase": "PostToolUse", "mode": "enforce", "agent_id": "*"}],
+        }
+        db = await connect(db_test_path)
+        try:
+            await db.execute("BEGIN IMMEDIATE")
+            await db.execute(
+                """INSERT INTO managed_settings_versions
+                   (payload_json, hook_count, mode_summary)
+                   VALUES (?, ?, ?)""",
+                (
+                    json.dumps(payload),
+                    1,
+                    json.dumps({"enforce": 1, "shadow": 0}),
+                ),
+            )
+            await db.commit()
+        finally:
+            await db.close()
+
+        test_app = create_app(db_test_path)
+        transport = ASGITransport(app=test_app)
+        async with HClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/v1/sessions/s1/validate",
+                json={"agent_id": "agent_threshold"},
+                headers=_SCOPE_HEADER,
+            )
+            assert resp.status_code == 422, (
+                f"Expected 422, got {resp.status_code}: {resp.text}"
+            )
+            detail = resp.json()["detail"]
+            assert detail["error"] == "invalid_hook"
+            assert "missing required field: hook_id" in detail["message"]
+    finally:
+        os.unlink(db_test_path)
