@@ -22,6 +22,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
+from starlette.responses import JSONResponse
 
 from .audit import AuditStore, TelemetryEventIn
 from .db import init_db
@@ -175,6 +176,29 @@ def create_app(db_path: str) -> FastAPI:
             "validated_at": latest.created_at,
             "runtime_tier": body.runtime_tier,
         }
+
+    # ─── D22 / L3-02 — global exception handlers (defense-in-depth) ──────
+    @app.exception_handler(ValidationError)
+    async def validation_exception_handler(
+        request, exc: ValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "validation_error",
+                "detail": _sanitize_errors(exc.errors()),
+            },
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception")
+        # Sanitize: max 500 chars, no traceback
+        detail = str(exc)[:500]
+        return JSONResponse(
+            status_code=500,
+            content={"error": "internal_error", "detail": detail},
+        )
 
     return app
 
