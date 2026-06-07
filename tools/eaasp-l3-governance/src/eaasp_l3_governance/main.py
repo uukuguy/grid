@@ -11,6 +11,7 @@ from .api import create_app
 DEFAULT_DB_PATH = os.environ.get("EAASP_L3_DB_PATH", "./data/governance.db")
 DEFAULT_PORT = int(os.environ.get("EAASP_L3_PORT", "18083"))
 DEFAULT_HOST = os.environ.get("EAASP_L3_HOST", "127.0.0.1")
+L2_MEMORY_ENGINE_URL = os.environ.get("L2_MEMORY_ENGINE_URL", "http://localhost:18082")
 
 app = create_app(DEFAULT_DB_PATH)
 

@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 from starlette.responses import JSONResponse
@@ -153,6 +153,22 @@ def create_app(db_path: str) -> FastAPI:
     ) -> dict[str, Any]:
         events = await audit.query(session_id=session_id, since=since, limit=limit)
         return {"events": [e.model_dump() for e in events]}
+
+    # ─── D9 / L3-02 — skill usage telemetry (L2-primary + L3-fallback) ────
+    l2_url = os.environ.get("L2_MEMORY_ENGINE_URL", "http://localhost:18082")
+
+    @app.get("/v1/telemetry/skill-usage")
+    async def get_skill_usage(
+        skill_id: str = Query(..., min_length=1),
+        since: str | None = Query(default=None),
+        caller_scope: str = Depends(require_access_scope),
+    ) -> dict[str, Any]:
+        result = await audit.skill_usage(
+            skill_id=skill_id,
+            since=since,
+            l2_base_url=l2_url,
+        )
+        return result
 
     # ─── Contract 5 (partial): Session validate ───────────────────────────
     @app.post("/v1/sessions/{session_id}/validate")

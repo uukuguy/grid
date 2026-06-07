@@ -62,11 +62,7 @@ async def test_policy_deploy_rejects_duplicate_hook_ids(app: AsyncClient) -> Non
 async def test_policy_deploy_rejects_invalid_mode(app: AsyncClient) -> None:
     resp = await app.put(
         "/v1/policies/managed-hooks",
-        json={
-            "hooks": [
-                {"hook_id": "h1", "phase": "PreToolUse", "mode": "broken"}
-            ]
-        },
+        json={"hooks": [{"hook_id": "h1", "phase": "PreToolUse", "mode": "broken"}]},
     )
     assert resp.status_code == 422
 
@@ -159,6 +155,7 @@ async def test_concurrent_deploys_produce_distinct_versions(
     returned version number is unique and strictly monotonically contiguous
     — no dropped rows, no ``database is locked`` leaks out to the caller.
     """
+
     async def _deploy(i: int) -> int:
         resp = await app.put(
             "/v1/policies/managed-hooks",
@@ -176,6 +173,48 @@ async def test_concurrent_deploys_produce_distinct_versions(
 
     assert len(results) == 10
     assert len(set(results)) == 10, f"duplicate versions: {results}"
-    assert sorted(results) == list(
-        range(min(results), min(results) + 10)
-    ), f"non-contiguous versions: {sorted(results)}"
+    assert sorted(results) == list(range(min(results), min(results) + 10)), (
+        f"non-contiguous versions: {sorted(results)}"
+    )
+
+
+# ─── D9 / L3-02 — skill_usage endpoint tests ─────────────────────────────
+
+
+async def test_skill_usage_l3_fallback(app: AsyncClient) -> None:
+    """skill_usage with no L2 reachable → L3 fallback with local aggregation."""
+    # Ingest a few telemetry events with skill_id in payload.
+    for i in range(3):
+        await app.post(
+            "/v1/telemetry/events",
+            json={
+                "session_id": f"sess_{i}",
+                "hook_id": "h_audit",
+                "payload": {"skill_id": "sk_prod", "i": i},
+            },
+        )
+
+    resp = await app.get(
+        "/v1/telemetry/skill-usage",
+        params={"skill_id": "sk_prod"},
+        headers={"X-Session-Scope": "*"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["skill_id"] == "sk_prod"
+    assert body["invocations"] == 3
+    assert body["source"] == "l3_fallback"
+    assert "first_seen" in body
+    assert "last_seen" in body
+
+
+async def test_skill_usage_rejects_missing_scope_header(app: AsyncClient) -> None:
+    """skill_usage without X-Session-Scope → 403 (RBAC enforced)."""
+    resp = await app.get(
+        "/v1/telemetry/skill-usage",
+        params={"skill_id": "sk_prod"},
+        # No X-Session-Scope header
+    )
+    assert resp.status_code == 403
+    body = resp.json()
+    assert body["detail"]["error"] == "forbidden"

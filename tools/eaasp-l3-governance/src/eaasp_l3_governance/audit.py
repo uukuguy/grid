@@ -12,6 +12,7 @@ import json
 import uuid
 from typing import Any
 
+import httpx
 from pydantic import BaseModel, Field
 
 from .db import connect
@@ -155,6 +156,56 @@ class AuditStore:
         finally:
             await db.close()
         return _row_to_event(row) if row else None
+
+    # ─── D9 / L3-02 — skill usage telemetry ───────────────────────────────
+    async def skill_usage(
+        self,
+        skill_id: str,
+        since: str | None = None,
+        l2_base_url: str | None = None,
+    ) -> dict[str, Any]:
+        """Return per-skill invocation stats. Primary: L2 audit log. Fallback: L3 local store."""
+        # L2-primary path
+        if l2_base_url:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    params: dict[str, str] = {}
+                    if since is not None:
+                        params["since"] = since
+                    resp = await client.get(
+                        f"{l2_base_url}/v1/memory/{skill_id}/usage",
+                        params=params if params else None,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        data["source"] = "l2"
+                        return data
+            except (httpx.ConnectError, httpx.TimeoutException):
+                pass  # fall through to L3 fallback
+
+        # L3-fallback path
+        db = await connect(self.db_path)
+        try:
+            cur = await db.execute(
+                """SELECT COUNT(*) as invocations,
+                          MIN(received_at) as first_seen,
+                          MAX(received_at) as last_seen
+                   FROM telemetry_events
+                   WHERE json_extract(payload_json, '$.skill_id') = ?""",
+                (skill_id,),
+            )
+            row = await cur.fetchone()
+        finally:
+            await db.close()
+
+        assert row is not None
+        return {
+            "skill_id": skill_id,
+            "invocations": row["invocations"],
+            "first_seen": row["first_seen"],
+            "last_seen": row["last_seen"],
+            "source": "l3_fallback",
+        }
 
 
 def _row_to_event(row: Any) -> TelemetryEventOut:
