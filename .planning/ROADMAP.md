@@ -104,7 +104,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07.2-01-PLAN.md — Verify all 8 L2 D-items (D11/D12/D13/D30/D91/D93/D94/D98) ✅ CLOSED + tests pass + close-out
+- [x] 07.2-01-PLAN.md — Verify all 8 L2 D-items (D11/D12/D13/D30/D91/D93/D94/D98) ✅ CLOSED + tests pass + close-out
 
 **UI hint**: no
 
