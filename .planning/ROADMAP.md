@@ -164,7 +164,13 @@ Plans:
 
 **Budget**: CONTRACT-06 is the heaviest (~100-150 LOC + ADR + codegen). D90/D106 are ≤5 LOC each. D130 is correctness-critical (~30-50 LOC). D139 is doc/contract work (~20 LOC doc+test).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 08.1-01-PLAN.md — ADR-gated contract work: EventSink gRPC ADR (D74) + Terminate semantics (D139)
+- [ ] 08.1-02-PLAN.md — Engine fixes: MAX_TURNS configurable (D106) + cancel token live connection (D130)
+- [ ] 08.1-03-PLAN.md — WS schema verify-and-close (D90)
+
 **UI hint**: no
 
 ---
@@ -309,7 +315,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 7.1 contract observability + bridge (V&C) | 0/1 | 🟡 Planned | - |
 | 7.2 L2 connection-pool + Pipeline (V&C) | 0/1 | 🟡 Planned | - |
 | 8.0 L3 Leftovers + eaasp_common | 0/3 | 🟡 Planned | - |
-| 8.1 Contract Proto + Engine/Server | 0/0 | 🟡 Not started | - |
+| 8.1 Contract Proto + Engine/Server | 0/3 | 🟡 Planned | - |
 | 8.2 L4 Foundation | 0/0 | 🟡 Not started | - |
 | 8.3 L4 P3 Hardening | 0/0 | 🟡 Not started | - |
 | 8.4 L2 Table Stakes | 0/0 | 🟡 Not started | - |
