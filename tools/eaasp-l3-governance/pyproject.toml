@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.115",
     "httpx>=0.27",
     "loguru>=0.7",
+    "mcp>=1.27",
     "pydantic>=2.8",
     "uvicorn[standard]>=0.30",
 ]
@@ -29,6 +30,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eaasp_l3_governance"]
+
+[tool.uv.sources]
+eaasp-common = { path = "../eaasp-common" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
