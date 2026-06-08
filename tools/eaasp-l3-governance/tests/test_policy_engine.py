@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from eaasp_l3_governance.managed_settings import ManagedSettings
@@ -130,6 +132,36 @@ async def test_switch_mode_no_policy_deployed_raises(
     """D19: switch_mode when no policy deployed raises HookNotFoundError."""
     with pytest.raises(HookNotFoundError):
         await policy_engine.switch_mode("any_hook", "shadow")
+
+
+async def test_concurrent_deploy_no_data_loss(policy_engine: PolicyEngine) -> None:
+    """D25: Two concurrent deploy calls both succeed with no data loss.
+
+    Uses asyncio.TaskGroup (Python 3.12+) for true concurrency.
+    No time.sleep() — relies on real asyncio interleaving with SQLite WAL.
+    """
+
+    async def deploy(count: int) -> int:
+        s = _sample_settings(count, 0)
+        r = await policy_engine.deploy(s)
+        return r.version
+
+    async with asyncio.TaskGroup() as tg:
+        t1 = tg.create_task(deploy(5))
+        t2 = tg.create_task(deploy(3))
+
+    results = sorted([t1.result(), t2.result()])
+    assert results == [1, 2], f"Expected versions [1, 2], got {results}"
+
+    versions = await policy_engine.list_versions()
+    assert len(versions) == 2, f"Expected 2 versions, got {len(versions)}"
+
+    # Verify both payloads have correct hook counts
+    v1 = await policy_engine.get_version(1)
+    v2 = await policy_engine.get_version(2)
+    assert v1 is not None and v2 is not None
+    counts = sorted([v1.hook_count, v2.hook_count])
+    assert counts == [3, 5], f"Expected hook counts [3, 5], got {counts}"
 
 
 async def test_duplicate_hook_ids_rejected_at_payload_level() -> None:
