@@ -101,7 +101,11 @@ Plans:
 
 **Fallback (if any D-row open)**: Implement per original v3.3 Phase 7.2 success criteria. 5 P2 items (L2-01..05) get priority; P3 items budget ≤2h each.
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 07.2-01-PLAN.md — Verify all 8 L2 D-items (D11/D12/D13/D30/D91/D93/D94/D98) ✅ CLOSED + tests pass + close-out
+
 **UI hint**: no
 
 ---
@@ -297,7 +301,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 |-------|----------------|--------|-----------|
 | 7.0 grid-engine harness wiring (V&C) | 0/1 | 🟡 Planned | - |
 | 7.1 contract observability + bridge (V&C) | 0/1 | 🟡 Planned | - |
-| 7.2 L2 connection-pool + Pipeline (V&C) | 0/0 | 🟡 Not started | - |
+| 7.2 L2 connection-pool + Pipeline (V&C) | 0/1 | 🟡 Planned | - |
 | 8.0 L3 Leftovers + eaasp_common | 0/0 | 🟡 Not started | - |
 | 8.1 Contract Proto + Engine/Server | 0/0 | 🟡 Not started | - |
 | 8.2 L4 Foundation | 0/0 | 🟡 Not started | - |
