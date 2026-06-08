@@ -129,8 +129,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 08.0-01-PLAN.md — Create eaasp_common package + L3 migration (D20)
-- [ ] 08.0-02-PLAN.md — Fix D16 TOCTOU + D19 switch_mode validation + D25 concurrency test
+- [x] 08.0-01-PLAN.md — Create eaasp_common package + L3 migration (D20)
+- [x] 08.0-02-PLAN.md — Fix D16 TOCTOU + D19 switch_mode validation + D25 concurrency test
 - [ ] 08.0-03-PLAN.md — MCP ServerHandler dual-transport for policy endpoints (D10)
 
 **UI hint**: no
