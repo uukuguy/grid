@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from eaasp_l3_governance.managed_settings import ManagedSettings
-from eaasp_l3_governance.policy_engine import PolicyEngine
+from eaasp_l3_governance.policy_engine import HookNotFoundError, PolicyEngine
 
 
 pytestmark = pytest.mark.asyncio
@@ -89,6 +89,8 @@ async def test_latest_version_returns_full_payload(policy_engine: PolicyEngine) 
 
 
 async def test_switch_mode_upserts_override(policy_engine: PolicyEngine) -> None:
+    # D19: Must deploy a policy first — switch_mode validates hook_id exists.
+    await policy_engine.deploy(_sample_settings())
     override = await policy_engine.switch_mode("h_enforce_0", "shadow")
     assert override.hook_id == "h_enforce_0"
     assert override.mode == "shadow"
@@ -111,6 +113,23 @@ async def test_get_mode_override_returns_none_when_unset(
     policy_engine: PolicyEngine,
 ) -> None:
     assert await policy_engine.get_mode_override("unknown_hook") is None
+
+
+async def test_switch_mode_unknown_hook_id_raises(policy_engine: PolicyEngine) -> None:
+    """D19: switch_mode for unknown hook_id raises HookNotFoundError."""
+    # Deploy a policy with known hooks
+    await policy_engine.deploy(_sample_settings(1, 0))
+    # Try switching a hook that doesn't exist
+    with pytest.raises(HookNotFoundError, match="unknown_hook"):
+        await policy_engine.switch_mode("unknown_hook", "shadow")
+
+
+async def test_switch_mode_no_policy_deployed_raises(
+    policy_engine: PolicyEngine,
+) -> None:
+    """D19: switch_mode when no policy deployed raises HookNotFoundError."""
+    with pytest.raises(HookNotFoundError):
+        await policy_engine.switch_mode("any_hook", "shadow")
 
 
 async def test_duplicate_hook_ids_rejected_at_payload_level() -> None:

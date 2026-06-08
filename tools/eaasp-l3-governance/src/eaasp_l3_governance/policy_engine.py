@@ -55,6 +55,14 @@ class ModeOverride(BaseModel):
     updated_at: str
 
 
+class HookNotFoundError(Exception):
+    """Raised when switch_mode() is called for a hook_id not in the latest policy."""
+
+    def __init__(self, hook_id: str) -> None:
+        self.hook_id = hook_id
+        super().__init__(f"hook_id {hook_id!r} not found in latest policy version")
+
+
 class PolicyEngine:
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
@@ -102,10 +110,18 @@ class PolicyEngine:
 
     # ─── Contract 1: PUT /v1/policies/{hook_id}/mode ──────────────────────
     async def switch_mode(self, hook_id: str, mode: str) -> ModeOverride:
-        """Upsert a mode override. Rejects unknown modes (M4)."""
+        """Upsert a mode override. Rejects unknown modes (M4) and unknown hook_ids (D19)."""
         validated = ensure_mode(mode)
         if not hook_id:
             raise ValueError("hook_id must be a non-empty string")
+
+        # D19: Validate hook_id exists in latest policy
+        latest = await self.latest_version()
+        if latest is None:
+            raise HookNotFoundError(hook_id)
+        hook_ids = {h.get("hook_id") for h in latest.payload.get("hooks", [])}
+        if hook_id not in hook_ids:
+            raise HookNotFoundError(hook_id)
 
         db = await connect(self.db_path)
         try:

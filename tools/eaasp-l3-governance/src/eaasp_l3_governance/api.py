@@ -27,7 +27,8 @@ from starlette.responses import JSONResponse
 from .audit import AuditStore, TelemetryEventIn
 from .db import init_db
 from .managed_settings import ManagedSettings, ensure_mode, hook_matches
-from .policy_engine import PolicyEngine
+from .policy_engine import HookNotFoundError, PolicyEngine
+from eaasp_common.errors import sanitize_errors
 
 
 class ModeSwitchRequest(BaseModel):
@@ -109,7 +110,7 @@ def create_app(db_path: str) -> FastAPI:
             # validator), which JSONResponse cannot serialize. Convert each
             # error dict to a JSON-safe projection.
             raise HTTPException(
-                status_code=422, detail=_sanitize_errors(exc.errors())
+                status_code=422, detail=sanitize_errors(exc.errors())
             ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -132,7 +133,13 @@ def create_app(db_path: str) -> FastAPI:
             ensure_mode(body.mode)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        override = await policy.switch_mode(hook_id, body.mode)
+        try:
+            override = await policy.switch_mode(hook_id, body.mode)
+        except HookNotFoundError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "message": str(exc)},
+            ) from exc
         return override.model_dump()
 
     # ─── Contract 4: Telemetry Ingest ─────────────────────────────────────
@@ -248,7 +255,7 @@ def create_app(db_path: str) -> FastAPI:
             status_code=422,
             content={
                 "error": "validation_error",
-                "detail": _sanitize_errors(exc.errors()),
+                "detail": sanitize_errors(exc.errors()),
             },
         )
 
@@ -263,24 +270,3 @@ def create_app(db_path: str) -> FastAPI:
         )
 
     return app
-
-
-def _sanitize_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Strip non-JSON-serializable objects from Pydantic error dicts."""
-    clean: list[dict[str, Any]] = []
-    for err in errors:
-        safe: dict[str, Any] = {}
-        for key, value in err.items():
-            if key == "ctx" and isinstance(value, dict):
-                safe[key] = {
-                    ctx_key: (
-                        str(ctx_val) if isinstance(ctx_val, BaseException) else ctx_val
-                    )
-                    for ctx_key, ctx_val in value.items()
-                }
-            elif isinstance(value, BaseException):
-                safe[key] = str(value)
-            else:
-                safe[key] = value
-        clean.append(safe)
-    return clean
