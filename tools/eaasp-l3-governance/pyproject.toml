@@ -4,12 +4,13 @@ version = "0.1.0"
 description = "EAASP v2.0 L3 Governance Plane — Policy deployment + Telemetry ingest + Session validate"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
     "aiosqlite>=0.20",
-    "pydantic>=2.8",
+    "eaasp-common",
+    "fastapi>=0.115",
     "httpx>=0.27",
     "loguru>=0.7",
+    "pydantic>=2.8",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
