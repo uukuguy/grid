@@ -80,16 +80,11 @@ class PolicyEngine:
                     INSERT INTO managed_settings_versions
                         (payload_json, hook_count, mode_summary)
                     VALUES (?, ?, ?)
+                    RETURNING version, created_at
                     """,
                     (payload_json, hook_count, mode_summary_json),
                 )
-                version = cur.lastrowid
-                # Read back created_at so the response is DB-authoritative.
-                cur2 = await db.execute(
-                    "SELECT created_at FROM managed_settings_versions WHERE version = ?",
-                    (version,),
-                )
-                row = await cur2.fetchone()
+                row = await cur.fetchone()
                 await db.commit()
             except Exception:
                 await db.rollback()
@@ -97,9 +92,9 @@ class PolicyEngine:
         finally:
             await db.close()
 
-        assert row is not None and version is not None  # sanity for mypy
+        assert row is not None
         return DeployResult(
-            version=int(version),
+            version=int(row["version"]),
             created_at=row["created_at"],
             hook_count=hook_count,
             mode_summary=mode_summary,
