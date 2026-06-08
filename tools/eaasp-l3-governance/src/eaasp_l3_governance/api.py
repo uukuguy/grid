@@ -22,13 +22,19 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Mount, Route
+
+from mcp.server import NotificationOptions
+from mcp.server.models import InitializationOptions
+from mcp.server.sse import SseServerTransport
 
 from .audit import AuditStore, TelemetryEventIn
 from .db import init_db
 from .managed_settings import ManagedSettings, ensure_mode, hook_matches
 from .policy_engine import HookNotFoundError, PolicyEngine
 from eaasp_common.errors import sanitize_errors
+from .mcp_server import build_server as build_mcp_server
 
 
 class ModeSwitchRequest(BaseModel):
@@ -65,6 +71,25 @@ async def require_access_scope(
 
 
 def create_app(db_path: str) -> FastAPI:
+    # Build MCP server for SSE transport (D-04/D-06 — dual-transport)
+    mcp_server, _ = build_mcp_server(db_path)
+    mcp_init_options = InitializationOptions(
+        server_name=mcp_server.name,
+        server_version="0.1.0",
+        capabilities=mcp_server.get_capabilities(
+            notification_options=NotificationOptions(),
+            experimental_capabilities={},
+        ),
+    )
+    sse = SseServerTransport("/mcp/messages/")
+
+    async def handle_mcp_sse(request):  # type: ignore[no-untyped-def]
+        async with sse.connect_sse(
+            request.scope, request.receive, request._send
+        ) as streams:
+            await mcp_server.run(streams[0], streams[1], mcp_init_options)
+        return Response()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         # D23 / L3-01 — loguru structured logging
@@ -89,6 +114,12 @@ def create_app(db_path: str) -> FastAPI:
         description="Thin L3 governance plane — Policy deployment + Telemetry ingest + Session validate (MVP)",
         lifespan=lifespan,
     )
+
+    # Mount MCP SSE transport alongside REST routes (D-04 — dual-transport)
+    app.router.routes.insert(
+        0, Route("/mcp/sse", endpoint=handle_mcp_sse, methods=["GET"])
+    )
+    app.router.routes.insert(1, Mount("/mcp/messages/", app=sse.handle_post_message))
 
     policy = PolicyEngine(db_path)
     audit = AuditStore(db_path)
