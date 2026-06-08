@@ -126,7 +126,13 @@ Plans:
 
 **Patterns**: D16/D19/D25 are L3-internal fixes (≤30 LOC each). D10 is the heavyweight (~80-150 LOC). D20 is cross-module refactor — must be single atomic commit.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 08.0-01-PLAN.md — Create eaasp_common package + L3 migration (D20)
+- [ ] 08.0-02-PLAN.md — Fix D16 TOCTOU + D19 switch_mode validation + D25 concurrency test
+- [ ] 08.0-03-PLAN.md — MCP ServerHandler dual-transport for policy endpoints (D10)
+
 **UI hint**: no
 
 ---
@@ -302,7 +308,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 7.0 grid-engine harness wiring (V&C) | 0/1 | 🟡 Planned | - |
 | 7.1 contract observability + bridge (V&C) | 0/1 | 🟡 Planned | - |
 | 7.2 L2 connection-pool + Pipeline (V&C) | 0/1 | 🟡 Planned | - |
-| 8.0 L3 Leftovers + eaasp_common | 0/0 | 🟡 Not started | - |
+| 8.0 L3 Leftovers + eaasp_common | 0/3 | 🟡 Planned | - |
 | 8.1 Contract Proto + Engine/Server | 0/0 | 🟡 Not started | - |
 | 8.2 L4 Foundation | 0/0 | 🟡 Not started | - |
 | 8.3 L4 P3 Hardening | 0/0 | 🟡 Not started | - |
