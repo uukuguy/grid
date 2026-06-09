@@ -4,7 +4,8 @@ title: "L1 Runtime 生态策略（主力 + 样板 + 对比 三轨）"
 type: strategy
 status: Accepted
 date: 2026-04-14
-phase: "Phase 2 — Memory and Evidence (策略级 ADR，影响 Phase 2.5+ 全部 L1 runtime 演进)"
+revised: 2026-06-09
+phase: "Phase 2 — Memory and Evidence (策略级 ADR，影响 Phase 2.5+ 全部 L1 runtime 演进); §2 revised Phase 8.1 (D139 Terminate semantics)"
 author: "Jiangwen Su"
 supersedes: []
 superseded_by: null
@@ -200,6 +201,77 @@ Phase 2.5 交付：
 **优点**：对比首要目标 (grid-engine 成长标杆) 直接满足，工作量小。
 **缺点**：社区接入 L1 缺参考，"契约开放"流于口号。
 **部分采纳**：样板仍要做，但可以延后（nanobot 进 Phase 2.5，pydantic-ai 进 Phase 3），不必一次全齐。
+
+---
+
+## §2 Terminate Semantics Addendum (D139, Phase 8.1)
+
+**Revised:** 2026-06-09
+**Phase:** Phase 8.1 — Contract Proto + Grid-Engine/Server Cross-Cutting
+**Motivation:** DEFERRED_LEDGER.md D139 (L251) — double-Terminate + unknown session canonical error code underspecified.
+
+### Context
+
+The `Terminate` RPC (`runtime.proto:57`) is defined as:
+
+```protobuf
+rpc Terminate(Empty) returns (Empty);
+```
+
+Two termination paths exist in practice:
+
+1. **Path 1 — Normal Terminate via RPC**: Session is active → `TerminateRequest` triggers graceful shutdown (flush telemetry, emit `POST_SESSION_END`) → returns `Empty` (OK).
+2. **Path 2 — Timeout/error-imposed termination**: Session encounters timeout, unrecoverable error, or external cancel → session enters terminated state via internal mechanism (not `TerminateRequest`).
+
+The original ADR-V2-017 did not specify the behavior for these edge cases:
+
+- **Double-terminate**: What happens when `Terminate` is called on an already-terminated session?
+- **Unknown session**: What error code should `Send` return for a session_id that was never `Initialize`d?
+
+The contract test `tests/contract/contract_v1/test_e2e_smoke.py::test_close_idempotent_on_already_closed_session` and `test_send_without_initialize_errors_cleanly` were marked `xfail` since Phase 2.5 S0.T4 pending resolution.
+
+### Decision
+
+#### Double-terminate: idempotent NO-OP
+
+A second `Terminate` call on an already-terminated session MUST be a **NO-OP** — return `Empty` (OK), not `FAILED_PRECONDITION` or any other error.
+
+**Rationale:** Idempotent terminate is safer for retry-heavy orchestrators. L4 already tracks session state independently; requiring L4 to suppress retries on Terminate creates a tight coupling between L4's state machine and L1's cleanup semantics. A NO-OP degenerate-second-call eliminates an entire class of orchestrator retry-loop bugs.
+
+**Implementation note:** The `Terminate` RPC currently takes `Empty` (no session_id). The implicit-session pattern must be changed to accept a `TerminateRequest` with explicit `session_id`, OR the server must track terminated session IDs and return OK for re-terminate. The simplest path: the `Terminate` handler checks a `terminated_sessions: HashSet<String>` — if the session_id is already there, return `Empty` immediately.
+
+#### Unknown session Send: canonical `NOT_FOUND`
+
+When `Send` is called on a `session_id` that was never `Initialize`d → return gRPC status `NOT_FOUND`, not `FAILED_PRECONDITION`.
+
+**Rationale:** `NOT_FOUND` is the gRPC-standard code for "resource does not exist." A never-initialized session is objectively non-existent — `FAILED_PRECONDITION` implies the resource exists but is in the wrong state, which is incorrect here. Using `NOT_FOUND` allows L4's error-classification logic to distinguish "this session ID is garbage" from "this session exists but is paused/terminated."
+
+### Cross-runtime enforcement
+
+A new contract test at `tests/contract/test_terminate_semantics.py` enforces these semantics across all 7 active runtimes:
+
+| Test | Purpose | Expected |
+|------|---------|----------|
+| `test_double_terminate_is_noop` | Initialize → Terminate → Terminate → assert OK | NO-OP (returns `Empty`, not error) |
+| `test_send_to_unknown_session_returns_not_found` | Send to never-initialized session_id → assert `NOT_FOUND` | gRPC status `NOT_FOUND` |
+
+Both tests are parameterized across all 7 active runtimes per ADR-V2-025.
+
+### Consequences
+
+- **ADR-V2-017 §2 is the definitive contract for Terminate semantics.** All L1 runtime implementations MUST conform.
+- **Cross-runtime consistency**: The 7-runtime parametrize ensures that `claude-code-runtime`, `goose-runtime`, `nanobot-runtime`, `pydantic-ai-runtime`, `claw-code-runtime`, and `ccb-runtime` all implement the same NO-OP + NOT_FOUND contract.
+- **LEDGER D139 closure**: This addendum + the cross-runtime test close D139. The two xfail markers in `test_e2e_smoke.py` (L87: `test_send_without_initialize_errors_cleanly`, L93: `test_close_idempotent_on_already_closed_session`) are superseded by `test_terminate_semantics.py`.
+
+### Affected modules (addendum)
+
+| Module | Impact |
+|--------|--------|
+| `tests/contract/test_terminate_semantics.py` | **新建** — cross-runtime Terminate contract test |
+| `tests/contract/contract_v1/test_e2e_smoke.py` | `test_close_idempotent_on_already_closed_session` + `test_send_without_initialize_errors_cleanly` superseded by test_terminate_semantics.py |
+| `crates/grid-runtime/src/service.rs` | `terminate()` handler: implement NO-OP for second call |
+| `lang/claude-code-runtime-python/` | `terminate()` handler: implement NO-OP for second call |
+| All other runtimes | Conform to NO-OP + NOT_FOUND contract |
 
 ---
 
