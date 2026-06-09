@@ -167,9 +167,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 08.1-01-PLAN.md — ADR-gated contract work: EventSink gRPC ADR (D74) + Terminate semantics (D139)
-- [ ] 08.1-02-PLAN.md — Engine fixes: MAX_TURNS configurable (D106) + cancel token live connection (D130)
-- [ ] 08.1-03-PLAN.md — WS schema verify-and-close (D90)
+- [x] 08.1-01-PLAN.md — ADR-gated contract work: EventSink gRPC ADR (D74) + Terminate semantics (D139)
+- [x] 08.1-02-PLAN.md — Engine fixes: MAX_TURNS configurable (D106) + cancel token live connection (D130)
+- [x] 08.1-03-PLAN.md — WS schema verify-and-close (D90)
 
 **UI hint**: no
 

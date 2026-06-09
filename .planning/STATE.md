@@ -4,8 +4,8 @@ milestone: v3.4
 milestone_name: Full INBOX Drain
 status: executing
 stopped_at: Phase 8.1 context gathered
-last_updated: "2026-06-08T16:18:17.430Z"
-last_activity: 2026-06-08 -- Phase 08.1 planning complete
+last_updated: "2026-06-09T01:50:17.913Z"
+last_activity: 2026-06-09 -- Phase 08.1 execution started
 progress:
   total_phases: 10
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-07 — v3.4 Current Milestone section)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Phase 08.0 — l3-leftovers-eaasp-common
+**Current focus:** Phase 08.1 — contract-proto-cross-cutting
 
 ## Current Position
 
-Phase: 8.1
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-08 -- Phase 08.1 planning complete
+Phase: 08.1 (contract-proto-cross-cutting) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 08.1
+Last activity: 2026-06-09 -- Phase 08.1 execution started
 
 Progress: 0/10 phases, 0/0 plans (TBD per phase)
 
