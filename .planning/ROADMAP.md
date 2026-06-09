@@ -198,7 +198,12 @@ Plans:
 
 **Budget**: D34 is the largest (new module, ~100-200 LOC + integration). D38 crosses L4↔L2 boundary (coordinate with L2). D41 is trivial endpoint wiring (~30 LOC). P3 safety items (D28/D29/D31) are mechanical copy-paste (~10-15 LOC each). D39 is 3 LOC.
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08.2-01-PLAN.md — D34 NLU Intent Resolver (rapidfuzz) + D38 user_id tenant isolation (L4-01, L4-02)
+- [ ] 08.2-02-PLAN.md — D41 session list verify + D28/D29/D31 safety items + D39 policy hash fix (L4-03, L4-04, L4-05, L4-06, L4-08)
+
 **UI hint**: no
 
 ---
@@ -316,7 +321,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 7.2 L2 connection-pool + Pipeline (V&C) | 0/1 | 🟡 Planned | - |
 | 8.0 L3 Leftovers + eaasp_common | 0/3 | 🟡 Planned | - |
 | 8.1 Contract Proto + Engine/Server | 0/3 | 🟡 Planned | - |
-| 8.2 L4 Foundation | 0/0 | 🟡 Not started | - |
+| 8.2 L4 Foundation | 2/2 | 🟡 Planned | 2026-06-09 |
 | 8.3 L4 P3 Hardening | 0/0 | 🟡 Not started | - |
 | 8.4 L2 Table Stakes | 0/0 | 🟡 Not started | - |
 | 8.5 L2 Differentiators + Hooks | 0/0 | 🟡 Not started | - |
