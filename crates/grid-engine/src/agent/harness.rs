@@ -120,6 +120,7 @@ const MAX_COMPACT_ATTEMPTS: u32 = 3;
 /// ADR-V2-018 §D4 — conservative upper bound for `task_budget_remaining`
 /// initialization: total tokens a task is allowed to consume before the
 /// loop terminates. Computed as `context_window * MAX_TURNS_FOR_BUDGET`.
+#[deprecated(note = "Use `AgentLoopConfig.task_budget_multiplier` instead. Default is 50.")]
 pub const MAX_TURNS_FOR_BUDGET: u32 = 50;
 
 /// ADR-V2-018 §D4 — when `task_budget_remaining` drops below this floor,
@@ -429,12 +430,16 @@ async fn run_agent_loop_inner(
     let mut loop_guard = config.loop_guard.clone().unwrap_or_default();
 
     // --- ADR-V2-018 §D4: cross-compaction task token budget ---
-    // Initial budget = `context_window * MAX_TURNS_FOR_BUDGET`. Decremented by
-    // real `usage.input_tokens + usage.output_tokens` after each provider
+    // Initial budget = `context_window * task_budget_multiplier`. Decremented
+    // by real `usage.input_tokens + usage.output_tokens` after each provider
     // response. Compaction does NOT touch this number — the goal is "how many
     // tokens can the whole task still spend", not "current message size".
+    // D106 (ENGINE-07): `task_budget_multiplier` is configurable via
+    // `AgentLoopConfig`; default is 50 (matches legacy `MAX_TURNS_FOR_BUDGET`).
+    // T-08.1-05 mitigation: clamp to at least 1 to prevent zero-budget DOS.
+    let multiplier = u64::from(config.task_budget_multiplier.max(1));
     let mut task_budget_remaining: u64 = (context_window_from_config(&config) as u64)
-        .saturating_mul(MAX_TURNS_FOR_BUDGET as u64);
+        .saturating_mul(multiplier);
 
     // --- ADR-V2-018 effective compaction config ---
     // Resolution order: explicit `compaction_config` > pipeline's own config >

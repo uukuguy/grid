@@ -74,11 +74,12 @@ fn budget_tight_is_false_at_exact_min_turn_budget() {
     );
 }
 
-// ── MAX_TURNS_FOR_BUDGET constant tests ──
+// ── task_budget_multiplier tests ──
 
 #[test]
-fn max_turns_for_budget_is_50() {
-    assert_eq!(harness::MAX_TURNS_FOR_BUDGET, 50);
+fn task_budget_multiplier_default_is_50() {
+    use grid_engine::agent::AgentLoopConfig;
+    assert_eq!(AgentLoopConfig::default().task_budget_multiplier, 50);
 }
 
 // ── MIN_TURN_BUDGET constant tests ──

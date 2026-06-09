@@ -744,13 +744,12 @@ mod s3t1 {
     // -----------------------------------------------------------------------
     #[test]
     fn test_s3t1_cross_compaction_budget_survives() {
-        use grid_engine::agent::harness::{
-            apply_budget_decrement, has_budget_for_next_turn, MAX_TURNS_FOR_BUDGET,
-            MIN_TURN_BUDGET,
-        };
+        use grid_engine::agent::harness::{apply_budget_decrement, has_budget_for_next_turn, MIN_TURN_BUDGET};
+        use grid_engine::agent::AgentLoopConfig;
 
         // ADR-V2-018 §D4 locked constants.
-        assert_eq!(MAX_TURNS_FOR_BUDGET, 50);
+        // D106: MAX_TURNS_FOR_BUDGET deprecated; verify default config value.
+        assert_eq!(AgentLoopConfig::default().task_budget_multiplier, 50);
         assert_eq!(MIN_TURN_BUDGET, 4_096);
 
         // Fresh budget of 10_000 tokens.

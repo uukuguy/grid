@@ -138,6 +138,14 @@ pub struct AgentLoopConfig {
     /// `AgentLoopConfigBuilder::compaction_pipeline` directly.
     pub compaction_config: Option<CompactionPipelineConfig>,
 
+    /// D106 (ENGINE-07): task budget multiplier for cross-compaction token budget.
+    ///
+    /// The harness computes the initial budget as
+    /// `context_window * task_budget_multiplier`. Default is 50 (matching the
+    /// legacy `MAX_TURNS_FOR_BUDGET` constant). Increase for long-running agents
+    /// that need >50 turns of context-window worth of tokens.
+    pub task_budget_multiplier: u32,
+
     // === Optional components ===
     /// Tool execution recorder for observability.
     pub recorder: Option<Arc<ToolExecutionRecorder>>,
@@ -329,6 +337,7 @@ impl Default for AgentLoopConfig {
             loop_guard: None,
             compaction_pipeline: None,
             compaction_config: None,
+            task_budget_multiplier: 50,
             recorder: None,
             event_bus: None,
             hook_registry: None,
@@ -486,6 +495,14 @@ impl AgentLoopConfigBuilder {
     /// config from `compaction_pipeline.config()` if a pipeline is wired.
     pub fn compaction_config(mut self, v: CompactionPipelineConfig) -> Self {
         self.config.compaction_config = Some(v);
+        self
+    }
+
+    /// D106 (ENGINE-07): override the task budget multiplier (default 50).
+    /// Increase for long-running agents that need more than 50 turns worth
+    /// of context-window tokens before the harness terminates the loop.
+    pub fn task_budget_multiplier(mut self, v: u32) -> Self {
+        self.config.task_budget_multiplier = v;
         self
     }
 
