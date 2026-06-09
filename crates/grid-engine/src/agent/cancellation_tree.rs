@@ -123,13 +123,27 @@ impl TurnToken {
         self.turn_flag.cancel();
     }
 
-    /// Adapt to `CancellationToken` for code that has not migrated to `TurnToken`.
+    /// D130 (ENGINE-08): Returns a live-connected `LiveCancelToken` that checks
+    /// the shared flags on every `is_cancelled()` call instead of taking a
+    /// snapshot. Mid-turn session cancellation (e.g. `session kill` CLI) is
+    /// immediately visible to the harness loop — no channel round-trip needed.
+    pub fn to_live_token(&self) -> LiveCancelToken {
+        LiveCancelToken {
+            session_flag: self.session_flag.clone(),
+            turn_flag: self.turn_flag.clone(),
+        }
+    }
+
+    /// Adapt to `CancellationToken` for code that has not migrated to `LiveCancelToken`.
     ///
-    /// The returned token mirrors the turn-level cancelled state by checking
-    /// both flags on every `is_cancelled()` call (via a freshly-allocated
-    /// bridge token that delegates). For code paths that only call
-    /// `cancel_token.is_cancelled()` this works perfectly; code that calls
-    /// `cancel_token.cancel()` will only set the turn flag.
+    /// **Deprecated (D130):** The returned token is a **snapshot** — it checks
+    /// cancellation state once at creation time, then becomes disconnected from
+    /// the shared flags. Mid-turn session cancellation is NOT visible through
+    /// this token. Prefer `to_live_token()` which maintains a live connection to
+    /// the shared flags.
+    #[deprecated(
+        note = "Use `to_live_token()` instead. This creates a disconnected snapshot — mid-turn session cancel is invisible."
+    )]
     pub fn to_cancellation_token(&self) -> CancellationToken {
         // Create a fresh CancellationToken. If either flag is already set,
         // pre-cancel it so callers get consistent state immediately.
@@ -138,6 +152,62 @@ impl TurnToken {
             tok.cancel();
         }
         tok
+    }
+}
+
+/// D130 (ENGINE-08): Live-connected cancellation token that checks shared
+/// flags on every `is_cancelled()` poll instead of taking a snapshot.
+///
+/// Unlike `CancellationToken` (which owns its own `AtomicBool`), this type
+/// holds `Arc<AtomicBool>` references to the `TurnToken`'s session and turn
+/// flags. When the session token is cancelled mid-turn via
+/// `CancellationTokenTree::session_token().cancel()`, this token returns
+/// `true` on the very next `is_cancelled()` call — no channel round-trip,
+/// no per-turn snapshot staleness.
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// let tree = CancellationTokenTree::new();
+/// let turn = tree.next_turn();
+/// let live = turn.to_live_token();
+///
+/// // Mid-turn: session is cancelled externally
+/// tree.session_token().cancel();
+///
+/// // Immediately visible (D130 fix):
+/// assert!(live.is_cancelled());
+/// ```
+///
+/// Cheap to clone (two Arcs inside).
+#[derive(Clone)]
+pub struct LiveCancelToken {
+    session_flag: SharedFlag,
+    turn_flag: SharedFlag,
+}
+
+impl LiveCancelToken {
+    /// Returns `true` if either the session or this turn is cancelled.
+    /// Checks the live shared flags — no snapshot staleness.
+    pub fn is_cancelled(&self) -> bool {
+        self.session_flag.is_cancelled() || self.turn_flag.is_cancelled()
+    }
+
+    /// Request cancellation of this turn (sets the turn-local flag).
+    /// Does NOT affect the session or other turns.
+    pub fn cancel(&self) {
+        self.turn_flag.cancel();
+    }
+}
+
+impl Default for LiveCancelToken {
+    /// Returns a disconnected token that is never cancelled.
+    /// Use `TurnToken::to_live_token()` to get a token connected to a tree.
+    fn default() -> Self {
+        Self {
+            session_flag: SharedFlag::new(),
+            turn_flag: SharedFlag::new(),
+        }
     }
 }
 
@@ -220,7 +290,10 @@ mod tests {
 
         tree.session_token().cancel();
 
-        assert!(turn.is_cancelled(), "session cancel must propagate to active turn");
+        assert!(
+            turn.is_cancelled(),
+            "session cancel must propagate to active turn"
+        );
     }
 
     #[test]
@@ -230,7 +303,10 @@ mod tests {
 
         // next_turn() after session cancel → instantly cancelled
         let turn = tree.next_turn();
-        assert!(turn.is_cancelled(), "future turn must observe session cancellation");
+        assert!(
+            turn.is_cancelled(),
+            "future turn must observe session cancellation"
+        );
     }
 
     #[test]
@@ -285,7 +361,10 @@ mod tests {
 
         assert!(!legacy.is_cancelled());
         session_tok.cancel();
-        assert!(legacy.is_cancelled(), "legacy CancellationToken must fire on session cancel");
+        assert!(
+            legacy.is_cancelled(),
+            "legacy CancellationToken must fire on session cancel"
+        );
     }
 
     #[test]
@@ -325,7 +404,10 @@ mod tests {
 
         assert!(!tok1.is_cancelled());
         tok2.cancel();
-        assert!(tok1.is_cancelled(), "cloned session tokens share the same flag");
+        assert!(
+            tok1.is_cancelled(),
+            "cloned session tokens share the same flag"
+        );
     }
 
     #[test]
@@ -334,5 +416,101 @@ mod tests {
         assert!(!tree.is_session_cancelled());
         let turn = tree.next_turn();
         assert!(!turn.is_cancelled());
+    }
+
+    // ── D130 (ENGINE-08): LiveCancelToken mid-turn visibility tests ──
+
+    #[test]
+    fn live_token_mid_turn_cancel_visible() {
+        let tree = CancellationTokenTree::new();
+        let turn = tree.next_turn();
+        let live = turn.to_live_token();
+
+        // Before cancel: not cancelled
+        assert!(
+            !live.is_cancelled(),
+            "live token must not be cancelled initially"
+        );
+
+        // Mid-turn: session is cancelled externally (e.g. session kill CLI)
+        tree.session_token().cancel();
+
+        // D130 fix: immediately visible — no per-turn snapshot staleness
+        assert!(
+            live.is_cancelled(),
+            "live token must see mid-turn session cancellation immediately"
+        );
+    }
+
+    #[test]
+    fn live_token_turn_cancel_visible() {
+        let tree = CancellationTokenTree::new();
+        let turn = tree.next_turn();
+        let live = turn.to_live_token();
+
+        // Cancel only this turn
+        live.cancel();
+
+        assert!(
+            live.is_cancelled(),
+            "live token must see its own turn cancel"
+        );
+    }
+
+    #[test]
+    fn live_token_does_not_affect_session() {
+        let tree = CancellationTokenTree::new();
+        let turn = tree.next_turn();
+        let live = turn.to_live_token();
+
+        live.cancel();
+
+        assert!(
+            live.is_cancelled(),
+            "live token must be cancelled after turn cancel"
+        );
+        assert!(
+            !tree.is_session_cancelled(),
+            "cancelling live token must NOT affect the session"
+        );
+    }
+
+    #[test]
+    fn live_token_default_is_not_cancelled() {
+        let live = LiveCancelToken::default();
+        assert!(!live.is_cancelled());
+    }
+
+    #[test]
+    fn live_token_clone_shares_state() {
+        let tree = CancellationTokenTree::new();
+        let turn = tree.next_turn();
+        let live = turn.to_live_token();
+        let clone = live.clone();
+
+        tree.session_token().cancel();
+
+        assert!(live.is_cancelled());
+        assert!(
+            clone.is_cancelled(),
+            "cloned live token must see same state"
+        );
+    }
+
+    #[test]
+    fn to_live_token_connects_to_session_flag() {
+        // Verify that to_live_token() connects to the session_flag,
+        // not just the turn_flag (different from a naive turn-only cancel).
+        let tree = CancellationTokenTree::new();
+        let turn = tree.next_turn();
+        let live = turn.to_live_token();
+
+        // Cancel session (not turn) — must propagate through live token
+        tree.session_token().cancel();
+
+        assert!(
+            live.is_cancelled(),
+            "session cancel must propagate to live token"
+        );
     }
 }

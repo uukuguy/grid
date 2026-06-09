@@ -54,7 +54,7 @@ pub use autonomous_trigger::{
     ChannelTriggerSource, CronTriggerSource, PollingTriggerSource, TriggerEvent, TriggerListener, TriggerSource,
 };
 pub use cancellation::{CancellationToken, ChildCancellationToken};
-pub use cancellation_tree::{CancellationTokenTree, SessionToken, TurnToken};
+pub use cancellation_tree::{CancellationTokenTree, LiveCancelToken, SessionToken, TurnToken};
 pub use capability::AgentCapability;
 pub use catalog::AgentCatalog;
 pub use collaboration::{

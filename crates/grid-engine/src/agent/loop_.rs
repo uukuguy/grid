@@ -21,7 +21,7 @@ use super::entry::AgentManifest;
 use super::events::AgentEvent;
 use super::harness::run_agent_loop;
 use super::loop_config::AgentLoopConfig;
-use super::CancellationToken;
+use super::cancellation_tree::LiveCancelToken;
 
 /// Backward-compatible wrapper around [`run_agent_loop()`].
 ///
@@ -165,8 +165,8 @@ impl AgentLoop {
             messages.len()
         );
 
-        // Build a CancellationToken and bridge the legacy AtomicBool flag
-        let cancel_token = CancellationToken::new();
+        // Build a LiveCancelToken and bridge the legacy AtomicBool flag
+        let cancel_token = LiveCancelToken::default();
         if let Some(ref flag) = cancel_flag {
             let flag_clone = flag.clone();
             let token_clone = cancel_token.clone();

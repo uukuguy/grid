@@ -18,7 +18,7 @@ use super::events::AgentEvent;
 use super::harness::run_agent_loop;
 use super::loop_config::AgentLoopConfig;
 use super::subagent::{SubAgentManager, SubAgentStatus};
-use super::CancellationToken;
+use super::cancellation_tree::LiveCancelToken;
 use crate::skills::SkillRegistry;
 use crate::tools::ToolRegistry;
 
@@ -133,7 +133,7 @@ impl SubAgentRuntime {
         });
 
         // 9. Resolve cancel_token (AY-D3): child gets its own token
-        let cancel_token = CancellationToken::new();
+        let cancel_token = LiveCancelToken::default();
 
         // 10. Resolve permission (AY-D6): per-instance ApprovalManager from manifest
         let approval_manager = manifest

@@ -19,6 +19,7 @@ use crate::tools::recorder::ToolExecutionRecorder;
 use crate::tools::ToolRegistry;
 
 use super::autonomous::{AutonomousConfig, AutonomousControl};
+use super::cancellation_tree::LiveCancelToken;
 use super::config::AgentConfig;
 use super::entry::AgentManifest;
 use super::estop::EmergencyStop;
@@ -28,7 +29,6 @@ use super::prompt_executor::{build_prompt_executor_from_env, PromptExecutor};
 use super::self_repair::SelfRepairManager;
 use super::stop_hooks::StopHook;
 use super::subagent::SubAgentManager;
-use super::CancellationToken;
 
 /// Completion callback type — invoked after agent loop ends with a result (Phase AZ).
 ///
@@ -178,7 +178,10 @@ pub struct AgentLoopConfig {
     /// Tool execution context.
     pub tool_ctx: Option<ToolContext>,
     /// Cancellation token for cooperative cancellation.
-    pub cancel_token: CancellationToken,
+    /// D130 (ENGINE-08): changed from `CancellationToken` to `LiveCancelToken`
+    /// so mid-turn session cancellation is immediately visible via the shared
+    /// flags (no per-turn snapshot staleness).
+    pub cancel_token: LiveCancelToken,
 
     // === Agent behavior ===
     /// Agent-level behavior configuration.
@@ -351,7 +354,7 @@ impl Default for AgentLoopConfig {
             user_preferences: None,
             sandbox_id: SandboxId::default(),
             tool_ctx: None,
-            cancel_token: CancellationToken::new(),
+            cancel_token: LiveCancelToken::default(),
             agent_config: AgentConfig::default(),
             skills: None,
             active_skill: None,
@@ -566,7 +569,7 @@ impl AgentLoopConfigBuilder {
         self
     }
 
-    pub fn cancel_token(mut self, v: CancellationToken) -> Self {
+    pub fn cancel_token(mut self, v: LiveCancelToken) -> Self {
         self.config.cancel_token = v;
         self
     }

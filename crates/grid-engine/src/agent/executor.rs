@@ -564,7 +564,7 @@ impl AgentExecutor {
                         user_id: self.user_id.clone(),
                         sandbox_id: self.sandbox_id.clone(),
                         tool_ctx: Some(tool_ctx),
-                        cancel_token: turn_token.to_cancellation_token(),
+                        cancel_token: turn_token.to_live_token(),
                         agent_config: self.config.clone(),
                         safety_pipeline: self.safety_pipeline.clone(),
                         canary_token: self.canary_token.clone(),

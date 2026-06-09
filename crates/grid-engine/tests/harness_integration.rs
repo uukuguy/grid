@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use futures_util::stream::{self, StreamExt};
 use serde_json::json;
 
-use grid_engine::agent::{run_agent_loop, AgentConfig, AgentEvent, AgentLoopConfig, CancellationToken};
+use grid_engine::agent::{run_agent_loop, AgentConfig, AgentEvent, AgentLoopConfig, LiveCancelToken};
 use grid_engine::providers::{CompletionStream, Provider};
 use grid_engine::tools::{Tool, ToolRegistry};
 use grid_types::{
@@ -343,7 +343,7 @@ async fn test_harness_cancellation() {
     registry.register(MockEchoTool);
     let registry = Arc::new(registry);
 
-    let cancel_token = CancellationToken::new();
+    let cancel_token = LiveCancelToken::default();
     // Cancel immediately — the harness should detect this at the top of the first round.
     cancel_token.cancel();
 

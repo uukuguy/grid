@@ -12,7 +12,7 @@ use tracing::{debug, warn};
 
 use grid_types::{ToolContext, ToolOutput};
 
-use crate::agent::cancellation::CancellationToken;
+use crate::agent::cancellation_tree::LiveCancelToken;
 use crate::tools::ToolRegistry;
 
 /// Execute multiple tools in parallel with a semaphore-controlled concurrency limit.
@@ -32,7 +32,7 @@ pub async fn execute_parallel(
     tools: Vec<(String, serde_json::Value)>,
     registry: &Arc<ToolRegistry>,
     max_parallel: u8,
-    cancellation: &CancellationToken,
+    cancellation: &LiveCancelToken,
     tool_ctx: &ToolContext,
     config_timeout_secs: Option<u64>,
 ) -> Vec<(String, ToolOutput)> {
@@ -52,7 +52,7 @@ pub async fn execute_parallel(
         .map(|(name, input)| {
             let registry = registry.clone();
             let sem = semaphore.clone();
-            let cancel = cancellation.child();
+            let cancel = cancellation.clone();
             let ctx = tool_ctx.clone();
 
             async move {
@@ -213,7 +213,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_empty() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let results = execute_parallel(vec![], &registry, 4, &cancellation, &ctx, None).await;
@@ -224,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_single() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let tools = vec![("echo".to_string(), serde_json::json!({"text": "hello"}))];
@@ -238,7 +238,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_multiple() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let tools = vec![
@@ -255,7 +255,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_unknown_tool() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let tools = vec![("unknown".to_string(), serde_json::json!({}))];
@@ -269,7 +269,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_cancellation() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         // Cancel immediately
@@ -286,7 +286,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_semaphore_limit() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         // Test with max_parallel = 1 (should process sequentially)
@@ -302,7 +302,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_preserves_order() {
         let registry = test_registry();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         // Test that results preserve input order
@@ -384,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_is_faster_than_sequential() {
         let registry = test_registry_with_delay();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         // Two tools each taking 100ms
@@ -414,7 +414,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_parallel_semaphore_limits_concurrency() {
         let registry = test_registry_with_delay();
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         // Three tools each taking 100ms, but semaphore limits to 1
@@ -494,7 +494,7 @@ mod tests {
         registry.register(SlowTool::new(Duration::from_millis(200)));
         let registry = Arc::new(registry);
 
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let tools = vec![("slow".to_string(), serde_json::json!({"sleep_ms": 5000}))];
@@ -525,7 +525,7 @@ mod tests {
         registry.register(SlowTool::new(Duration::from_secs(10)));
         let registry = Arc::new(registry);
 
-        let cancellation = CancellationToken::new();
+        let cancellation = LiveCancelToken::default();
         let ctx = test_tool_ctx();
 
         let tools = vec![("slow".to_string(), serde_json::json!({"sleep_ms": 5000}))];
