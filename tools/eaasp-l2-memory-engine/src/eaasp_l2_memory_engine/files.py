@@ -133,8 +133,7 @@ class MemoryFileStore:
                 if latest_status is not None and memory.status != latest_status:
                     if memory.status not in _ALLOWED_TRANSITIONS[latest_status]:
                         raise InvalidStatusTransition(
-                            f"Cannot transition {latest_status} → {memory.status} "
-                            f"for {memory_id}"
+                            f"Cannot transition {latest_status} → {memory.status} for {memory_id}"
                         )
 
                 await db.execute(
@@ -223,7 +222,7 @@ class MemoryFileStore:
             (memory_id,),
         )
         row = await cur.fetchone()
-        return _row_to_memory(row) if row else None
+        return row_to_memory(row) if row else None
 
     async def list(
         self,
@@ -279,7 +278,7 @@ class MemoryFileStore:
         db = await get_shared_connection(self.db_path)
         cur = await db.execute(sql, params)
         rows = await cur.fetchall()
-        return [_row_to_memory(r) for r in rows]
+        return [row_to_memory(r) for r in rows]
 
     async def archive(self, memory_id: str) -> MemoryFileOut:
         """Transition status → archived (creates new version + removes from FTS).
@@ -358,7 +357,7 @@ class MemoryFileStore:
         )
 
 
-def _row_to_memory(row: Any) -> MemoryFileOut:
+def row_to_memory(row: Any) -> MemoryFileOut:
     refs_raw = row["evidence_refs"]
     refs = json.loads(refs_raw) if refs_raw else []
     # S2.T3: defensive read of embedding columns. The migration in
@@ -383,3 +382,19 @@ def _row_to_memory(row: Any) -> MemoryFileOut:
         embedding_model_id=embedding_model_id,
         embedding_dim=embedding_dim,
     )
+
+
+from warnings import warn
+
+_warned: set[str] = set()
+
+
+def _row_to_memory(row: Any) -> MemoryFileOut:
+    if "_row_to_memory" not in _warned:
+        warn(
+            "_row_to_memory is deprecated, use row_to_memory() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _warned.add("_row_to_memory")
+    return row_to_memory(row)

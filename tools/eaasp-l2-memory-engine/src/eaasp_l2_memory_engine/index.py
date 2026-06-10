@@ -34,7 +34,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from .db import get_shared_connection
-from .files import MemoryFileOut, _row_to_memory
+from .files import MemoryFileOut, row_to_memory
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +151,13 @@ class HybridIndex:
         # this keeps ops safe if someone sets a negative value in config.
         self.w_fts = max(0.0, min(1.0, weights[0]))
         self.w_sem = max(0.0, min(1.0, weights[1]))
+
+        if self.w_fts == 0.0 and self.w_sem == 0.0:
+            logger.warning(
+                "HybridIndex initialized with weights=(0,0) — all search scores "
+                "will be zero. Set EAASP_HYBRID_WEIGHTS or pass "
+                "weights=(w_fts, w_sem) with at least one positive weight."
+            )
 
         # D98: cache HNSWVectorIndex per (model_id, dim) to avoid rebuilding
         # on every search() call. Invalidated implicitly when model_id changes
@@ -312,7 +319,7 @@ class HybridIndex:
         # BM25 in SQLite returns lower = better; normalize so larger = better.
         fts_candidates: dict[str, tuple[MemoryFileOut, float]] = {}
         for row in fts_rows:
-            memory = _row_to_memory(row)
+            memory = row_to_memory(row)
             bm25 = row["rank"]
             fts_score = 1.0 / (1.0 + max(bm25, 0.0))
             fts_candidates[memory.memory_id] = (memory, fts_score)
@@ -322,22 +329,16 @@ class HybridIndex:
         # ------------------------------------------------------------------
         hnsw_candidates: dict[str, tuple[MemoryFileOut, float]] = {}
 
-        if (
-            not keyword_only
-            and hnsw_index is not None
-            and query_embedding is not None
-        ):
+        if not keyword_only and hnsw_index is not None and query_embedding is not None:
             try:
-                hnsw_hits = await hnsw_index.search(
-                    query_embedding, top_k=top_k * 4
-                )
+                hnsw_hits = await hnsw_index.search(query_embedding, top_k=top_k * 4)
 
                 # Dedupe HNSW hits by memory_id, keeping the highest version.
                 # HNSW keys follow the ``memory_id:vN`` convention written by
                 # MemoryFileStore (files.py:194).
                 hnsw_by_id: dict[str, tuple[float, int]] = {}
                 for hit in hnsw_hits:
-                    parts = hit.id.split(":v")
+                    parts = hit.id.rsplit(":v", 1)
                     if len(parts) != 2:
                         continue
                     mem_id, version_str = parts
@@ -350,10 +351,7 @@ class HybridIndex:
                     # so values should already sit in [0, 1]. Snap just in
                     # case to keep the fusion formula well-behaved.
                     clamped = max(0.0, min(1.0, hit.score))
-                    if (
-                        mem_id not in hnsw_by_id
-                        or version > hnsw_by_id[mem_id][1]
-                    ):
+                    if mem_id not in hnsw_by_id or version > hnsw_by_id[mem_id][1]:
                         hnsw_by_id[mem_id] = (clamped, version)
 
                 # Fetch memories not already covered by FTS so the union is
@@ -362,9 +360,7 @@ class HybridIndex:
                 # otherwise HNSW would surface out-of-scope memories that
                 # scope-filtered FTS deliberately excluded. This keeps the
                 # search scope-safe.
-                missing_ids = [
-                    mid for mid in hnsw_by_id if mid not in fts_candidates
-                ]
+                missing_ids = [mid for mid in hnsw_by_id if mid not in fts_candidates]
                 if missing_ids:
                     placeholders = ",".join("?" * len(missing_ids))
                     # D13 / L2-07: also exclude archived from the HNSW
@@ -395,7 +391,7 @@ class HybridIndex:
                     missing_rows = await cur.fetchall()
 
                     for row in missing_rows:
-                        memory = _row_to_memory(row)
+                        memory = row_to_memory(row)
                         if memory.memory_id in hnsw_by_id:
                             sem_score, _ = hnsw_by_id[memory.memory_id]
                             hnsw_candidates[memory.memory_id] = (
@@ -446,9 +442,7 @@ class HybridIndex:
             if fts_score <= 0.0 and sem_score <= 0.0:
                 continue
             decay = _time_decay(memory.updated_at, now_ms)
-            final_score = (
-                self.w_fts * fts_score + self.w_sem * sem_score
-            ) * decay
+            final_score = (self.w_fts * fts_score + self.w_sem * sem_score) * decay
             hits.append(
                 SearchHit(
                     memory=memory,
