@@ -256,7 +256,11 @@ Plans:
 
 **Budget**: All mechanical — ≤20 LOC each, total ~60 LOC plus config. P3 budget ≤2h each.
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08.4-01-PLAN.md — Python source fixes: _row_to_memory promotion, HNSW rsplit, weights warning, int/float try/except, HTTPException flat shape, MockEmbedding seed (D14, D92, D96, D97, D99, D101)
+- [ ] 08.4-02-PLAN.md — Config/build fixes: ruff/mypy config + Makefile mcp-orch-start port env var (D15, D59)
 **UI hint**: no
 
 ---
@@ -327,7 +331,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 8.1 Contract Proto + Engine/Server | 0/3 | 🟡 Planned | - |
 | 8.2 L4 Foundation | 2/2 | 🟡 Planned | 2026-06-09 |
 | 8.3 L4 P3 Hardening | 0/2 | 🟡 Planned | 2026-06-10 |
-| 8.4 L2 Table Stakes | 0/0 | 🟡 Not started | - |
+| 8.4 L2 Table Stakes | 0/2 | 🟡 Planned | 2026-06-11 |
 | 8.5 L2 Differentiators + Hooks | 0/0 | 🟡 Not started | - |
 | 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Not started | - |
 

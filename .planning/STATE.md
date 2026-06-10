@@ -76,7 +76,7 @@ Progress: 0/10 phases, 0/0 plans (TBD per phase)
 | 8.1 Contract Proto + Engine/Server | 0/0 | 🟡 Pending | 5 REQ-IDs: ⚠️ 2 ADR gates |
 | 8.2 L4 Foundation | 0/0 | 🟡 Pending | 7 REQ-IDs: NLU + tenant + session list (🌟 key diff) |
 | 8.3 L4 P3 Hardening | 0/0 | 🟡 Pending | 9 REQ-IDs: mechanical copy-paste |
-| 8.4 L2 Table Stakes | 0/0 | 🟡 Pending | 8 REQ-IDs: correctness floor |
+| 8.4 L2 Table Stakes | 0/2 | 🟡 Planned | 8 REQ-IDs: correctness floor (2 plans) |
 | 8.5 L2 Differentiators + Hooks | 0/0 | 🟡 Pending | 8 REQ-IDs: ⚠️ 1 AI-SPEC gate (D50) |
 | 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Pending | 6 REQ-IDs: final polish |
 
