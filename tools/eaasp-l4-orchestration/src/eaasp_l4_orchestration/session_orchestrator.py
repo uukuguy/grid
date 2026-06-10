@@ -27,14 +27,14 @@ with real gRPC calls via ``L1RuntimeClient``.
 
 from __future__ import annotations
 
+import hashlib
 import json
-import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 from .context_assembly import build_session_payload
 from .db import connect
@@ -127,7 +127,18 @@ class SessionOrchestrator:
         )
         policy_context = {
             "hooks": validate_resp.get("hooks_to_attach", []),
-            "policy_version": str(validate_resp.get("managed_settings_version", "")),
+            # D39 / L4-08: deterministic content hash of policy (hooks + version).
+            # Uses sort_keys=True for deterministic output across deploys.
+            "policy_version": hashlib.sha256(
+                json.dumps(
+                    {
+                        "hooks": validate_resp.get("hooks_to_attach", []),
+                        "version": validate_resp.get("managed_settings_version", ""),
+                    },
+                    sort_keys=True,
+                    default=str,
+                ).encode()
+            ).hexdigest()[:12],
             "deploy_timestamp": str(validate_resp.get("validated_at", "")),
             "org_unit": "",
             "quotas": {},
@@ -143,15 +154,12 @@ class SessionOrchestrator:
             "dependencies": [],
             "required_tools": [],
         }
-        import logging as _log
-
-        _logger = _log.getLogger(__name__)
-        _logger.info("skill_registry=%s, skill_id=%s", self.skill_registry, skill_id)
+        logger.info("skill_registry={}, skill_id={}", self.skill_registry, skill_id)
         if self.skill_registry is not None:
             try:
                 skill_data = await self.skill_registry.read_skill(skill_id)
-                _logger.info(
-                    "skill_data keys: %s, prose_len=%d",
+                logger.info(
+                    "skill_data keys: {}, prose_len={}",
                     list(skill_data.keys()),
                     len(skill_data.get("prose", "")),
                 )
@@ -198,10 +206,10 @@ class SessionOrchestrator:
             except Exception as exc:
                 # Skill fetch failure is non-fatal for MVP — log and continue
                 # with empty instructions. Agent will run without skill context.
-                import logging, traceback
+                import traceback
 
-                logging.getLogger(__name__).error(
-                    "Failed to fetch skill '%s' from registry: %s\n%s",
+                logger.error(
+                    "Failed to fetch skill '{}' from registry: {}\n{}",
                     skill_id,
                     exc,
                     traceback.format_exc(),
