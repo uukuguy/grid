@@ -6,8 +6,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from starlette.responses import JSONResponse
 
 from .anchors import AnchorStore
 from .db import init_db
@@ -91,6 +92,18 @@ def create_app(db_path: str) -> FastAPI:
         """D78: dual-write ACP event payload into the event HNSW index."""
         await event_index.add(event_id=body.event_id, payload_text=body.payload_text)
         return {"event_id": body.event_id, "indexed": True}
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        """Flatten nested detail-dict responses to match the L2 flat contract.
+
+        FastAPI's default handler wraps detail in {"detail": value}, producing
+        {"detail": {"code": ..., "message": ...}} when detail is a dict.
+        The L2 contract expects {"code": ..., "message": ...} directly.
+        """
+        if isinstance(exc.detail, dict):
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     return app
 

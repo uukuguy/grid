@@ -119,8 +119,7 @@ MCP_TOOL_MANIFEST: list[ToolManifestEntry] = [
     ),
     ToolManifestEntry(
         name="memory_confirm",
-        description="Transition a memory file's status to confirmed "
-        "(from agent_suggested).",
+        description="Transition a memory file's status to confirmed (from agent_suggested).",
         input_schema={
             "type": "object",
             "properties": {"memory_id": {"type": "string"}},
@@ -158,7 +157,11 @@ class McpToolDispatcher:
 
     async def _memory_search(self, args: dict[str, Any]) -> dict[str, Any]:
         query = _require(args, "query", str)
-        top_k = max(1, min(int(args.get("top_k", 10)), MAX_TOP_K))
+        try:
+            _top_k = int(args.get("top_k", 10))
+        except (ValueError, TypeError):
+            raise ToolError("invalid_arg", "top_k must be an integer") from None
+        top_k = max(1, min(_top_k, MAX_TOP_K))
         hits = await self.index.search(
             query=query,
             top_k=top_k,
@@ -194,10 +197,18 @@ class McpToolDispatcher:
         return out.model_dump()
 
     async def _memory_list(self, args: dict[str, Any]) -> dict[str, Any]:
-        limit = max(1, min(int(args.get("limit", 50)), MAX_LIST_LIMIT))
+        try:
+            _limit = int(args.get("limit", 50))
+        except (ValueError, TypeError):
+            raise ToolError("invalid_arg", "limit must be an integer") from None
+        limit = max(1, min(_limit, MAX_LIST_LIMIT))
         # S2.T3: offset defaults to 0 and is clamped to >= 0 so negative
         # inputs cannot produce SQL errors or surprise pagination semantics.
-        offset = max(0, int(args.get("offset", 0)))
+        try:
+            _offset = int(args.get("offset", 0))
+        except (ValueError, TypeError):
+            raise ToolError("invalid_arg", "offset must be an integer") from None
+        offset = max(0, _offset)
         memories = await self.files.list(
             scope=args.get("scope"),
             category=args.get("category"),
