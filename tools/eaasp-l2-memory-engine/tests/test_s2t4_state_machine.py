@@ -41,9 +41,7 @@ async def test_write_forward_transition_suggested_to_confirmed_via_write_direct(
 ) -> None:
     """``write(status="confirmed")`` on an agent_suggested memory must bump
     version and flip status without needing the ``.confirm()`` helper."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="v1")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="v1"))
     assert v1.version == 1
     assert v1.status == "agent_suggested"
 
@@ -70,9 +68,7 @@ async def test_write_forward_transition_confirmed_to_archived_via_write_direct(
     """Chain write() → confirm() → write(status="archived"): the direct
     forward edge from confirmed to archived must succeed (not only via
     ``.archive()``)."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="v1")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="v1"))
     v2 = await file_store.confirm(v1.memory_id)
     assert v2.version == 2
     assert v2.status == "confirmed"
@@ -100,17 +96,14 @@ async def test_version_monotonicity_all_versions_persist(
     strictly increasing versions and the expected status progression.
     Reads the raw ``memory_files`` table so we can see history, not only
     ``read_latest``."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="walk")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="walk"))
     await file_store.confirm(v1.memory_id)
     await file_store.archive(v1.memory_id)
 
     async with aiosqlite.connect(file_store.db_path) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            "SELECT version, status FROM memory_files "
-            "WHERE memory_id = ? ORDER BY version ASC",
+            "SELECT version, status FROM memory_files WHERE memory_id = ? ORDER BY version ASC",
             (v1.memory_id,),
         )
         rows = await cur.fetchall()
@@ -140,9 +133,7 @@ async def test_timestamps_invariant_across_versions(
     every version. ``updated_at`` reflects the per-row write clock and must
     be monotonically non-decreasing (``>=``, not ``>``, because a fast clock
     can produce same-millisecond timestamps)."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="ts-walk")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="ts-walk"))
     await file_store.confirm(v1.memory_id)
     await file_store.archive(v1.memory_id)
 
@@ -233,9 +224,7 @@ async def test_archived_blocks_reversal_writes(
     """Once archived, ``write()`` must refuse any attempt to revert the
     status — both ``agent_suggested`` and ``confirmed`` are less-final and
     therefore reversals, forbidden by ``_ALLOWED_TRANSITIONS``."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="x")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="x"))
     await file_store.archive(v1.memory_id)
 
     with pytest.raises(InvalidStatusTransition):
@@ -261,13 +250,9 @@ async def test_list_filters_by_status(file_store: MemoryFileStore) -> None:
     mem_a = await file_store.write(
         MemoryFileIn(scope="s", category="c", content="a")
     )  # stays at agent_suggested
-    mem_b = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="b")
-    )
+    mem_b = await file_store.write(MemoryFileIn(scope="s", category="c", content="b"))
     await file_store.confirm(mem_b.memory_id)
-    mem_c = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="c")
-    )
+    mem_c = await file_store.write(MemoryFileIn(scope="s", category="c", content="c"))
     await file_store.archive(mem_c.memory_id)
 
     suggested = await file_store.list(status="agent_suggested")
@@ -290,10 +275,9 @@ async def test_list_filters_by_status(file_store: MemoryFileStore) -> None:
 
 async def test_api_returns_409_on_invalid_transition(app: AsyncClient) -> None:
     """``/tools/memory_confirm/invoke`` on an already-archived memory must
-    surface as HTTP 409 with ``code == "invalid_transition"``. FastAPI
-    serializes ``HTTPException(detail={...})`` as
-    ``{"detail": {"code": ..., "message": ...}}`` so we index through the
-    ``detail`` envelope rather than the top level."""
+    surface as HTTP 409 with ``code == "invalid_transition"``. The custom
+    HTTPException handler (D101) returns flat JSON
+    ``{"code": ..., "message": ...}`` directly."""
     write_resp = await app.post(
         "/tools/memory_write_file/invoke",
         json={
@@ -318,7 +302,7 @@ async def test_api_returns_409_on_invalid_transition(app: AsyncClient) -> None:
         json={"args": {"memory_id": memory_id}},
     )
     assert confirm_resp.status_code == 409
-    assert confirm_resp.json()["detail"]["code"] == "invalid_transition"
+    assert confirm_resp.json()["code"] == "invalid_transition"
 
 
 # --- Test 9: REST layer maps not_found to HTTP 404 -------------------------
@@ -335,7 +319,7 @@ async def test_api_returns_404_on_missing_memory_id_confirm(
         json={"args": {"memory_id": "mem_nonexistent_404_test"}},
     )
     assert resp.status_code == 404
-    assert resp.json()["detail"]["code"] == "not_found"
+    assert resp.json()["code"] == "not_found"
 
 
 # --- Test 10: full MCP dispatcher walk preserves embedding metadata --------
