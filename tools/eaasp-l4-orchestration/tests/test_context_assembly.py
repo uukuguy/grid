@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from eaasp_l4_orchestration.context_assembly import build_session_payload
+from eaasp_l4_orchestration.context_assembly import (
+    _normalize_skill_instructions,
+    build_session_payload,
+)
 
 
 def _base_payload(**overrides):
@@ -99,3 +102,63 @@ def test_allow_trim_p4_false(monkeypatch):
     monkeypatch.setenv("L4_ALLOW_TRIM_P4", "false")
     payload = _base_payload()
     assert payload["allow_trim_p4"] is False
+
+
+# ── L4-15 / D110: dependencies kind normalization ──────────────────────────
+
+
+def test_deps_flat_string_normalized_to_runtime():
+    """Flat string dep → {"name": "...", "kind": "runtime"}."""
+    raw = {"skill_id": "s1", "dependencies": ["mcp:memory-store"]}
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == [{"name": "mcp:memory-store", "kind": "runtime"}]
+
+
+def test_deps_dict_with_intent_kind_preserved():
+    """Dict dep with kind: "intent" → preserved."""
+    raw = {
+        "skill_id": "s1",
+        "dependencies": [{"name": "onboarding", "kind": "intent"}],
+    }
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == [{"name": "onboarding", "kind": "intent"}]
+
+
+def test_deps_invalid_kind_defaults_to_runtime():
+    """Invalid kind → defaults to "runtime"."""
+    raw = {
+        "skill_id": "s1",
+        "dependencies": [{"name": "foo", "kind": "bogus"}],
+    }
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == [{"name": "foo", "kind": "runtime"}]
+
+
+def test_deps_empty_list():
+    """Empty dependencies list → []."""
+    raw = {"skill_id": "s1", "dependencies": []}
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == []
+
+
+def test_deps_mixed_string_and_dict():
+    """Mixed format (string + dict) → both normalized correctly."""
+    raw = {
+        "skill_id": "s1",
+        "dependencies": [
+            "mcp:tool-a",
+            {"name": "intent-x", "kind": "intent"},
+        ],
+    }
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == [
+        {"name": "mcp:tool-a", "kind": "runtime"},
+        {"name": "intent-x", "kind": "intent"},
+    ]
+
+
+def test_deps_no_dependencies_key():
+    """No dependencies key → defaults to []."""
+    raw = {"skill_id": "s1"}
+    result = _normalize_skill_instructions(raw)
+    assert result["dependencies"] == []

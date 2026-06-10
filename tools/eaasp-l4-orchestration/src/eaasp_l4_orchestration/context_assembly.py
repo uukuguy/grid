@@ -92,13 +92,31 @@ def _normalize_skill_instructions(raw: dict[str, Any]) -> dict[str, Any]:
     """Normalize SkillInstructions shape for downstream consumers."""
     if not raw:
         return raw
+
+    # L4-15 / D110 — normalize dependencies to {name, kind} dicts.
+    # Backward-compat: flat string deps default to kind="runtime".
+    raw_deps = raw.get("dependencies") or []
+    normalized_deps: list[dict[str, str]] = []
+    for dep in raw_deps:
+        if isinstance(dep, str):
+            # Legacy flat string → default kind="runtime"
+            normalized_deps.append({"name": dep, "kind": "runtime"})
+        elif isinstance(dep, dict):
+            name = dep.get("name") or dep.get("dep") or ""
+            kind = dep.get("kind", "runtime")
+            if kind not in ("runtime", "intent"):
+                kind = "runtime"  # Invalid kind → default
+            if name:
+                normalized_deps.append({"name": name, "kind": kind})
+        # Silently skip malformed entries (no name).
+
     return {
         "skill_id": str(raw.get("skill_id") or ""),
         "name": str(raw.get("name") or ""),
         "content": str(raw.get("content") or ""),
         "frontmatter_hooks": list(raw.get("frontmatter_hooks") or []),
         "metadata": dict(raw.get("metadata") or {}),
-        "dependencies": list(raw.get("dependencies") or []),
+        "dependencies": normalized_deps,
         # D87 L1 metadata (proto field 7).
         "required_tools": list(raw.get("required_tools") or []),
     }

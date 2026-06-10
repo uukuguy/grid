@@ -311,9 +311,18 @@ class SessionOrchestrator:
         # Step 6 — ConnectMCP: wire MCP servers from skill dependencies.
         # skill_instructions["dependencies"] was populated in Step 2b from
         # the skill registry (or left as [] when registry is absent).
+        # L4-15 / D110 — deps are now {name, kind} dicts after normalization,
+        # but may still be flat strings from the raw skill registry data.
         skill_deps = skill_instructions.get("dependencies") or []
         if self.mcp_resolver and skill_deps:
-            mcp_deps = [d for d in skill_deps if d.startswith("mcp:")]
+
+            def _dep_name(d: Any) -> str:
+                if isinstance(d, dict):
+                    return d.get("name", "")
+                return str(d)
+
+            all_dep_names = [_dep_name(d) for d in skill_deps]
+            mcp_deps = [d for d in all_dep_names if d.startswith("mcp:")]
             if mcp_deps:
                 try:
                     servers = await self.mcp_resolver.resolve(
