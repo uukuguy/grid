@@ -259,7 +259,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08.4-01-PLAN.md — Python source fixes: _row_to_memory promotion, HNSW rsplit, weights warning, int/float try/except, HTTPException flat shape, MockEmbedding seed (D14, D92, D96, D97, D99, D101)
+- [x] 08.4-01-PLAN.md — Python source fixes: _row_to_memory promotion, HNSW rsplit, weights warning, int/float try/except, HTTPException flat shape, MockEmbedding seed (D14, D92, D96, D97, D99, D101)
 - [ ] 08.4-02-PLAN.md — Config/build fixes: ruff/mypy config + Makefile mcp-orch-start port env var (D15, D59)
 **UI hint**: no
 
