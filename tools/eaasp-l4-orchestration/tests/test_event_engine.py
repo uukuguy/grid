@@ -32,9 +32,7 @@ async def test_ingest_persists_event(tmp_db_path: str, seed_session) -> None:
         await engine.stop()
 
 
-async def test_pipeline_assigns_cluster_id(
-    tmp_db_path: str, seed_session
-) -> None:
+async def test_pipeline_assigns_cluster_id(tmp_db_path: str, seed_session) -> None:
     sid = await seed_session("sess_eng_2")
     backend = SqliteWalBackend(tmp_db_path)
     engine = EventEngine(backend)
@@ -42,11 +40,17 @@ async def test_pipeline_assigns_cluster_id(
     try:
         now = int(time.time())
         e1 = Event(
-            session_id=sid, event_type="A", payload={}, created_at=now,
+            session_id=sid,
+            event_type="A",
+            payload={},
+            created_at=now,
             metadata=EventMetadata(source="test"),
         )
         e2 = Event(
-            session_id=sid, event_type="B", payload={}, created_at=now + 1,
+            session_id=sid,
+            event_type="B",
+            payload={},
+            created_at=now + 1,
             metadata=EventMetadata(source="test"),
         )
         await engine.ingest(e1)
@@ -72,13 +76,17 @@ async def test_pipeline_deduplicates_preserves_both_in_backend(
     try:
         now = int(time.time())
         e1 = Event(
-            session_id=sid, event_type="PRE_TOOL_USE",
-            payload={"tool_name": "scada"}, created_at=now,
+            session_id=sid,
+            event_type="PRE_TOOL_USE",
+            payload={"tool_name": "scada"},
+            created_at=now,
             metadata=EventMetadata(source="test"),
         )
         e2 = Event(
-            session_id=sid, event_type="PRE_TOOL_USE",
-            payload={"tool_name": "scada"}, created_at=now,
+            session_id=sid,
+            event_type="PRE_TOOL_USE",
+            payload={"tool_name": "scada"},
+            created_at=now,
             metadata=EventMetadata(source="test"),
         )
         await engine.ingest(e1)
@@ -102,12 +110,39 @@ async def test_engine_start_stop(tmp_db_path: str, seed_session) -> None:
     assert not engine._running
 
 
-async def test_engine_double_start_is_safe(
-    tmp_db_path: str, seed_session
-) -> None:
+async def test_engine_double_start_is_safe(tmp_db_path: str, seed_session) -> None:
     backend = SqliteWalBackend(tmp_db_path)
     engine = EventEngine(backend)
     await engine.start()
     await engine.start()  # should not create second worker
     assert engine._running
     await engine.stop()
+
+
+async def test_burst_detection_works(tmp_db_path: str, seed_session) -> None:
+    """L4-14 / D125 — burst detection tracks events and warns without crashing."""
+    sid = await seed_session("sess_eng_burst")
+    backend = SqliteWalBackend(tmp_db_path)
+    engine = EventEngine(backend)
+    await engine.start()
+    try:
+        # Verify _burst_counter is initialized.
+        assert engine._burst_counter == {}
+
+        # Ingest a few events — should not warn (rate << 500/s).
+        for i in range(3):
+            event = Event(
+                session_id=sid,
+                event_type="BURST_TEST",
+                payload={"seq": i},
+                metadata=EventMetadata(source="test"),
+            )
+            await engine.ingest(event)
+
+        # _burst_counter should have entries.
+        assert len(engine._burst_counter) > 0
+
+        # Burst check method exists and doesn't crash at low rates.
+        engine._check_burst_rate(time.time())
+    finally:
+        await engine.stop()

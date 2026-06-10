@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from .event_backend import EventStreamBackend
@@ -44,10 +45,14 @@ class EventEngine:
         queue_size: int = 1000,
     ) -> None:
         self.backend = backend
-        self.handlers: list[Any] = handlers if handlers is not None else _default_handlers()
+        self.handlers: list[Any] = (
+            handlers if handlers is not None else _default_handlers()
+        )
         self._queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=queue_size)
         self._running = False
         self._worker_task: asyncio.Task[None] | None = None
+        # L4-14 / D125 — burst detection counter (per-second buckets).
+        self._burst_counter: dict[float, int] = {}
 
     async def ingest(self, event: Event) -> tuple[int, str]:
         """接收事件：先持久化到 backend，再异步投递到 pipeline 队列。
@@ -69,9 +74,13 @@ class EventEngine:
         try:
             self._queue.put_nowait(event)
         except asyncio.QueueFull:
-            logger.warning(
-                "Event pipeline queue full, dropping event %s", eid
-            )
+            logger.warning("Event pipeline queue full, dropping event %s", eid)
+
+        # L4-14 / D125 — increment burst counter + check rate.
+        now = time.time()
+        bucket = int(now)
+        self._burst_counter[bucket] = self._burst_counter.get(bucket, 0) + 1
+        self._check_burst_rate(now)
 
         return seq, eid
 
@@ -101,9 +110,7 @@ class EventEngine:
         """后台 worker：取事件 → 执行 handler chain → 回写 cluster_id。"""
         while self._running or not self._queue.empty():
             try:
-                event: Event = await asyncio.wait_for(
-                    self._queue.get(), timeout=1.0
-                )
+                event: Event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
 
@@ -122,10 +129,34 @@ class EventEngine:
                     except Exception as exc:
                         logger.warning(
                             "Failed to update cluster_id for event %s: %s",
-                            current.event_id, exc,
+                            current.event_id,
+                            exc,
                         )
             except Exception as exc:
                 logger.error(
                     "Event pipeline handler error for event %s: %s",
-                    event.event_id, exc, exc_info=True,
+                    event.event_id,
+                    exc,
+                    exc_info=True,
                 )
+
+    def _check_burst_rate(self, now: float) -> None:
+        """L4-14 / D125 — detect event burst >500 events/sec and warn.
+
+        Counts events in the last 1-second window. Logs a WARNING when
+        the rate exceeds the 500 events/sec threshold so operators can
+        react before the pipeline queue fills.
+        """
+        window_start = now - 1.0
+        # Clean old buckets
+        stale = [t for t in self._burst_counter if t < window_start]
+        for t in stale:
+            del self._burst_counter[t]
+        # Count events in the last second
+        rate = sum(v for t, v in self._burst_counter.items() if t >= window_start)
+        if rate > 500:
+            logger.warning(
+                "L4 event burst detected: %d events/sec (threshold=500). "
+                "Events may be dropped if queue fills.",
+                rate,
+            )

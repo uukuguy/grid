@@ -10,7 +10,13 @@ def _base_payload(**overrides):
         "session_id": "sess-test",
         "user_id": "u-1",
         "runtime_id": "grid-runtime",
-        "policy_context": {"hooks": [], "policy_version": "v1", "deploy_timestamp": "", "org_unit": "", "quotas": {}},
+        "policy_context": {
+            "hooks": [],
+            "policy_version": "v1",
+            "deploy_timestamp": "",
+            "org_unit": "",
+            "quotas": {},
+        },
         "event_context": None,
         "memory_refs": [],
         "skill_instructions": {},
@@ -64,4 +70,32 @@ def test_payload_structure_unchanged():
     assert "memory_refs" in payload
     assert "user_preferences" in payload
     assert payload["allow_trim_p5"] is True
+    assert payload["allow_trim_p4"] is False
+
+
+def test_allow_trim_p4_env_true(monkeypatch):
+    """L4-07 / D37 — allow_trim_p4 is True when L4_ALLOW_TRIM_P4=true."""
+    monkeypatch.setenv("L4_ALLOW_TRIM_P4", "true")
+    payload = _base_payload()
+    assert payload["allow_trim_p4"] is True
+
+
+def test_allow_trim_p4_env_1(monkeypatch):
+    """L4-07 / D37 — allow_trim_p4 is True when L4_ALLOW_TRIM_P4=1."""
+    monkeypatch.setenv("L4_ALLOW_TRIM_P4", "1")
+    payload = _base_payload()
+    assert payload["allow_trim_p4"] is True
+
+
+def test_allow_trim_p4_default_false(monkeypatch):
+    """L4-07 / D37 — allow_trim_p4 defaults to False when env is not set."""
+    monkeypatch.delenv("L4_ALLOW_TRIM_P4", raising=False)
+    payload = _base_payload()
+    assert payload["allow_trim_p4"] is False
+
+
+def test_allow_trim_p4_false(monkeypatch):
+    """L4-07 / D37 — allow_trim_p4 is False when L4_ALLOW_TRIM_P4=false."""
+    monkeypatch.setenv("L4_ALLOW_TRIM_P4", "false")
+    payload = _base_payload()
     assert payload["allow_trim_p4"] is False

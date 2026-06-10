@@ -52,7 +52,9 @@ def build_session_payload(
         ),
         # Budget trim flags — P5 first, P4/P3 locked in MVP.
         "allow_trim_p5": True,
-        "allow_trim_p4": False,
+        # L4-07 / D37 — allow_trim_p4 configurable via env var (copy L3 pattern).
+        "allow_trim_p4": os.environ.get("L4_ALLOW_TRIM_P4", "false").lower()
+        in ("true", "1"),
         "allow_trim_p3": False,
     }
 
