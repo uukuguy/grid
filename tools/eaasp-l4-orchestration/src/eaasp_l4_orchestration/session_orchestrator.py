@@ -265,7 +265,16 @@ class SessionOrchestrator:
                     (
                         session_id,
                         "SESSION_CREATED",
-                        json.dumps({"payload": payload}, sort_keys=True),
+                        # L4-16 / D33 — SESSION_CREATED event stores reference, not full payload.
+                        # Full payload lives in sessions.payload_json (line above); event links back.
+                        json.dumps(
+                            {
+                                "session_id": session_id,
+                                "reference_mode": True,
+                                "payload_keys": list(payload.keys()),
+                            },
+                            sort_keys=True,
+                        ),
                         created_at,
                     ),
                 )

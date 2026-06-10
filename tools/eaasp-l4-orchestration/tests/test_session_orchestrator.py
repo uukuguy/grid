@@ -9,7 +9,12 @@ import pytest
 import respx
 
 from eaasp_l4_orchestration.event_stream import SessionEventStream
-from eaasp_l4_orchestration.handshake import L2Client, L3Client, SkillRegistryClient, UpstreamError
+from eaasp_l4_orchestration.handshake import (
+    L2Client,
+    L3Client,
+    SkillRegistryClient,
+    UpstreamError,
+)
 from eaasp_l4_orchestration.mcp_resolver import McpResolver
 from eaasp_l4_orchestration.session_orchestrator import (
     SessionNotFound,
@@ -48,7 +53,10 @@ async def _make_orchestrator(
     l3 = L3Client(http_client, base_url=L3_BASE)
     stream = SessionEventStream(tmp_db_path)
     return SessionOrchestrator(
-        tmp_db_path, l2=l2, l3=l3, event_stream=stream,
+        tmp_db_path,
+        l2=l2,
+        l3=l3,
+        event_stream=stream,
         l1_factory=lambda rid: _StubL1(rid),
     )
 
@@ -109,9 +117,7 @@ async def test_create_session_happy_path(tmp_db_path: str) -> None:
     # always land at a lower seq than RUNTIME_INITIALIZED so that
     # consumers replaying the stream see handshake completion before the
     # runtime initialization marker.
-    seq_created = next(
-        e["seq"] for e in events if e["event_type"] == "SESSION_CREATED"
-    )
+    seq_created = next(e["seq"] for e in events if e["event_type"] == "SESSION_CREATED")
     seq_init = next(
         e["seq"] for e in events if e["event_type"] == "RUNTIME_INITIALIZED"
     )
@@ -363,8 +369,18 @@ async def test_create_session_with_mcp_dependencies(tmp_db_path: str) -> None:
             200,
             json={
                 "servers": [
-                    {"name": "mock-scada", "transport": "stdio", "command": "mock-scada", "args": []},
-                    {"name": "eaasp-l2-memory", "transport": "stdio", "command": "l2-memory", "args": []},
+                    {
+                        "name": "mock-scada",
+                        "transport": "stdio",
+                        "command": "mock-scada",
+                        "args": [],
+                    },
+                    {
+                        "name": "eaasp-l2-memory",
+                        "transport": "stdio",
+                        "command": "l2-memory",
+                        "args": [],
+                    },
                 ],
             },
         ),
@@ -464,7 +480,9 @@ async def test_create_session_mcp_resolve_failure_non_fatal(tmp_db_path: str) ->
     events = await orch.list_events(out["session_id"])
     event_types = [e["event_type"] for e in events]
     assert "SESSION_MCP_CONNECT_FAILED" in event_types
-    fail_event = next(e for e in events if e["event_type"] == "SESSION_MCP_CONNECT_FAILED")
+    fail_event = next(
+        e for e in events if e["event_type"] == "SESSION_MCP_CONNECT_FAILED"
+    )
     assert "error" in fail_event["payload"]
 
 
@@ -547,3 +565,68 @@ async def test_create_session_no_mcp_resolver_skips_mcp(tmp_db_path: str) -> Non
 
     assert out["status"] == "active"
     assert len(shared_l1.connect_mcp_calls) == 0
+
+
+# ── L4-16 / D33: SESSION_CREATED reference-mode dedup ──────────────────────
+
+
+@respx.mock
+async def test_session_created_event_reference_mode(tmp_db_path: str) -> None:
+    """L4-16 / D33 — SESSION_CREATED event uses reference mode, not full payload."""
+    respx.post(f"{L2_BASE}/api/v1/memory/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    respx.post(url__regex=rf"{L3_BASE}/v1/sessions/.*/validate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "session_id": "placeholder",
+                "hooks_to_attach": [],
+                "managed_settings_version": 1,
+                "validated_at": "2026-04-12 01:00:00",
+                "runtime_tier": "strict",
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        orch = await _make_orchestrator(tmp_db_path, client)
+        out = await orch.create_session(
+            intent_text="test ref mode",
+            skill_id="skill.test",
+            runtime_pref="grid-runtime",
+            user_id="u-ref",
+        )
+
+    sid = out["session_id"]
+    events = await orch.list_events(sid)
+    created_events = [e for e in events if e["event_type"] == "SESSION_CREATED"]
+    assert len(created_events) == 1
+
+    session_created = created_events[0]
+    payload = session_created["payload"]
+
+    # Reference mode fields.
+    assert payload["session_id"] == sid
+    assert payload["reference_mode"] is True
+    assert isinstance(payload["payload_keys"], list)
+
+    # Full payload is stored in sessions table only, NOT in event.
+    assert "payload" not in payload
+
+    # payload_keys should contain the top-level SessionPayload keys.
+    expected_keys = {
+        "session_id",
+        "runtime_id",
+        "created_at",
+        "policy_context",
+        "event_context",
+        "memory_refs",
+        "skill_instructions",
+        "user_preferences",
+        "allow_trim_p5",
+        "allow_trim_p4",
+        "allow_trim_p3",
+    }
+    actual_keys = set(payload["payload_keys"])
+    assert expected_keys <= actual_keys, f"Missing keys: {expected_keys - actual_keys}"
