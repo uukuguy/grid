@@ -231,8 +231,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08.3-01-PLAN.md — L4 Server: allow_trim_p4 env (D37) + burst detection (D125) + dependencies kind (D110) + payload dedup (D33)
-- [ ] 08.3-02-PLAN.md — CLI + Verify: test_client 5xx (D42) + remove respx (D43) + --limit flag (D44) + response guard (D45) + fixture version (D61)
+- [x] 08.3-01-PLAN.md — L4 Server: allow_trim_p4 env (D37) + burst detection (D125) + dependencies kind (D110) + payload dedup (D33)
+- [x] 08.3-02-PLAN.md — CLI + Verify: test_client 5xx (D42) + remove respx (D43) + --limit flag (D44) + response guard (D45) + fixture version (D61)
 **UI hint**: no
 
 ---
