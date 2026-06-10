@@ -856,8 +856,10 @@ skill-registry-test:
 mcp-orch-build:
 	cargo build -p eaasp-mcp-orchestrator
 
+L2_MCP_ORCH_PORT ?= 18082
+
 mcp-orch-start:
-	cargo run -p eaasp-mcp-orchestrator -- --config tools/eaasp-mcp-orchestrator/config/mcp-servers.yaml --port 18082
+	cargo run -p eaasp-mcp-orchestrator -- --config tools/eaasp-mcp-orchestrator/config/mcp-servers.yaml --port $(L2_MCP_ORCH_PORT)
 
 mcp-orch-test:
 	cargo test -p eaasp-mcp-orchestrator -- --test-threads=1
