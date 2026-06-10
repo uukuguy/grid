@@ -50,9 +50,7 @@ def _load_embed_batch_concurrency_override() -> int | None:
             f"(strict-by-default per ADR-V2-028)"
         ) from e
     if parsed < 1:
-        raise ValueError(
-            f"L2_EMBED_BATCH_CONCURRENCY={parsed} must be >= 1"
-        )
+        raise ValueError(f"L2_EMBED_BATCH_CONCURRENCY={parsed} must be >= 1")
     return parsed
 
 
@@ -157,7 +155,7 @@ class MockEmbedding:
 
     async def embed(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
-        seed = int.from_bytes(digest[:8], "little", signed=False)
+        seed = int.from_bytes(digest, "little", signed=False)
         rng = random.Random(seed)
         samples = [rng.gauss(0.0, 1.0) for _ in range(self._dim)]
         norm = math.sqrt(sum(v * v for v in samples))
