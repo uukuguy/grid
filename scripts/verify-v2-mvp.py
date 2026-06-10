@@ -19,6 +19,7 @@ Environment variables (set by ``scripts/verify-v2-mvp.sh``):
     EAASP_CLAUDE_RUNTIME_URL  http://127.0.0.1:50052
     EAASP_SKIP_RUNTIMES       true|false — when true, assertion 15 accepts unreachable runtimes
 """
+
 from __future__ import annotations
 
 import json
@@ -73,7 +74,9 @@ state: dict[str, Any] = {
 }
 
 
-def assertion(num: int, name: str) -> Callable[[Callable[[], None]], Callable[[], None]]:
+def assertion(
+    num: int, name: str
+) -> Callable[[Callable[[], None]], Callable[[], None]]:
     def decorate(fn: Callable[[], None]) -> Callable[[], None]:
         def wrapped() -> None:
             try:
@@ -88,7 +91,9 @@ def assertion(num: int, name: str) -> Callable[[Callable[[], None]], Callable[[]
                 results.append((num, name, "ERROR", repr(e)))
                 print(f"  ERR  {num:2d}. {name}")
                 print(f"         Error: {e!r}")
+
         return wrapped
+
     return decorate
 
 
@@ -124,11 +129,19 @@ def a1() -> None:
         f"eaasp skill submit exited {proc.returncode}; "
         f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
     )
+    # L4-13 / D61 — parse version from submit response, not hardcoded.
+    try:
+        submit_output = json.loads(proc.stdout.strip())
+        submitted_version = submit_output.get("version") or TEST_SKILL_VERSION
+    except (ValueError, KeyError, AttributeError):
+        submitted_version = TEST_SKILL_VERSION
+    state["submitted_version"] = submitted_version
 
 
 @assertion(2, "eaasp-cli-v2 skill promote returns 0")
 def a2() -> None:
-    proc = run_cli("skill", "promote", TEST_SKILL_ID, TEST_SKILL_VERSION, "production")
+    version = state.get("submitted_version", TEST_SKILL_VERSION)
+    proc = run_cli("skill", "promote", TEST_SKILL_ID, version, "production")
     assert proc.returncode == 0, (
         f"eaasp skill promote exited {proc.returncode}; "
         f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
@@ -148,11 +161,16 @@ def a3() -> None:
 @assertion(4, "eaasp-cli-v2 session create --runtime grid-runtime returns 0")
 def a4() -> None:
     proc = run_cli(
-        "session", "create",
-        "--skill", TEST_SKILL_ID,
-        "--runtime", "grid-runtime",
-        "--user-id", TEST_USER_ID,
-        "--intent-text", f"请校准 {SCADA_DEVICE} 的温度阈值",
+        "session",
+        "create",
+        "--skill",
+        TEST_SKILL_ID,
+        "--runtime",
+        "grid-runtime",
+        "--user-id",
+        TEST_USER_ID,
+        "--intent-text",
+        f"请校准 {SCADA_DEVICE} 的温度阈值",
     )
     assert proc.returncode == 0, (
         f"eaasp session create exited {proc.returncode}; "
@@ -185,7 +203,9 @@ def a5() -> None:
     sid = state["session_1_id"]
     assert sid, "session 1 not created — cannot send message"
     proc = run_cli(
-        "session", "send", sid,
+        "session",
+        "send",
+        sid,
         f"请校准 {SCADA_DEVICE} 的温度阈值",
     )
     assert proc.returncode == 0, (
@@ -298,11 +318,16 @@ def a8() -> None:
 @assertion(9, "eaasp-cli-v2 session create --runtime claude-code-runtime returns 0")
 def a9() -> None:
     proc = run_cli(
-        "session", "create",
-        "--skill", TEST_SKILL_ID,
-        "--runtime", "claude-code-runtime",
-        "--user-id", TEST_USER_ID,
-        "--intent-text", f"再校准一次 {SCADA_DEVICE}",
+        "session",
+        "create",
+        "--skill",
+        TEST_SKILL_ID,
+        "--runtime",
+        "claude-code-runtime",
+        "--user-id",
+        TEST_USER_ID,
+        "--intent-text",
+        f"再校准一次 {SCADA_DEVICE}",
     )
     assert proc.returncode == 0, (
         f"eaasp session create exited {proc.returncode}; "
@@ -446,12 +471,16 @@ def a13() -> None:
         )
 
     # Query back per session.
-    r1 = CLIENT.get(f"{L3}/v1/telemetry/events", params={"session_id": sid1, "limit": 10})
+    r1 = CLIENT.get(
+        f"{L3}/v1/telemetry/events", params={"session_id": sid1, "limit": 10}
+    )
     assert r1.status_code == 200, f"L3 query session 1 failed: {r1.text}"
     events_1 = r1.json().get("events") or []
     assert len(events_1) > 0, f"no L3 telemetry for session 1 ({sid1})"
 
-    r2 = CLIENT.get(f"{L3}/v1/telemetry/events", params={"session_id": sid2, "limit": 10})
+    r2 = CLIENT.get(
+        f"{L3}/v1/telemetry/events", params={"session_id": sid2, "limit": 10}
+    )
     assert r2.status_code == 200, f"L3 query session 2 failed: {r2.text}"
     events_2 = r2.json().get("events") or []
     assert len(events_2) > 0, f"no L3 telemetry for session 2 ({sid2})"
@@ -484,9 +513,7 @@ def a15() -> None:
         # Intentional short-circuit — the orchestration script forces this
         # when ANTHROPIC_API_KEY is missing. Mark the assertion as passing
         # only when explicitly skipped, so CI cannot silently drop it.
-        print(
-            "         SKIP_RUNTIMES=true — both runtimes deliberately not started"
-        )
+        print("         SKIP_RUNTIMES=true — both runtimes deliberately not started")
         return
 
     assert CERTIFIER.exists(), (
@@ -522,7 +549,21 @@ def main() -> int:
     print()
 
     suite: list[Callable[[], None]] = [
-        a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+        a8,
+        a9,
+        a10,
+        a11,
+        a12,
+        a13,
+        a14,
+        a15,
     ]
     for fn in suite:
         fn()

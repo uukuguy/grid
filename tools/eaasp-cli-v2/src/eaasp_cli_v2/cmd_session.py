@@ -378,7 +378,10 @@ def run(
                 "runtime_pref": runtime,
             }
             result = await client.call("POST", f"{cfg.l4_url}/v1/sessions/create", json=create_body)
-            session_id = result["session_id"] if isinstance(result, dict) else str(result)
+            session_id = result.get("session_id") if isinstance(result, dict) else str(result)
+            if not session_id:
+                console.print("[bold red]ERROR: no session_id in response[/bold red]")
+                return
             console.print(f"[dim]session created: {session_id}[/dim]")
 
             # Step 2: send message
