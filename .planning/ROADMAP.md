@@ -202,7 +202,7 @@ Plans:
 
 Plans:
 - [x] 08.2-01-PLAN.md — D34 NLU Intent Resolver (rapidfuzz) + D38 user_id tenant isolation (L4-01, L4-02)
-- [ ] 08.2-02-PLAN.md — D41 session list verify + D28/D29/D31 safety items + D39 policy hash fix (L4-03, L4-04, L4-05, L4-06, L4-08)
+- [x] 08.2-02-PLAN.md — D41 session list verify + D28/D29/D31 safety items + D39 policy hash fix (L4-03, L4-04, L4-05, L4-06, L4-08)
 
 **UI hint**: no
 
