@@ -228,7 +228,11 @@ Plans:
   8. **L4-15 (D110)**: `dependencies` field `kind: runtime|intent` semantics distinction. Schema-breaking change (Phase 3+ documented). ~50 LOC + migration. LEDGER L240 shows ✅ CLOSED.
   9. **L4-16 (D33)**: SESSION_CREATED event payload reference-mode dedup — store once, link. ~30 LOC + migration. LEDGER L145 shows ✅ CLOSED.
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08.3-01-PLAN.md — L4 Server: allow_trim_p4 env (D37) + burst detection (D125) + dependencies kind (D110) + payload dedup (D33)
+- [ ] 08.3-02-PLAN.md — CLI + Verify: test_client 5xx (D42) + remove respx (D43) + --limit flag (D44) + response guard (D45) + fixture version (D61)
 **UI hint**: no
 
 ---
@@ -322,7 +326,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 8.0 L3 Leftovers + eaasp_common | 0/3 | 🟡 Planned | - |
 | 8.1 Contract Proto + Engine/Server | 0/3 | 🟡 Planned | - |
 | 8.2 L4 Foundation | 2/2 | 🟡 Planned | 2026-06-09 |
-| 8.3 L4 P3 Hardening | 0/0 | 🟡 Not started | - |
+| 8.3 L4 P3 Hardening | 0/2 | 🟡 Planned | 2026-06-10 |
 | 8.4 L2 Table Stakes | 0/0 | 🟡 Not started | - |
 | 8.5 L2 Differentiators + Hooks | 0/0 | 🟡 Not started | - |
 | 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Not started | - |
