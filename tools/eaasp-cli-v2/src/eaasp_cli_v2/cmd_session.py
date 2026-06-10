@@ -23,18 +23,20 @@ app = typer.Typer(help="Session lifecycle commands")
 # contract violation and must be surfaced loudly on stderr — never silently
 # dropped, because silent drops let runtime drift (e.g. the historical
 # "tool_call_start" → "tool_start" rename) ship undetected.
-_ALLOWED_CHUNK_TYPES: frozenset[str] = frozenset({
-    "text_delta",
-    "thinking",
-    "tool_start",
-    "tool_result",
-    "done",
-    "error",
-    "workflow_continuation",
-    # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
-    "thinking_trace",
-    "attachment_ref",
-})
+_ALLOWED_CHUNK_TYPES: frozenset[str] = frozenset(
+    {
+        "text_delta",
+        "thinking",
+        "tool_start",
+        "tool_result",
+        "done",
+        "error",
+        "workflow_continuation",
+        # Phase 5.3 (contract-v1.2.0, ADR-V2-021 amendment):
+        "thinking_trace",
+        "attachment_ref",
+    }
+)
 
 
 def _render_chunk(
@@ -129,10 +131,7 @@ def _render_chunk(
 
     # ── Contract violations (ADR-V2-021) ─────────────────────────────────
     if chunk_type == "":
-        sys.stderr.write(
-            "[ADR-V2-021 violation] empty chunk_type (UNSPECIFIED); "
-            "dropping chunk\n"
-        )
+        sys.stderr.write("[ADR-V2-021 violation] empty chunk_type (UNSPECIFIED); dropping chunk\n")
         sys.stderr.flush()
         return
 
@@ -167,9 +166,7 @@ def create(
     async def _do() -> Any:
         client = _main.make_client(cfg)
         try:
-            return await client.call(
-                "POST", f"{cfg.l4_url}/v1/sessions/create", json=body
-            )
+            return await client.call("POST", f"{cfg.l4_url}/v1/sessions/create", json=body)
         finally:
             await client.aclose()
 
@@ -196,9 +193,7 @@ def list_cmd(
             params: dict[str, Any] = {"limit": limit}
             if status is not None:
                 params["status"] = status
-            return await client.call(
-                "GET", f"{cfg.l4_url}/v1/sessions", params=params
-            )
+            return await client.call("GET", f"{cfg.l4_url}/v1/sessions", params=params)
         finally:
             await client.aclose()
 
@@ -219,9 +214,7 @@ def close(session_id: str = typer.Argument(...)) -> None:
     async def _do() -> Any:
         client = _main.make_client(cfg)
         try:
-            return await client.call(
-                "POST", f"{cfg.l4_url}/v1/sessions/{session_id}/close"
-            )
+            return await client.call("POST", f"{cfg.l4_url}/v1/sessions/{session_id}/close")
         finally:
             await client.aclose()
 
@@ -235,18 +228,22 @@ def close(session_id: str = typer.Argument(...)) -> None:
 
 
 @app.command("show")
-def show(session_id: str = typer.Argument(...)) -> None:
+def show(
+    session_id: str = typer.Argument(...),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max events to fetch"),
+) -> None:
     """Fetch a session + its event stream and render the evidence pack."""
     cfg = CliConfig.from_env()
 
     async def _do() -> tuple[Any, Any]:
         client = _main.make_client(cfg)
         try:
+            safe_limit = max(1, min(limit, 500))
             meta = await client.call("GET", f"{cfg.l4_url}/v1/sessions/{session_id}")
             events = await client.call(
                 "GET",
                 f"{cfg.l4_url}/v1/sessions/{session_id}/events",
-                params={"from": 1, "to": 100, "limit": 100},
+                params={"from": 1, "to": safe_limit, "limit": safe_limit},
             )
             return meta, events
         finally:
@@ -348,10 +345,7 @@ def send(
                     sys.stdout.write("\n")
                     resp_text = data.get("response_text", "")
                     n_events = len(data.get("events", []))
-                    console.print(
-                        f"[dim]── {n_events} events, "
-                        f"{len(resp_text)} chars total[/dim]"
-                    )
+                    console.print(f"[dim]── {n_events} events, {len(resp_text)} chars total[/dim]")
 
                 elif event == "error":
                     err_console.print(
@@ -383,9 +377,7 @@ def run(
                 "skill_id": skill,
                 "runtime_pref": runtime,
             }
-            result = await client.call(
-                "POST", f"{cfg.l4_url}/v1/sessions/create", json=create_body
-            )
+            result = await client.call("POST", f"{cfg.l4_url}/v1/sessions/create", json=create_body)
             session_id = result["session_id"] if isinstance(result, dict) else str(result)
             console.print(f"[dim]session created: {session_id}[/dim]")
 
@@ -422,13 +414,11 @@ def run(
                         resp_text = data.get("response_text", "")
                         n_events = len(data.get("events", []))
                         console.print(
-                            f"[dim]── {n_events} events, "
-                            f"{len(resp_text)} chars total[/dim]"
+                            f"[dim]── {n_events} events, {len(resp_text)} chars total[/dim]"
                         )
                     elif event == "error":
                         err_console.print(
-                            f"[bold red]runtime error:[/bold red] "
-                            f"{data.get('error', '?')}",
+                            f"[bold red]runtime error:[/bold red] {data.get('error', '?')}",
                         )
         finally:
             await client.aclose()
@@ -456,9 +446,7 @@ _EVENT_COLORS: dict[str, str] = {
 }
 
 
-async def _fetch_events(
-    cfg: CliConfig, session_id: str, limit: int = 500
-) -> dict[str, Any]:
+async def _fetch_events(cfg: CliConfig, session_id: str, limit: int = 500) -> dict[str, Any]:
     """Fetch events from L4 API."""
     client = _main.make_client(cfg)
     try:
@@ -474,10 +462,12 @@ async def _fetch_events(
 def _format_event_line(event: dict[str, Any], fmt: str) -> str:
     """Format a single event for display."""
     import json as _json
+
     if fmt == "json":
         return _json.dumps(event, ensure_ascii=False, default=str)
 
     import datetime
+
     ts = event.get("created_at", 0)
     dt = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts else "??:??:??"
     etype = event.get("event_type", "")
@@ -528,17 +518,14 @@ def events_cmd(
             client = _main.make_client(cfg)
             try:
                 url = f"{cfg.l4_url}/v1/sessions/{session_id}/events/stream"
-                async for msg in client.stream_sse(
-                    url, method="GET", params={"from": from_seq}
-                ):
+                async for msg in client.stream_sse(url, method="GET", params={"from": from_seq}):
                     event = msg.get("event", "event")
                     data = msg.get("data", {})
                     if event == "event" and isinstance(data, dict):
                         if format_ == "json":
                             import json as _json
-                            typer.echo(
-                                _json.dumps(data, ensure_ascii=False, default=str)
-                            )
+
+                            typer.echo(_json.dumps(data, ensure_ascii=False, default=str))
                         else:
                             console.print(_format_event_line(data, format_))
                     elif event == "error":
@@ -558,6 +545,7 @@ def events_cmd(
 
     if format_ == "json":
         import json as _json
+
         typer.echo(_json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return
 
