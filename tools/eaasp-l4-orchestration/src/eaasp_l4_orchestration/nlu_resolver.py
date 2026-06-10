@@ -83,8 +83,13 @@ class IntentResolver:
                 continue
             name = skill.get("name", skill_id)
             description = skill.get("description", "")
-            # Concatenate name + description for richer matching (per D-02).
-            display_text = f"{name}: {description}" if description else name
+            # Use name as primary match key; descriptions are often long
+            # and dilute token_sort_ratio scores when concatenated.
+            # Descriptions are preserved in SkillCandidate for context.
+            display_text = name.lower()
+            # Handle duplicate names by appending skill_id suffix.
+            if display_text in self._skill_index:
+                display_text = f"{display_text} ({skill_id})".lower()
             self._skill_index[display_text] = skill_id
         logger.info("NLU index built: %d skills indexed", len(self._skill_index))
 
@@ -102,10 +107,12 @@ class IntentResolver:
         if not self._skill_index:
             raise NoSkillMatchError(intent_text, [])
 
-        # Use rapidfuzz process.extract to get ranked results with scores normalized to 0-100.
-        # token_sort_ratio is typo-tolerant (per D-02).
+        # Normalize to lowercase for case-insensitive matching.
+        # token_sort_ratio is typo-tolerant and works well with short skill
+        # names (per D-02). WRatio is too permissive with long descriptions.
+        query = intent_text.lower()
         ranked = process.extract(
-            intent_text,
+            query,
             list(self._skill_index.keys()),
             scorer=fuzz.token_sort_ratio,
             limit=10,

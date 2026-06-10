@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 class IntentDispatchRequest(BaseModel):
     intent_text: str = Field(..., min_length=1)
-    skill_id: str = Field(..., min_length=1)
+    skill_id: str = Field(..., min_length=0)
     runtime_pref: str = Field(..., min_length=1)
     user_id: str | None = None
     intent_id: str | None = None
