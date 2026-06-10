@@ -17,15 +17,18 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
+from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
+from starlette.responses import JSONResponse
 
 from .db import init_db
 from .event_backend_sqlite import SqliteWalBackend
@@ -49,7 +52,12 @@ from .session_orchestrator import (
     SessionOrchestrator,
 )
 
-logger = logging.getLogger(__name__)
+# logger is now loguru — configured in lifespan
+
+# L4-06 / D31 — valid loguru levels
+_VALID_LOG_LEVELS: frozenset[str] = frozenset(
+    {"TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"}
+)
 
 # ─── Request models ─────────────────────────────────────────────────────────
 
@@ -97,6 +105,19 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # L4-06 / D31 — loguru structured logging (copy L3 D23 pattern).
+        logger.remove()  # clear default handler
+        log_level = os.environ.get("L4_LOG_LEVEL", "INFO").upper()
+        if log_level not in _VALID_LOG_LEVELS:
+            raise ValueError(
+                f"L4_LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, "
+                f"got {log_level!r}"
+            )
+        logger.add(
+            sys.stderr,
+            format="{time:ISO} | {level: <8} | {name}:{function}:{line} | {message}",
+            level=log_level,
+        )
         await init_db(db_path)
         owned_client = False
         if http_client is None:
@@ -243,7 +264,9 @@ def create_app(
     # ─── Contract 5: send message ────────────────────────────────────────
     @app.post("/v1/sessions/{session_id}/message")
     async def send_message(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         body: SendMessageRequest,
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
     ) -> dict[str, Any]:
@@ -268,7 +291,9 @@ def create_app(
     # ─── Contract 5: send message (SSE streaming) ─────────────────────────
     @app.post("/v1/sessions/{session_id}/message/stream")
     async def send_message_stream(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         body: SendMessageRequest,
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
     ) -> StreamingResponse:
@@ -300,7 +325,9 @@ def create_app(
     # ─── Contract 5: close session ───────────────────────────────────────
     @app.post("/v1/sessions/{session_id}/close")
     async def close_session(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
     ) -> dict[str, Any]:
         try:
@@ -324,7 +351,9 @@ def create_app(
     # ─── Contract 5: list events ─────────────────────────────────────────
     @app.get("/v1/sessions/{session_id}/events")
     async def list_events(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         from_: int = Query(default=1, ge=1, alias="from"),
         to: int = Query(default=2**31 - 1, ge=1),
         limit: int = Query(default=500, ge=1, le=500),
@@ -344,7 +373,9 @@ def create_app(
     # ─── S4.T2 (D84): list events as SSE stream (follow mode) ────────────
     @app.get("/v1/sessions/{session_id}/events/stream")
     async def stream_events(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         from_: int = Query(default=1, ge=1, alias="from"),
         poll_interval_ms: int = Query(default=500, ge=50, le=5000),
         heartbeat_secs: int = Query(default=15, ge=1, le=120),
@@ -378,7 +409,7 @@ def create_app(
             # polling in the response-sender task and raises CancelledError inside
             # our await points — we catch it here, log, and re-raise so Starlette
             # can complete its cleanup.
-            logger.info("sse_follow_start session_id=%s from=%s", session_id, from_)
+            logger.info("sse_follow_start session_id={} from={}", session_id, from_)
             last_seen = from_ - 1
             last_heartbeat = asyncio.get_event_loop().time()
             poll_s = poll_interval_ms / 1000.0
@@ -396,7 +427,7 @@ def create_app(
                         # and break rather than raising (can't raise inside a
                         # started StreamingResponse body).
                         logger.info(
-                            "sse_follow_session_gone session_id=%s last_seen=%s",
+                            "sse_follow_session_gone session_id={} last_seen={}",
                             session_id,
                             last_seen,
                         )
@@ -422,7 +453,7 @@ def create_app(
                         idle_polls += 1
                         if max_idle_polls and idle_polls >= max_idle_polls:
                             logger.debug(
-                                "sse_follow_idle_exit session_id=%s last_seen=%s",
+                                "sse_follow_idle_exit session_id={} last_seen={}",
                                 session_id,
                                 last_seen,
                             )
@@ -434,7 +465,7 @@ def create_app(
                     await asyncio.sleep(poll_s)
             except asyncio.CancelledError:
                 logger.info(
-                    "sse_follow_disconnect session_id=%s last_seen=%s",
+                    "sse_follow_disconnect session_id={} last_seen={}",
                     session_id,
                     last_seen,
                 )
@@ -452,7 +483,9 @@ def create_app(
     # ─── Contract 5: get session ─────────────────────────────────────────
     @app.get("/v1/sessions/{session_id}")
     async def get_session(
-        session_id: str,
+        session_id: Annotated[
+            str, Path(..., min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
+        ],
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
     ) -> dict[str, Any]:
         try:
@@ -513,6 +546,30 @@ def create_app(
                 detail={"code": "ingest_failed", "error": str(exc)},
             ) from exc
         return {"seq": seq, "event_id": event_id}
+
+    # ─── D28 / L4-04 — global exception handlers (defense-in-depth, copy L3 D22) ──
+
+    @app.exception_handler(ValidationError)
+    async def validation_exception_handler(
+        request, exc: ValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "validation_error",
+                "detail": _sanitize_errors(exc.errors()),
+            },
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception")
+        # Sanitize: max 500 chars, no traceback leakage (D28 success criteria).
+        detail = str(exc)[:500]
+        return JSONResponse(
+            status_code=500,
+            content={"error": "internal_error", "detail": detail},
+        )
 
     return app
 
