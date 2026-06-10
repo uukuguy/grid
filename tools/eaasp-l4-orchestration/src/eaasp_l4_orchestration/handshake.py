@@ -54,17 +54,23 @@ class L2Client:
         top_k: int = 10,
         scope: str | None = None,
         category: str | None = None,
+        user_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Call ``POST /api/v1/memory/search`` and return the ``hits`` list.
 
         Does NOT enforce top_k clamping here — L2 enforces its own bounds
         (M3 in S3.T2); we pass through the caller's value.
+
+        D38 / L4-02: ``user_id`` is sent to L2 for tenant memory isolation.
+        When None, L2 uses its default (session-level) scoping.
         """
         body: dict[str, Any] = {"query": query, "top_k": top_k}
         if scope is not None:
             body["scope"] = scope
         if category is not None:
             body["category"] = category
+        if user_id is not None:
+            body["user_id"] = user_id
 
         try:
             resp = await self._client.post(
@@ -173,7 +179,9 @@ class SkillRegistryClient:
             raise UpstreamError("skill-registry", "unavailable", str(exc)) from exc
 
         if resp.status_code == 404:
-            raise UpstreamError("skill-registry", "not_found", f"skill '{skill_id}' not found")
+            raise UpstreamError(
+                "skill-registry", "not_found", f"skill '{skill_id}' not found"
+            )
         if resp.status_code >= 400:
             raise UpstreamError("skill-registry", "error", resp.text)
 

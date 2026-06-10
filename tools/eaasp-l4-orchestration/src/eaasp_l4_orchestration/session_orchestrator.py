@@ -113,7 +113,10 @@ class SessionOrchestrator:
         created_at = int(time.time())
 
         # Step 1 — P3: MemoryRefs from L2. Failure here is fatal (no retry).
-        memory_refs = await self.l2.search_memory(query=intent_text, top_k=10)
+        # D38 / L4-02: pass user_id to L2 for tenant memory isolation.
+        memory_refs = await self.l2.search_memory(
+            query=intent_text, top_k=10, user_id=user_id
+        )
 
         # Step 2 — P1: PolicyContext from L3 validate.
         validate_resp = await self.l3.validate_session(
@@ -141,12 +144,17 @@ class SessionOrchestrator:
             "required_tools": [],
         }
         import logging as _log
+
         _logger = _log.getLogger(__name__)
         _logger.info("skill_registry=%s, skill_id=%s", self.skill_registry, skill_id)
         if self.skill_registry is not None:
             try:
                 skill_data = await self.skill_registry.read_skill(skill_id)
-                _logger.info("skill_data keys: %s, prose_len=%d", list(skill_data.keys()), len(skill_data.get("prose", "")))
+                _logger.info(
+                    "skill_data keys: %s, prose_len=%d",
+                    list(skill_data.keys()),
+                    len(skill_data.get("prose", "")),
+                )
                 # skill_data shape: {meta, frontmatter_yaml, prose, parsed_v2?}
                 parsed_v2 = skill_data.get("parsed_v2") or {}
                 scoped_hooks = parsed_v2.get("scoped_hooks") or {}
@@ -155,7 +163,9 @@ class SessionOrchestrator:
                 skill_dir = skill_data.get("skill_dir") or ""
                 frontmatter_hooks: list[dict[str, Any]] = []
                 for scope in ("PreToolUse", "PostToolUse", "Stop"):
-                    for hook in scoped_hooks.get(scope) or scoped_hooks.get(scope.lower()) or []:
+                    for hook in (
+                        scoped_hooks.get(scope) or scoped_hooks.get(scope.lower()) or []
+                    ):
                         resolved_hook = dict(hook)
                         # Substitute ${SKILL_DIR} in command hooks.
                         if "command" in resolved_hook and skill_dir:
@@ -189,9 +199,12 @@ class SessionOrchestrator:
                 # Skill fetch failure is non-fatal for MVP — log and continue
                 # with empty instructions. Agent will run without skill context.
                 import logging, traceback
+
                 logging.getLogger(__name__).error(
                     "Failed to fetch skill '%s' from registry: %s\n%s",
-                    skill_id, exc, traceback.format_exc(),
+                    skill_id,
+                    exc,
+                    traceback.format_exc(),
                 )
 
         # Step 3 — assemble payload (P1..P5 + budget flags).
@@ -296,7 +309,8 @@ class SessionOrchestrator:
             if mcp_deps:
                 try:
                     servers = await self.mcp_resolver.resolve(
-                        mcp_deps, runtime_id=runtime_pref,
+                        mcp_deps,
+                        runtime_id=runtime_pref,
                     )
                     if servers:
                         l1_sid = self._l1_session_ids[session_id]
@@ -319,7 +333,8 @@ class SessionOrchestrator:
                     # MCP connection failure is non-fatal — session remains active.
                     logger.warning(
                         "ConnectMCP failed for session %s: %s (non-fatal)",
-                        session_id, exc,
+                        session_id,
+                        exc,
                     )
                     await self.event_stream.append(
                         session_id,
@@ -378,9 +393,7 @@ class SessionOrchestrator:
                 "RESPONSE_CHUNK",
                 coalesced,
             )
-            events.append(
-                {"seq": seq_c, "event_type": "RESPONSE_CHUNK", **coalesced}
-            )
+            events.append({"seq": seq_c, "event_type": "RESPONSE_CHUNK", **coalesced})
         delta_buf.clear()
 
     # ─── Contract 5 (partial): send_message ──────────────────────────────────
@@ -462,7 +475,8 @@ class SessionOrchestrator:
                     except Exception as exc:
                         logger.warning(
                             "Event ingest failed for session %s (non-fatal): %s",
-                            session_id, exc,
+                            session_id,
+                            exc,
                         )
             # Stream ended — flush any trailing delta run.
             await self._record_coalesced_deltas(session_id, delta_buf, events)
@@ -559,7 +573,8 @@ class SessionOrchestrator:
                     except Exception as exc:
                         logger.warning(
                             "Event ingest failed for session %s (non-fatal): %s",
-                            session_id, exc,
+                            session_id,
+                            exc,
                         )
 
                 yield {"event": "chunk", "data": chunk}
@@ -733,9 +748,7 @@ class SessionOrchestrator:
         if row is None:
             raise SessionNotFound(session_id)
 
-    async def _update_status(
-        self, session_id: str, new_status: str
-    ) -> None:
+    async def _update_status(self, session_id: str, new_status: str) -> None:
         """Update session status + closed_at if terminal."""
         db = await connect(self.db_path)
         try:

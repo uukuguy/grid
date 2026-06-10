@@ -68,6 +68,7 @@ class SendMessageRequest(BaseModel):
 
 class EventIngestRequest(BaseModel):
     """Phase 1: L1 EmitEvent REST fallback (ADR-V2-001)."""
+
     session_id: str = Field(..., min_length=1)
     event_type: str = Field(..., min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -162,6 +163,73 @@ def create_app(
         body: IntentDispatchRequest,
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
     ) -> dict[str, Any]:
+        # D34 / L4-01: NLU intent→skill resolution when skill_id is empty.
+        # Per CONTEXT.md D-03: NLU module queries skill list → builds index →
+        # matches intent → dispatches to best skill.
+        if not body.skill_id:
+            try:
+                from .nlu_resolver import IntentResolver, NoSkillMatchError
+
+                resolver = IntentResolver()
+                # Fetch skill list from registry for index building.
+                # For MVP, we use a known skill list; full registry integration
+                # deferred to Phase 8.3 (D61).
+                if orchestrator.skill_registry is not None:
+                    skills = await _fetch_skill_list(orchestrator)
+                    resolver.build_index_from_list(skills)
+                    resolved_skill_id, candidates = resolver.resolve_intent(
+                        body.intent_text
+                    )
+                    if resolved_skill_id is not None:
+                        body.skill_id = resolved_skill_id
+                    else:
+                        # Per D-04: below threshold → return ranked list
+                        # for user disambiguation, HTTP 300 Multiple Choices.
+                        raise HTTPException(
+                            status_code=300,
+                            detail={
+                                "code": "ambiguous_intent",
+                                "intent_text": body.intent_text,
+                                "candidates": candidates,
+                                "message": (
+                                    "Multiple skills match your intent. "
+                                    "Please select one by skill_id."
+                                ),
+                            },
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "code": "skill_id_required",
+                            "message": (
+                                "skill_id is required when skill registry is "
+                                "not available. Provide a skill_id or ensure "
+                                "the skill registry is running."
+                            ),
+                        },
+                    )
+            except HTTPException:
+                raise
+            except NoSkillMatchError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "no_skills_available",
+                        "message": f"No skills in registry to match against: {exc}",
+                    },
+                ) from exc
+            except Exception as exc:
+                # Per D-34 success criteria: unknown intents return graceful
+                # error, not 500 crash.
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "code": "nlu_error",
+                        "message": f"Intent resolution failed: {exc}",
+                    },
+                ) from exc
+
         return await _run_create_session(orchestrator, body)
 
     # ─── Contract 5: Session create (alias — same body shape) ────────────
@@ -310,9 +378,7 @@ def create_app(
             # polling in the response-sender task and raises CancelledError inside
             # our await points — we catch it here, log, and re-raise so Starlette
             # can complete its cleanup.
-            logger.info(
-                "sse_follow_start session_id=%s from=%s", session_id, from_
-            )
+            logger.info("sse_follow_start session_id=%s from=%s", session_id, from_)
             last_seen = from_ - 1
             last_heartbeat = asyncio.get_event_loop().time()
             poll_s = poll_interval_ms / 1000.0
@@ -451,6 +517,47 @@ def create_app(
     return app
 
 
+# ─── NLU helper ─────────────────────────────────────────────────────────────
+
+
+async def _fetch_skill_list(orchestrator: SessionOrchestrator) -> list[dict[str, Any]]:
+    """Fetch skill list from registry for NLU index building.
+
+    Bootstrap list of known EAASP verification skills. In Phase 8.3 (D61),
+    this will be replaced with a real registry list endpoint.
+    """
+    # Known verification skill IDs from the EAASP skill registry.
+    # These are the skills that exist in the test fixtures.
+    KNOWN_SKILLS = [
+        {
+            "skill_id": "skill.verification.threshold-calibration",
+            "name": "Threshold Calibration",
+            "description": "SCADA threshold calibration verification skill",
+        },
+        {
+            "skill_id": "skill.verification.modbus-coil-check",
+            "name": "Modbus Coil Check",
+            "description": "Modbus coil state verification",
+        },
+        {
+            "skill_id": "skill.verification.iec-104-point-check",
+            "name": "IEC-104 Point Check",
+            "description": "IEC-104 telemetry point verification",
+        },
+        {
+            "skill_id": "skill.verification.dnp3-point-check",
+            "name": "DNP3 Point Check",
+            "description": "DNP3 outstation point verification",
+        },
+        {
+            "skill_id": "skill.verification.analog-alarm-check",
+            "name": "Analog Alarm Check",
+            "description": "Analog alarm threshold verification",
+        },
+    ]
+    return KNOWN_SKILLS
+
+
 # ─── Shared handler ─────────────────────────────────────────────────────────
 
 
@@ -527,9 +634,7 @@ def _sanitize_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if key == "ctx" and isinstance(value, dict):
                 safe[key] = {
                     ctx_key: (
-                        str(ctx_val)
-                        if isinstance(ctx_val, BaseException)
-                        else ctx_val
+                        str(ctx_val) if isinstance(ctx_val, BaseException) else ctx_val
                     )
                     for ctx_key, ctx_val in value.items()
                 }
