@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Full INBOX Drain
 status: executing
-stopped_at: Phase 8.4 context gathered
-last_updated: "2026-06-10T16:28:29.429Z"
+stopped_at: Phase 8.5 context gathered
+last_updated: "2026-06-12T19:29:01.231Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 10
@@ -147,8 +147,8 @@ Items carried forward from v3.3-INBOX.md (remaining ~85 P2/P3 rows, now mapped t
 
 ## Session Continuity
 
-Last session: 2026-06-10T10:00:49.689Z
-Stopped at: Phase 8.4 context gathered
+Last session: 2026-06-12T19:29:01.223Z
+Stopped at: Phase 8.5 context gathered
 Resume path: **Next action: `/gsd-discuss-phase 7.0`** (or `/gsd-plan-phase 7.0` if discussion skipped) — begin Phase 7.0 grid-engine harness wiring verify-and-close.
 Local commits ahead of origin: 8+ unpushed (from v3.2+v3.3 close cascades). Per project rule: push decision deferred to user.
 Worktrees: none active.
