@@ -4,14 +4,14 @@ milestone: v3.4
 milestone_name: Full INBOX Drain
 status: executing
 stopped_at: Phase 8.6 context gathered
-last_updated: "2026-06-13T19:45:34.310Z"
-last_activity: 2026-06-13 -- Phase 08.6 execution started
+last_updated: "2026-06-13T19:48:11.701Z"
+last_activity: 2026-06-13
 progress:
   total_phases: 11
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 21
-  completed_plans: 18
-  percent: 86
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-07 — v3.4 Current Milestone section
 
 ## Current Position
 
-Phase: 08.6 (eval-cross-cutting) — EXECUTING
-Plan: 1 of 1
+Phase: 08.6
+Plan: Not started
 Status: Executing Phase 08.6
-Last activity: 2026-06-13 -- Phase 08.6 execution started
+Last activity: 2026-06-13
 
 Progress: 0/10 phases, 0/0 plans (TBD per phase)
 
