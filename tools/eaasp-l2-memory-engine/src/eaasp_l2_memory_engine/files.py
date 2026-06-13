@@ -208,6 +208,10 @@ class MemoryFileStore:
             status=memory.status,
             created_at=created_at,
             updated_at=now,
+            # D100: surface embedding metadata in the write/confirm/archive
+            # response so callers can observe which model was used.
+            embedding_model_id=embedding_model_id,
+            embedding_dim=embedding_dim,
         )
 
     async def read_latest(self, memory_id: str) -> MemoryFileOut | None:

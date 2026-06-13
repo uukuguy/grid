@@ -13,9 +13,7 @@ from eaasp_l2_memory_engine.index import HybridIndex
 pytestmark = pytest.mark.asyncio
 
 
-async def test_keyword_search_hit(
-    file_store: MemoryFileStore, index: HybridIndex
-) -> None:
+async def test_keyword_search_hit(file_store: MemoryFileStore, index: HybridIndex) -> None:
     await file_store.write(
         MemoryFileIn(
             scope="user:alice",
@@ -36,15 +34,9 @@ async def test_keyword_search_hit(
     assert "salary" in hits[0].memory.content
 
 
-async def test_search_scope_filter(
-    file_store: MemoryFileStore, index: HybridIndex
-) -> None:
-    await file_store.write(
-        MemoryFileIn(scope="alice", category="c", content="python rocks")
-    )
-    await file_store.write(
-        MemoryFileIn(scope="bob", category="c", content="python rocks")
-    )
+async def test_search_scope_filter(file_store: MemoryFileStore, index: HybridIndex) -> None:
+    await file_store.write(MemoryFileIn(scope="alice", category="c", content="python rocks"))
+    await file_store.write(MemoryFileIn(scope="bob", category="c", content="python rocks"))
 
     alice_hits = await index.search("python", scope="alice")
     assert len(alice_hits) == 1
@@ -75,9 +67,7 @@ async def test_search_returns_latest_version_only(
 async def test_search_empty_query_returns_empty(
     file_store: MemoryFileStore, index: HybridIndex
 ) -> None:
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="anything")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="anything"))
     hits = await index.search("   ")
     assert hits == []
 
@@ -86,9 +76,7 @@ async def test_time_decay_weights_recent_higher(
     file_store: MemoryFileStore, index: HybridIndex
 ) -> None:
     # both match the same token, so fts_score is comparable; time decay decides order
-    old = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="widget widget")
-    )
+    old = await file_store.write(MemoryFileIn(scope="s", category="c", content="widget widget"))
     # Simulate an older memory by backdating updated_at directly
     import aiosqlite
 
@@ -100,9 +88,7 @@ async def test_time_decay_weights_recent_higher(
         )
         await db.commit()
 
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="widget widget")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="widget widget"))
 
     hits = await index.search("widget", top_k=5)
     assert len(hits) == 2
@@ -122,9 +108,7 @@ async def test_semantic_score_field_populated_on_keyword_hit(
     """SearchHit returned from a keyword match has a valid semantic_score
     field. With MockEmbedding the query and memory embeddings are both
     computed, so semantic_score should be a float in [0, 1]."""
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="test content")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="test content"))
 
     hits = await index.search("test")
     assert len(hits) == 1
@@ -139,9 +123,7 @@ async def test_weighted_fusion_keyword_only_ignores_semantic(
 ) -> None:
     """HybridIndex(weights=(1.0, 0.0)) should produce scores that equal
     fts_score * time_decay exactly, regardless of semantic_score value."""
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="keyword rich content")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="keyword rich content"))
 
     index = HybridIndex(db_path, weights=(1.0, 0.0))
     hits = await index.search("keyword")
@@ -159,9 +141,7 @@ async def test_weighted_fusion_semantic_only_ignores_keyword(
 ) -> None:
     """HybridIndex(weights=(0.0, 1.0)) should produce scores equal to
     semantic_score * time_decay exactly (keyword contribution zeroed)."""
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="keyword rich content")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="keyword rich content"))
 
     index = HybridIndex(db_path, weights=(0.0, 1.0))
     hits = await index.search("keyword")
@@ -177,9 +157,7 @@ async def test_graceful_degrade_on_embedder_error(
 ) -> None:
     """Monkey-patch the provider factory to raise → search still returns
     keyword-only results with semantic_score == 0.0."""
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="test content")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="test content"))
 
     from eaasp_l2_memory_engine.embedding import provider as prov_mod
 
@@ -219,16 +197,15 @@ async def test_graceful_degrade_on_model_id_mismatch(
     file_store: MemoryFileStore, db_path: str
 ) -> None:
     """Seed HNSW with default MockEmbedding, switch provider to a different
-    model_id → degrade to keyword-only (semantic_score == 0)."""
+    model_id → HNSW loads as empty (new model has no index). D95 backfills
+    semantic_score from the DB embedding_vec blob instead of leaving it 0."""
     from eaasp_l2_memory_engine.embedding import provider as prov_mod
     from eaasp_l2_memory_engine.embedding.provider import MockEmbedding
 
     # Ensure a clean singleton so the first write uses the default mock model.
     prov_mod.reset_embedding_provider()
 
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="test")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="test"))
     # HNSW now has one entry under default MockEmbedding.model_id.
 
     # Swap the singleton to a *different* model_id before search.
@@ -236,9 +213,13 @@ async def test_graceful_degrade_on_model_id_mismatch(
     try:
         index = HybridIndex(db_path)
         hits = await index.search("test")
-        # Must still return the keyword hit, with semantic disabled.
+        # Must still return the keyword hit.
         assert len(hits) == 1
-        assert hits[0].semantic_score == 0.0
+        # D95: HNSW is empty (model mismatch → fresh empty index), but the
+        # DB has a valid embedding_vec blob → backfill computes cosine
+        # similarity from it. MockEmbedding uses text-hash seeds so same
+        # text gives identical vectors → cosine ≈ 1.0.
+        assert hits[0].semantic_score > 0.0
     finally:
         prov_mod.reset_embedding_provider()
 
@@ -248,9 +229,7 @@ async def test_dedupe_by_memory_id_keeps_latest_version_hybrid(
 ) -> None:
     """When v1 and v2 are both in HNSW, search returns only v2 (union
     dedupe by memory_id keeping max version)."""
-    v1 = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="alpha beta gamma")
-    )
+    v1 = await file_store.write(MemoryFileIn(scope="s", category="c", content="alpha beta gamma"))
     await file_store.write(
         MemoryFileIn(
             memory_id=v1.memory_id,
@@ -314,9 +293,7 @@ async def test_empty_query_returns_empty_with_semantic_enabled(
 ) -> None:
     """Blank/whitespace queries short-circuit before embedding — no call to
     the provider, no HNSW lookup, just []."""
-    await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="anything")
-    )
+    await file_store.write(MemoryFileIn(scope="s", category="c", content="anything"))
 
     assert await index.search("   ") == []
     assert await index.search("") == []
@@ -329,18 +306,14 @@ async def test_graceful_degrade_on_missing_hnsw_dir(
     still returns the FTS hit (semantic_score=0.0 because HNSW is empty)."""
     import shutil
 
-    mem = await file_store.write(
-        MemoryFileIn(scope="s", category="c", content="find me keyword")
-    )
+    mem = await file_store.write(MemoryFileIn(scope="s", category="c", content="find me keyword"))
 
     # Point octo_root at a *fresh* directory that has no HNSW seed.
     fresh_root = tmp_path / "fresh_octo_root"
     fresh_root.mkdir()
     # Also pre-emptively remove any HNSW dir that might have been seeded via
     # the file_store default octo_root (dirname(db_path)).
-    default_hnsw = os.path.join(
-        os.path.dirname(os.path.abspath(db_path)), "l2-memory"
-    )
+    default_hnsw = os.path.join(os.path.dirname(os.path.abspath(db_path)), "l2-memory")
     if os.path.isdir(default_hnsw):
         shutil.rmtree(default_hnsw)
 
