@@ -289,9 +289,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 08.5-01-PLAN.md — L2 Differentiators: MCP connection pool (D65) + FTS semantic backfill (D95) + embedding surface (D100)
-- [ ] 08.5-02-PLAN.md — Hook Core Infrastructure: ScopedHookBody proto matcher/tool_filter (D48) + HookPoint ContextDegraded deprecation (D105)
-- [ ] 08.5-03-PLAN.md — Hook Features + Script CI: Prompt executor YES/NO mode (D50) + shared jq fragment (D107) + bats/shellcheck CI gate (D108)
+- [x] 08.5-01-PLAN.md — L2 Differentiators: MCP connection pool (D65) + FTS semantic backfill (D95) + embedding surface (D100)
+- [x] 08.5-02-PLAN.md — Hook Core Infrastructure: ScopedHookBody proto matcher/tool_filter (D48) + HookPoint ContextDegraded deprecation (D105)
+- [x] 08.5-03-PLAN.md — Hook Features + Script CI: Prompt executor YES/NO mode (D50) + shared jq fragment (D107) + bats/shellcheck CI gate (D108)
 **UI hint**: no
 
 ---
