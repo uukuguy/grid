@@ -286,7 +286,12 @@ Plans:
   7. **HOOK-04 (D105)**: `HookPoint::ContextDegraded` string alias preserved with deprecation warning. Backwards-compat doc: existing YAML/JSON hook configs continue working. LEDGER L235 shows ✅ CLOSED.
   8. **HOOK-05 (D107)**: Shared jq fragment extracted from `check_output_anchor.sh` + `check_final_output.sh` to `_lib/json_guards.sh`. Copy-paste bug surface eliminated. LEDGER L237 shows ✅ CLOSED.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 08.5-01-PLAN.md — L2 Differentiators: MCP connection pool (D65) + FTS semantic backfill (D95) + embedding surface (D100)
+- [ ] 08.5-02-PLAN.md — Hook Core Infrastructure: ScopedHookBody proto matcher/tool_filter (D48) + HookPoint ContextDegraded deprecation (D105)
+- [ ] 08.5-03-PLAN.md — Hook Features + Script CI: Prompt executor YES/NO mode (D50) + shared jq fragment (D107) + bats/shellcheck CI gate (D108)
 **UI hint**: no
 
 ---
@@ -332,7 +337,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 8.2 L4 Foundation | 2/2 | 🟡 Planned | 2026-06-09 |
 | 8.3 L4 P3 Hardening | 0/2 | 🟡 Planned | 2026-06-10 |
 | 8.4 L2 Table Stakes | 0/2 | 🟡 Planned | 2026-06-11 |
-| 8.5 L2 Differentiators + Hooks | 0/0 | 🟡 Not started | - |
+| 8.5 L2 Differentiators + Hooks | 0/3 | 🟡 Planned | 2026-06-13 |
 | 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Not started | - |
 
 ---
