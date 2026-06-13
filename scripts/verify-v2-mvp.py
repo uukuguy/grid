@@ -79,6 +79,7 @@ def assertion(
 ) -> Callable[[Callable[[], None]], Callable[[], None]]:
     def decorate(fn: Callable[[], None]) -> Callable[[], None]:
         def wrapped() -> None:
+            print(f"  NOTE {num:2d}. {name}")
             try:
                 fn()
                 results.append((num, name, "PASS", None))

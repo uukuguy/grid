@@ -26,6 +26,7 @@ Environment variables (set by scripts/verify-v2-phase2.sh):
     EAASP_GRID_RUNTIME_URL    http://127.0.0.1:50051 (optional)
     EAASP_CLAUDE_RUNTIME_URL  http://127.0.0.1:50052 (optional)
 """
+
 from __future__ import annotations
 
 import json
@@ -85,9 +86,12 @@ state: dict[str, Any] = {
 }
 
 
-def assertion(num: int, name: str) -> Callable[[Callable[[], None]], Callable[[], None]]:
+def assertion(
+    num: int, name: str
+) -> Callable[[Callable[[], None]], Callable[[], None]]:
     def decorate(fn: Callable[[], None]) -> Callable[[], None]:
         def wrapped() -> None:
+            print(f"  NOTE {num:2d}. {name}")
             try:
                 fn()
                 results.append((num, name, "PASS", None))
@@ -100,7 +104,9 @@ def assertion(num: int, name: str) -> Callable[[Callable[[], None]], Callable[[]
                 results.append((num, name, "ERROR", repr(e)))
                 print(f"  ERR  {num:2d}. {name}")
                 print(f"         Error: {e!r}")
+
         return wrapped
+
     return decorate
 
 
@@ -123,15 +129,24 @@ def run_cargo_test(
     """
     if use_test_flag:
         cmd = [
-            "cargo", "test", "-p", package,
-            "--test", filter_or_test,
-            "--", "--test-threads=1",
+            "cargo",
+            "test",
+            "-p",
+            package,
+            "--test",
+            filter_or_test,
+            "--",
+            "--test-threads=1",
         ]
     else:
         cmd = [
-            "cargo", "test", "-p", package,
+            "cargo",
+            "test",
+            "-p",
+            package,
             filter_or_test,
-            "--", "--test-threads=1",
+            "--",
+            "--test-threads=1",
         ]
     return subprocess.run(
         cmd,
@@ -145,7 +160,9 @@ def run_cargo_test(
 # ── Assertions 1-14 ─────────────────────────────────────────────────────────
 
 
-@assertion(1, "D87 regression test passes (cargo test d87_multi_step_workflow_regression)")
+@assertion(
+    1, "D87 regression test passes (cargo test d87_multi_step_workflow_regression)"
+)
 def a1() -> None:
     """D87 multi-step workflow must execute ≥3 tool calls, not exit early."""
     proc = run_cargo_test(
@@ -208,8 +225,7 @@ def a4() -> None:
         },
     )
     assert anchor_resp.status_code == 200, (
-        f"memory_write_anchor failed: HTTP {anchor_resp.status_code} "
-        f"{anchor_resp.text}"
+        f"memory_write_anchor failed: HTTP {anchor_resp.status_code} {anchor_resp.text}"
     )
     anchor_body = anchor_resp.json()
     anchor_id = anchor_body.get("anchor_id")
@@ -315,7 +331,9 @@ def a5() -> None:
     # explicitly documents keyword-only fallback as supported.
     semantic_scores = [float(h.get("semantic_score", 0.0)) for h in hits]
     if all(s == 0.0 for s in semantic_scores):
-        print("         NOTE: semantic disabled (all semantic_score=0.0), FTS-only path verified")
+        print(
+            "         NOTE: semantic disabled (all semantic_score=0.0), FTS-only path verified"
+        )
 
 
 @assertion(6, "L3 telemetry ingest reachable (POST /v1/telemetry/events)")
@@ -444,8 +462,7 @@ def a10() -> None:
         },
     )
     assert create_resp.status_code == 200, (
-        f"L4 /v1/sessions/create returned {create_resp.status_code}: "
-        f"{create_resp.text}"
+        f"L4 /v1/sessions/create returned {create_resp.status_code}: {create_resp.text}"
     )
     create_body = create_resp.json()
     session_id = create_body.get("session_id")
@@ -467,8 +484,7 @@ def a10() -> None:
         },
     )
     assert ingest_resp.status_code == 200, (
-        f"L4 /v1/events/ingest returned {ingest_resp.status_code}: "
-        f"{ingest_resp.text}"
+        f"L4 /v1/events/ingest returned {ingest_resp.status_code}: {ingest_resp.text}"
     )
     ingest_body = ingest_resp.json()
     seq = ingest_body.get("seq")
@@ -483,9 +499,7 @@ def a10() -> None:
         f"{events_resp.status_code}: {events_resp.text}"
     )
     events = events_resp.json().get("events") or []
-    pre_compact_events = [
-        e for e in events if e.get("event_type") == "PRE_COMPACT"
-    ]
+    pre_compact_events = [e for e in events if e.get("event_type") == "PRE_COMPACT"]
     assert len(pre_compact_events) >= 1, (
         f"PRE_COMPACT not found in session events; event_types seen="
         f"{[e.get('event_type') for e in events]}"
@@ -535,8 +549,10 @@ def a13() -> None:
     clone without ``make cli-v2-setup`` would trip a hard FAIL otherwise.
     """
     if not CLI_ENTRY.exists():
-        print("         NOTE: CLI not built at "
-              f"{CLI_ENTRY.relative_to(PROJECT_ROOT)}; skipping")
+        print(
+            "         NOTE: CLI not built at "
+            f"{CLI_ENTRY.relative_to(PROJECT_ROOT)}; skipping"
+        )
         return
 
     # ``eaasp session list`` is the lightest read path — hits L4 only.
@@ -590,7 +606,20 @@ def main() -> int:
     print()
 
     suite: list[Callable[[], None]] = [
-        a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+        a8,
+        a9,
+        a10,
+        a11,
+        a12,
+        a13,
+        a14,
     ]
     for fn in suite:
         fn()
