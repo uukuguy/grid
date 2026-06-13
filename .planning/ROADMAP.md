@@ -314,7 +314,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 08.6-01-PLAN.md — 6 mechanical fixes: shell scripts (venv check, data cleanup, trap guard), Python decorator NOTE ordering, Pyright config
+- [x] 08.6-01-PLAN.md — 6 mechanical fixes: shell scripts (venv check, data cleanup, trap guard), Python decorator NOTE ordering, Pyright config
 
 **UI hint**: no
 
