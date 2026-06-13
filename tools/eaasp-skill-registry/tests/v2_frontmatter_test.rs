@@ -4,7 +4,7 @@ use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
 use eaasp_skill_registry::models::SubmitDraftRequest;
 use eaasp_skill_registry::routes::router;
-use eaasp_skill_registry::skill_parser::{parse_v2_frontmatter, ScopedHookBody, V2ParseError};
+use eaasp_skill_registry::skill_parser::{parse_v2_frontmatter, ScopedHookBodyKind, V2ParseError};
 use eaasp_skill_registry::store::SkillStore;
 use tower::util::ServiceExt;
 
@@ -45,14 +45,14 @@ fn parse_full_v2_schema() {
     assert_eq!(fm.access_scope.as_deref(), Some("enterprise"));
     assert_eq!(fm.scoped_hooks.pre_tool_use.len(), 1);
     assert_eq!(fm.scoped_hooks.pre_tool_use[0].name, "block_write_scada");
-    match &fm.scoped_hooks.pre_tool_use[0].body {
-        ScopedHookBody::Command { command } => {
+    match &fm.scoped_hooks.pre_tool_use[0].body.body {
+        ScopedHookBodyKind::Command { command } => {
             assert_eq!(command, "scripts/hooks/block_write_scada.sh")
         }
         _ => panic!("expected command hook"),
     }
-    match &fm.scoped_hooks.post_tool_use[0].body {
-        ScopedHookBody::Prompt { prompt } => assert!(prompt.contains("evidence_anchor_id")),
+    match &fm.scoped_hooks.post_tool_use[0].body.body {
+        ScopedHookBodyKind::Prompt { prompt } => assert!(prompt.contains("evidence_anchor_id")),
         _ => panic!("expected prompt hook"),
     }
     assert!(fm.dependencies.is_empty());
@@ -126,8 +126,8 @@ fn parse_threshold_calibration_example_skill() {
     // Scoped hooks: 1 pre + 1 post + 1 stop
     assert_eq!(fm.scoped_hooks.pre_tool_use.len(), 1);
     assert_eq!(fm.scoped_hooks.pre_tool_use[0].name, "block_write_scada");
-    match &fm.scoped_hooks.pre_tool_use[0].body {
-        ScopedHookBody::Command { command } => {
+    match &fm.scoped_hooks.pre_tool_use[0].body.body {
+        ScopedHookBodyKind::Command { command } => {
             assert!(command.contains("block_write_scada.sh"));
         }
         _ => panic!("PreToolUse[0] must be a command hook"),
@@ -135,8 +135,8 @@ fn parse_threshold_calibration_example_skill() {
 
     assert_eq!(fm.scoped_hooks.post_tool_use.len(), 1);
     assert_eq!(fm.scoped_hooks.post_tool_use[0].name, "require_evidence");
-    match &fm.scoped_hooks.post_tool_use[0].body {
-        ScopedHookBody::Prompt { prompt } => {
+    match &fm.scoped_hooks.post_tool_use[0].body.body {
+        ScopedHookBodyKind::Prompt { prompt } => {
             assert!(prompt.to_lowercase().contains("snapshot"));
         }
         _ => panic!("PostToolUse[0] must be a prompt hook"),
@@ -144,8 +144,8 @@ fn parse_threshold_calibration_example_skill() {
 
     assert_eq!(fm.scoped_hooks.stop.len(), 1);
     assert_eq!(fm.scoped_hooks.stop[0].name, "require_anchor");
-    match &fm.scoped_hooks.stop[0].body {
-        ScopedHookBody::Command { command } => {
+    match &fm.scoped_hooks.stop[0].body.body {
+        ScopedHookBodyKind::Command { command } => {
             assert!(command.contains("check_output_anchor.sh"));
         }
         _ => panic!("Stop[0] must be a command hook"),
@@ -201,8 +201,8 @@ fn parse_skill_extraction_example_skill() {
     assert_eq!(fm.scoped_hooks.pre_tool_use.len(), 0);
     assert_eq!(fm.scoped_hooks.post_tool_use.len(), 1);
     assert_eq!(fm.scoped_hooks.post_tool_use[0].name, "verify_skill_draft");
-    match &fm.scoped_hooks.post_tool_use[0].body {
-        ScopedHookBody::Command { command } => {
+    match &fm.scoped_hooks.post_tool_use[0].body.body {
+        ScopedHookBodyKind::Command { command } => {
             assert!(command.contains("verify_skill_draft.sh"));
         }
         _ => panic!("PostToolUse[0] must be a command hook"),
@@ -210,8 +210,8 @@ fn parse_skill_extraction_example_skill() {
 
     assert_eq!(fm.scoped_hooks.stop.len(), 1);
     assert_eq!(fm.scoped_hooks.stop[0].name, "check_final_output");
-    match &fm.scoped_hooks.stop[0].body {
-        ScopedHookBody::Command { command } => {
+    match &fm.scoped_hooks.stop[0].body.body {
+        ScopedHookBodyKind::Command { command } => {
             assert!(command.contains("check_final_output.sh"));
         }
         _ => panic!("Stop[0] must be a command hook"),

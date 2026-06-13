@@ -38,12 +38,18 @@ impl RequiredTool {
             let name = s[colon + 1..].to_string();
             // Validate layer: only l0/l1/l2 are legal (ADR-V2-020 §2)
             match layer_str {
-                "l0" | "l1" | "l2" => Ok(Self { layer: Some(layer_str.to_string()), name }),
+                "l0" | "l1" | "l2" => Ok(Self {
+                    layer: Some(layer_str.to_string()),
+                    name,
+                }),
                 other => Err(RequiredToolParseError::InvalidLayer(other.to_string())),
             }
         } else {
             // No colon → pre-Phase 3 legacy bare name
-            Ok(Self { layer: None, name: s.to_string() })
+            Ok(Self {
+                layer: None,
+                name: s.to_string(),
+            })
         }
     }
 
@@ -160,9 +166,30 @@ pub struct ScopedHook {
     pub body: ScopedHookBody,
 }
 
+/// Per-body fine-grained hook targeting (D48 / HOOK-02).
+///
+/// The `matcher` and `tool_filter` fields are secondary filters applied AFTER
+/// the entry-level `HookEntry.matcher` has already matched. Both are optional:
+/// absent/empty means "match all tools at this hook point" (backward-compatible).
+///
+/// The inner `body` field (flattened via serde) carries the actual action content
+/// (command or prompt).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScopedHookBody {
+    /// Regex/glob pattern for tool name matching. `None` matches all.
+    #[serde(default)]
+    pub matcher: Option<String>,
+    /// Tool name allowlist. Empty vec = match all; non-empty = only listed tools.
+    #[serde(default)]
+    pub tool_filter: Vec<String>,
+    /// The actual hook action body (command or prompt), flattened into parent YAML.
+    #[serde(flatten)]
+    pub body: ScopedHookBodyKind,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
-pub enum ScopedHookBody {
+pub enum ScopedHookBodyKind {
     Command { command: String },
     Prompt { prompt: String },
 }
@@ -230,10 +257,7 @@ pub enum HookSubstitutionError {
 /// fails with `Unbound`. A malformed `${...` reference fails with `Malformed`.
 /// Escape `$$` collapses to a literal `$` so commands can still reach real
 /// shell variables after substitution.
-pub fn substitute_hook_vars(
-    input: &str,
-    vars: &HookVars,
-) -> Result<String, HookSubstitutionError> {
+pub fn substitute_hook_vars(input: &str, vars: &HookVars) -> Result<String, HookSubstitutionError> {
     let bytes = input.as_bytes();
     let mut out = String::with_capacity(input.len());
     let mut i = 0;
@@ -279,17 +303,21 @@ pub fn substitute_scoped_hooks(
     let map = |list: &Vec<ScopedHook>| -> Result<Vec<ScopedHook>, HookSubstitutionError> {
         list.iter()
             .map(|h| {
-                let body = match &h.body {
-                    ScopedHookBody::Command { command } => ScopedHookBody::Command {
+                let kind = match &h.body.body {
+                    ScopedHookBodyKind::Command { command } => ScopedHookBodyKind::Command {
                         command: substitute_hook_vars(command, vars)?,
                     },
-                    ScopedHookBody::Prompt { prompt } => ScopedHookBody::Prompt {
+                    ScopedHookBodyKind::Prompt { prompt } => ScopedHookBodyKind::Prompt {
                         prompt: substitute_hook_vars(prompt, vars)?,
                     },
                 };
                 Ok(ScopedHook {
                     name: h.name.clone(),
-                    body,
+                    body: ScopedHookBody {
+                        matcher: h.body.matcher.clone(),
+                        tool_filter: h.body.tool_filter.clone(),
+                        body: kind,
+                    },
                 })
             })
             .collect()
@@ -315,12 +343,12 @@ mod hook_subst_tests {
 
     #[test]
     fn substitutes_skill_dir() {
-        let out = substitute_hook_vars(
-            "${SKILL_DIR}/hooks/block_write_scada.sh",
-            &vars_full(),
-        )
-        .unwrap();
-        assert_eq!(out, "/skills/threshold-calibration/hooks/block_write_scada.sh");
+        let out =
+            substitute_hook_vars("${SKILL_DIR}/hooks/block_write_scada.sh", &vars_full()).unwrap();
+        assert_eq!(
+            out,
+            "/skills/threshold-calibration/hooks/block_write_scada.sh"
+        );
     }
 
     #[test]
@@ -351,8 +379,7 @@ mod hook_subst_tests {
 
     #[test]
     fn unknown_variable_errors() {
-        let err =
-            substitute_hook_vars("${WHO_KNOWS}/x", &vars_full()).expect_err("must error");
+        let err = substitute_hook_vars("${WHO_KNOWS}/x", &vars_full()).expect_err("must error");
         assert!(matches!(err, HookSubstitutionError::Unknown(name) if name == "WHO_KNOWS"));
     }
 
@@ -363,8 +390,7 @@ mod hook_subst_tests {
             session_dir: None,
             runtime_dir: None,
         };
-        let err =
-            substitute_hook_vars("${SKILL_DIR}/x", &vars).expect_err("must error");
+        let err = substitute_hook_vars("${SKILL_DIR}/x", &vars).expect_err("must error");
         assert!(matches!(err, HookSubstitutionError::Unbound(name) if name == "SKILL_DIR"));
     }
 
@@ -373,44 +399,57 @@ mod hook_subst_tests {
         let err = substitute_hook_vars("${SKILL_DIR/x", &vars_full()).expect_err("must error");
         assert!(matches!(err, HookSubstitutionError::Malformed(0)));
     }
+    fn scoped_hook_body_command(cmd: &str) -> ScopedHookBody {
+        ScopedHookBody {
+            matcher: None,
+            tool_filter: vec![],
+            body: ScopedHookBodyKind::Command {
+                command: cmd.to_string(),
+            },
+        }
+    }
+
+    fn scoped_hook_body_prompt(prompt: &str) -> ScopedHookBody {
+        ScopedHookBody {
+            matcher: None,
+            tool_filter: vec![],
+            body: ScopedHookBodyKind::Prompt {
+                prompt: prompt.to_string(),
+            },
+        }
+    }
 
     #[test]
     fn substitute_scoped_hooks_resolves_all_three_scopes() {
         let hooks = ScopedHooks {
             pre_tool_use: vec![ScopedHook {
                 name: "pre".into(),
-                body: ScopedHookBody::Command {
-                    command: "${SKILL_DIR}/hooks/pre.sh".into(),
-                },
+                body: scoped_hook_body_command("${SKILL_DIR}/hooks/pre.sh"),
             }],
             post_tool_use: vec![ScopedHook {
                 name: "post".into(),
-                body: ScopedHookBody::Prompt {
-                    prompt: "Check outputs under ${SKILL_DIR}".into(),
-                },
+                body: scoped_hook_body_prompt("Check outputs under ${SKILL_DIR}"),
             }],
             stop: vec![ScopedHook {
                 name: "stop".into(),
-                body: ScopedHookBody::Command {
-                    command: "${SKILL_DIR}/hooks/stop.sh".into(),
-                },
+                body: scoped_hook_body_command("${SKILL_DIR}/hooks/stop.sh"),
             }],
         };
         let out = substitute_scoped_hooks(&hooks, &vars_full()).unwrap();
-        match &out.pre_tool_use[0].body {
-            ScopedHookBody::Command { command } => {
+        match &out.pre_tool_use[0].body.body {
+            ScopedHookBodyKind::Command { command } => {
                 assert_eq!(command, "/skills/threshold-calibration/hooks/pre.sh")
             }
             _ => panic!("expected command"),
         }
-        match &out.post_tool_use[0].body {
-            ScopedHookBody::Prompt { prompt } => {
+        match &out.post_tool_use[0].body.body {
+            ScopedHookBodyKind::Prompt { prompt } => {
                 assert_eq!(prompt, "Check outputs under /skills/threshold-calibration")
             }
             _ => panic!("expected prompt"),
         }
-        match &out.stop[0].body {
-            ScopedHookBody::Command { command } => {
+        match &out.stop[0].body.body {
+            ScopedHookBodyKind::Command { command } => {
                 assert_eq!(command, "/skills/threshold-calibration/hooks/stop.sh")
             }
             _ => panic!("expected command"),
@@ -422,14 +461,11 @@ mod hook_subst_tests {
         let hooks = ScopedHooks {
             pre_tool_use: vec![ScopedHook {
                 name: "pre".into(),
-                body: ScopedHookBody::Command {
-                    command: "${NOPE}".into(),
-                },
+                body: scoped_hook_body_command("${NOPE}"),
             }],
             ..Default::default()
         };
-        let err =
-            substitute_scoped_hooks(&hooks, &vars_full()).expect_err("must error");
+        let err = substitute_scoped_hooks(&hooks, &vars_full()).expect_err("must error");
         assert!(matches!(err, HookSubstitutionError::Unknown(name) if name == "NOPE"));
     }
 }

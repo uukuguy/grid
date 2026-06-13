@@ -215,3 +215,14 @@ message PolicyInfo {
   bool enabled = 5;
   int32 precedence = 6;
 }
+
+// ── Scoped Hook Body (D48 / HOOK-02) ─────────────────────────
+
+// Per-body fine-grained hook targeting. Fields are optional (proto3 default
+// behavior) — absent matcher matches all tool names, empty tool_filter
+// matches all tools. These are secondary filters applied AFTER the
+// entry-level HookEntry.matcher has already matched.
+message ScopedHookBody {
+  string matcher = 1;              // regex/glob pattern for tool name matching (optional)
+  repeated string tool_filter = 2; // tool name allowlist — if non-empty, only these tools trigger the body (optional)
+}
