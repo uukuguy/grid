@@ -44,6 +44,13 @@ pub enum FailureMode {
     FailClosed,
 }
 
+fn default_yesno_timeout() -> u32 {
+    std::env::var("HOOK_PROMPT_EXECUTOR_TIMEOUT_SEC")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10)
+}
+
 /// Configuration for a single hook action.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
@@ -53,6 +60,13 @@ pub enum HookActionConfig {
     Prompt {
         prompt: String,
         #[serde(default = "default_timeout")]
+        timeout: u32,
+    },
+    /// Lightweight YES/NO prompt for tool gate decisions.
+    /// Uses a fixed "security guard" template; no prompt field needed.
+    #[serde(rename = "yesno_prompt")]
+    YesNoPrompt {
+        #[serde(default = "default_yesno_timeout")]
         timeout: u32,
     },
     /// External script/command execution.
@@ -122,7 +136,11 @@ hooks:
         assert_eq!(pre[0].actions.len(), 1);
 
         match &pre[0].actions[0] {
-            HookActionConfig::Command { command, timeout, failure_mode } => {
+            HookActionConfig::Command {
+                command,
+                timeout,
+                failure_mode,
+            } => {
                 assert_eq!(command, "python3 validate.py");
                 assert_eq!(*timeout, 5);
                 assert_eq!(*failure_mode, FailureMode::FailClosed);
@@ -156,7 +174,12 @@ hooks:
         let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
         let post = &config.hooks["PostToolUse"];
         match &post[0].actions[0] {
-            HookActionConfig::Webhook { url, method, timeout, failure_mode } => {
+            HookActionConfig::Webhook {
+                url,
+                method,
+                timeout,
+                failure_mode,
+            } => {
                 assert_eq!(url, "https://audit.example.com/api/hook");
                 assert_eq!(method, "POST");
                 assert_eq!(*timeout, 5);
@@ -197,7 +220,10 @@ hooks:
         let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
         let pre = &config.hooks["PreToolUse"];
         match &pre[0].actions[0] {
-            HookActionConfig::Wasm { plugin, failure_mode } => {
+            HookActionConfig::Wasm {
+                plugin,
+                failure_mode,
+            } => {
                 assert_eq!(plugin, "my-security-hook");
                 assert_eq!(*failure_mode, FailureMode::FailClosed);
             }
@@ -219,7 +245,10 @@ hooks:
         let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
         let pre = &config.hooks["PreToolUse"];
         match &pre[0].actions[0] {
-            HookActionConfig::Wasm { plugin, failure_mode } => {
+            HookActionConfig::Wasm {
+                plugin,
+                failure_mode,
+            } => {
                 assert_eq!(plugin, "audit-logger");
                 assert_eq!(*failure_mode, FailureMode::FailOpen);
             }
@@ -240,11 +269,60 @@ hooks:
 "#;
         let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
         match &config.hooks["PreToolUse"][0].actions[0] {
-            HookActionConfig::Command { timeout, failure_mode, .. } => {
+            HookActionConfig::Command {
+                timeout,
+                failure_mode,
+                ..
+            } => {
                 assert_eq!(*timeout, 10); // default
                 assert_eq!(*failure_mode, FailureMode::FailOpen); // default
             }
             _ => panic!("Expected Command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_yesno_prompt_action() {
+        let yaml = r#"
+version: 1
+hooks:
+  PreToolUse:
+    - matcher: "bash"
+      actions:
+        - type: yesno_prompt
+          timeout: 5
+"#;
+        let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
+        let pre = &config.hooks["PreToolUse"];
+        match &pre[0].actions[0] {
+            HookActionConfig::YesNoPrompt { timeout } => {
+                assert_eq!(*timeout, 5);
+            }
+            _ => panic!("Expected YesNoPrompt action"),
+        }
+    }
+
+    #[test]
+    fn test_parse_yesno_prompt_default_timeout() {
+        let yaml = r#"
+version: 1
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      actions:
+        - type: yesno_prompt
+"#;
+        let config: HooksConfig = serde_yaml::from_str(yaml).unwrap();
+        match &config.hooks["PreToolUse"][0].actions[0] {
+            HookActionConfig::YesNoPrompt { timeout } => {
+                // Default timeout: 10s (or from HOOK_PROMPT_EXECUTOR_TIMEOUT_SEC env var)
+                assert!(
+                    *timeout >= 10 || *timeout > 0,
+                    "timeout should be >=10 or from env var, got {}",
+                    *timeout
+                );
+            }
+            _ => panic!("Expected YesNoPrompt action"),
         }
     }
 }

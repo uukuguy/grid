@@ -134,7 +134,123 @@ pub async fn execute_yesno_prompt(
     model: &str,
     timeout_secs: u32,
 ) -> anyhow::Result<HookDecision> {
-    todo!("execute_yesno_prompt — RED phase")
+    // 1. Render the YES/NO decision prompt template
+    let session_id = ctx.session_id.as_deref().unwrap_or("unknown");
+    let skill_name = ctx.skill_name.as_deref().unwrap_or("none");
+    let hook_name = ctx.event.as_deref().unwrap_or("hook");
+
+    let system_prompt = "You are a security guard for an AI agent. Given a hook context and a tool \
+        that the agent wants to use, decide if the tool should be allowed. \
+        Reply with exactly one word: YES or NO.";
+
+    let user_prompt = format!(
+        "Context:\n\
+         - Session ID: {session_id}\n\
+         - Skill: {skill_name}\n\
+         - Hook: {hook_name}\n\
+         - Tool name: {tool_name}\n\
+         - Tool arguments: {tool_args}\n\
+         \n\
+         Should this tool be allowed? Reply YES or NO."
+    );
+
+    debug!(
+        tool_name = %tool_name,
+        "YES/NO prompt hook: calling LLM"
+    );
+
+    // 2. Build a minimal CompletionRequest
+    let request = grid_types::CompletionRequest {
+        model: model.to_string(),
+        system: Some(system_prompt.to_string()),
+        messages: vec![grid_types::ChatMessage {
+            role: grid_types::MessageRole::User,
+            content: vec![grid_types::ContentBlock::Text {
+                text: user_prompt.clone(),
+            }],
+        }],
+        max_tokens: 100,
+        temperature: Some(0.0),
+        tools: vec![],
+        stream: false,
+        tool_choice: None,
+    };
+
+    // 3. Call provider with timeout + 1 retry (2 attempts total)
+    let max_attempts = 2u32;
+    let mut last_error: Option<anyhow::Error> = None;
+
+    for attempt in 1..=max_attempts {
+        debug!(
+            attempt = attempt,
+            max_attempts = max_attempts,
+            "YES/NO prompt: attempt {attempt}/{max_attempts}"
+        );
+
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs as u64),
+            provider.complete(request.clone()),
+        )
+        .await;
+
+        match response {
+            Ok(Ok(resp)) => {
+                // 4. Extract text from response content blocks
+                let text: String = resp
+                    .content
+                    .iter()
+                    .filter_map(|block| {
+                        if let grid_types::ContentBlock::Text { text } = block {
+                            Some(text.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                debug!(
+                    response_len = text.len(),
+                    "YES/NO prompt: received LLM response"
+                );
+                return Ok(parse_yesno_from_text(&text));
+            }
+            Ok(Err(e)) => {
+                warn!(
+                    attempt = attempt,
+                    error = %e,
+                    "YES/NO prompt: LLM call failed"
+                );
+                last_error = Some(e);
+            }
+            Err(_elapsed) => {
+                warn!(
+                    attempt = attempt,
+                    timeout_secs = timeout_secs,
+                    "YES/NO prompt: timed out"
+                );
+                last_error = Some(anyhow::anyhow!(
+                    "YES/NO prompt timed out after {}s",
+                    timeout_secs
+                ));
+            }
+        }
+    }
+
+    // Both attempts failed — safe default is DENY
+    warn!("YES/NO prompt: all {max_attempts} attempts failed, defaulting to DENY");
+    Ok(HookDecision {
+        decision: "deny".into(),
+        reason: Some(format!(
+            "Prompt executor failed after {} attempts: {}",
+            max_attempts,
+            last_error
+                .as_ref()
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "unknown error".into())
+        )),
+        updated_input: None,
+        system_message: None,
+    })
 }
 
 /// Parse a YES/NO decision from LLM text output.
@@ -144,7 +260,50 @@ pub async fn execute_yesno_prompt(
 /// - "NO"  → deny
 /// - Anything else (including empty) → deny (safe default)
 pub fn parse_yesno_from_text(text: &str) -> HookDecision {
-    todo!("parse_yesno_from_text — RED phase")
+    let trimmed = text.trim();
+
+    // Extract first non-empty word
+    let first_word = trimmed
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim();
+
+    match first_word.to_uppercase().as_str() {
+        "YES" => {
+            debug!("YES/NO parser: YES → allow");
+            HookDecision {
+                decision: "allow".into(),
+                reason: Some("LLM evaluation: YES".into()),
+                updated_input: None,
+                system_message: None,
+            }
+        }
+        "NO" => {
+            debug!("YES/NO parser: NO → deny");
+            HookDecision {
+                decision: "deny".into(),
+                reason: Some("LLM evaluation: NO".into()),
+                updated_input: None,
+                system_message: None,
+            }
+        }
+        other => {
+            warn!(
+                first_word = %other,
+                "YES/NO parser: unrecognized word, defaulting to DENY"
+            );
+            HookDecision {
+                decision: "deny".into(),
+                reason: Some(format!(
+                    "LLM response could not be parsed as YES/NO, defaulting to deny (got: \"{}\")",
+                    &trimmed[..trimmed.len().min(100)]
+                )),
+                updated_input: None,
+                system_message: None,
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -178,8 +337,8 @@ mod tests {
     #[test]
     fn test_yesno_parse_whitespace_handling() {
         // Surrounding whitespace + first word YES
-        let d = parse_yesno_from_text(" maybe YES ");
-        assert!(d.is_allow(), "expected allow for ' maybe YES ', got '{:?}'", d);
+        let d = parse_yesno_from_text("  \n\t YES \n ");
+        assert!(d.is_allow(), "expected allow for whitespace-wrapped YES, got '{:?}'", d);
     }
 
     #[test]

@@ -230,6 +230,57 @@ impl HookHandler for DeclarativeHookBridge {
                             );
                         }
                     }
+                    HookActionConfig::YesNoPrompt { timeout } => {
+                        if let (Some(ref provider), Some(ref model)) =
+                            (&self.provider, &self.model)
+                        {
+                            debug!(
+                                hook = event_name,
+                                "Executing declarative YES/NO prompt hook"
+                            );
+                            let t_name = ctx.tool_name.as_deref().unwrap_or("");
+                            let t_args = ctx
+                                .tool_input
+                                .as_ref()
+                                .map(|v| serde_json::to_string(v).unwrap_or_default())
+                                .unwrap_or_default();
+                            match super::prompt_executor::execute_yesno_prompt(
+                                t_name,
+                                &t_args,
+                                ctx,
+                                provider.as_ref(),
+                                model,
+                                *timeout,
+                            )
+                            .await
+                            {
+                                Ok(decision) => {
+                                    if decision.is_deny() {
+                                        let reason = decision
+                                            .reason
+                                            .unwrap_or_else(|| {
+                                                "Denied by YES/NO evaluation".into()
+                                            });
+                                        return Ok(HookAction::Block(reason));
+                                    }
+                                    // "allow" — continue to next action
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        hook = event_name,
+                                        error = %e,
+                                        "YES/NO prompt hook failed, treating as allow (fail-open)"
+                                    );
+                                    // YES/NO prompt hooks are fail-open by default
+                                }
+                            }
+                        } else {
+                            debug!(
+                                hook = event_name,
+                                "Skipping YES/NO prompt action (no LLM provider configured)"
+                            );
+                        }
+                    }
                     HookActionConfig::Webhook {
                         url,
                         method,
