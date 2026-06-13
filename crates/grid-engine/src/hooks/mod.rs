@@ -36,8 +36,13 @@ pub enum HookPoint {
     /// LLM is called; payload travels via `HookContext::metadata` per
     /// ADR-V2-018 §D1).
     PreCompact,
-    /// After context compaction completes (renamed from `ContextDegraded` in
-    /// ADR-V2-018 §D2 to reflect actual fire timing — emitted post-rebuild).
+    /// After context compaction completes.
+    ///
+    /// Renamed from `ContextDegraded` in ADR-V2-018 §D2 to reflect actual fire
+    /// timing (post-rebuild, not on degradation). The string alias
+    /// `"ContextDegraded"` in hook config files still resolves to this variant
+    /// but emits a `tracing::warn!` deprecation warning — migrate to
+    /// `"PostCompact"`.
     PostCompact,
     /// Loop turn starts
     LoopTurnStart,

@@ -2213,7 +2213,15 @@ fn hook_point_from_name(name: &str) -> Option<crate::hooks::HookPoint> {
         // ADR-V2-018: ContextDegraded was renamed to PostCompact. Both names
         // are accepted so existing YAML/JSON hook configs keep working; new
         // configs should prefer "PostCompact" or "PreCompact".
-        "PostCompact" | "ContextDegraded" => Some(HookPoint::PostCompact),
+        "PostCompact" => Some(HookPoint::PostCompact),
+        "ContextDegraded" => {
+            tracing::warn!(
+                "HookPoint 'ContextDegraded' is deprecated — use 'PostCompact' instead \
+                 (ADR-V2-018 §D2). Existing configs still work but the alias will be \
+                 removed in a future version."
+            );
+            Some(HookPoint::PostCompact)
+        }
         "PreCompact" => Some(HookPoint::PreCompact),
         "LoopTurnStart" => Some(HookPoint::LoopTurnStart),
         "LoopTurnEnd" => Some(HookPoint::LoopTurnEnd),
