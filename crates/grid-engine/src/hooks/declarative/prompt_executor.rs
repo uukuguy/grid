@@ -119,9 +119,235 @@ fn parse_decision_from_text(text: &str) -> anyhow::Result<HookDecision> {
     })
 }
 
+/// Execute a YES/NO prompt hook for lightweight LLM-based tool gate decisions.
+///
+/// Renders a fixed "security guard" prompt template, calls the LLM provider
+/// with a short token budget, and parses the first word of the response as
+/// YES (allow) or NO (deny). Any parse failure defaults to DENY.
+///
+/// Retry policy: 1 retry on timeout/error (2 attempts total). Both failures → DENY.
+pub async fn execute_yesno_prompt(
+    tool_name: &str,
+    tool_args: &str,
+    ctx: &HookContext,
+    provider: &dyn Provider,
+    model: &str,
+    timeout_secs: u32,
+) -> anyhow::Result<HookDecision> {
+    todo!("execute_yesno_prompt — RED phase")
+}
+
+/// Parse a YES/NO decision from LLM text output.
+///
+/// Takes the first non-empty word, compares case-insensitively:
+/// - "YES" → allow
+/// - "NO"  → deny
+/// - Anything else (including empty) → deny (safe default)
+pub fn parse_yesno_from_text(text: &str) -> HookDecision {
+    todo!("parse_yesno_from_text — RED phase")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── YES/NO parsing tests ──
+
+    #[test]
+    fn test_yesno_parse_yes_allows() {
+        let d = parse_yesno_from_text("YES");
+        assert!(d.is_allow(), "expected allow, got '{:?}'", d);
+        assert_eq!(d.reason.as_deref(), Some("LLM evaluation: YES"));
+    }
+
+    #[test]
+    fn test_yesno_parse_no_denies() {
+        let d = parse_yesno_from_text("NO");
+        assert!(d.is_deny(), "expected deny, got '{:?}'", d);
+        assert_eq!(d.reason.as_deref(), Some("LLM evaluation: NO"));
+    }
+
+    #[test]
+    fn test_yesno_parse_lowercase() {
+        let d = parse_yesno_from_text("yes");
+        assert!(d.is_allow());
+        let d = parse_yesno_from_text("no");
+        assert!(d.is_deny());
+    }
+
+    #[test]
+    fn test_yesno_parse_whitespace_handling() {
+        // Surrounding whitespace + first word YES
+        let d = parse_yesno_from_text(" maybe YES ");
+        assert!(d.is_allow(), "expected allow for ' maybe YES ', got '{:?}'", d);
+    }
+
+    #[test]
+    fn test_yesno_parse_invalid_word_denies() {
+        let d = parse_yesno_from_text("MAYBE");
+        assert!(
+            d.is_deny(),
+            "expected deny for 'MAYBE', got decision='{}'",
+            d.decision
+        );
+        let reason = d.reason.as_deref().unwrap_or("");
+        assert!(
+            reason.contains("could not be parsed"),
+            "reason should mention parse failure, got: {reason:?}"
+        );
+    }
+
+    #[test]
+    fn test_yesno_parse_empty_denies() {
+        let d = parse_yesno_from_text("");
+        assert!(
+            d.is_deny(),
+            "expected deny for empty string, got decision='{}'",
+            d.decision
+        );
+    }
+
+    #[test]
+    fn test_yesno_parse_newlines_yes() {
+        let d = parse_yesno_from_text("\n\n  YES  \n");
+        assert!(d.is_allow(), "expected allow for newline+wrapped YES, got '{:?}'", d);
+    }
+
+    // ── Integration test: execute_yesno_prompt with mock provider ──
+
+    /// Mock provider that returns a pre-configured response.
+    struct MockProvider {
+        response: String,
+        delay_ms: u64,
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for MockProvider {
+        fn id(&self) -> &str {
+            "mock"
+        }
+
+        async fn complete(
+            &self,
+            _request: grid_types::CompletionRequest,
+        ) -> anyhow::Result<grid_types::CompletionResponse> {
+            if self.delay_ms > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(self.delay_ms)).await;
+            }
+            Ok(grid_types::CompletionResponse {
+                id: "mock-1".into(),
+                content: vec![grid_types::ContentBlock::Text {
+                    text: self.response.clone(),
+                }],
+                stop_reason: Some(grid_types::StopReason::EndTurn),
+                usage: grid_types::TokenUsage::default(),
+            })
+        }
+
+        async fn stream(
+            &self,
+            _request: grid_types::CompletionRequest,
+        ) -> anyhow::Result<std::pin::Pin<Box<dyn futures_util::Stream<Item = anyhow::Result<grid_types::StreamEvent>> + Send>>> {
+            unimplemented!("stream not used in YES/NO tests")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_yesno_prompt_yes_allows() {
+        let provider = MockProvider {
+            response: "YES".into(),
+            delay_ms: 0,
+        };
+        let ctx = HookContext::new().with_session("s1").with_tool(
+            "bash",
+            serde_json::json!({"command": "ls"}),
+        );
+        let result = execute_yesno_prompt(
+            "bash",
+            r#"{"command": "ls"}"#,
+            &ctx,
+            &provider,
+            "claude-haiku",
+            10,
+        )
+        .await
+        .unwrap();
+        assert!(result.is_allow());
+    }
+
+    #[tokio::test]
+    async fn test_yesno_prompt_no_denies() {
+        let provider = MockProvider {
+            response: "NO".into(),
+            delay_ms: 0,
+        };
+        let ctx = HookContext::new().with_session("s1").with_tool(
+            "rm",
+            serde_json::json!({"path": "/etc/hosts"}),
+        );
+        let result = execute_yesno_prompt(
+            "rm",
+            r#"{"path": "/etc/hosts"}"#,
+            &ctx,
+            &provider,
+            "claude-haiku",
+            10,
+        )
+        .await
+        .unwrap();
+        assert!(result.is_deny());
+    }
+
+    #[tokio::test]
+    async fn test_yesno_prompt_unparseable_denies() {
+        let provider = MockProvider {
+            response: "MAYBE".into(),
+            delay_ms: 0,
+        };
+        let ctx = HookContext::new().with_session("s1");
+        let result = execute_yesno_prompt(
+            "curl",
+            r#"{"url": "https://example.com"}"#,
+            &ctx,
+            &provider,
+            "claude-haiku",
+            10,
+        )
+        .await
+        .unwrap();
+        assert!(result.is_deny(), "expected deny for unparseable LLM response");
+    }
+
+    #[tokio::test]
+    async fn test_yesno_prompt_timeout_retries_then_denies() {
+        let provider = MockProvider {
+            response: "YES".into(),
+            delay_ms: 2000, // 2s delay but timeout is 1s — triggers timeout
+        };
+        let ctx = HookContext::new().with_session("s1");
+        let result = execute_yesno_prompt(
+            "bash",
+            r#"{"command": "ls"}"#,
+            &ctx,
+            &provider,
+            "claude-haiku",
+            1, // 1 second timeout — will trigger for 2s delay
+        )
+        .await;
+        // After 1 retry + 2 attempts both timing out, should return deny
+        assert!(
+            result.is_ok(),
+            "timeout should produce an Ok result (not an error)"
+        );
+        let decision = result.unwrap();
+        assert!(
+            decision.is_deny(),
+            "double timeout should result in deny, got decision='{}'",
+            decision.decision
+        );
+    }
+
+    // ── Existing JSON parser tests ──
 
     #[test]
     fn test_parse_clean_json() {
