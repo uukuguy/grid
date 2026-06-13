@@ -7,6 +7,7 @@
     "tools/eaasp-l3-governance/src",
     "tools/eaasp-l2-memory-engine/src",
     "tools/eaasp-cli-v2/src",
+    "tools/eaasp-common/src",
     "tools/mock-scada/src",
     "sdk/python/src",
     "scripts"
@@ -79,6 +80,14 @@
       "extraPaths": [
         "tools/eaasp-cli-v2/.venv/lib/python3.14/site-packages",
         "tools/eaasp-cli-v2/src"
+      ]
+    },
+    {
+      "root": "tools/eaasp-common",
+      "pythonVersion": "3.12",
+      "extraPaths": [
+        "tools/eaasp-common/.venv/lib/python3.14/site-packages",
+        "tools/eaasp-common/src"
       ]
     },
     {
