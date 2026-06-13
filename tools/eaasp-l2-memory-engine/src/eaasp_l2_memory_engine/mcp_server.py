@@ -20,6 +20,7 @@ import os
 import sys
 from typing import Any
 
+import httpx
 from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
@@ -56,6 +57,57 @@ _TOOL_MANIFEST: list[Tool] = [
 ]
 
 
+class _EmbeddingClientPool:
+    """Shared httpx.AsyncClient pool for embedding provider HTTP calls (D65).
+
+    Lazily creates and caches one ``httpx.AsyncClient`` with keep-alive
+    connection pooling. Includes a health-check that recreates the client
+    if it has been closed or become unusable.
+
+    Callers acquire the client via :meth:`get_client` and MUST NOT close it
+    — the pool manages its lifecycle, including cleanup on server shutdown.
+    """
+
+    def __init__(self) -> None:
+        self._client: httpx.AsyncClient | None = None
+        self._lock = asyncio.Lock()
+
+    async def get_client(self) -> httpx.AsyncClient:
+        """Return the shared httpx.AsyncClient, creating it lazily if needed.
+
+        If the existing client has been closed, it is discarded and a new
+        one is created.
+        """
+        if self._client is not None and not self._client.is_closed:
+            return self._client
+        async with self._lock:
+            # Double-checked after acquiring lock.
+            if self._client is not None and not self._client.is_closed:
+                return self._client
+            # Close the old one if it exists but is dead.
+            if self._client is not None:
+                try:
+                    await self._client.aclose()
+                except Exception:
+                    pass
+            self._client = httpx.AsyncClient(
+                timeout=30.0,
+                trust_env=False,
+                limits=httpx.Limits(
+                    max_keepalive_connections=5,
+                    max_connections=20,
+                ),
+            )
+            return self._client
+
+    async def close(self) -> None:
+        """Close the shared client and clear the reference."""
+        async with self._lock:
+            if self._client is not None:
+                await self._client.aclose()
+                self._client = None
+
+
 def build_server(db_path: str | None = None) -> tuple[Server, str]:
     """Build an MCP Server with all 7 memory tools wired in.
 
@@ -65,6 +117,11 @@ def build_server(db_path: str | None = None) -> tuple[Server, str]:
     db = db_path or _DEFAULT_DB
     server: Server = Server(SERVER_NAME)
 
+    # Connection pool for embedding provider HTTP calls (D65).
+    # Reuses one httpx.AsyncClient across all embedding calls to avoid
+    # creating a new connection per tool invocation.
+    _embed_pool = _EmbeddingClientPool()
+
     # Lazy-init: the dispatcher is created on first tool call so that
     # ``init_db`` can run inside the async context of the server loop.
     _dispatcher: dict[str, McpToolDispatcher | None] = {"instance": None}
@@ -72,12 +129,22 @@ def build_server(db_path: str | None = None) -> tuple[Server, str]:
     async def _get_dispatcher() -> McpToolDispatcher:
         if _dispatcher["instance"] is None:
             await init_db(db)
+            # Set up the shared embedding client before the dispatcher
+            # is used, so the first tool call that triggers embedding
+            # already has the pool client available.
+            from .embedding.provider import set_embedding_client
+
+            shared_client = await _embed_pool.get_client()
+            set_embedding_client(shared_client)
             _dispatcher["instance"] = McpToolDispatcher(
                 AnchorStore(db),
                 MemoryFileStore(db),
                 HybridIndex(db),
             )
         return _dispatcher["instance"]
+
+    # Store pool reference on the server for shutdown cleanup.
+    server._embed_pool = _embed_pool  # type: ignore[attr-defined]
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -120,8 +187,14 @@ async def _serve_stdio(db_path: str | None = None) -> None:
             experimental_capabilities={},
         ),
     )
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, init_options)
+    try:
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(read_stream, write_stream, init_options)
+    finally:
+        # D65: close the embedding connection pool on shutdown.
+        pool: _EmbeddingClientPool | None = getattr(server, "_embed_pool", None)
+        if pool is not None:
+            await pool.close()
 
 
 def _serve_sse(host: str, port: int, db_path: str | None = None) -> None:

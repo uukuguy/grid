@@ -106,8 +106,10 @@ class OllamaEmbedding:
         )
 
     async def embed(self, text: str) -> list[float]:
-        # trust_env=False: bypass macOS proxy (Clash/etc) which breaks localhost.
-        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+        # D65: reuse shared httpx.AsyncClient when the connection pool has
+        # set one via set_embedding_client(). Falls back to one-shot client
+        # (backward-compatible) when no shared client is configured.
+        async def _post(client: httpx.AsyncClient) -> list[float]:
             resp = await client.post(
                 f"{self.ollama_url}/api/embeddings",
                 json={"model": self.model, "prompt": text},
@@ -115,6 +117,13 @@ class OllamaEmbedding:
             resp.raise_for_status()
             data = resp.json()
             return data["embedding"]
+
+        if _SHARED_CLIENT is not None and not _SHARED_CLIENT.is_closed:
+            return await _post(_SHARED_CLIENT)
+
+        # trust_env=False: bypass macOS proxy (Clash/etc) which breaks localhost.
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+            return await _post(client)
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         # D93 / L2-04 — asyncio.gather + per-provider semaphore.
@@ -188,6 +197,21 @@ class MockEmbedding:
 
 # Module-level singleton (reset via reset_embedding_provider() in tests).
 _PROVIDER_INSTANCE: EmbeddingProvider | None = None
+
+# Shared httpx.AsyncClient for connection pool reuse (set by mcp_server.py pool).
+# When set, OllamaEmbedding.embed() uses this client instead of creating one per call.
+_SHARED_CLIENT: httpx.AsyncClient | None = None
+
+
+def set_embedding_client(client: httpx.AsyncClient | None) -> None:
+    """Set the shared httpx.AsyncClient for embedding provider HTTP calls.
+
+    Called by the connection pool in mcp_server.py. When ``client`` is not None,
+    OllamaEmbedding.embed() reuses it across calls instead of creating a new
+    client each time.
+    """
+    global _SHARED_CLIENT
+    _SHARED_CLIENT = client
 
 
 def get_embedding_provider() -> EmbeddingProvider:
