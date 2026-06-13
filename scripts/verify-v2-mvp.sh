@@ -188,6 +188,7 @@ rm -f "$PROJECT_ROOT/data/verify-v2-l2.db" \
       "$PROJECT_ROOT/data/verify-v2-l3.db-wal" \
       "$PROJECT_ROOT/data/verify-v2-l4.db-shm" \
       "$PROJECT_ROOT/data/verify-v2-l4.db-wal"
+rm -rf "$PROJECT_ROOT/data/verify-v2-skill-registry"
 mkdir -p "$PROJECT_ROOT/data"
 echo "  State wiped."
 echo ""

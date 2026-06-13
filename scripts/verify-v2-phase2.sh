@@ -86,12 +86,15 @@ cleanup() {
     _kill_tree "L3 governance" "$L3_PID"
     _kill_tree "L2 memory-engine" "$L2_PID"
     # Sweep any orphaned listeners that escaped the parent->child reap.
-    _kill_port "claude-code-runtime" "$CLAUDE_RUNTIME_PORT"
-    _kill_port "grid-runtime" "$GRID_RUNTIME_PORT"
-    _kill_port "skill-registry" "$SKILL_REG_PORT"
-    _kill_port "L4 orchestration" "$L4_ORCH_PORT"
-    _kill_port "L3 governance" "$L3_GOV_PORT"
-    _kill_port "L2 memory-engine" "$L2_MEM_PORT"
+    # Guard each _kill_port call — only sweep ports for services this
+    # script started (PID non-empty). Prevents accidental kill of
+    # external processes when pre-flight fails before any service starts.
+    [ -n "$CLAUDE_PID" ] && _kill_port "claude-code-runtime" "$CLAUDE_RUNTIME_PORT"
+    [ -n "$GRID_PID" ] && _kill_port "grid-runtime" "$GRID_RUNTIME_PORT"
+    [ -n "$SKILL_REG_PID" ] && _kill_port "skill-registry" "$SKILL_REG_PORT"
+    [ -n "$L4_PID" ] && _kill_port "L4 orchestration" "$L4_ORCH_PORT"
+    [ -n "$L3_PID" ] && _kill_port "L3 governance" "$L3_GOV_PORT"
+    [ -n "$L2_PID" ] && _kill_port "L2 memory-engine" "$L2_MEM_PORT"
 }
 trap cleanup EXIT INT TERM
 
@@ -177,6 +180,13 @@ check_venv "tools/eaasp-l2-memory-engine" "l2-memory-setup"
 check_venv "tools/eaasp-l3-governance" "l3-setup"
 check_venv "tools/eaasp-l4-orchestration" "l4-setup"
 check_venv "tools/eaasp-cli-v2" "cli-v2-setup"
+# WARNING (non-fatal): claude-code-runtime .venv is not required for
+# automated portion but A8 assertion needs it for skill-extraction
+# fixture replay.
+if [ ! -x "$PROJECT_ROOT/lang/claude-code-runtime-python/.venv/bin/python" ]; then
+    echo "  WARNING: lang/claude-code-runtime-python/.venv missing — A8 will SKIP." >&2
+    echo "           Run 'make claude-runtime-setup' to enable A8." >&2
+fi
 echo "  All .venvs present."
 echo ""
 
@@ -220,6 +230,7 @@ echo "=== Wiping stale verify-v2-phase2 state ==="
 rm -f "$PROJECT_ROOT/data/verify-v2-phase2-"*.db \
       "$PROJECT_ROOT/data/verify-v2-phase2-"*.db-shm \
       "$PROJECT_ROOT/data/verify-v2-phase2-"*.db-wal
+rm -rf "$PROJECT_ROOT/data/verify-v2-phase2-skill-registry"
 mkdir -p "$PROJECT_ROOT/data"
 echo "  State wiped."
 echo ""
