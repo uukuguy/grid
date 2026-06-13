@@ -33,7 +33,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .db import get_shared_connection
+from .db import get_shared_connection, unpack_embedding
 from .files import MemoryFileOut, row_to_memory
 
 logger = logging.getLogger(__name__)
@@ -424,13 +424,66 @@ class HybridIndex:
 
         for mem_id, (memory, sem_score) in hnsw_candidates.items():
             if mem_id not in union:
-                # D95+ follow-up: if MemoryFileStore lost an embedding
-                # (e.g. HNSW add failed silently), we could fall back to
-                # computing cosine from the embedding_vec column on disk.
-                # For T2 we accept sem_score=0.0 when the memory is only
-                # in FTS.
+                # D95: if a memory is only in HNSW (not FTS), we accept
+                # sem_score as computed by HNSW. FTS score is 0.0.
                 fts_score = 0.0
                 union[mem_id] = (memory, fts_score, sem_score)
+
+        # ------------------------------------------------------------------
+        # D95 — Backfill semantic_score for FTS-only hits from DB embedding_vec
+        # ------------------------------------------------------------------
+        # Memory IDs that appeared in FTS but NOT in HNSW get semantic_score=0.0
+        # from the union step above. When embedding data exists in the DB, we
+        # can compute cosine similarity locally and surface a real score instead
+        # of the misleading 0.0 artifact.
+        if not keyword_only and query_embedding is not None and query_embedding:
+            fts_only_ids = [
+                mem_id
+                for mem_id in union
+                if mem_id in fts_candidates and mem_id not in hnsw_candidates
+            ]
+            if fts_only_ids:
+                # Fetch embedding_vec blobs for these FTS-only memories.
+                # Use ORDER BY version DESC so the latest version wins when
+                # multiple versions of the same memory_id exist.
+                placeholders = ",".join("?" * len(fts_only_ids))
+                vec_sql = f"""
+                    SELECT memory_id, embedding_vec, embedding_dim
+                    FROM memory_files
+                    WHERE memory_id IN ({placeholders})
+                      AND embedding_vec IS NOT NULL
+                      AND embedding_dim IS NOT NULL
+                    ORDER BY version DESC
+                """
+                db = await get_shared_connection(self.db_path)
+                cur = await db.execute(vec_sql, fts_only_ids)
+                vec_rows = await cur.fetchall()
+                # Build per-memory_id vec map; first row wins due to ORDER BY.
+                vec_by_id: dict[str, tuple[bytes, int]] = {}
+                for row in vec_rows:
+                    mid = row["memory_id"]
+                    if mid not in vec_by_id:
+                        vec_by_id[mid] = (row["embedding_vec"], row["embedding_dim"])
+
+                for mem_id in fts_only_ids:
+                    if mem_id in vec_by_id:
+                        blob, dim = vec_by_id[mem_id]
+                        try:
+                            db_vec = unpack_embedding(blob, dim)
+                            # Cosine similarity between query vector and DB vector.
+                            dot = sum(a * b for a, b in zip(query_embedding, db_vec))
+                            norm_q = math.sqrt(sum(v * v for v in query_embedding))
+                            norm_db = math.sqrt(sum(v * v for v in db_vec))
+                            if norm_q > 0 and norm_db > 0:
+                                cos = dot / (norm_q * norm_db)
+                                cos = max(0.0, min(1.0, cos))
+                                # Update the union entry with the backfilled score.
+                                memory, fts_score, _ = union[mem_id]
+                                union[mem_id] = (memory, fts_score, cos)
+                        except Exception:  # noqa: BLE001
+                            # Degrade gracefully — NULL blob, dimension mismatch,
+                            # or unpack error all keep semantic_score at 0.0.
+                            pass
 
         hits: list[SearchHit] = []
         for mem_id, (memory, fts_score, sem_score) in union.items():
