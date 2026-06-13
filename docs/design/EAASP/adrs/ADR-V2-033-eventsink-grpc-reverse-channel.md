@@ -2,7 +2,7 @@
 id: ADR-V2-033
 title: "EventSink gRPC Reverse Channel — L1→L4 Event Push Service"
 type: contract
-status: Proposed
+status: Accepted
 date: 2026-06-09
 phase: "Phase 8.1 — Contract Proto + Grid-Engine/Server Cross-Cutting"
 author: "Jiangwen Su"

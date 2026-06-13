@@ -43,13 +43,16 @@ async def test_fts_only_hit_gets_semantic_backfill(db_path: str, tmp_path) -> No
     The memory appears in FTS but not HNSW — the backfill should compute
     cosine similarity from the DB ``embedding_vec`` blob.
     """
+    # Use the same content for write and search so the query embedding
+    # and stored embedding are from the same text → cosine near 1.0.
+    content = "unique semantic backfill test phrase"
     store = MemoryFileStore(db_path)
     mem = await store.write(
         MemoryFileIn(
             memory_id="backfill-test-mem",
             scope="test",
             category="backfill",
-            content="this is a test memory for backfill verification",
+            content=content,
         )
     )
     # Verify the write worked (embedding stored in DB even if not surfaced in output).
@@ -59,9 +62,11 @@ async def test_fts_only_hit_gets_semantic_backfill(db_path: str, tmp_path) -> No
     octo_root = os.path.dirname(os.path.abspath(db_path))
     _remove_hnsw_dir(octo_root)
 
-    # Now search — FTS will find it, HNSW will be empty.
+    # Now search with the SAME text — FTS will find it, HNSW is empty.
+    # Since the query text matches the stored text, MockEmbedding produces
+    # identical vectors → cosine similarity ≈ 1.0.
     index = HybridIndex(db_path, octo_root=octo_root)
-    hits = await index.search("backfill")
+    hits = await index.search(content)
 
     assert len(hits) == 1, f"Expected 1 FTS hit, got {len(hits)}"
     hit = hits[0]

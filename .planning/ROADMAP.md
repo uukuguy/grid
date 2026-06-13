@@ -311,7 +311,11 @@ Plans:
   5. **EVAL-05 (D24)**: IDE Pyright missing-import false positives fixed in `pyrightconfig.json`. ~10 LOC config. LEDGER L132 shows ✅ CLOSED.
   6. **EVAL-06 (D56)**: `verify-v2-mvp.sh` cleanup scope expanded beyond SQLite-only — covers all artifacts. ~10 LOC. LEDGER L176 shows ✅ CLOSED.
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 08.6-01-PLAN.md — 6 mechanical fixes: shell scripts (venv check, data cleanup, trap guard), Python decorator NOTE ordering, Pyright config
+
 **UI hint**: no
 
 ---
@@ -338,7 +342,7 @@ Phases execute in numeric order. Parallelization opportunities (per GSD config):
 | 8.3 L4 P3 Hardening | 0/2 | 🟡 Planned | 2026-06-10 |
 | 8.4 L2 Table Stakes | 0/2 | 🟡 Planned | 2026-06-11 |
 | 8.5 L2 Differentiators + Hooks | 0/3 | 🟡 Planned | 2026-06-13 |
-| 8.6 Eval + Cross-Cutting Cleanup | 0/0 | 🟡 Not started | - |
+| 8.6 Eval + Cross-Cutting Cleanup | 0/1 | 🟡 Planned | 2026-06-14 |
 
 ---
 
