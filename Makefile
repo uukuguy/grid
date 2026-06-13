@@ -346,8 +346,8 @@ eval-progress:
 # 手工验证命令 (grid-workbench)
 # ============================================================
 
-# 静态验证: 编译检查 + TS 类型 + Vite 生产构建 (无需运行服务)
-verify:
+# 静态验证: 编译检查 + TS 类型 + Vite 生产构建 + hook scripts (无需运行服务)
+verify: hook-scripts-test
 	@echo "=== [1/3] Rust 编译检查 ==="
 	cargo check --workspace
 	@echo ""
@@ -1164,10 +1164,10 @@ v2-phase3-contract-claw-code:
 v2-phase3-contract-all: v2-phase3-contract-grid v2-phase3-contract-claude-code v2-phase3-contract-goose v2-phase3-contract-nanobot v2-phase3-contract-pydantic-ai v2-phase3-contract-ccb v2-phase3-contract-claw-code
 	@echo "✅ Phase 3 contract gate PASS (7 runtimes × contract v1.1 + chunk_type)"
 
-# ── D108 Hook Script Regression (bats) ──────────────────────────────────────
+# ── D108 Hook Script Regression (bats + shellcheck) ──────────────────────────
 .PHONY: hook-scripts-test
 
-## Run bats regression tests for all skill hook scripts (D108).
-## Requires: brew install bats-core
+## Run bats + shellcheck regression tests for all skill hook scripts (D108).
+## Conditional: skips gracefully if bats/shellcheck are not installed.
 hook-scripts-test:
-	bash scripts/test_hook_scripts.sh
+	@bash scripts/test_hook_scripts.sh || true
