@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSetAtom } from "jotai";
+import { addToastAtom } from "../../atoms/ui";
 
 interface Tool {
   name: string;
@@ -11,26 +13,6 @@ interface Server {
   name: string;
   tools: Tool[];
 }
-
-const mockServers: Server[] = [
-  {
-    id: "1",
-    name: "filesystem",
-    tools: [
-      { name: "read_file", description: "Read a file", input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
-      { name: "write_file", description: "Write a file", input_schema: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] } },
-      { name: "list_directory", description: "List directory", input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
-    ],
-  },
-  {
-    id: "2",
-    name: "memory",
-    tools: [
-      { name: "memory_search", description: "Search memories", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-      { name: "memory_read", description: "Read memory", input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
-    ],
-  },
-];
 
 /** Validate a JSON string, returning null if valid or an error message. */
 function validateJson(text: string): string | null {
@@ -69,46 +51,36 @@ export function ToolInvoker() {
   const [loading, setLoading] = useState(false);
   const [showRawResponse, setShowRawResponse] = useState(false);
 
+  const addToast = useSetAtom(addToastAtom);
+
   useEffect(() => {
     fetch("/api/v1/mcp/servers")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setServers(data);
-        } else {
-          setServers(mockServers);
-        }
+        setServers(Array.isArray(data) ? data : []);
       })
       .catch(() => {
-        setServers(mockServers);
+        addToast({ type: "error", message: "Failed to load MCP servers" });
       });
-  }, []);
+  }, [addToast]);
 
-  // Fetch tools when server changes
   useEffect(() => {
     if (!selectedServer) {
       setServerTools([]);
       return;
     }
-
     setToolsLoading(true);
     fetch(`/api/v1/mcp/servers/${selectedServer}/tools`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setServerTools(data);
-        } else {
-          // Fallback to mock
-          const mock = mockServers.find((s) => s.id === selectedServer);
-          setServerTools(mock?.tools || []);
-        }
+        setServerTools(Array.isArray(data) ? data : []);
       })
       .catch(() => {
-        const mock = mockServers.find((s) => s.id === selectedServer);
-        setServerTools(mock?.tools || []);
+        addToast({ type: "error", message: "Failed to load tools for server" });
+        setServerTools([]);
       })
       .finally(() => setToolsLoading(false));
-  }, [selectedServer]);
+  }, [selectedServer, addToast]);
 
   const tool = serverTools.find((t) => t.name === selectedTool);
   const jsonError = useMemo(() => validateJson(params), [params]);

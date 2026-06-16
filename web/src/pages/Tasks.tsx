@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSetAtom } from "jotai";
+import { addToastAtom } from "../atoms/ui";
 
 interface Task {
   id: string;
@@ -23,6 +25,7 @@ interface TaskExecution {
 }
 
 export default function Tasks() {
+  const addToast = useSetAtom(addToastAtom);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -42,7 +45,7 @@ export default function Tasks() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to fetch tasks";
       console.error("Failed to fetch tasks:", msg);
-      window.alert(`Error: ${msg}`);
+      addToast({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }
@@ -60,7 +63,7 @@ export default function Tasks() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to fetch task detail";
       console.error("Failed to fetch task detail:", msg);
-      window.alert(`Error: ${msg}`);
+      addToast({ type: "error", message: msg });
     } finally {
       setDetailLoading(false);
     }
@@ -83,7 +86,7 @@ export default function Tasks() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to submit task";
       console.error("Failed to submit task:", msg);
-      window.alert(`Error: ${msg}`);
+      addToast({ type: "error", message: msg });
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +106,7 @@ export default function Tasks() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to delete task";
       console.error("Failed to delete task:", msg);
-      window.alert(`Error: ${msg}`);
+      addToast({ type: "error", message: msg });
     }
   };
 

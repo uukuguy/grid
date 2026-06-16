@@ -23,32 +23,6 @@ interface TelemetryEvent {
   // serde default tagging — externally tagged enum means the JSON key is the variant name
 }
 
-const mockLogs: LogEntry[] = [
-  {
-    id: "1",
-    level: "info",
-    direction: "request",
-    method: "tools/call",
-    message: '{"name": "read_file", "arguments": {"path": "/tmp/test.txt"}}',
-    timestamp: "12:30:15",
-  },
-  {
-    id: "2",
-    level: "debug",
-    direction: "response",
-    method: "tools/call",
-    message: '{"content": [{"type": "text", "text": "Hello world"}]}',
-    timestamp: "12:30:15",
-  },
-  {
-    id: "3",
-    level: "error",
-    direction: "response",
-    message: '{"code": -32602, "message": "File not found"}',
-    timestamp: "12:30:20",
-  },
-];
-
 let nextLogId = 100;
 
 function telemetryToLogEntry(event: TelemetryEvent): LogEntry | null {
@@ -118,7 +92,7 @@ function telemetryToLogEntry(event: TelemetryEvent): LogEntry | null {
 
 export function LogViewer() {
   const [level, setLevel] = useState<LogLevel>("all");
-  const [logs, setLogs] = useState<LogEntry[]>(mockLogs);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [live, setLive] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
