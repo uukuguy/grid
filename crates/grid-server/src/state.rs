@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use grid_engine::{
     auth::AuthConfig, mcp::McpStorage, metrics::MetricsRegistry, scheduler::Scheduler,
     tools::approval::ApprovalGate, tools::interaction::InteractionGate,
-    AgentExecutorHandle, AgentRuntime,
+    AgentEvent, AgentExecutorHandle, AgentRuntime,
 };
-use grid_types::SessionId;
+use grid_types::{SessionId, TokenBudgetSnapshot};
 use tokio::sync::RwLock;
 
 use crate::config::Config;
@@ -60,6 +61,8 @@ pub struct AppState {
     pub approval_gate: Option<ApprovalGate>,
     /// Shared interaction gate for agent-to-user communication (Phase AS).
     pub interaction_gate: Arc<InteractionGate>,
+    /// Latest token budget snapshot per session, updated by background listener.
+    pub budget_cache: Arc<DashMap<SessionId, TokenBudgetSnapshot>>,
 }
 
 impl AppState {
@@ -82,6 +85,26 @@ impl AppState {
         // Shared InteractionGate for agent-to-user communication (Phase AS)
         let interaction_gate = agent_supervisor.interaction_gate().clone();
 
+        // Budget cache: background task listens for TokenBudgetUpdate events
+        // and caches the latest snapshot per session for the REST endpoint.
+        let budget_cache: Arc<DashMap<SessionId, TokenBudgetSnapshot>> =
+            Arc::new(DashMap::new());
+        let bc = budget_cache.clone();
+        let mut primary_rx = agent_handle.subscribe();
+        let primary_sid = agent_handle.session_id.clone();
+        tokio::spawn(async move {
+            loop {
+                match primary_rx.recv().await {
+                    Ok(AgentEvent::TokenBudgetUpdate { budget }) => {
+                        bc.insert(primary_sid.clone(), budget);
+                    }
+                    Ok(_) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                }
+            }
+        });
+
         Self {
             db_path,
             scheduler,
@@ -95,6 +118,7 @@ impl AppState {
             start_time: std::time::Instant::now(),
             approval_gate,
             interaction_gate,
+            budget_cache,
         }
     }
 

@@ -20,7 +20,7 @@ use grid_engine::AgentEvent;
 use grid_types::SessionId;
 use tokio_tungstenite::tungstenite::Message;
 
-use common::ws::{connect_ws_legacy, connect_ws_v1, next_json, start_ws_server};
+use common::ws::{connect_ws_v1, next_json, start_ws_server};
 use common::TestApp;
 
 /// Shared writer that captures formatted tracing lines into a Vec<String>.
@@ -72,26 +72,15 @@ fn install_capture() -> (CapturedLogs, tracing::dispatcher::DefaultGuard) {
 // ─────────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_path_alias_warns_on_legacy() {
-    let (logs, _guard) = install_capture();
-
+async fn test_legacy_path_removed() {
     let app = Arc::new(TestApp::new().await);
     let (addr, _server, _state) = start_ws_server(app).await;
 
-    // Connecting via the legacy alias must trigger a deprecation warn.
-    let mut ws = connect_ws_legacy(addr, "alias-test").await;
-    // Wait briefly for the warn to flush, then drop.
-    let _ = next_json(&mut ws).await; // consume session_created
-    drop(ws);
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
+    let url = format!("ws://{}/ws", addr);
+    let result = tokio_tungstenite::connect_async(&url).await;
     assert!(
-        logs.contains("deprecated"),
-        "legacy /ws path must emit a deprecation warn (captured logs do not contain 'deprecated')"
-    );
-    assert!(
-        logs.contains("/v1/sessions/"),
-        "deprecation warn must reference /v1/sessions/{{id}}/stream"
+        result.is_err(),
+        "legacy /ws path must be unreachable (404) after removal, got connection"
     );
 }
 

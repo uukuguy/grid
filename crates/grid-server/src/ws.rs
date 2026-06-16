@@ -60,10 +60,10 @@ pub struct WsQueryParams {
     pub token: Option<String>,
 }
 
-/// Legacy WebSocket handler — mounted at `/ws?session_id=...`.
-///
-/// Emits a deprecation warn line per Phase 5.4 D-05. Will be removed
-/// when grep -r `/ws?` in-tree returns 0 (per 5.2 D-04 pattern).
+/// Legacy WebSocket handler — removed.
+/// Mounted at `/ws?session_id=...` until Phase A.1 when the deprecated
+/// path was removed. The canonical path `/v1/sessions/:id/stream` remains.
+#[allow(dead_code)]
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,

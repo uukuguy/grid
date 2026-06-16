@@ -1,7 +1,7 @@
 //! tokio-tungstenite WebSocket client helper for Phase 5.4 WS tests.
 //!
 //! Binds a real TCP listener on 127.0.0.1:0 + serves the TestApp's router
-//! via `axum::serve`. Provides convenience connect_ws_v1 / connect_ws_legacy.
+//! via `axum::serve`. Provides convenience connect_ws_v1.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -41,13 +41,6 @@ pub async fn start_ws_server(
 pub async fn connect_ws_v1(addr: SocketAddr, session_id: &str) -> WsClient {
     let url = format!("ws://{}/v1/sessions/{}/stream", addr, session_id);
     let (ws, _resp) = connect_async(url).await.expect("ws connect_async v1");
-    ws
-}
-
-/// Connect via the legacy path `ws://addr/ws?session_id=<id>`.
-pub async fn connect_ws_legacy(addr: SocketAddr, session_id: &str) -> WsClient {
-    let url = format!("ws://{}/ws?session_id={}", addr, session_id);
-    let (ws, _resp) = connect_async(url).await.expect("ws connect_async legacy");
     ws
 }
 

@@ -9,6 +9,7 @@ use grid_engine::auth::UserContext;
 use grid_types::{SandboxId, SessionId, UserId};
 use serde::{Deserialize, Serialize};
 
+use super::error::ApiError;
 use super::user_context::get_user_id_from_context;
 use super::PaginationParams;
 use crate::state::AppState;
@@ -32,25 +33,26 @@ pub async fn get_session(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Extension(ctx): Extension<UserContext>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, ApiError> {
     let sessions = state.agent_supervisor.session_store();
     let user_id_str = get_user_id_from_context(Some(&ctx));
     let user_id = UserId::from_string(&user_id_str);
     let session_id = SessionId::from_string(&id);
 
-    // Use get_session_for_user to ensure user can only access their own sessions
     let session_data = sessions.get_session_for_user(&session_id, &user_id).await;
-    if session_data.is_none() {
-        return Json(serde_json::json!({
-            "error": "Session not found or access denied"
-        }));
+    match session_data {
+        None => Err(ApiError::NotFound(format!(
+            "Session {} not found or access denied",
+            id
+        ))),
+        Some(_data) => {
+            let messages = sessions.get_messages(&session_id).await;
+            Ok(Json(serde_json::json!({
+                "id": id,
+                "messages": messages.unwrap_or_default(),
+            })))
+        }
     }
-
-    let messages = sessions.get_messages(&session_id).await;
-    Json(serde_json::json!({
-        "id": id,
-        "messages": messages.unwrap_or_default(),
-    }))
 }
 
 // ── Phase AJ-T9: Multi-session lifecycle REST endpoints ─────────────
@@ -72,7 +74,7 @@ pub async fn start_session(
     State(state): State<Arc<AppState>>,
     Extension(ctx): Extension<UserContext>,
     Json(req): Json<StartSessionRequest>,
-) -> impl IntoResponse {
+) -> Result<axum::response::Response, ApiError> {
     let session_id_str = req
         .session_id
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -98,22 +100,14 @@ pub async fn start_session(
                 session_id: session_id_str,
                 status: "active".to_string(),
             };
-            (StatusCode::CREATED, Json(serde_json::to_value(body).unwrap())).into_response()
+            Ok((StatusCode::CREATED, Json(body)).into_response())
         }
         Err(e) => {
             let msg = e.to_string();
             if msg.contains("Maximum concurrent sessions reached") {
-                (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(serde_json::json!({"error": msg})),
-                )
-                    .into_response()
+                Err(ApiError::BadRequest(msg))
             } else {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": msg})),
-                )
-                    .into_response()
+                Err(ApiError::Internal(msg))
             }
         }
     }

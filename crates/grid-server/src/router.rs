@@ -13,7 +13,7 @@ use tower_http::trace::TraceLayer;
 use crate::api;
 use crate::middleware::{audit_middleware, AuditMiddlewareState, RateLimiter};
 use crate::state::AppState;
-use crate::ws::{ws_handler, ws_handler_with_path};
+use crate::ws::ws_handler_with_path;
 
 use uuid::Uuid;
 
@@ -259,11 +259,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // Health checks are open (no auth required)
         .route("/api/health", get(health))
         .route("/api/health/live", get(liveness))
-        // WebSocket endpoint (auth middleware applied)
-        // Phase 5.4 D-05: canonical path `/v1/sessions/:id/stream` + legacy
-        // alias `/ws?session_id=...` (the legacy handler emits a deprecation
-        // warn; remove when grep -r '/ws?' in-tree returns 0 per 5.2 D-04).
-        .route("/ws", get(ws_handler))
+        // WebSocket endpoint — canonical path only
         .route("/v1/sessions/{id}/stream", get(ws_handler_with_path))
         // API routes - all protected by auth middleware
         // Auth middleware injects UserContext into request extensions

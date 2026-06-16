@@ -31,8 +31,8 @@ async fn get_session_unknown_returns_error() {
     let app = common::TestApp::new().await;
     let (status, body) = app.get("/api/v1/sessions/nonexistent-session-id").await;
 
-    assert_eq!(status, StatusCode::OK); // handler returns 200 with error field
-    assert!(body["error"].is_string(), "should contain error field");
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"]["code"].is_string(), "should have error code");
 }
 
 // ── Memory tests ───────────────────────────────────────────────────
