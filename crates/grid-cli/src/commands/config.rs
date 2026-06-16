@@ -2,7 +2,7 @@
 
 use crate::commands::{AppState, ConfigCommands};
 use crate::output::{self, TextOutput};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -397,14 +397,57 @@ async fn get_config(key: String, state: &AppState) -> Result<()> {
 }
 
 async fn set_config(key: String, value: String, state: &AppState) -> Result<()> {
-    // For CLI, we can only set environment variables for the current process
-    // Persistent changes would require writing to .env or config.yaml
-    std::env::set_var(&key, &value);
+    let local_path = state.grid_root.project_local_config();
+    let mut doc: serde_yaml::Value = if local_path.exists() {
+        let content = std::fs::read_to_string(&local_path)
+            .context("Failed to read local config")?;
+        serde_yaml::from_str(&content).unwrap_or(serde_yaml::Value::Mapping(Default::default()))
+    } else {
+        serde_yaml::Value::Mapping(serde_yaml::Mapping::new())
+    };
+
+    // Convert dot-separated key (e.g. "server.port") to nested YAML path
+    let parts: Vec<&str> = key.split('.').collect();
+    if let serde_yaml::Value::Mapping(ref mut root) = doc {
+        let mut current = root;
+        for (i, part) in parts.iter().enumerate() {
+            if i == parts.len() - 1 {
+                current.insert(
+                    serde_yaml::Value::String(part.to_string()),
+                    serde_yaml::Value::String(value.clone()),
+                );
+            } else {
+                let entry = current
+                    .entry(serde_yaml::Value::String(part.to_string()))
+                    .or_insert_with(|| {
+                        serde_yaml::Value::Mapping(serde_yaml::Mapping::new())
+                    });
+                if let serde_yaml::Value::Mapping(ref mut map) = entry {
+                    current = map;
+                } else {
+                    let msg = format!("key path '{}' conflicts with existing value", part);
+                    let out = ConfigSetOutput {
+                        key: key.clone(),
+                        value,
+                        message: msg,
+                    };
+                    output::print_output(&out, &state.output_config);
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    if let Some(parent) = local_path.parent() {
+        std::fs::create_dir_all(parent).context("Failed to create config directory")?;
+    }
+    let content = serde_yaml::to_string(&doc).context("Failed to serialize config")?;
+    std::fs::write(&local_path, content).context("Failed to write local config")?;
 
     let out = ConfigSetOutput {
         key,
         value,
-        message: "Set for current session (not persisted)".to_string(),
+        message: format!("Set in local config (persisted to {})", local_path.display()),
     };
     output::print_output(&out, &state.output_config);
     Ok(())

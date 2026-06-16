@@ -52,7 +52,13 @@ pub async fn run_doctor(repair: bool, state: &AppState) -> Result<bool> {
         for check in &mut checks {
             if check.status == CheckStatus::Fail {
                 if let Some(fix) = &check.fix_hint {
-                    if let Some(repaired) = try_repair(&check.name, fix) {
+                    if let Some(repaired) = try_repair(
+                        &check.name,
+                        fix,
+                        &state.db_path,
+                        state.grid_root.working_dir(),
+                        Some(&state.grid_root.project_data_dir()),
+                    ) {
                         check.repair_result = Some(repaired);
                     }
                 }
@@ -407,7 +413,13 @@ fn check_shell_completion() -> CheckResult {
     }
 }
 
-fn try_repair(name: &str, _fix_hint: &str) -> Option<String> {
+fn try_repair(
+    name: &str,
+    _fix_hint: &str,
+    db_path: &std::path::Path,
+    working_dir: &std::path::Path,
+    project_data_dir: Option<&std::path::Path>,
+) -> Option<String> {
     match name {
         "Config File" => {
             let default = Path::new("config.default.yaml");
@@ -415,6 +427,54 @@ fn try_repair(name: &str, _fix_hint: &str) -> Option<String> {
             if default.exists() && !target.exists() {
                 if std::fs::copy(default, target).is_ok() {
                     return Some("Copied config.default.yaml -> config.yaml".to_string());
+                }
+            }
+            None
+        }
+        "Database" => {
+            if let Some(parent) = db_path.parent() {
+                if !parent.exists() {
+                    if std::fs::create_dir_all(parent).is_ok() {
+                        return Some(format!(
+                            "Created database directory: {}",
+                            parent.display()
+                        ));
+                    }
+                }
+            }
+            None
+        }
+        "Working Directory" => {
+            if !working_dir.exists() {
+                if std::fs::create_dir_all(working_dir).is_ok() {
+                    return Some(format!(
+                        "Created working directory: {}",
+                        working_dir.display()
+                    ));
+                }
+            }
+            None
+        }
+        "Shell Completion" => {
+            // Auto-install not supported — user should manually run completions
+            None
+        }
+        "Proto Sync" => {
+            if let Some(proto_dir) = project_data_dir.map(|d| d.join("proto")) {
+                if proto_dir.exists() {
+                    if let Ok(entries) = std::fs::read_dir(&proto_dir) {
+                        let mut cleaned = 0;
+                        for entry in entries.flatten() {
+                            if entry.path().extension().map_or(false, |e| e == "sync") {
+                                if std::fs::remove_file(entry.path()).is_ok() {
+                                    cleaned += 1;
+                                }
+                            }
+                        }
+                        if cleaned > 0 {
+                            return Some(format!("Cleaned {} proto sync marker(s)", cleaned));
+                        }
+                    }
                 }
             }
             None
@@ -491,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_try_repair_unknown() {
-        assert!(try_repair("Unknown", "hint").is_none());
+        assert!(try_repair("Unknown", "hint", std::path::Path::new("/tmp"), std::path::Path::new("/tmp"), None).is_none());
     }
 
     #[test]
