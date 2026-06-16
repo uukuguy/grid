@@ -24,67 +24,74 @@
 
 **Activation targets (priority-ordered per ADR-V2-024 Open Item #3):**
 
-| Crate/App | Current State | Activation Needed |
-|-----------|--------------|-------------------|
-| **grid-cli** | Feature-complete (command tree, streaming, TUI, session mgmt) | Audit + doc polish, verify prod-readiness |
-| **grid-server** | WS + auth + config hot-reload (v3.1) | Feature set audit, frontend pairing, full endpoint spec |
-| **web/** (single-user UI) | Scaffolding only (React + Vite + Jotai + Tailwind) | Full UI implementation |
-| **grid-platform** | Scaffolding only (Axum + JWT + quota) | Full multi-tenant server implementation |
-| **web-platform/** (multi-tenant UI) | Scaffolding only | Full UI implementation |
-| **grid-desktop** | Tauri app scaffolding | Full desktop app implementation |
-| **grid-eval** | Scaffolding only | Evaluation suite implementation |
+| Crate/App | Current State | Score | Activation Needed |
+|-----------|--------------|-------|-------------------|
+| **grid-cli** | 16 commands, full TUI, streaming, 140+ tests | 8/10 | Eval bridge stubs, MCP logs, config persist |
+| **web/** (single-user UI) | 8 tabs, WS streaming, Markdown, 20k LOC | 7/10 | Remove mocks, standardize errors, add tests, sidebar |
+| **grid-server** | ~130 endpoints, HMAC/JWT auth, WS protocol | 6/10 | Wire RBAC, fix ApiError, budget, context, hot-reload |
+| **grid-platform** | JWT auth, tenant isolation, 25 routes | 6/10 | Tests, rate limiting, proper errors |
+| **grid-eval** | 8 scorers, 12 suites, multi-model compare | 7/10 | Web UI, CI, parallel runner |
+| **grid-desktop** | Tauri 2 shell, tray, 6 IPC | 3/10 | Agent/session IPC, asset bundling |
+| **web-platform/** (multi-tenant UI) | Auth layer, basic chat, no Markdown | 3/10 | Chat history, Markdown, ErrorBoundary, dashboard fix |
 
-**Shared core rule (ADR-V2-023 P1, retained under ADR-V2-024):** changes to `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` must work for both engine 接入面 (EAASP) and Grid independent product.
+**Shared core rule (ADR-V2-023 P1):** changes to `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` must work for both engine 接入面 and Grid independent product.
 
-### Phase Plan (draft — to be refined after audit)
+### Phase Plan (refined from A.0 audit)
 
-- [ ] **Phase A.0: Audit & Scoping** — Audit grid-server feature set, grid-cli readiness, web/ scaffolding. Produce gap analysis + prioritized backlog.
-- [ ] **Phase A.1: grid-server Feature Audit & Hardening** — Full endpoint audit, config completeness, error handling. Make grid-server production-ready as single-user workbench backend.
-- [ ] **Phase A.2: web/ Single-User UI — Foundation** — React SPA shell, routing, API client, auth flow. Connect to grid-server.
-- [ ] **Phase A.3: web/ Single-User UI — Core Features** — Session management, tool execution, streaming, settings. Full workbench experience.
-- [ ] **Phase A.4: grid-cli Polish & Docs** — CLI audit, help text, man page, install script, release CI.
-- [ ] **Phase A.5: grid-platform Multi-Tenant Backend** — JWT auth, tenant isolation, quota management, admin API.
-- [ ] **Phase A.6: web-platform/ Multi-Tenant UI** — Admin dashboard, tenant management.
-- [ ] **Phase A.7: grid-desktop Tauri App** — Wrap web/ + grid-server into desktop bundle.
-- [ ] **Phase A.8: grid-eval Suite** — Eval harness, benchmarks, standard suites.
+#### Wave 1: Single-User Workbench (priority targets per ADR-V2-024)
+
+- [ ] **Phase A.1: grid-server Hardening** — Wire RBAC middleware to all routes, replace ad-hoc error tuples with `ApiError`, fix budget endpoint to read real usage, fix context snapshot/zones to read live session, make CORS/log_level hot-reload effective, remove deprecated `/ws` legacy path. *8 P1 gaps, 3-4 plans.*
+- [ ] **Phase A.2: web/ Production Polish** — Remove MCP mock fallbacks, standardize error handling (toast everywhere), add Vitest + critical-path tests, replace `window.__GRID_TOKEN` with config-based token, add sidebar + settings. *7 P2 gaps, 3-4 plans.*
+- [ ] **Phase A.3: grid-cli Final Polish** — Implement eval bridge (connect CLI eval commands to grid-eval library), MCP live log streaming, `config set` persistence, doctor `--repair` for all 10 checks. *4 P2/P3 gaps, 2 plans.*
+
+#### Wave 2: Multi-Tenant Platform
+
+- [ ] **Phase A.4: Cross-Cutting Foundation** — Merge web/ and web-platform/ design system (shared ApiClient, components, theme tokens). Standardize brand name to "Grid" (from "Octo"). *1 plan.*
+- [ ] **Phase A.5: grid-platform Hardening** — Full test coverage (auth, API handlers, tenant lifecycle), rate limiting per tenant, proper `ErrorCode` enum replacing `String`. *3 P3 gaps, 2 plans.*
+- [ ] **Phase A.6: web-platform/ Production** — Fix chat history loading, add Markdown rendering (reuse web/ components), add ErrorBoundary + toast system, fix dashboard stats copy-paste bug, wire user profile button. *6 P2/P3 gaps, 3 plans.*
+
+#### Wave 3: Desktop + Eval
+
+- [ ] **Phase A.7: grid-desktop Feature Work** — Add IPC commands for agent/session interaction, bundle frontend assets in app, fix auto-updater endpoint. *3 P3 gaps, 2 plans.*
+- [ ] **Phase A.8: grid-eval Web UI** — Build web dashboard for eval results, CI integration (GitHub Actions workflow), parallel runner. *3 features, 2 plans.*
 
 ### Dependencies
 
 ```
-A.0 Audit ──┬── A.1 grid-server ──┬── A.2 web/ foundation ── A.3 web/ features
-            │                     │
-            └── A.4 grid-cli polish
-            │
-            └── A.5 grid-platform ── A.6 web-platform/
-                                    └── A.7 grid-desktop (after A.3 + A.1)
-                                    
-A.8 grid-eval — independent, can run anytime
+A.1 grid-server ──┬── A.2 web/ polish
+                  │
+                  ├── A.4 cross-cutting foundation ──┬── A.5 grid-platform ── A.6 web-platform/
+                  │                                  │
+                  └── A.3 grid-cli polish             └── A.7 grid-desktop (after A.6)
+                  
+A.8 grid-eval — independent, can run anytime with web/ components
 ```
 
 ### Success Criteria
 
-1. grid-server: all endpoints documented, configuration complete, error handling consistent, test coverage ≥80%
-2. web/: single-user workbench with session management, streaming tool output, settings
-3. grid-cli: polished help text, installable via `cargo install`, CI release pipeline
-4. grid-platform: multi-tenant auth working, quota enforced, admin API functional
-5. grid-desktop: Tauri bundle running grid-server + web/ as desktop app
-6. grid-eval: at least 3 standard benchmark suites, scoring framework
+1. grid-server: RBAC wired, ApiError used consistently, budget/context endpoints functional, hot-reload works
+2. web/: no mock fallbacks, consistent error handling, tests passing, sidebar + settings
+3. grid-cli: eval commands functional (not stubs), all doctor checks repairable
+4. web-platform/: chat history loads, Markdown renders, dashboard shows real data
+5. grid-platform: test coverage ≥70%, rate limiting active
+6. grid-desktop: can start/stop agents from desktop IPC
+7. grid-eval: web dashboard shows results, CI workflow runs on PR
 
 ---
 
 ## Progress
 
-| Phase | Plans | Status | Notes |
-|-------|-------|--------|-------|
-| A.0 Audit & Scoping | 0/1 | 🟡 Pending | Assess all dormant crates |
-| A.1 grid-server | 0/? | ⬜ Not Scoped | Depends on A.0 |
-| A.2 web/ foundation | 0/? | ⬜ Not Scoped | Depends on A.1 |
-| A.3 web/ features | 0/? | ⬜ Not Scoped | Depends on A.2 |
-| A.4 grid-cli | 0/? | ⬜ Not Scoped | Depends on A.0 |
-| A.5 grid-platform | 0/? | ⬜ Not Scoped | Depends on A.0 |
-| A.6 web-platform/ | 0/? | ⬜ Not Scoped | Depends on A.5 |
-| A.7 grid-desktop | 0/? | ⬜ Not Scoped | Depends on A.3 + A.1 |
-| A.8 grid-eval | 0/? | ⬜ Not Scoped | Independent |
+| Phase | Plans | Status | Priority |
+|-------|-------|--------|----------|
+| A.0 Audit & Scoping | 1/1 | ✅ Complete | — |
+| A.1 grid-server Hardening | 0/3-4 | 🟡 Ready | P1 |
+| A.2 web/ Production Polish | 0/3-4 | 🟡 Ready | P1 |
+| A.3 grid-cli Final Polish | 0/2 | 🟡 Ready | P1 |
+| A.4 Cross-Cutting Foundation | 0/1 | ⬜ Blocked (after A.1/A.2/A.3) | P2 |
+| A.5 grid-platform Hardening | 0/2 | ⬜ Blocked (after A.4) | P2 |
+| A.6 web-platform/ Production | 0/3 | ⬜ Blocked (after A.5) | P2 |
+| A.7 grid-desktop Feature Work | 0/2 | ⬜ Blocked (after A.6) | P3 |
+| A.8 grid-eval Web UI | 0/2 | ⬜ Independent | P3 |
 
 ---
 

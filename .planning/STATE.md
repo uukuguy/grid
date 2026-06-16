@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: activation
 milestone_name: Grid 独立产品 Activation
-status: between-milestones
-stopped_at: v3.5 shipped, activation scoping pending
-last_updated: "2026-06-16T13:36:41.412Z"
+status: executing
+stopped_at: Phase A.0 audit complete, ready for A.1
+last_updated: "2026-06-16T14:00:00.000Z"
 last_activity: 2026-06-16
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 8
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 12
 ---
 
 # Project State
@@ -21,15 +21,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16 — Grid 独立产品 Activation section)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Grid 独立产品 Activation — 激活 dormant 的 Grid 独立产品线 (grid-server / grid-cli / grid-platform / grid-desktop / web / web-platform / grid-eval).
+**Current focus:** Grid 独立产品 Activation — Phase A.1 grid-server Hardening (wire RBAC, fix ApiError, budget, context, hot-reload).
 
 ## Current Position
 
-Phase: Scoping
-Status: Between milestones — v3.4 and v3.5 complete, activation planning pending
+Phase: A.0 Audit & Scoping ✅ COMPLETE
+Next Phase: A.1 grid-server Hardening (Ready)
+Status: Wave 1 — Single-User Workbench activation
 Last activity: 2026-06-16
 
-Progress: 0 phases, 0 plans (scoping phase)
+Progress: 1/8 phases, 1/1 plans (A.0 complete)
+
+## Audit Findings Summary
+
+| Crate | Score | Key Gaps |
+|-------|-------|----------|
+| grid-server | 6/10 | RBAC unwired, ApiError unused, budget hardcoded, context broken, hot-reload ineffective |
+| grid-cli | 8/10 | eval stubs, MCP log streaming partial, config set not persisted |
+| web/ | 7/10 | MCP mock fallbacks, inconsistent errors, zero tests, magic token global |
+| grid-eval | 7/10 | Web UI missing, no CI, single-threaded |
+| grid-platform | 6/10 | Thin tests, no rate limiting, string-based errors |
+| web-platform/ | 3/10 | Chat history broken, no Markdown, dashboard buggy |
+| grid-desktop | 3/10 | WebView shell only, 6 IPC commands
 
 ## Completed Milestones
 
@@ -78,16 +91,17 @@ None.
 ## Session Continuity
 
 Last session: 2026-06-16
-Stopped at: v3.5 shipped, STATE.md reconstruction in progress
-Resume path: **Next action: Grid 独立产品 activation scoping** — audit dormant crates, assess readiness, create ROADMAP.md for activation phases.
+Stopped at: Phase A.0 audit complete — all 7 dormant crates audited, gap analysis produced, roadmap refined
+Resume path: **Phase A.1 grid-server Hardening** — 8 P1 gaps to fix (RBAC wire, ApiError adoption, budget, context, hot-reload, legacy WS removal)
 
 Prior sessions:
 
-- 2026-06-16: **v3.5 Debt Finalization SHIPPED** — Phase 9.0/9.1/9.2 completed, LEDGER 100% CLOSED
-- 2026-06-07–16: **v3.4 Full INBOX Drain SHIPPED** — 10 phases completed, 67/67 REQ-IDs
+- 2026-06-16: **Phase A.0 Audit & Scoping complete** — 7 crate audits, gap analysis, prioritized 8-phase roadmap
+- 2026-06-16: **v3.5 Debt Finalization SHIPPED** — Phase 9.0/9.1/9.2, LEDGER 100% CLOSED
+- 2026-06-07–16: **v3.4 Full INBOX Drain SHIPPED** — 10 phases, 67/67 REQ-IDs
 - 2026-06-07: **v3.3 Engine + Platform Debt Sweep SHIPPED** — Phase 7.3 L3 RBAC
 - 2026-05-26: **v3.2 Tech-Debt Triage SHIPPED** — 93 D-rows triaged
 
 ---
 
-*State reconstructed 2026-06-16 after v3.5 shipped. Next: Grid 独立产品 activation scoping.*
+*State updated 2026-06-16. Next: `/gsd-plan-phase A.1` or direct execution of grid-server hardening.*
