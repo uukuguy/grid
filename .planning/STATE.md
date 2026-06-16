@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: activation
 milestone_name: Grid 独立产品 Activation
 status: executing
-stopped_at: Phase A.1 complete, ready for A.2
-last_updated: "2026-06-16T15:00:00.000Z"
-last_activity: 2026-06-16
-progress:
-  total_phases: 8
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 25
+  stopped_at: Phase A.3 complete, ready for A.4
+  last_updated: "2026-06-17T00:00:00.000Z"
+  last_activity: 2026-06-17
+  progress:
+    total_phases: 8
+    completed_phases: 3
+    total_plans: 3
+    completed_plans: 3
+    percent: 38
 ---
 
 # Project State
@@ -90,17 +90,19 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-16
-Stopped at: Phase A.1 complete — grid-server hardened (7/7 P1 gaps fixed)
-Resume path: **Phase A.2 web/ Production Polish** — remove MCP mock fallbacks, standardize error handling, add Vitest, extract ApiClient, add sidebar + settings
+Last session: 2026-06-17
+Stopped at: Phase A.3 complete, ready for A.4 cross-cutting foundation
+Resume path: **Phase A.4 Cross-Cutting Foundation** — merge web/ + web-platform/ design systems, extract shared ApiClient, standardize brand name to "Grid"
 
 Prior sessions:
 
-- 2026-06-16: **Phase A.1 grid-server Hardening COMPLETE** — legacy WS removed, budget live, ApiError adopted, RBAC wired, context fixed
-- 2026-06-16: **Phase A.0 Audit & Scoping COMPLETE** — 7 crate audits, gap analysis, 8-phase roadmap
+- 2026-06-17: **Phase A.3 grid-cli Final Polish COMPLETE** — config persistence, doctor repair (5 checks)
+- 2026-06-17: **Phase A.2 web/ Production Polish COMPLETE** — MCP mocks removed, errors → toast, 9 vitest tests
+- 2026-06-17: **Phase A.1 grid-server Hardening COMPLETE** — 7/7 P1 gaps fixed
+- 2026-06-16: **Phase A.0 Audit & Scoping COMPLETE** — 7 crate audits, gap analysis
 - 2026-06-16: **v3.5 Debt Finalization SHIPPED** — LEDGER 100% CLOSED
 - 2026-06-07–16: **v3.4 Full INBOX Drain SHIPPED** — 10 phases, 67/67 REQ-IDs
 
 ---
 
-*State updated 2026-06-16. Next: Phase A.2 web/ frontend production polish.*
+*State updated 2026-06-17. 3/8 activation phases complete. 6 commits in this session.*
