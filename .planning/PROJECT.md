@@ -16,25 +16,30 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.5 Debt Finalization — LEDGER Audit & Clean Sweep
+## Current Phase: Grid 独立产品 Activation (Post-Debt)
 
-**Goal:** Finalize all remaining debt — first pass LEDGER audit to normalize ~85 D-row statuses (many are done but recorded with pre-v3.3 old notation), then sweep genuinely remaining items to zero. End state: DEFERRED_LEDGER.md has 100% ✅ CLOSED uniformity, 💯 closed D-rows. This is the **last debt milestone** — after this, project shifts to feature/product mode.
+**Goal:** Activate the dormant Grid independent product leg per ADR-V2-024. Technical debt is fully cleared (DEFERRED_LEDGER.md main D-table: 100% ✅ CLOSED). All remaining items are 📦 long-term or deferred to future milestones. The engine layer (grid-engine, grid-runtime, grid-cli, grid-server) is production-ready.
 
-**Target phases:**
-- **LEDGER Audit** (Phase 9.0) — cross-check all ~85 unclosed D-rows against git history. Mark actually-done items with standardized ✅ CLOSED + commit hash. Identify genuinely remaining items.
-- **Final Sweep** (Phase 9.1+) — implement/fix genuinely remaining items. Expected ~20-30 items after audit.
-- **L2/L3 leftover P3** — remaining P3 items not yet consumed by v3.4 (D21/D36/etc depend on audit).
-- **Cleanup & Polish** — final pass on scripts, tests, documentation.
-
-**Granularity:** ~4-6 phases. Phase numbering continues from 8.6 → **Phase 9.0**.
+**Activation targets:**
+- **grid-server** (single-user workbench) — already has WS, auth, config hot-reload from v3.1. Needs: frontend pairing, full feature set audit.
+- **grid-cli** — already feature-complete (command tree, streaming, TUI, session management).
+- **grid-platform** (multi-tenant server) — crate scaffolding only. Needs: full implementation.
+- **grid-desktop** (Tauri app) — crate scaffolding only. Needs: full implementation.
+- **web/** (single-user workbench UI) — scaffolding only. Needs: React UI implementation.
+- **web-platform/** (multi-tenant platform UI) — scaffolding only. Needs: React UI implementation.
+- **grid-eval** — scaffolding only. Needs: evaluation suite implementation.
 
 **Key context:**
-- **LEDGER is the SSOT** — but v3.0-v3.3 used old notation (e.g. `✅ **S1.T4 closed 2026-04-14**`) instead of the v3.4 `✅ CLOSED 2026-06-01 @ commit` standard. Phase 9.0 normalizes everything.
-- **Skip research** — debt rows are concrete with LEDGER references; audit work is self-contained.
-- **0 P1 rows** — milestone is "clean up and normalize," not emergency fixes.
-- **After v3.5**: Grid 独立产品激活 (per ADR-V2-024 triggers). 技术债清零 = 新阶段开始。
+- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
+- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first, then platform/desktop/web.
+- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
-**Previous milestone:** v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10/10 phases, ~55 REQ-IDs, ~85 INBOX rows drained, 9 deferred).
+**Previous milestones:**
+- v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
+- v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
+- v3.3 Engine + Platform Debt Sweep ✅ SHIPPED 2026-06-07
+- v3.2 Tech-Debt Triage ✅ SHIPPED 2026-05-26
+- v3.1 Engine Hardening ✅ SHIPPED 2026-05-22
 
 ## Core Value
 
