@@ -12,7 +12,6 @@ const HMAC_MAX_BODY_BYTES: usize = 10 * 1024 * 1024; // 10 MiB
 const HMAC_REPLAY_WINDOW_SECS: i64 = 300;
 
 /// 从请求中提取用户上下文
-#[allow(dead_code)]
 pub fn get_user_context<B>(req: &Request<B>) -> Option<UserContext> {
     req.extensions().get::<UserContext>().cloned()
 }
@@ -183,7 +182,6 @@ pub async fn auth_middleware_with_role(
 }
 
 /// RBAC 中间件: 检查是否具有执行特定动作的权限
-#[allow(dead_code)]
 pub async fn require_action_middleware(
     req: Request<Body>,
     next: Next,
@@ -213,7 +211,6 @@ pub async fn require_action_middleware(
 }
 
 /// RBAC 中间件: 检查是否具有最低角色权限
-#[allow(dead_code)]
 pub async fn require_role_middleware(
     req: Request<Body>,
     next: Next,
@@ -222,6 +219,36 @@ pub async fn require_role_middleware(
     let user_ctx = get_user_context(&req).ok_or(StatusCode::UNAUTHORIZED)?;
 
     if user_ctx.has_role(required_role.0) {
+        Ok(next.run(req).await)
+    } else {
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
+/// Middleware wrapper: requires Admin role. Use with `from_fn(require_admin)`.
+/// Skips check when user is anonymous (AuthMode::None).
+pub async fn require_admin(
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let user_ctx = req.extensions().get::<UserContext>().cloned().ok_or(StatusCode::UNAUTHORIZED)?;
+    if user_ctx.user_id.is_none() && user_ctx.role.is_none() {
+        return Ok(next.run(req).await);
+    }
+    if user_ctx.has_role(Role::Admin) || user_ctx.has_role(Role::Owner) {
+        Ok(next.run(req).await)
+    } else {
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
+/// Middleware wrapper: requires Write permission. Use with `from_fn(require_write)`.
+pub async fn require_write(
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let user_ctx = req.extensions().get::<UserContext>().cloned().ok_or(StatusCode::UNAUTHORIZED)?;
+    if user_ctx.has_permission(&Permission::Write) || user_ctx.has_permission(&Permission::Admin) {
         Ok(next.run(req).await)
     } else {
         Err(StatusCode::FORBIDDEN)

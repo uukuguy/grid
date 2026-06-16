@@ -6,9 +6,10 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::{delete, get, post, put},
+    middleware,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -95,7 +96,9 @@ pub struct DefenceStatusResponse {
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/security/policy", get(get_policy).put(update_policy))
+        .route("/security/policy", get(get_policy))
+        .route("/security/policy", put(update_policy)
+            .route_layer(middleware::from_fn(crate::middleware::auth::require_admin)))
         .route("/security/tracker", get(get_tracker))
         .route("/security/check-command", post(check_command))
         .route("/security/scan", post(scan))

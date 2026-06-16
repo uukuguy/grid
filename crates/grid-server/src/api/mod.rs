@@ -32,7 +32,8 @@ pub mod user_context;
 
 use std::sync::Arc;
 
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
+use axum::middleware;
 use axum::Router;
 
 use crate::state::AppState;
@@ -87,7 +88,9 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/executions", get(executions::list_user_executions))
         .route("/executions/{id}", get(executions::get_execution))
         .route("/tools", get(tools::list_tools))
-        .route("/config", get(config::get_config).put(config::update_config))
+        .route("/config", get(config::get_config))
+        .route("/config", put(config::update_config)
+            .route_layer(middleware::from_fn(crate::middleware::auth::require_admin)))
         .route(
             "/memories",
             get(memories::search_memories)
@@ -140,7 +143,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         // AR-T5: Autonomous webhook trigger
         .route("/autonomous/trigger", post(autonomous::trigger_autonomous))
         // Phase 5.4 SERVER-05 (Task 5.4-02-06): hot-reload admin endpoint.
-        // 422 on restart-required fields (host/port/auth_mode/api_key per
-        // GA7) — explicit anti-silent-drift surfacing (T-06).
-        .route("/admin/reload", post(admin::reload_config))
+        // Admin-only (RBAC Phase A.1).
+        .route("/admin/reload", post(admin::reload_config)
+            .route_layer(middleware::from_fn(crate::middleware::auth::require_admin)))
 }
