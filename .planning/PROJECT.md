@@ -16,38 +16,25 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.4 Full INBOX Drain (Debt Sweep II)
+## Current Milestone: v3.5 Debt Finalization — LEDGER Audit & Clean Sweep
 
-**Goal:** Drain ALL remaining rows from `.planning/v3.3-INBOX.md` — fold the 3 unfinished v3.3 phases (7.0 grid-engine + 7.1 contract + 7.2 L2) + sweep the 5 untouched modules (L4 / hooks / L3 leftovers / eval / cross-cutting). ~85 rows over ~10 phases. **Full INBOX drain** — v3.3-INBOX.md is fully consumed at milestone close, zero carry-forward to v3.5.
+**Goal:** Finalize all remaining debt — first pass LEDGER audit to normalize ~85 D-row statuses (many are done but recorded with pre-v3.3 old notation), then sweep genuinely remaining items to zero. End state: DEFERRED_LEDGER.md has 100% ✅ CLOSED uniformity, 💯 closed D-rows. This is the **last debt milestone** — after this, project shifts to feature/product mode.
 
-**Target features (carry-forward from v3.3, Phase 7.0–7.2):**
-- **grid-engine harness wiring** (7.0) — 6 REQ-IDs: D102 (AgentLoopConfig YAML, P2) + D3/D57/D58/D103/D104 (harness/pipeline P3)
-- **contract observability + bridge** (7.1) — 5 REQ-IDs: D137 (multi-turn observability, P2) + D138 (deny-path mock LLM, P2) + D5/D6/D55 (telemetry/schema P3)
-- **L2 connection-pool + Pipeline** (7.2) — 8 REQ-IDs: D12/D94/D91/D93/D98 (5 P2 keystone) + D11/D13/D30 (3 P3)
+**Target phases:**
+- **LEDGER Audit** (Phase 9.0) — cross-check all ~85 unclosed D-rows against git history. Mark actually-done items with standardized ✅ CLOSED + commit hash. Identify genuinely remaining items.
+- **Final Sweep** (Phase 9.1+) — implement/fix genuinely remaining items. Expected ~20-30 items after audit.
+- **L2/L3 leftover P3** — remaining P3 items not yet consumed by v3.4 (D21/D36/etc depend on audit).
+- **Cleanup & Polish** — final pass on scripts, tests, documentation.
 
-**Target features (new v3.4, Phase 8.0+):**
-- **L4 orchestration** — D34/D38/D41 (3 P2: Intent→skill NLU, L2Client user_id, session list endpoint) + ~15 P3 (exception handler, loguru, event window, CLI hardening)
-- **hooks** — D108 (1 P2: script regression tests) + D48/D50/D107 (3 P3: matcher/filter, Prompt executor, jq fragment)
-- **L2 leftovers** — ~22 P3 (pipeline multi-worker, MCP pool, embedding/indexing, memory_id parsing)
-- **L3 leftovers** — 6 P3 (D10 MCP REST upgrade, D16 deploy created_at, D19-D21/D25)
-- **grid-engine leftovers** — 3 P3 (D105 HookPoint alias, D106 MAX_TURNS hardcode, D130 cancel token)
-- **grid-server** — D90 (1 P3: WS schema tool_name)
-- **contract leftovers** — D74/D139 (2 P3: EmitEvent gRPC, 双 Terminate 语义)
-- **eval** — 5 P3 (D56 verify cleanup, D126-D129 assertion/polish)
-- **cross-cutting** — D24/D73 (2 P3: IDE Pyright, Event Room)
-
-**Granularity:** ~10 phases (7.0/7.1/7.2 carry-forward + 8.0+ new). Phase numbering continues from Phase 7.3 (v3.3 last completed). Per-phase row budget ≤10 for cohesion.
+**Granularity:** ~4-6 phases. Phase numbering continues from 8.6 → **Phase 9.0**.
 
 **Key context:**
-- 工时 baseline 不变: Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10% (per ADR-V2-024 Open Item #2).
-- 优先发力组合不变: grid-cli + grid-server stays priority axis per ADR-V2-024 Open Item #3; 其余 (grid-platform / grid-desktop / web*) 保持 dormant.
-- 双轴框架: engine vs data/integration (per ADR-V2-024 §1) — all v3.4 phases sit on engine 接入面.
-- **Skip research** — debt rows are concrete with LEDGER references; no domain ecosystem unknowns.
-- **Full INBOX drain** — v3.3-INBOX.md ceases to be a live doc after v3.4 ROADMAP creation. All remaining 85 P2/P3 rows consumed within this milestone.
-- 4 P2 total in new scope (L4: D34/D38/D41, hooks: D108) — majority is P3 stretch.
-- 0 P1 rows — milestone is "should fix" not "must fix"; new P1 surfacing during execution allowed to interrupt/insert.
+- **LEDGER is the SSOT** — but v3.0-v3.3 used old notation (e.g. `✅ **S1.T4 closed 2026-04-14**`) instead of the v3.4 `✅ CLOSED 2026-06-01 @ commit` standard. Phase 9.0 normalizes everything.
+- **Skip research** — debt rows are concrete with LEDGER references; audit work is self-contained.
+- **0 P1 rows** — milestone is "clean up and normalize," not emergency fixes.
+- **After v3.5**: Grid 独立产品激活 (per ADR-V2-024 triggers). 技术债清零 = 新阶段开始。
 
-**Previous milestone:** v3.3 Engine + Platform Debt Sweep (Focused) ✅ SHIPPED 2026-06-07 (1 phase completed: 7.3 L3 RBAC 8/8 REQ-IDs; 7.0/7.1/7.2 carry-forward to v3.4)
+**Previous milestone:** v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10/10 phases, ~55 REQ-IDs, ~85 INBOX rows drained, 9 deferred).
 
 ## Core Value
 
@@ -80,7 +67,7 @@
 
 <!-- Milestone v3.3 started 2026-06-01. Requirements scoped per /gsd-roadmapper output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
 
-- [ ] **Phase 8 milestone (v3.4) Full INBOX Drain** (started 2026-06-07) — ~10 phases / ~85 rows / carry-forward 7.0–7.2 from v3.3 + new 8.0+ from remaining INBOX modules (L4 / hooks / L2 leftovers / L3 leftovers / grid-engine leftovers / grid-server / contract leftovers / eval / cross-cutting). Full drain — v3.3-INBOX.md zero remaining rows at milestone close. Requirements + REQ-IDs created in this milestone's REQUIREMENTS.md.
+- [ ] **Phase 9 milestone (v3.5) Debt Finalization** (started 2026-06-16) — ~4-6 phases / LEDGER normalize ~85 rows then sweep remaining. Zero P1 rows — cleanup milestone. Last debt milestone before Grid 独立产品 activation.
 
 ### Out of Scope
 
@@ -151,4 +138,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-06-07 — Milestone v3.4 (Full INBOX Drain — Debt Sweep II) STARTED 2026-06-07. ~10 phases planned (7.0/7.1/7.2 carry-forward from v3.3 + 8.0+ new from remaining INBOX modules) draining all ~85 P2/P3 rows from `.planning/v3.3-INBOX.md`. Full drain — zero carry-forward to v3.5. Milestone v3.3 (Phase 7 — Engine + Platform Debt Sweep) ✅ CLOSED 2026-06-07 (Phase 7.3 only completed, 8/8 REQ-IDs; 7.0/7.1/7.2 carry-forward). Milestone v3.2 (Phase 6 — Tech-Debt Triage & CI Red Line Clearance) ✅ CLOSED 2026-05-26. Milestone v3.1 (Phase 5 — Engine Hardening) ✅ CLOSED 2026-05-22.*
+*Last updated: 2026-06-16 — Milestone v3.5 (Debt Finalization — LEDGER Audit & Clean Sweep) STARTED 2026-06-16. ~4-6 phases planned (9.0+ new) to normalize DEFERRED_LEDGER.md statuses + sweep genuinely remaining items. End state: 100% ✅ CLOSED uniformity, last debt milestone before Grid 独立产品 activation. Milestone v3.4 (Full INBOX Drain) ✅ CLOSED 2026-06-16 (10/10 phases, ~55 REQ-IDs). Milestone v3.3 (Engine + Platform Debt Sweep) ✅ CLOSED 2026-06-07. Milestone v3.2 (Tech-Debt Triage) ✅ CLOSED 2026-05-26. Milestone v3.1 (Engine Hardening) ✅ CLOSED 2026-05-22.*
