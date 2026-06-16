@@ -12,7 +12,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tracing_subscriber::EnvFilter;
-
 use grid_engine::{
     scheduler::{Scheduler, SqliteSchedulerStorage},
     AgentCatalog, AgentRuntime, AgentRuntimeConfig, AgentStore, Database, TenantContext,
@@ -88,7 +87,6 @@ async fn main() -> Result<()> {
     let log_filter = std::env::var("GRID_LOG").unwrap_or_else(|_| cfg.logging.level.clone());
     let env_filter = EnvFilter::new(&log_filter);
 
-    // Log format: cfg.logging.format already incorporates GRID_LOG_FORMAT env var
     if cfg.logging.format == "json" {
         tracing_subscriber::fmt()
             .json()

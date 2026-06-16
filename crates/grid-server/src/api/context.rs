@@ -1,9 +1,15 @@
 use std::sync::Arc;
 
-use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
+use axum::{extract::{Query, State}, routing::get, Json, Router};
+use grid_types::SessionId;
+use serde::{Deserialize, Serialize};
 
 use crate::state::AppState;
+
+#[derive(Deserialize, Default)]
+pub struct ContextQuery {
+    pub session_id: Option<String>,
+}
 
 /// Context budget snapshot response (AO-T10).
 #[derive(Serialize)]
@@ -53,13 +59,28 @@ fn degradation_label(pct: f32) -> &'static str {
 
 /// GET /context/snapshot — current context budget snapshot
 pub async fn context_snapshot(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<ContextQuery>,
 ) -> Json<ContextSnapshotResponse> {
-    // Build a lightweight ContextManager with default 200k context window
-    let cm = grid_engine::context::ContextManager::with_default_counter(200_000);
+    let session_id = params
+        .session_id
+        .map(|s| SessionId::from_string(&s))
+        .unwrap_or_else(|| state.agent_handle.session_id.clone());
 
-    // Snapshot with empty messages — shows baseline budget allocation.
-    // Per-session snapshots would require session_id parameter (future enhancement).
+    if let Some(budget) = state.budget_cache.get(&session_id) {
+        return Json(ContextSnapshotResponse {
+            total_budget: budget.total,
+            system_tokens: budget.system_prompt,
+            message_tokens: budget.history,
+            tool_tokens: 0,
+            remaining: budget.free,
+            usage_pct: budget.usage_percent,
+            needs_pruning: budget.usage_percent > 60.0,
+            degradation_level: degradation_label(budget.usage_percent).to_string(),
+        });
+    }
+
+    let cm = grid_engine::context::ContextManager::with_default_counter(200_000);
     let snapshot = cm.budget_snapshot("", &[]);
     let needs_pruning = cm.needs_pruning(&snapshot);
 
@@ -77,30 +98,46 @@ pub async fn context_snapshot(
 
 /// GET /context/zones — zone breakdown
 pub async fn context_zones(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<ContextQuery>,
 ) -> Json<ContextZonesResponse> {
-    let cm = grid_engine::context::ContextManager::with_default_counter(200_000);
-    let snapshot = cm.budget_snapshot("", &[]);
+    let session_id = params
+        .session_id
+        .map(|s| SessionId::from_string(&s))
+        .unwrap_or_else(|| state.agent_handle.session_id.clone());
+
+    let system_tokens;
+    let message_tokens;
+
+    if let Some(budget) = state.budget_cache.get(&session_id) {
+        system_tokens = budget.system_prompt;
+        message_tokens = budget.history;
+    } else {
+        let cm = grid_engine::context::ContextManager::with_default_counter(200_000);
+        let snapshot = cm.budget_snapshot("", &[]);
+        system_tokens = snapshot.system_tokens;
+        message_tokens = snapshot.message_tokens;
+    }
 
     Json(ContextZonesResponse {
         zone_a: ZoneInfo {
             name: "System Prompt".to_string(),
-            tokens: snapshot.system_tokens,
+            tokens: system_tokens,
             description: "Static system prompt (cacheable)".to_string(),
         },
         zone_b: ZoneInfo {
             name: "Dynamic Context".to_string(),
-            tokens: 0, // Dynamic context not measurable without active request
+            tokens: 0,
             description: "Date, MCP status, session state, user context".to_string(),
         },
         zone_c: ZoneInfo {
             name: "Conversation History".to_string(),
-            tokens: snapshot.message_tokens,
+            tokens: message_tokens,
             description: "Active conversation messages".to_string(),
         },
         zone_d: ZoneInfo {
             name: "Tool Definitions".to_string(),
-            tokens: snapshot.tool_tokens,
+            tokens: 0,
             description: "Tool schemas and specifications (reserved)".to_string(),
         },
     })

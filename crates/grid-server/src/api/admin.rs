@@ -94,13 +94,10 @@ pub async fn reload_config(
             }
         }
         if let Some(v) = parsed.log_level {
-            // log_level hot-reload requires the `tracing_subscriber::reload`
-            // handle to be wired up; W0-03 spike verdict was YES (viable on
-            // macOS APFS). Until the handle is plumbed through AppState in a
-            // follow-on plan, accepting the value into the overrides map is
-            // a no-op signal — the value is recorded but not applied to the
-            // tracing layer. Operators still see fields_updated=["log_level"]
-            // so they know the value reached the server.
+            // Phase A.1: log_level hot-reload requires restart.
+            // tracing-subscriber 0.3.22 (currently locked) does not support
+            // the `reload` feature needed for live filter updates.
+            // Value is recorded — frontend may show "restart required" banner.
             if o.log_level.as_deref() != Some(v.as_str()) {
                 o.log_level = Some(v);
                 updated.push("log_level");
