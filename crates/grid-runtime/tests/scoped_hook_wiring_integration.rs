@@ -40,8 +40,29 @@ use tempfile::TempDir;
 
 /// Serialises any test that mutates `EAASP_*` env vars. `set_var` is
 /// process-global; two parallel tests racing on the same key see each
-/// other's values.
+/// other's values. The [`EnvGuard`] below provides RAII restore.
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+/// RAII guard: saves an env-var value on construction, restores it
+/// (or removes if none) on drop. Use with `set_var` in tests.
+struct EnvGuard {
+    key: &'static str,
+    original: Option<String>,
+}
+impl EnvGuard {
+    fn new(key: &'static str) -> Self {
+        let original = std::env::var(key).ok();
+        Self { key, original }
+    }
+}
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.original {
+            Some(val) => std::env::set_var(self.key, val),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
 
 /// Match the helper used in `harness_payload_integration.rs` so test
 /// setup costs are identical (in-memory SQLite AgentRuntime).

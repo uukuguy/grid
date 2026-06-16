@@ -1704,10 +1704,21 @@ impl AgentRuntime {
         // Merge with any previously registered hooks for the same
         // session (idempotent-friendly: harness may register multiple
         // hook groups across initialization phases).
-        self.session_stop_hooks
+        let mut entry = self
+            .session_stop_hooks
             .entry(session_id.clone())
-            .or_insert_with(Vec::new)
-            .extend(hooks);
+            .or_insert_with(Vec::new);
+        // D121: warn if duplicate hook names are re-registered.
+        for hook in &hooks {
+            if entry.iter().any(|h| h.name() == hook.name()) {
+                tracing::warn!(
+                    session = %session_id,
+                    hook = %hook.name(),
+                    "register_session_stop_hooks: duplicate hook re-registered"
+                );
+            }
+        }
+        entry.extend(hooks);
     }
 
     /// 创建并启动新会话（Phase AJ-T6）
