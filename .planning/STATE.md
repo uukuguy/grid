@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: activation
 milestone_name: Grid 独立产品 Activation
 status: executing
-stopped_at: Phase A.0 audit complete, ready for A.1
-last_updated: "2026-06-16T14:00:00.000Z"
+stopped_at: Phase A.1 complete, ready for A.2
+last_updated: "2026-06-16T15:00:00.000Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 8
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 12
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16 — Grid 独立产品 Activation section)
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Grid 独立产品 Activation — Phase A.1 grid-server Hardening (wire RBAC, fix ApiError, budget, context, hot-reload).
+**Current focus:** Grid 独立产品 Activation — Phase A.2 web/ Production Polish (remove mock fallbacks, add tests, sidebar, ApiClient extraction).
 
 ## Current Position
 
-Phase: A.0 Audit & Scoping ✅ COMPLETE
-Next Phase: A.1 grid-server Hardening (Ready)
+Phase: A.1 grid-server Hardening ✅ COMPLETE
+Next Phase: A.2 web/ Production Polish (Ready)
 Status: Wave 1 — Single-User Workbench activation
 Last activity: 2026-06-16
 
-Progress: 1/8 phases, 1/1 plans (A.0 complete)
+Progress: 2/8 phases (A.0 + A.1 complete)
 
 ## Audit Findings Summary
 
@@ -91,17 +91,16 @@ None.
 ## Session Continuity
 
 Last session: 2026-06-16
-Stopped at: Phase A.0 audit complete — all 7 dormant crates audited, gap analysis produced, roadmap refined
-Resume path: **Phase A.1 grid-server Hardening** — 8 P1 gaps to fix (RBAC wire, ApiError adoption, budget, context, hot-reload, legacy WS removal)
+Stopped at: Phase A.1 complete — grid-server hardened (7/7 P1 gaps fixed)
+Resume path: **Phase A.2 web/ Production Polish** — remove MCP mock fallbacks, standardize error handling, add Vitest, extract ApiClient, add sidebar + settings
 
 Prior sessions:
 
-- 2026-06-16: **Phase A.0 Audit & Scoping complete** — 7 crate audits, gap analysis, prioritized 8-phase roadmap
-- 2026-06-16: **v3.5 Debt Finalization SHIPPED** — Phase 9.0/9.1/9.2, LEDGER 100% CLOSED
+- 2026-06-16: **Phase A.1 grid-server Hardening COMPLETE** — legacy WS removed, budget live, ApiError adopted, RBAC wired, context fixed
+- 2026-06-16: **Phase A.0 Audit & Scoping COMPLETE** — 7 crate audits, gap analysis, 8-phase roadmap
+- 2026-06-16: **v3.5 Debt Finalization SHIPPED** — LEDGER 100% CLOSED
 - 2026-06-07–16: **v3.4 Full INBOX Drain SHIPPED** — 10 phases, 67/67 REQ-IDs
-- 2026-06-07: **v3.3 Engine + Platform Debt Sweep SHIPPED** — Phase 7.3 L3 RBAC
-- 2026-05-26: **v3.2 Tech-Debt Triage SHIPPED** — 93 D-rows triaged
 
 ---
 
-*State updated 2026-06-16. Next: `/gsd-plan-phase A.1` or direct execution of grid-server hardening.*
+*State updated 2026-06-16. Next: Phase A.2 web/ frontend production polish.*
