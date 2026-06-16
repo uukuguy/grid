@@ -1,5 +1,18 @@
 # Milestones
 
+## v3.5 Debt Finalization (Shipped: 2026-06-16)
+
+**Phases completed:** 3 phases, 3 plans, 3 tasks
+
+**Key accomplishments:**
+
+- Phase 9.0: LEDGER audit — 56 D-rows standardized to `✅ CLOSED` format (17 notation fix + 30 newly closed + 9 genuine actives filed for later)
+- Phase 9.1: Hooks/Pyright quick wins — D121 stop-hook dedup warning, D122 env-parity cross-runtime verify, D123 RAII `EnvGuard` replacing `set_var` + Mutex
+- Phase 9.2: Final LEDGER close-out — main D-table 100% ✅ CLOSED with full format uniformity
+- LEDGER end state: zero P1/P2/P3 active items, 17 genuinely ACTIVE items filed as 📦 long-term for Phase 4–6 concern
+
+---
+
 ## v3.4 Full INBOX Drain (Shipped: 2026-06-16)
 
 **Phases completed:** 11 phases, 21 plans, 39 tasks
