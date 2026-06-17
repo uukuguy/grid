@@ -3,6 +3,8 @@
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+[English](README.md) | [中文文档](README.zh.md)
+
 **企业级自主智能体运行时栈 —— 不是框架，不是封装，而是真正可部署的生产级执行层。**
 
 Grid 是 LLM 提供商与你的业务逻辑之间的执行层。它处理 Agent 运行时的一切：上下文管理、多层记忆、工具执行、沙箱隔离、安全策略、审计留痕、定时调度、MCP 集成——全部内聚在单一 Rust 二进制中。没有 Python GIL，没有 500 MB 的 Docker 镜像，没有“我机器上跑得通”。

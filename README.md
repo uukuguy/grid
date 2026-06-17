@@ -3,6 +3,8 @@
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+[中文文档](README.zh.md) | [English](README.md)
+
 **An enterprise autonomous agent runtime stack — not a framework, not a wrapper, but a production-grade execution layer that enterprises actually deploy.**
 
 Grid is what sits between your LLM provider and your business logic. It handles everything the agent needs at runtime: context, memory, tools, sandboxes, security policies, audit trails, scheduling, and MCP integration — all in a single Rust binary. No Python GIL. No 500MB Docker images. No "works on my laptop."
