@@ -76,7 +76,7 @@
 
 ### Out of Scope
 
-- **`grid-sandbox` 仓库改名** —— per ADR-V2-023 §P6,推迟到 Grid 独立产品 (原 Leg B, see ADR-V2-024 supersedes ADR-V2-023) 激活后再讨论
+- **仓库改名 ✅** (2026-06-17) —— `grid-sandbox` → `grid`。Grid 独立产品 Activation milestone SHIPPED 后触发（per ADR-V2-023 §P6）。
 - **`git push origin main`** —— 累积 ~14 unpushed commits(Phase 3.5 + 3.6 + 4a + cutover prep + 接管 commits),保留人类决策
 - **Phase 0–2.5 历史 retrofit**(Phase 4a project review 发现 sign_off_commit 字段缺失) —— 接受历史不完美,git history 为准,不回填
 - **132 个历史 plan 文件 + 14 archived phase 迁入 GSD ROADMAP.md** —— 冻结为只读历史存档,GSD 仅管 Phase 4 起的新工作

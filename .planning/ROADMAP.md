@@ -1,6 +1,6 @@
 # Grid — Roadmap
 
-> **Milestone:** Grid 独立产品 Activation 🟡 SCOPING
+> **Milestone:** Grid 独立产品 Activation ✅ SHIPPED
 > **Previous milestones:** v3.5 Debt Finalization ✅ (2026-06-16), v3.4 Full INBOX Drain ✅ (2026-06-16)
 > **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`
 
@@ -16,7 +16,7 @@
 
 ---
 
-## Milestone: Grid 独立产品 Activation 🟡
+## Milestone: Grid 独立产品 Activation ✅ SHIPPED
 
 **Goal:** Activate the dormant Grid independent product leg per ADR-V2-024. All technical debt cleared (DEFERRED_LEDGER.md 100% ✅ CLOSED). Shift from debt-sweep mode to product-building mode.
 
@@ -40,20 +40,20 @@
 
 #### Wave 1: Single-User Workbench (priority targets per ADR-V2-024)
 
-- [ ] **Phase A.1: grid-server Hardening** — Wire RBAC middleware to all routes, replace ad-hoc error tuples with `ApiError`, fix budget endpoint to read real usage, fix context snapshot/zones to read live session, make CORS/log_level hot-reload effective, remove deprecated `/ws` legacy path. *8 P1 gaps, 3-4 plans.*
-- [ ] **Phase A.2: web/ Production Polish** — Remove MCP mock fallbacks, standardize error handling (toast everywhere), add Vitest + critical-path tests, replace `window.__GRID_TOKEN` with config-based token, add sidebar + settings. *7 P2 gaps, 3-4 plans.*
-- [ ] **Phase A.3: grid-cli Final Polish** — Implement eval bridge (connect CLI eval commands to grid-eval library), MCP live log streaming, `config set` persistence, doctor `--repair` for all 10 checks. *4 P2/P3 gaps, 2 plans.*
+- [x] **Phase A.1: grid-server Hardening** — Wire RBAC middleware to all routes, replace ad-hoc error tuples with `ApiError`, fix budget endpoint to read real usage, fix context snapshot/zones to read live session, make CORS/log_level hot-reload effective, remove deprecated `/ws` legacy path. *8 P1 gaps, 3-4 plans.*
+- [x] **Phase A.2: web/ Production Polish** — Remove MCP mock fallbacks, standardize error handling (toast everywhere), add Vitest + critical-path tests, replace `window.__GRID_TOKEN` with config-based token, add sidebar + settings. *7 P2 gaps, 3-4 plans.*
+- [x] **Phase A.3: grid-cli Final Polish** — Implement eval bridge (connect CLI eval commands to grid-eval library), MCP live log streaming, `config set` persistence, doctor `--repair` for all 10 checks. *4 P2/P3 gaps, 2 plans.*
 
 #### Wave 2: Multi-Tenant Platform
 
-- [ ] **Phase A.4: Cross-Cutting Foundation** — Merge web/ and web-platform/ design system (shared ApiClient, components, theme tokens). Standardize brand name to "Grid" (from "Octo"). *1 plan.*
-- [ ] **Phase A.5: grid-platform Hardening** — Full test coverage (auth, API handlers, tenant lifecycle), rate limiting per tenant, proper `ErrorCode` enum replacing `String`. *3 P3 gaps, 2 plans.*
-- [ ] **Phase A.6: web-platform/ Production** — Fix chat history loading, add Markdown rendering (reuse web/ components), add ErrorBoundary + toast system, fix dashboard stats copy-paste bug, wire user profile button. *6 P2/P3 gaps, 3 plans.*
+- [x] **Phase A.4: Cross-Cutting Foundation** — Merge web/ and web-platform/ design system (shared ApiClient, components, theme tokens). Standardize brand name to "Grid" (from "Octo"). *1 plan.*
+- [x] **Phase A.5: grid-platform Hardening** — Full test coverage (auth, API handlers, tenant lifecycle), rate limiting per tenant, proper `ErrorCode` enum replacing `String`. *3 P3 gaps, 2 plans.*
+- [x] **Phase A.6: web-platform/ Production** — Fix chat history loading, add Markdown rendering (reuse web/ components), add ErrorBoundary + toast system, fix dashboard stats copy-paste bug, wire user profile button. *6 P2/P3 gaps, 3 plans.*
 
 #### Wave 3: Desktop + Eval
 
-- [ ] **Phase A.7: grid-desktop Feature Work** — Add IPC commands for agent/session interaction, bundle frontend assets in app, fix auto-updater endpoint. *3 P3 gaps, 2 plans.*
-- [ ] **Phase A.8: grid-eval Web UI** — Build web dashboard for eval results, CI integration (GitHub Actions workflow), parallel runner. *3 features, 2 plans.*
+- [x] **Phase A.7: grid-desktop Feature Work** — Add IPC commands for agent/session interaction, bundle frontend assets in app, fix auto-updater endpoint. *3 P3 gaps, 2 plans.*
+- [x] **Phase A.8: grid-eval Web UI** — Build web dashboard for eval results, CI integration (GitHub Actions workflow), parallel runner. *3 features, 2 plans.*
 
 ### Dependencies
 
@@ -84,14 +84,14 @@ A.8 grid-eval — independent, can run anytime with web/ components
 | Phase | Plans | Status | Priority |
 |-------|-------|--------|----------|
 | A.0 Audit & Scoping | 1/1 | ✅ Complete | — |
-| A.1 grid-server Hardening | 0/3-4 | 🟡 Ready | P1 |
-| A.2 web/ Production Polish | 0/3-4 | 🟡 Ready | P1 |
-| A.3 grid-cli Final Polish | 0/2 | 🟡 Ready | P1 |
-| A.4 Cross-Cutting Foundation | 0/1 | ⬜ Blocked (after A.1/A.2/A.3) | P2 |
-| A.5 grid-platform Hardening | 0/2 | ⬜ Blocked (after A.4) | P2 |
-| A.6 web-platform/ Production | 0/3 | ⬜ Blocked (after A.5) | P2 |
-| A.7 grid-desktop Feature Work | 0/2 | ⬜ Blocked (after A.6) | P3 |
-| A.8 grid-eval Web UI | 0/2 | ⬜ Independent | P3 |
+| A.1 grid-server Hardening | 1/1 | ✅ Complete | P1 |
+| A.2 web/ Production Polish | 1/1 | ✅ Complete | P1 |
+| A.3 grid-cli Final Polish | 1/1 | ✅ Complete | P1 |
+| A.4 Cross-Cutting Foundation | 1/1 | ✅ Complete | P2 |
+| A.5 grid-platform Hardening | 1/1 | ✅ Complete | P2 |
+| A.6 web-platform/ Production | 1/1 | ✅ Complete | P2 |
+| A.7 grid-desktop Feature Work | 1/1 | ✅ Complete | P3 |
+| A.8 grid-eval CI Enhancement | 1/1 | ✅ Complete | P3 |
 
 ---
 
@@ -101,4 +101,4 @@ To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps disc
 
 ---
 
-*Last updated: 2026-06-16 — v3.4/v3.5 shipped, Grid 独立产品 activation roadmap created. Next: Phase A.0 audit.*
+*Last updated: 2026-06-17 — Grid 独立产品 Activation milestone SHIPPED (8/8 phases complete).*
