@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom';
-import { useAtomValue, useSetAtom } from 'jotai';
-import { LogOut, User } from 'lucide-react';
-import { userAtom } from '../../atoms';
-import { authApi } from '../../api/auth';
+import { useNavigate } from "react-router-dom";
+import { useAtomValue, useSetAtom } from "jotai";
+import { LogOut, User } from "lucide-react";
+import { userAtom } from "../../atoms";
+import { authApi } from "../../api/auth";
 
 export function Header() {
   const user = useAtomValue(userAtom);
@@ -12,7 +12,7 @@ export function Header() {
   const handleLogout = () => {
     authApi.logout();
     setUser(null);
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -21,12 +21,17 @@ export function Header() {
         Welcome, <span className="font-medium">{user?.display_name || user?.email}</span>
       </div>
       <div className="flex items-center gap-3">
-        <button className="p-2 hover:bg-gray-100 rounded-lg">
+        <button
+          onClick={() => navigate("/sessions")}
+          className="p-2 hover:bg-gray-100 rounded-lg"
+          title="My Sessions"
+        >
           <User className="w-5 h-5" />
         </button>
         <button
           onClick={handleLogout}
           className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+          title="Logout"
         >
           <LogOut className="w-5 h-5" />
         </button>

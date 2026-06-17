@@ -1,12 +1,31 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAtom, useAtomValue } from 'jotai';
-import { messagesAtom, inputAtom, isStreamingAtom, isConnectedAtom } from '../atoms/chat';
-import { accessTokenAtom } from '../atoms/auth';
-import { wsManager } from '../ws/manager';
-import { WsMessage, ChatMessage } from '../api/types';
-import { MessageList } from '../components/chat/MessageList';
-import { ChatInput } from '../components/chat/ChatInput';
+import { useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAtom, useAtomValue } from "jotai";
+import { messagesAtom, inputAtom, isStreamingAtom, isConnectedAtom } from "../atoms/chat";
+import { accessTokenAtom } from "../atoms/auth";
+import { wsManager } from "../ws/manager";
+import { WsMessage, ChatMessage } from "../api/types";
+import { MessageList } from "../components/chat/MessageList";
+import { ChatInput } from "../components/chat/ChatInput";
+
+const STORAGE_PREFIX = "grid_chat_messages_";
+
+function loadMessages(sessionId: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + sessionId);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistMessages(sessionId: string, messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + sessionId, JSON.stringify(messages));
+  } catch { /* quota exceeded, silently skip */ }
+}
 
 export function ChatPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -18,6 +37,20 @@ export function ChatPage() {
   const accessToken = useAtomValue(accessTokenAtom);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentAssistantMessageId = useRef<string | null>(null);
+
+  // Restore persisted messages on session change
+  useEffect(() => {
+    if (sessionId) {
+      setMessages(loadMessages(sessionId));
+    }
+  }, [sessionId, setMessages]);
+
+  // Persist messages on every change
+  useEffect(() => {
+    if (sessionId && messages.length > 0) {
+      persistMessages(sessionId, messages);
+    }
+  }, [sessionId, messages]);
 
   // Handle incoming WebSocket messages
   const handleWsMessage = useCallback((wsMsg: WsMessage) => {
