@@ -5,7 +5,6 @@ use tauri::command;
 
 use crate::server::SERVER_PORT;
 
-/// Get the application status.
 #[command]
 pub fn get_status() -> String {
     if SERVER_PORT.load(Ordering::SeqCst) > 0 {
@@ -15,19 +14,16 @@ pub fn get_status() -> String {
     }
 }
 
-/// Get the embedded server port.
 #[command]
 pub fn get_port() -> u16 {
     SERVER_PORT.load(Ordering::SeqCst)
 }
 
-/// Get the application version.
 #[command]
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
-/// Comprehensive application info returned in a single IPC call.
 #[derive(serde::Serialize)]
 pub struct AppInfo {
     pub version: String,
@@ -37,7 +33,6 @@ pub struct AppInfo {
     pub debug: bool,
 }
 
-/// Get comprehensive application info in one call.
 #[command]
 pub fn get_app_info() -> AppInfo {
     let port = SERVER_PORT.load(Ordering::SeqCst);
@@ -54,11 +49,67 @@ pub fn get_app_info() -> AppInfo {
     }
 }
 
-/// Get the dashboard URL for the embedded server.
 #[command]
 pub fn get_dashboard_url() -> String {
     let port = SERVER_PORT.load(Ordering::SeqCst);
     format!("http://127.0.0.1:{}", port)
+}
+
+#[command]
+pub fn get_api_base() -> String {
+    let port = SERVER_PORT.load(Ordering::SeqCst);
+    format!("http://127.0.0.1:{}", port)
+}
+
+#[command]
+pub fn get_ws_url() -> String {
+    let port = SERVER_PORT.load(Ordering::SeqCst);
+    format!("ws://127.0.0.1:{}/ws", port)
+}
+
+#[derive(serde::Deserialize)]
+pub struct ApiRequest {
+    pub method: String,
+    pub path: String,
+    pub body: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct ApiResponse {
+    pub status: u16,
+    pub body: String,
+}
+
+#[command]
+pub async fn send_api_request(req: ApiRequest) -> Result<ApiResponse, String> {
+    let port = SERVER_PORT.load(Ordering::SeqCst);
+    let url = format!("http://127.0.0.1:{}{}", port, req.path);
+
+    let client = reqwest::Client::new();
+    let request_builder: reqwest::RequestBuilder = match req.method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        "PUT" => client.put(&url),
+        _ => return Err(format!("Unsupported method: {}", req.method)),
+    };
+
+    let request_builder = if let Some(body) = req.body {
+        request_builder.header("Content-Type", "application/json").body(body)
+    } else {
+        request_builder
+    };
+
+    let response = request_builder
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+
+    Ok(ApiResponse { status, body })
 }
 
 #[cfg(test)]

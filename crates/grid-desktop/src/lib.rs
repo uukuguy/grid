@@ -29,6 +29,9 @@ pub fn run() {
             commands::get_version,
             commands::get_app_info,
             commands::get_dashboard_url,
+            commands::get_api_base,
+            commands::get_ws_url,
+            commands::send_api_request,
             check_for_updates,
         ])
         .setup(|app| {

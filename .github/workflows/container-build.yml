@@ -24,7 +24,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/octo-sandbox
+  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/grid
 
 permissions:
   contents: read
