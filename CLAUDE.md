@@ -3,7 +3,7 @@
 > **Note**: ADR-V2-024 (2026-04-28, Accepted) supersedes ADR-V2-023 — Leg A/B 二元框架已替换为双轴模型 (engine vs data/integration). 此文件中"Leg A/B" 历史措辞已统一替换为新框架; 历史 anchor 保留 see-link 至 ADR-V2-024 (see ADR-V2-024 supersedes ADR-V2-023). 详见 ADR-V2-024 Decision 段。
 >
 > **Brand name:** Grid.
-> **Working repo name:** `grid-sandbox` — rename deferred per ADR-V2-023 §P6 until product leg activation triggers (see ADR-V2-024 supersedes ADR-V2-023). 此条款保留待 Phase 4.3+ 由 ADR-V2-024 §P6 successor clause 重新评估。
+> **Working repo name:** `grid` (renamed from `grid-sandbox` 2026-06-17 per ADR-V2-023 §P6 trigger condition met).
 > **Primary strategic reference:** [`docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md`](docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md) (Accepted 2026-04-28). Historical reference: [`ADR-V2-023`](docs/design/EAASP/adrs/ADR-V2-023-grid-two-leg-product-strategy.md) (Superseded 2026-04-28).
 >
 > **What Grid is:** A Rust-centric agent-runtime stack built around `grid-engine` and the full Grid toolchain (`grid-cli` / `grid-server` / `grid-platform` / `grid-desktop` / `grid-eval` / `grid-hook-bridge` / `grid-sandbox` / `grid-runtime` / `grid-types`). Grid 现按双轴模型 (engine vs data/integration) 切职责, 同时支持两条产品形态:
