@@ -25,9 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
 // Admin authorization check - only admins can access these endpoints
 pub(crate) fn require_admin(auth: &AuthExtractor) -> Result<(), ErrorResponse> {
     if auth.role != "admin" {
-        return Err(ErrorResponse {
-            error: "Admin access required".to_string(),
-        });
+        return Err(ErrorResponse::authorization("Admin access required"));
     }
     Ok(())
 }
@@ -115,9 +113,7 @@ pub async fn delete_tenant(
 
     // Don't allow deleting the default tenant
     if id == "default" {
-        return Err(ErrorResponse {
-            error: "Cannot delete default tenant".to_string(),
-        });
+        return Err(ErrorResponse::validation("Cannot delete default tenant"));
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -133,9 +129,7 @@ pub async fn get_quotas(
     let quota = state
         .tenant_manager
         .get_quota(&tenant_id)
-        .map_err(|e| ErrorResponse {
-            error: e.to_string(),
-        })?;
+        .map_err(|e| ErrorResponse::internal(e.to_string()))?;
 
     Ok(Json(quota))
 }

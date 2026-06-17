@@ -37,9 +37,7 @@ pub async fn get_mcp(
             let config = entry.value().clone();
             Ok(Json(McpServerConfig { id, config }))
         }
-        None => Err(ErrorResponse {
-            error: "MCP server not found".to_string(),
-        }),
+        None => Err(ErrorResponse::not_found("MCP server not found")),
     }
 }
 
@@ -63,9 +61,7 @@ pub async fn delete_mcp(
     if runtime.mcp_servers.remove(&id).is_some() {
         Ok(StatusCode::NO_CONTENT)
     } else {
-        Err(ErrorResponse {
-            error: "MCP server not found".to_string(),
-        })
+        Err(ErrorResponse::not_found("MCP server not found"))
     }
 }
 

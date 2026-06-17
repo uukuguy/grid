@@ -155,9 +155,7 @@ pub async fn ws_handler(
         Err(_) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "Failed to access user runtime".to_string(),
-                }),
+                Json(ErrorResponse::internal("Failed to access user runtime")),
             )
                 .into_response();
         }
@@ -168,9 +166,7 @@ pub async fn ws_handler(
     if session.is_none() {
         return (
             StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "Session not found or access denied".to_string(),
-            }),
+            Json(ErrorResponse::not_found("Session not found or access denied")),
         )
             .into_response();
     }
@@ -184,9 +180,7 @@ pub async fn ws_handler(
         Err(e) => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
-                Json(ErrorResponse {
-                    error: format!("Agent pool exhausted: {}", e),
-                }),
+                Json(ErrorResponse::internal(format!("Agent pool exhausted: {}", e))),
             )
                 .into_response();
         }

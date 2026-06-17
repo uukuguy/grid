@@ -2,16 +2,19 @@
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::user_runtime::{Session, SessionStatus};
-use crate::{ArcAppState, AuthExtractor, ErrorResponse};
+use crate::{ArcAppState, AuthExtractor, ErrorResponse, ErrorCode};
 
-/// Custom error type that can return different status codes
-type ApiError = (StatusCode, Json<ErrorResponse>);
+/// Custom error type for handlers that need specific status codes
+type ApiError = (axum::http::StatusCode, Json<ErrorResponse>);
+
+fn with_status(code: ErrorCode, status: axum::http::StatusCode, message: &str) -> ApiError {
+    (status, Json(ErrorResponse::new(code, message)))
+}
 
 /// Request to create a session
 #[derive(Debug, Deserialize)]
@@ -54,9 +57,7 @@ pub async fn list_sessions(
 ) -> Result<Json<Vec<SessionResponse>>, ErrorResponse> {
     let user_runtime = state
         .get_or_create_user_runtime(&auth.user_id)
-        .map_err(|_| ErrorResponse {
-            error: "Failed to access user runtime".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to access user runtime"))?;
 
     let sessions = user_runtime.list_sessions(&auth.user_id);
     Ok(Json(sessions.into_iter().map(|s| s.into()).collect()))
@@ -70,15 +71,11 @@ pub async fn create_session(
 ) -> Result<Json<SessionResponse>, ErrorResponse> {
     let user_runtime = state
         .get_or_create_user_runtime(&auth.user_id)
-        .map_err(|_| ErrorResponse {
-            error: "Failed to access user runtime".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to access user runtime"))?;
 
     let session = user_runtime
         .create_session(req.name)
-        .map_err(|_| ErrorResponse {
-            error: "Failed to create session".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to create session"))?;
 
     Ok(Json(session.into()))
 }
@@ -92,23 +89,13 @@ pub async fn get_session(
     let user_runtime = state
         .get_or_create_user_runtime(&auth.user_id)
         .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "Failed to access user runtime".to_string(),
-                }),
-            )
+            with_status(ErrorCode::Internal, axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Failed to access user runtime")
         })?;
 
     let session = user_runtime
         .get_session(&auth.user_id, &session_id)
         .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "Session not found".to_string(),
-                }),
-            )
+            with_status(ErrorCode::NotFound, axum::http::StatusCode::NOT_FOUND, "Session not found")
         })?;
 
     Ok(Json(session.into()))
@@ -119,27 +106,17 @@ pub async fn delete_session(
     State(state): State<ArcAppState>,
     auth: AuthExtractor,
     Path(session_id): Path<String>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<axum::http::StatusCode, ApiError> {
     let user_runtime = state
         .get_or_create_user_runtime(&auth.user_id)
         .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "Failed to access user runtime".to_string(),
-                }),
-            )
+            with_status(ErrorCode::Internal, axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Failed to access user runtime")
         })?;
 
     let deleted = user_runtime.delete_session(&auth.user_id, &session_id);
     if !deleted {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "Session not found".to_string(),
-            }),
-        ));
+        return Err(with_status(ErrorCode::NotFound, axum::http::StatusCode::NOT_FOUND, "Session not found"));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

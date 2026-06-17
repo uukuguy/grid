@@ -16,8 +16,10 @@ use grid_platform::{
     api::admin, api::mcp, api::sessions, api::users, db, AppState, PlatformConfig,
 };
 use grid_platform::{ErrorResponse, LoginResponse, RegisterResponse};
+use grid_platform::middleware::quota::quota_middleware;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tower_http::limit::RequestBodyLimitLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use grid_platform::ws::ws_handler;
@@ -27,8 +29,8 @@ async fn register(
     State(state): State<Arc<AppState>>,
     Json(req): Json<db::RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, ErrorResponse> {
-    let user = state.db.register(&req, None).map_err(|_| ErrorResponse {
-        error: "Failed to register user".to_string(),
+    let user = state.db.register(&req, None).map_err(|_| {
+        ErrorResponse::validation("Failed to register user")
     })?;
 
     Ok(Json(RegisterResponse { user }))
@@ -38,8 +40,8 @@ async fn login(
     State(state): State<Arc<AppState>>,
     Json(req): Json<db::LoginRequest>,
 ) -> Result<Json<LoginResponse>, ErrorResponse> {
-    let user = state.db.authenticate(&req).map_err(|_| ErrorResponse {
-        error: "Invalid credentials".to_string(),
+    let user = state.db.authenticate(&req).map_err(|_| {
+        ErrorResponse::authentication("Invalid credentials")
     })?;
 
     let access_token = state
@@ -50,9 +52,7 @@ async fn login(
             &user.role.to_string(),
             &user.tenant_id,
         )
-        .map_err(|_| ErrorResponse {
-            error: "Failed to generate access token".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to generate access token"))?;
 
     let refresh_token = state
         .jwt
@@ -62,9 +62,7 @@ async fn login(
             &user.role.to_string(),
             &user.tenant_id,
         )
-        .map_err(|_| ErrorResponse {
-            error: "Failed to generate refresh token".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to generate refresh token"))?;
 
     Ok(Json(LoginResponse {
         access_token,
@@ -85,21 +83,15 @@ async fn refresh(
     let token_data = state
         .jwt
         .verify_token(&req.refresh_token)
-        .map_err(|_| ErrorResponse {
-            error: "Invalid refresh token".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::authentication("Invalid refresh token"))?;
 
     let claims = token_data.claims;
 
     let user = state
         .db
         .get_user(&claims.tenant_id, &claims.sub)
-        .map_err(|_| ErrorResponse {
-            error: "Failed to get user".to_string(),
-        })?
-        .ok_or_else(|| ErrorResponse {
-            error: "User not found".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to get user"))?
+        .ok_or_else(|| ErrorResponse::not_found("User not found"))?;
 
     let access_token = state
         .jwt
@@ -109,9 +101,7 @@ async fn refresh(
             &user.role.to_string(),
             &user.tenant_id,
         )
-        .map_err(|_| ErrorResponse {
-            error: "Failed to generate access token".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to generate access token"))?;
 
     let refresh_token = state
         .jwt
@@ -121,9 +111,7 @@ async fn refresh(
             &user.role.to_string(),
             &user.tenant_id,
         )
-        .map_err(|_| ErrorResponse {
-            error: "Failed to generate refresh token".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to generate refresh token"))?;
 
     Ok(Json(LoginResponse {
         access_token,
@@ -140,19 +128,15 @@ async fn me(
 
     let token = extract_bearer_token(request.headers())?;
 
-    let claims = state.jwt.verify_token(&token).map_err(|_| ErrorResponse {
-        error: "Invalid token".to_string(),
+    let claims = state.jwt.verify_token(&token).map_err(|_| {
+        ErrorResponse::authentication("Invalid token")
     })?;
 
     let user = state
         .db
         .get_user(&claims.claims.tenant_id, &claims.claims.sub)
-        .map_err(|_| ErrorResponse {
-            error: "Failed to get user".to_string(),
-        })?
-        .ok_or_else(|| ErrorResponse {
-            error: "User not found".to_string(),
-        })?;
+        .map_err(|_| ErrorResponse::internal("Failed to get user"))?
+        .ok_or_else(|| ErrorResponse::not_found("User not found"))?;
 
     Ok(Json(user))
 }
@@ -218,7 +202,9 @@ async fn main() -> Result<()> {
         )
         // WebSocket
         .route("/ws/{session_id}", get(ws_handler))
+        .route_layer(axum::middleware::from_fn(quota_middleware))
         .layer(TraceLayer::new_for_http())
+        .layer(RequestBodyLimitLayer::new(5 * 1024 * 1024)) // 5 MB
         .with_state(state);
 
     let addr = format!("{}:{}", config.host, config.port);

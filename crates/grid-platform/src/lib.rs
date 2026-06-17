@@ -8,8 +8,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use axum::{
     extract::FromRequestParts,
-    http::{header::AUTHORIZATION, request::Parts, StatusCode},
-    response::{IntoResponse, Response},
+    http::{request::Parts, StatusCode},
     Json,
 };
 use dashmap::DashMap;
@@ -20,6 +19,7 @@ pub mod api;
 pub mod audit;
 pub mod auth;
 pub mod db;
+pub mod error;
 pub mod middleware;
 pub mod tenant;
 pub mod user_runtime;
@@ -168,7 +168,6 @@ where
     type Rejection = (StatusCode, Json<ErrorResponse>);
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        // Get state from extensions instead - this is how Axum State extraction works
         let state = parts
             .extensions
             .get::<ArcAppState>()
@@ -176,21 +175,17 @@ where
             .ok_or_else(|| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: "State not found".to_string(),
-                    }),
+                    Json(ErrorResponse::internal("State not found")),
                 )
             })?;
 
         let token = extract_bearer_token(&parts.headers)
-            .map_err(|e| (StatusCode::UNAUTHORIZED, Json(e)))?;
+            .map_err(|e| (e.status(), Json(e)))?;
 
         let claims = state.jwt.verify_token(&token).map_err(|_| {
             (
                 StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse {
-                    error: "Invalid token".to_string(),
-                }),
+                Json(ErrorResponse::authentication("Invalid token")),
             )
         })?;
 
@@ -203,28 +198,17 @@ where
     }
 }
 
-/// Error response type
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    pub error: String,
-}
-
-impl IntoResponse for ErrorResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::BAD_REQUEST, Json(self)).into_response()
-    }
-}
+// Re-export error types
+pub use error::{ErrorCode, ErrorResponse};
 
 /// Extract bearer token from Authorization header
 pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Result<String, ErrorResponse> {
     headers
-        .get(AUTHORIZATION)
+        .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|s| s.to_string())
-        .ok_or_else(|| ErrorResponse {
-            error: "Missing or invalid Authorization header".to_string(),
-        })
+        .ok_or_else(|| ErrorResponse::authentication("Missing or invalid Authorization header"))
 }
 
 /// Login response type
