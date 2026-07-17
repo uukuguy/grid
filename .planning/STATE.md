@@ -66,7 +66,7 @@ Last activity: 2026-07-17 (this docs-sync session)
 | grid-desktop | Icon assets (PNG), 3 new IPC commands, Grid rebrand | 9 → 9 |
 | grid-eval | CI concurrency group, test summary reporting | existing |
 
-*4/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
+*5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
 ## Completed Milestones
 
