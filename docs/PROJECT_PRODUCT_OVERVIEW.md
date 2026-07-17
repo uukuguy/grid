@@ -140,6 +140,20 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 
 ## 三、当前里程碑状态(2026-07-17)
 
+> 本节作为本仓库 2026-07-17 的**产品状态 SSOT**。所有"已完工事项"在此明确列出,与 `.planning/STATE.md` / `.planning/PROJECT.md` 一致;所有"未完事项"在 §四 显式列出。
+
+### 3.0 状态快照(当前五条结论,2026-07-17)
+
+| # | 结论 | 性质 |
+|---|------|------|
+| 1 | **Grid Activation A.0–A.8 已全部 SHIPPED**(2026-06-17 milestone 关闭) | 已完成 |
+| 2 | **EAASP 工程基础 + 契约校验完成**:`tools/eaasp-*` 是 EAASP v2.0 平台尚未完整实现前、按平台契约做的**模拟器级参考实现**(per EVOLUTION_PATH §一 P2);L0/L1/L2/L3/L4 工程骨架 + 7 runtime 全部通过 contract 验证 | 已完成 |
+| 3 | **EAASP v2.0 平台演化以下事项仍未实现**:生产级 OPA 审批链 / A2A Router + Event Room(L4)/ L5 Cowork UI / 生态扩展 Marketplace 与 SDK | 未完成(下个 milestone 路线) |
+| 4 | **L1 runtime 数量 = 7 总计,其中 6 个 comparison runtime**(`grid-runtime` 主力 + `claude-code-runtime-python` + `nanobot-runtime-python` + `goose-runtime` + `pydantic-ai-runtime-python` + `claw-code-runtime` + `ccb-runtime-ts`;`hermes-runtime-python` per ADR-V2-017 frozen) | 已完成(数量口径) |
+| 5 | **contract-v1.1.0 = Phase 3 历史 sign-off**(2026-04-18);**contract-v1.2.0 = 当前最新契约**(Phase 5.3,2026-05-20,ADR-V2-026 + V2-027) | 已完成(版本口径) |
+
+> 上表五点是被 2026-07-17 docs sync 锁定的口径,任何后续修改须走 ADR governance(`/adr:status` + `/adr:new`)。
+
 ### 3.1 SHIPPED 里程碑
 
 | Milestone | 关闭日期 | 关键产出 |
@@ -152,6 +166,29 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | v3.5 Phase 9 — Debt Finalization | 2026-06-16 | LEDGER 100% ✅ CLOSED(56 rows)|
 | **Grid 独立产品 Activation(A.0–A.8)** | **2026-06-17** | 8 phases,Repo rename grid-sandbox→grid,README publish |
 
+### 3.1.1 EAASP Phase 演化路线对应里程碑(2026-07-17 口径)
+
+> 此表把 EVOLUTION_PATH §三 8 Phase 演化路线与本仓库 v3.x milestones 对齐。这是**事实口径**,区别于 §2.2 的"实现进度"表 — 后者只到 Phase 2。
+
+| EAASP Phase | 对应里程碑段 | 状态(2026-07-17) |
+|-------------|---------------|------------------|
+| Phase 0 — Infrastructure Foundation | v3.0 / Phase 0 系列 | ✅ 完成(2026-04-12) |
+| Phase 0.5 — MVP 全层贯通 | v3.0 / Phase 0.5 | ✅ 完成(2026-04-13) |
+| Phase 0.75 — L2 MCP 编排 | v3.0 / Phase 0.75 | ✅ 完成(2026-04-13) |
+| Phase 1 — Event-driven foundation | v3.0 / Phase 1 | ✅ 完成(2026-04-14) |
+| Phase 2 — Memory and evidence | v3.0 / Phase 2 | ✅ 完成(2026-04-16) |
+| Phase 2.5 — L1 Runtime 生态首批 | v3.0 / Phase 2.5 | ✅ 完成(2026-04-17) |
+| Phase 3 — Approval and verification(OPA 审批链 / Sandbox Tiers) | v3.1 涉及 contract 收尾,OPA 后端未实现 | ⏸ **平台级 OPA 审批链 + 完整审批链 + Sandbox Tiers 未实现** |
+| Phase 3.5 — chunk_type 统一 | v3.1 / Phase 5.3 一部分 | ✅ 完成(2026-04-19→20) |
+| Phase 3.6 — Tech-debt Cleanup | v3.2 / Phase 6 | ✅ 完成(2026-04-20) |
+| Phase 4a — Project review / GSD Bootstrap + Phase 4 主决策(ADR-V2-024 双轴模型) | v3.0 / Phase 4.0/4.1 | ✅ 完成(2026-04-27→28) |
+| Phase 4 — Multi-agent collaboration(A2A Router / ReviewSet / T0 Harness) | — | ⏸ **A2A Router + Event Room 未实现** |
+| Phase 5 — Complete collaboration space(L5 UI / 4 卡 / IM bot) | — | ⏸ **L5 Cowork UI + IM bot 未实现** |
+| Phase 6 — Ecosystem expansion(Marketplace / 多租户 / SDK) | — | ⏸ **生态扩展未实现** |
+| **Grid 独立产品 Activation(A.0–A.8)** | v3.5 后紧接的 milestone | **✅ 8/8 完成,2026-06-17 SHIPPED** |
+
+> 后续 hardening / debt work 全部以 v3.x milestone 形式收口(v3.2 tech-debt triage + v3.3 engine/platform debt sweep + v3.4 full INBOX drain + v3.5 Debt Finalization)。
+
 ### 3.2 关键 KPI 当前值
 
 | 维度 | 数值 |
@@ -160,13 +197,15 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | Rust 代码 LOC 总和 | ~178K |
 | EAASP Python tools LOC | ~29K |
 | Lang comparison runtimes LOC | ~16K |
+| **L1 runtime 总数(含比较 runtime)** | **7**(1 主力 + 6 comparison runtimes) |
 | ADR Accepted 数量 | 32+(V2-001..V2-032,含 V2-024/V2-029 双轴 substance 锁定)|
 | D-items closed (cumulative v3.2–v3.5)| ~200 |
 | LEDGER main D-table | 100% ✅ CLOSED |
-| Phase 3 certifier sign-off | 42 PASS / 22 XFAIL × 7 runtime |
-| 最新 contract 版本 | contract-v1.2.0 (L1 marketplace contract) |
+| Phase 3 certifier sign-off(historical) | 42 PASS / 22 XFAIL × 7 runtime on **contract-v1.1.0** |
+| **当前 latest contract 版本** | **contract-v1.2.0**(ADR-V2-026 + V2-027) |
 | Pending commits 未 push | 0 |
-| Grid 独立产品 Activation phases | 8/8 SHIPPED |
+| **Grid 独立产品 Activation phases** | **8/8 SHIPPED**(A.0–A.8 all closed 2026-06-17) |
+| EAASP 平台未来工作(OOS,未实现) | 生产级 OPA 审批链 · A2A Router + Event Room · L5 Cowork UI · 生态扩展 Marketplace/多租户/SDK |
 
 ---
 
