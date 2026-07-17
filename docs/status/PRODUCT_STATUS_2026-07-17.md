@@ -7,7 +7,12 @@ audience: 未来 Claude Code session(冷启动优先读)、本团队 contributor
 language: 中文(per global CLAUDE.md `docs/` 目录规则)
 created: 2026-07-17
 verification_date: 2026-07-17
-verification_commit_range: docs sync PR(待批准 commit)— HEAD `05c6d7db wip: docs-sync-2026-07-17 paused at completed+verified` 之前的最新 release 锚点
+verification_commit_sha: 05c6d7db9cedd242a9beaf082a6ed0c59ae9ff8b
+verification_commit_subject: wip: docs-sync-2026-07-17 paused at completed+verified
+verification_commit_note: 此 SHA 是 Task 1 提交(`1de93a9f docs: record Grid and EAASP product status`)之前的 HEAD;docs sync PR 把本快照连同 SSOT 一起收录
+verification_documents:
+  - docs/PROJECT_PRODUCT_OVERVIEW.md (持续维护 SSOT)
+  - docs/status/PRODUCT_STATUS_2026-07-17.md (本快照,一次性 immutable)
 related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 ---
 
@@ -23,11 +28,11 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 
 ## 1. 一、执行结论(Executive conclusion)
 
-本仓库(2026-06-17 由 `grid-sandbox` 改名为 `grid`)是 **EAASP 全栈 + Grid 全栈的同仓孵化体**,1 项 milestone + 7 个未完工子项共同决定 2026-07-17 的总体状态:
+本仓库(2026-06-17 由 `grid-sandbox` 改名为 `grid`)是 **EAASP 全栈 + Grid 全栈的同仓孵化体**。2026-07-17 的总体状态由以下五条结论共同决定:
 
 1. **Grid 独立产品 Activation 已经 SHIPPED**(`A.0` 通过 `A.8` 全部完成),关闭日 **2026-06-17**。这意味着 `grid-server` / `grid-cli` / `grid-platform` / `web/` 等组件不再是 "dormant/scaffolding only" — 它们已通过 Activation 8 phases 的硬化验收(详见第 2 节)。
 2. **EAASP 工程基础已经完成(L0/L1/L2/L3/L4 骨架)**:本仓 `tools/eaasp-*/` 是 EAASP v2.0 平台尚未完整实现前、按平台契约做的**模拟器级参考实现**,EAASP 引擎层基础 + 契约校验 + Phase 0–4a 全部已交付清单见第 4 节;Phase 0–2.5 + 3 + 3.5 + 3.6 + 4a 与后续 hardening/debt work(v3.2–v3.5)整合视为整体已完成。
-3. **EAASP v2.0 平台演化仍开缺口**,以下 4 类工作**未实现**:
+3. **EAASP v2.0 平台演化仍开缺口**,以下 4 类工作**未实现**(逐项见 §5):
    - 生产级 OPA 审批链(Phase 3 OPA backend + 完整审批链)
    - A2A / Event Room(Phase 4)
    - L5 Cowork UI(Phase 5,4 卡界面 + IM bot)
@@ -35,7 +40,9 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 4. **L1 runtime 数量 = 7**(主力 1 + comparison 6);`hermes-runtime-python` per ADR-V2-017 已 frozen。
 5. **contract 版本口径**:`contract-v1.1.0` 是 Phase 3 历史 sign-off(2026-04-18,42 PASS / 22 XFAIL × 7 runtime);`contract-v1.2.0` 是当前 latest(2026-05-20,Phase 5.3,ADR-V2-026 + V2-027)。
 
-本快照的内部一致性已经过 §6 列出的 9 个必需 token 比对验证(详见 §7)。
+本快照的内部一致性已经过 §6.1 列出的 9 个必需 token 比对验证(详见 §7)。
+
+> 注:结论 #3 中的 4 类工作 = §5 表的 4 行;除此之外无其他"未完工子项"。其他仍在路上的项目(Grid web-platform/ 7.5/10、grid-desktop 6.5/10、web/ 测试覆盖)属 Grid 组件质量细节,不是 EAASP 平台演化缺口,见 `docs/PROJECT_PRODUCT_OVERVIEW.md` §4。
 
 ---
 
@@ -55,9 +62,22 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 | **A.6** | web-platform/ Production | 2026-06-17 | ErrorBoundary + Toast + Markdown + dashboard fix + loading skeletons | web-platform/ 3/10→Quality **7.5** |
 | **A.7** | grid-desktop Feature Work | 2026-06-17 | icon assets,3 new IPC commands,Grid rebrand,updater fix | grid-desktop 3/10→Quality **6.5** |
 | **A.8** | grid-eval CI Enhancement | 2026-06-17 | CI concurrency group,test summary reporting | grid-eval 7/10→Quality **9.0** ✅ |
-| **合计** | **A.0–A.8 8 phases** | **2026-06-17** | Repo rename `grid-sandbox` → `grid`,README publish | **4/7 组件 9.0+** |
+| **合计** | **A.0–A.8 8 phases** | **2026-06-17** | Repo rename `grid-sandbox` → `grid`,README publish | 5 组件 9.0+ / 1 组件 7.5 / 1 组件 6.5(见下)|
 
-**质量基线(2026-06-17 Activation 后)**:9.0 以上 4 个(grid-cli / grid-server / grid-eval / grid-platform);7.5(web-platform);6.5(grid-desktop);9.0(web/,评分与测试覆盖不均衡 — 见 §5)。
+**质量基线(2026-06-17 Activation 后,7 个受评组件逐项列举)**:
+
+| 组件 | Quality 分 | 测试覆盖 |
+|------|-----------|---------|
+| grid-cli | 9.0 ✅ | 140+ tests,16 commands,full TUI |
+| web/ | 9.0 ✅ | 9 vitest tests,8 tabs,no mocks(评分与覆盖不均衡 — 见 §5) |
+| grid-server | 9.0 ✅ | 25 integration test files,HMAC/JWT,~130 endpoints |
+| grid-eval | 9.0 ✅ | 10 scorers,12 suites,CI workflow,parallel runner |
+| grid-platform | 9.0 ✅ | 37 tests,ErrorCode enum,quota wired,5MB limits |
+| web-platform/ | 7.5 | 0 vitest 文件(UI 组件) |
+| grid-desktop | 6.5 | 9(仅 IPC 命令,无 agent/session 端到端) |
+
+→ **7 个组件逐项计数:5 个 9.0+ / 1 个 7.5 / 1 个 6.5**。
+→ 注:`.planning/STATE.md` §Audit Findings Summary 末段写作 "4/7 components at 9.0+";逐项对照上表应为 **5/7**。该 prose 数字与同表列出的 web/ Quality 9.0 自相矛盾;**本快照以逐项表为准**,STATE.md 数字属于历史打字遗留,待 Task 3 修 `.planning/STATE.md` 时一并 reconcile。
 
 ---
 
@@ -69,19 +89,33 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 
 | Phase | 名称 | 关闭日 | 完成度(2026-07-17) | 备注 |
 |-------|------|-------|------------------|------|
-| **0** | Infrastructure Foundation | 2026-04-12 | ✅ 完成 | 5 层服务骨架 + 16 方法契约 |
+| **0** | Infrastructure Foundation | 2026-04-12 | ✅ 完成 | 5 层服务骨架 + **L1 contract 16 方法契约**(12 MUST + 4 Optional,per v2.0 spec §8.5;详见 §4 L0 Protocol 行) |
 | **0.5** | MVP — 全层贯通 | 2026-04-13 | ✅ 完成 | L4→L1 真 gRPC + LLM agent 执行 |
 | **0.75** | L2 MCP 编排 | 2026-04-13 | ✅ 完成 | 三 runtime 统一 MCP transport |
 | **1** | Event-driven foundation | 2026-04-14 | ✅ 完成 | L4 Event Engine + Session Event Stream |
 | **2** | Memory and evidence | 2026-04-16 | ✅ 完成 | L2 memory + skill extraction + PreCompact |
 | **2.5** | L1 Runtime 生态首批 | 2026-04-17 | ✅ 完成 | 7 个 L1 runtime + 契约测试集 |
-| **3** | Approval and verification | — | ✅ contract 收尾(v3.1) | **⏸ OPA backend + 完整审批链 + Sandbox Tiers 未实现** |
+| **3** | Approval and verification | 2026-04-18(contract 部分)| ✅ **contract-v1.1.0 校验收尾**(42 PASS / 22 XFAIL × 7 runtime,详见 §3.1.1);**⏸ 生产级 OPA/Rego 后端 + 5-stage 审批链 + Verifier + Sandbox Tiers 全部未实现**(见 §5 第 1 行) | Phase 3 拆分:contract validation 已收口(由 `crates/eaasp-certifier/` 实装);platform-level approval chain / OPA backend / Sandbox Tiers 仍 ⏸ |
 | **3.5** | chunk_type 统一 | 2026-04-19→20 | ✅ 完成 | ADR-V2-021 Accepted,8 wire 值跨 7 runtime 1:1 |
 | **3.6** | Tech-debt Cleanup | 2026-04-20 | ✅ 完成 | D140/D145–D147/D150 已 closed |
 | **4a** | Project review / GSD Bootstrap + Phase 4 主决策 | 2026-04-27→28 | ✅ 完成 | ADR-V2-024 双轴模型 Accepted + GSD 治理 |
 | **4** | Multi-agent collaboration | — | ⏸ 未实现 | **A2A Router + Event Room 未实现** |
 | **5** | Complete collaboration space | — | ⏸ 未实现 | **L5 Cowork UI + IM bot 未实现** |
 | **6** | Ecosystem expansion | — | ⏸ 未实现 | **Marketplace + 多租户 + SDK 未实现** |
+
+### 3.1.1 Phase 3 拆分说明:contract validation ✅ vs platform OPA ⏸
+
+Phase 3 在本快照里被刻意拆为两部分以避免歧义:
+
+| Phase 3 子项 | 状态(2026-07-17) | 关键证据 |
+|---|---|---|
+| **L1 contract 校验**(contract-v1.1.0 sign-off)| ✅ 完成(2026-04-18) | 7 runtime × 42 PASS / 22 XFAIL;`crates/eaasp-certifier/` 实装 |
+| **L1 contract 升级**(contract-v1.2.0)| ✅ 完成(2026-05-20,Phase 5.3)| ADR-V2-026 + ADR-V2-027 |
+| **生产级 OPA/Rego 后端** | ⏸ 未实现 | `tools/eaasp-l3-governance/` 仅含 Policy DSL + risk classification + shadow/enforce mode,无 OPA/Rego 后端 |
+| **5-stage 完整审批链** | ⏸ 未实现 | EVOLUTION_PATH §2.2 四元范式 I 列出的 5-stage approval chain 尚未实装 |
+| **Verifier / Sandbox Tiers** | ⏸ 未实现 | EVOLUTION_PATH §三 Phase 3 行的 verifier / sandbox tiers 未交付 |
+
+→ 因此本快照 §3.1 Phase 3 行的"✅ contract 收尾"**仅指 L1 contract 校验 + 升级两部分**;**不**包含 OPA/审批链/Verifier/Sandbox Tiers。这部分未完工内容由 §5 第 1 行显式承接。
 
 ### 3.2 后续 hardening / debt 里程碑(v3.2–v3.5)
 
@@ -102,7 +136,7 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 
 | 层 | 已交付 capability(2026-07-17) | 关键证据 |
 |----|------------------------|---------|
-| **L0 Protocol** | `proto/eaasp/runtime/v2/` = runtime.proto(17 RPC)+ hook.proto(4 RPC)= **21 方法**;common.proto | `proto/eaasp/runtime/v2/` |
+| **L0 Protocol** | `proto/eaasp/runtime/v2/` = runtime.proto(**17 RPC** = 12 MUST + 4 Optional + 1 EmitEvent OPTIONAL per ADR-V2-001)+ hook.proto(**4 RPC**)= **21 RPC total**;common.proto。<br>**与 "L1 16 方法 contract" 的关系**:L1 contract = `12 MUST + 4 Optional = 16`(per v2.0 spec §8.5 + EVOLUTION_PATH §2.4);运行时 `runtime.proto` 实装 17 RPC = 16 spec + 1 EmitEvent(OPTIONAL per ADR-V2-001);hook.proto 的 4 RPC 独立于 L1 contract,用于 L4↔L1 钩子事件。Certifier **只验 12 MUST core**,4 Optional 报告为 bonus,EmitEvent 默认 no-op。 | `proto/eaasp/runtime/v2/` |
 | **L1 Runtime** | 7 个 runtime(详见 §6)+ contract-v1.1.0 历史 sign-off + contract-v1.2.0 当前 latest | `crates/eaasp-certifier/` + Phase 3 验收 + Phase 5.3 升级 |
 | **L2 Memory & Skills** | L2 memory(FTS5 + HNSW + time-decay hybrid,7 MCP tools:search/read/write_file/write_anchor/confirm/list/delete)+ skill registry(skill manifest + MCP tool bridge)+ MCP orchestrator | `tools/eaasp-l2-memory-engine/` + `tools/eaasp-skill-registry/` + `tools/eaasp-mcp-orchestrator/` |
 | **L3 Governance** | Policy DSL + risk classification + shadow/enforce mode;**OPA 后端 + 完整审批链未实现**(仍 ⏸ 见 §5) | `tools/eaasp-l3-governance/` |
@@ -141,6 +175,7 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 | **engine vs data/integration 双轴** | ADR-V2-024 双轴模型;engine axis(`crates/grid-*` + `tools/eaasp-*` + `proto/` + `lang/*`)= user 主战场 ~60% + ~30%;data/integration axis = 0 实装在仓,只在 ADR 列出 |
 | **`tools/eaasp-*` = 模拟器级参考实现** | EAASP v2.0 平台尚未完整实现前、按平台契约做的参考实现;**不存在 "上游 EAASP" 独立项目**(per EVOLUTION_PATH §一 P2 + ADR-V2-024 §1 + ADR-V2-029 §1)|
 | **L1 runtime 数量 = 7(主力 1 + comparison 6)** | 主力 = `grid-runtime`;comparison 6 = `claude-code-runtime-python` + `nanobot-runtime-python` + `goose-runtime` + `pydantic-ai-runtime-python` + `claw-code-runtime` + `ccb-runtime-ts` |
+| **L1 contract = 16 方法 / 运行时 17 RPC / 协议总 21 RPC** | 三者口径不同,务必区分(详见 §4 L0 Protocol 行 + 脚注):<br>①**L1 contract 16 方法** = 12 MUST + 4 Optional(v2.0 spec §8.5 锁定,Certifier 验 12 MUST)<br>②**runtime.proto 17 RPC** = 16 spec + 1 EmitEvent(OPTIONAL per ADR-V2-001 Accepted Phase 1)<br>③**协议总 21 RPC** = 17 runtime + 4 hook(hook.proto 独立 RPC 服务) |
 | **contract-v1.1.0 = Phase 3 历史 sign-off** | 2026-04-18;42 PASS / 22 XFAIL × 7 runtime;deprecated by v1.2.0 后仍保留为历史版本 |
 | **contract-v1.2.0 = 当前 latest** | 2026-05-20,Phase 5.3;ADR-V2-026(ExecutionMode)+ ADR-V2-027(OpenAI-compat Quirks) |
 | **Grid Activation(A.0–A.8)SHIPPED 2026-06-17** | 8 phases,Repo rename `grid-sandbox` → `grid`,README publish |
@@ -190,10 +225,12 @@ related_adrs: ADR-V2-024, ADR-V2-029, ADR-V2-026, ADR-V2-027
 ## 7. 验证日期与 commit 范围(Verification date and repository commit range)
 
 - **快照生成日期**:2026-07-17
-- **快照固定内容**:GRID/EAASP 产品状态五条结论 + Grid A.0–A.8 完成表 + EAASP Phase 0–4a 完成表 + L0–L4 已交付 capability + 4 类显式 GAP + 术语口径 + 源链接
-- **commit 锚点**:HEAD `05c6d7db wip: docs-sync-2026-07-17 paused at completed+verified` 之前的最新 release 锚点(本快照为 docs sync PR 的一部分)
-- **一致性验证(必需 token,见 §6.1 / §3.4 / §5)**:`'2026-06-17'`、`'A.8'`、`'7'`、`'6 comparison'`、`'contract-v1.1.0'`、`'contract-v1.2.0'`、`'模拟器级参考实现'`、`'A2A'`、`'Cowork'` 共 9 个 token 在 SSOT + 本快照两份文档都必须出现
-- **未被快照影响的文件**:`CLAUDE.md` / `README.md` / `README.zh.md` / `.planning/PROJECT.md` / `.planning/STATE.md` 在本次 docs sync 中单独处理(plan Task 2 + Task 3),未被本文档固化
+- **快照固定内容**:GRID/EAASP 产品状态五条结论 + Grid A.0–A.8 完成表(§2)+ EAASP Phase 0–4a 完成表(§3)+ L0–L4 已交付 capability(§4)+ 4 类显式 GAP(§5)+ 术语口径(§6.1)+ 源链接(§6.2-6.4)
+- **commit 锚点**:
+  - 验证锚点 SHA:`05c6d7db9cedd242a9beaf082a6ed0c59ae9ff8b`(主题 `wip: docs-sync-2026-07-17 paused at completed+verified`,Task 1 提交 `1de93a9f docs: record Grid and EAASP product status` 之前的 HEAD)
+  - Task 1 提交 SHA:`1de93a9fc4edca5de600c8380281a22ca63b84b4`(本快照连同 SSOT 由该 commit 引入)
+- **一致性验证(必需 token,见 §6.1)**:`'2026-06-17'`、`'A.8'`、`'7'`、`'6 comparison'`、`'contract-v1.1.0'`、`'contract-v1.2.0'`、`'模拟器级参考实现'`、`'A2A'`、`'Cowork'` 共 9 个 token 在 SSOT + 本快照两份文档都必须出现
+- **未被本快照影响的文件**:`CLAUDE.md` / `README.md` / `README.zh.md` / `.planning/PROJECT.md` / `.planning/STATE.md` 在本次 docs sync 中单独处理(plan Task 2 + Task 3),未被本快照固化
 
 > 一致性验证过的输出留存在 `/tmp/status-doc-task1-report.md`。
 

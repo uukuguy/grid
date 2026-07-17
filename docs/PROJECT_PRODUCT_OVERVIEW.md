@@ -113,7 +113,7 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | `tools/eaasp-certifier/` | 1,954 Rust + 0 dedicated | Phase 3 ✅ contract harness | contract 认证 harness(Rust, Cargo workspace member) |
 | `tools/eaasp-common/` | 31 Py + 1 test | minimal | shared types(SDK) |
 | `tools/mock-scada/` | — | mature | 验证 skill 用的外部系统示例(Python 进程,集成 L3 policy / L4 orchestration) |
-| `proto/eaasp/runtime/v2/` | 17 + 4 RPC = **21 方法** | frozen | L0 Protocol,runtime.proto(17) + hook.proto(4)+ common.proto |
+| `proto/eaasp/runtime/v2/` | runtime.proto(17 RPC) + hook.proto(4 RPC) = **21 RPC total** | frozen | L0 Protocol。**口径区分**:**L1 contract 16 方法** = 12 MUST + 4 Optional(per v2.0 spec §8.5 + EVOLUTION_PATH §2.4,Certifier 验 12 MUST);**runtime.proto 17 RPC** = 16 spec + 1 EmitEvent(OPTIONAL per ADR-V2-001 Accepted Phase 1);**协议总 21 RPC** = 17 runtime + 4 hook(hook.proto 独立 RPC 服务) |
 
 ### 2.3 L1 Runtime 生态(`lang/*` 7 个 + Cargo adapters 3 个)
 
@@ -178,7 +178,7 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | Phase 1 — Event-driven foundation | v3.0 / Phase 1 | ✅ 完成(2026-04-14) |
 | Phase 2 — Memory and evidence | v3.0 / Phase 2 | ✅ 完成(2026-04-16) |
 | Phase 2.5 — L1 Runtime 生态首批 | v3.0 / Phase 2.5 | ✅ 完成(2026-04-17) |
-| Phase 3 — Approval and verification(OPA 审批链 / Sandbox Tiers) | v3.1 涉及 contract 收尾,OPA 后端未实现 | ⏸ **平台级 OPA 审批链 + 完整审批链 + Sandbox Tiers 未实现** |
+| Phase 3 — Approval and verification(OPA 审批链 / Sandbox Tiers) | 2026-04-18(contract 部分)| ✅ **contract-v1.1.0 校验收尾**(42 PASS / 22 XFAIL × 7 runtime);**⏸ OPA/Rego 后端 + 5-stage 审批链 + Verifier + Sandbox Tiers 全部未实现**(Phase 3 拆分见 §3.1.1 下方) |
 | Phase 3.5 — chunk_type 统一 | v3.1 / Phase 5.3 一部分 | ✅ 完成(2026-04-19→20) |
 | Phase 3.6 — Tech-debt Cleanup | v3.2 / Phase 6 | ✅ 完成(2026-04-20) |
 | Phase 4a — Project review / GSD Bootstrap + Phase 4 主决策(ADR-V2-024 双轴模型) | v3.0 / Phase 4.0/4.1 | ✅ 完成(2026-04-27→28) |
@@ -188,6 +188,10 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | **Grid 独立产品 Activation(A.0–A.8)** | v3.5 后紧接的 milestone | **✅ 8/8 完成,2026-06-17 SHIPPED** |
 
 > 后续 hardening / debt work 全部以 v3.x milestone 形式收口(v3.2 tech-debt triage + v3.3 engine/platform debt sweep + v3.4 full INBOX drain + v3.5 Debt Finalization)。
+
+**Phase 3 拆分说明**(避免"contract 完成"歧义):Phase 3 = "L1 contract 校验 ✅ + 平台 OPA ⏸" 两个独立子项。
+- ✅ **L1 contract 校验 + 升级**:contract-v1.1.0(2026-04-18,Phase 3)+ contract-v1.2.0(2026-05-20,Phase 5.3,ADR-V2-026 + V2-027)均完成,Certifier 12 MUST 全部通过。
+- ⏸ **平台级 OPA/Rego 后端 + 5-stage 完整审批链 + Verifier + Sandbox Tiers**:未实现,详见 §四 4.1。
 
 ### 3.2 关键 KPI 当前值
 
