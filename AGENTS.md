@@ -25,7 +25,7 @@
 
 ## Product status (canonical facts, 2026-07-17 sync)
 
-The canonical facts below match [`docs/PROJECT_PRODUCT_OVERVIEW.md`](docs/PROJECT_PRODUCT_OVERVIEW.md) and the dated audit snapshot `docs/status/PROJECT_PRODUCT_STATUS_2026-07-17.md`.
+The canonical facts below match [`docs/PROJECT_PRODUCT_OVERVIEW.md`](docs/PROJECT_PRODUCT_OVERVIEW.md) and the dated audit snapshot `docs/status/PRODUCT_STATUS_2026-07-17.md`.
 
 - **Grid Activation**: 8 phases (A.0–A.8) **shipped on 2026-06-17**. Post-Activation work continues (`grid-desktop` feature completion, `web-platform/` test coverage).
 - **EAASP core engineering**: L0 (protocol) + L1 (runtime contract) + L2 (memory & skills) + L3 (governance) + L4 (orchestration) reference implementation and contract validation are **complete for the current research/reference implementation** in this repository.
