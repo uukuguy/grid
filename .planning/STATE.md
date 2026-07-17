@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: activation
 milestone_name: Grid 独立产品 Activation
 status: complete
-  stopping: All milestones SHIPPED. Repo renamed grid-sandbox → grid. README published.
-  last_updated: "2026-06-17"
-  last_activity: 2026-06-17
+  stopping: Activation milestone SHIPPED 2026-06-17 (8/8 phases A.0–A.8). Docs-sync 2026-07-17 aligned planning state to post-Activation reality. Next milestone TBD (post-Activation quality gap closure + EAASP v2.0 platform-evolution gaps are the open scopes).
+  last_updated: "2026-07-17"
+  last_activity: 2026-07-17
   progress:
     total_phases: 8
     completed_phases: 8
@@ -20,12 +20,16 @@ status: complete
 
 See: .planning/PROJECT.md
 
-**Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Grid 独立产品 Activation — ALL 8 PHASES COMPLETE. Milestone SHIPPED 2026-06-17.
+**Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.2.0 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本。
+**Current focus:** Post-Activation. Grid 独立产品 Activation milestone SHIPPED 2026-06-17 (8/8 phases A.0–A.8). Next milestone definition pending. EAASP core L0/L1/L2/L3/L4 reference implementation and contract validation are complete; platform-evolution gaps (production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion) remain explicit future work.
+
+Canonical product-status sources:
+- `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
+- `docs/status/PRODUCT_STATUS_2026-07-17.md` (dated audit snapshot 2026-07-17)
 
 ## Current Position
 
-Status: **ALL 8 PHASES COMPLETE** — Grid 独立产品 Activation milestone SHIPPED.
+Status: **ALL 8 ACTIVATION PHASES COMPLETE** — Grid 独立产品 Activation milestone SHIPPED 2026-06-17. v3.5 Debt Finalization ✅ SHIPPED 2026-06-16. v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16.
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -39,7 +43,7 @@ Status: **ALL 8 PHASES COMPLETE** — Grid 独立产品 Activation milestone SHI
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-06-17 (this session)
+Last activity: 2026-07-17 (this docs-sync session)
 
 ## Audit Findings Summary (Post-Activation Scores)
 
@@ -62,7 +66,7 @@ Last activity: 2026-06-17 (this session)
 | grid-desktop | Icon assets (PNG), 3 new IPC commands, Grid rebrand | 9 → 9 |
 | grid-eval | CI concurrency group, test summary reporting | existing |
 
-*4/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
+*5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
 ## Completed Milestones
 
@@ -94,9 +98,9 @@ Last activity: 2026-06-17 (this session)
 
 ### Decisions
 
-- **LEDGER 100% CLOSED** (2026-06-16): DEFERRED_LEDGER.md main D-table fully standardized. Zero P1/P2/P3 active rows. 17 genuinely ACTIVE items filed as 📦 long-term (Phase 4–6 concern) or 🔵 P3-defer edge cases.
-- **Debt era over** (2026-06-16): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — shift to product activation.
-- **Priority target**: grid-cli + grid-server first (per ADR-V2-024 Open Item #3), then platform/desktop/web.
+- **LEDGER 100% CLOSED** (2026-06-16): DEFERRED_LEDGER.md main D-table fully standardized. Zero P1/P2/P3 active rows. 17 genuinely ACTIVE items filed as 📦 long-term (EAASP v2.0 platform-evolution concern) or 🔵 P3-defer edge cases.
+- **Debt era over** (2026-06-16, retroactively confirmed 2026-07-17): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — Activation SHIPPED 2026-06-17, now post-Activation.
+- **Priority target** (per ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on. Post-Activation scope = `web-platform/` (Quality 7.5 → 9.0+) + `grid-desktop` (Quality 6.5 → 9.0+) gap closure; EAASP v2.0 platform-evolution gaps are explicit future milestones, not part of post-Activation.
 
 ### Pending Todos
 
@@ -104,15 +108,16 @@ None.
 
 ### Blockers/Concerns
 
-- **Grid 独立产品 dormancy**: `grid-server`, `grid-platform`, `grid-desktop`, `web/`, `web-platform/` all dormant per ADR-V2-024. Need activation audit to assess current state vs production readiness.
+- **Quality gaps in shipped components**: `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) shipped with Activation but remain below the 9.0+ bar the rest of the components have hit. Need follow-on feature work (Markdown + toast + skeletons + error states for web-platform/; Icons + IPC proxy + Grid rebrand for grid-desktop).
+- **EAASP v2.0 platform-evolution gaps (explicit future work)**: production OPA approval chain (Phase 3), A2A / Event Room (Phase 4), L5 Cowork UI (Phase 5), ecosystem expansion (Phase 6) — per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. Out of post-Activation scope; future milestone candidates.
 - **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
 
 ## Session Continuity
 
-Last session: 2026-06-17
-Stopped at: Grid 独立产品 Activation milestone COMPLETE (8/8 phases)
-Resume path: Next milestone — see ROADMAP.md
+Last session: 2026-07-17 (this docs-sync)
+Stopped at: Grid 独立产品 Activation milestone COMPLETE (8/8 phases, SHIPPED 2026-06-17). Docs-sync 2026-07-17 brought `.planning/PROJECT.md` and `.planning/STATE.md` into post-Activation alignment.
+Resume path: Next milestone — see ROADMAP.md (not yet defined; post-Activation scope = `web-platform/` and `grid-desktop` quality gap closure + EAASP v2.0 platform-evolution gaps).
 
 Prior sessions:
 - 2026-06-17: **Phase A.8 grid-eval CI completed** — concurrency group + summary report
@@ -128,4 +133,4 @@ Prior sessions:
 
 ---
 
-*Milestone SHIPPED 2026-06-17. 8/8 activation phases complete. 5 commits in this session.*
+*Milestone SHIPPED 2026-06-17. 8/8 activation phases complete. 5 commits in the 2026-06-17 session. Docs-sync 2026-07-17 brought planning state into post-Activation alignment.*
