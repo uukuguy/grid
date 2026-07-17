@@ -110,6 +110,13 @@ ADR-V2-024 落盘 Phase 4 product scope 决定, 喂 Phase 4.2 PLAN.md 路径。
 | `crates/grid-server/` | Grid 核心组件, audit §3.4 Q4 verdict yes 直接推进 |
 | `crates/grid-desktop/` | dormant 状态是否解锁取决于 Decision |
 | `tools/eaasp-*/` | shadow vs production 路径取决于 Decision; audit §3.1-§3.2 建议 user 持续扩展引擎层 |
+
+> **NOTE (2026-07-17)**: 上方表格 "shadow vs production 路径取决于 Decision" 措辞是 ADR Accepted 时未清干净的占位描述 — 与本 ADR §1 双轴 substance ("EAASP 引擎层 = user 主战场之一") 不一致,也不准确。准确表述见 [`docs/PROJECT_PRODUCT_OVERVIEW.md` §2.2](../../../../PROJECT_PRODUCT_OVERVIEW.md):
+>
+> - `tools/eaasp-*/` **是 EAASP v2.0 平台尚未完整实现前、按平台契约做的"模拟器"级参考实现**
+> - EAASP v2.0 spec(5 层 + 3 管道 + 4 元范式 + 7 阶段演化)在 EVOLUTION_PATH §三 8 Phase 路线上已 SHIPPED Phase 0–2.5,Phase 3–6 待后续 milestone
+> - **不存在"上游 EAASP"独立项目** — EAASP 平台设计文档权威源同仓在 `docs/design/EAASP/`(`EAASP-Design-Specification-v2.0.docx` 为规范权威)
+> - 本 ADR 的 Decision / Options / Frontmatter `status: Accepted` **不动**;本次为文档层澄清,不新立 supersede ADR
 | `docs/design/EAASP/adrs/ADR-V2-023-grid-two-leg-product-strategy.md` | 是否 supersede 取决于 Phase 4.2 决议 (D-F-05) |
 
 ## Alternatives Considered / 候选方案

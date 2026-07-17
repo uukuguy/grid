@@ -52,13 +52,14 @@ All components share a single `grid-engine` core. Fix a bug in the engine, all p
 ```
                     ┌──────────────────────────┐
                     │    Orchestration Layer    │
-                    │  (EAASP L2/L3/L4 or your │
-                    │   own platform)           │
+                    │  (EAASP L2/L3/L4 — 本仓库  │
+                    │   tools/eaasp-*,或接你的 │
+                    │   编排平台)              │
                     └──────────┬───────────────┘
-                               │ gRPC (16 methods)
+                               │ gRPC (16 methods, contract-v1.2.0)
                     ┌──────────▼───────────────┐
                     │      grid-runtime        │
-                    │  (L1 contract adapter)    │
+                    │  (L1 contract adapter)   │
                     └──────────┬───────────────┘
                                │
        ┌───────────────────────┼───────────────────────┐
@@ -84,6 +85,11 @@ All components share a single `grid-engine` core. Fix a bug in the engine, all p
   │          Docker · WASM · Native Subprocess            │
   └───────────────────────────────────────────────────────┘
 ```
+
+This stack ships as **one repository** — both the agent runtime (Grid) and the EAASP platform layer (`tools/eaasp-*`) live here. Production deployment can either:
+
+1. Run the full EAASP v2.0 stack — `make dev-eaasp` brings up L2/L3/L4 + L1 runtime from this single repo, or
+2. Plug `grid-runtime` into your own orchestration platform via the 16-method gRPC contract (proven portable: 6 independent runtimes pass the same `contract-v1.1.0` test suite).
 
 The engine processes every tool call through: **autonomy check → risk classification → policy evaluation → sandbox routing → execution → audit recording**. This is a pure pipeline — no branching, no optional security.
 

@@ -8,12 +8,16 @@
 >
 > **What Grid is:** A Rust-centric agent-runtime stack built around `grid-engine` and the full Grid toolchain (`grid-cli` / `grid-server` / `grid-platform` / `grid-desktop` / `grid-eval` / `grid-hook-bridge` / `grid-sandbox` / `grid-runtime` / `grid-types`). Grid 现按双轴模型 (engine vs data/integration) 切职责, 同时支持两条产品形态:
 >
-> **engine 接入面 — EAASP 集成 (PRIMARY FOCUS)** (原 Leg A, see ADR-V2-024 supersedes ADR-V2-023). `grid-engine` / `grid-runtime` are being developed as the flagship L1 runtime for EAASP (Enterprise-Agent-as-a-Service Platform — a **separate upstream project**). The `tools/eaasp-*/` directories and the 6 comparison runtimes in `lang/*` in this repo are **high-fidelity local shadows** of EAASP's L2/L3/L4 stack, used to validate Grid's contract compliance end-to-end without needing a live EAASP deployment. They are NOT the production EAASP.
+> **engine 接入面** (原 Leg A, see ADR-V2-024 supersedes ADR-V2-023) — 与 EAASP 引擎层 / L1 runtime 生态集成方向。`grid-engine` / `grid-runtime` 是 EAASP 的旗舰 L1 runtime(16-method gRPC contract);`tools/eaasp-*/` 是 **EAASP v2.0 平台尚未完整实现前、按平台契约做的"模拟器"级参考实现**(EVOLUTION_PATH §三 8 Phase 路线已 SHIPPED Phase 0–2.5,待补 Phase 3 审批链 / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 生态扩展)。**不存在"上游 EAASP"独立项目**;EAASP 平台设计文档权威源在 `docs/design/EAASP/`(以 `EAASP-Design-Specification-v2.0.docx` 为规范)。
 >
-> **Grid 独立产品 — Grid independent (DORMANT, planned)** (原 Leg B, see ADR-V2-024 supersedes ADR-V2-023). `grid-platform` (multi-tenant server), `grid-server` (single-user workbench), `grid-desktop` (Tauri app), and `web/` / `web-platform/` frontends form Grid's own direct-to-customer offering for enterprises who want Grid without going through EAASP. Currently crate-scaffolding only, no active development. See ADR-V2-024 §1 双轴模型 for engine/data-integration 职责切; activation triggers reframed in 双轴 framework.
+> **Grid 独立产品** (原 Leg B, see ADR-V2-024 supersedes ADR-V2-023) — Grid 独立面向企业的产品套件。`grid-platform` (multi-tenant server) + `grid-server` (single-user workbench) + `grid-desktop` (Tauri app) + `web/` / `web-platform/` frontends + `grid-cli` / `grid-eval` (主客户端 / 主评测)。Grid 独立产品 Activation 8 phases **已 SHIPPED 2026-06-17**(v3.5 milestone 之后),质量分详见 §2 / `.planning/STATE.md` Audit Findings Summary。
 >
 > **工时 baseline** (per ADR-V2-024 Open Item #2): Grid 全栈 ≈60% / EAASP 引擎 ≈30% / 元工作 ≈10%.
 > **优先发力组合** (per ADR-V2-024 Open Item #3): grid-cli + grid-server 优先, 其余组件 dormant 到下个 milestone.
+>
+> **产品情况同步文档**: [`docs/PROJECT_PRODUCT_OVERVIEW.md`](docs/PROJECT_PRODUCT_OVERVIEW.md) — 项目级 single source of truth,2026-07-17 创建于本次 docs sync。必含:
+> - 第 2.2 节:EAASP 全栈(含 8 Phase 进度对照,tools/eaasp-* 模拟器级实现的精确定性)
+> - 第六节:Reference Linkage 完整索引(EAASP 设计文档权威源 + 战略 ADR + 项目管理状态)
 >
 > This file is the **primary project memory for Claude Code**. If anything here goes stale, **update it immediately** — outdated instructions are worse than none.
 
@@ -21,14 +25,14 @@
 
 ## Product legs at a glance (ADR-V2-024 双轴模型, supersedes ADR-V2-023)
 
-| Dimension | engine 接入面 — EAASP 集成 (原 Leg A, see ADR-V2-024) | Grid 独立产品 (原 Leg B, see ADR-V2-024) |
+| Dimension | engine 接入面 (原 Leg A, see ADR-V2-024) | Grid 独立产品 (原 Leg B, see ADR-V2-024) |
 |-----------|--------------------------|--------------------------|
-| Status | **Active (primary focus)** | **Dormant** (crates compile, no feature work) |
+| Status | **Active (primary focus)** | **Active** (8 phases SHIPPED 2026-06-17;持续 feature 工作) |
 | Core | `grid-engine` + `grid-runtime` | `grid-engine` (shared) |
-| Toolchain | Exposed via gRPC to EAASP L2/L3/L4 | `grid-server`, `grid-platform`, `grid-desktop`, `grid-cli`, `grid-eval` |
-| EAASP shadows | Uses `tools/eaasp-*/` + `lang/*` as local test fixtures | **Does not use** them |
-| Phase focus | Phase 2 / 2.5 / 3 / 3.5 — contract hardening | Paused until activation criteria met (per ADR-V2-024 双轴下重新框定) |
-| Production customer | Enterprises buying EAASP, Grid is their L1 | Enterprises wanting Grid without EAASP |
+| Toolchain | 与 EAASP L1/L2/L3/L4 引擎层集成,通过 gRPC 接 `tools/eaasp-*/` | `grid-server`, `grid-platform`, `grid-desktop`, `grid-cli`, `grid-eval`, `web/`, `web-platform/` |
+| EAASP tools 关系 | 共生于本仓(`tools/eaasp-*/` 是 EAASP v2.0 模拟器级参考实现,本团队自做,不依赖外部 EAASP)| **不直接依赖** `tools/eaasp-*`(Grid 独立产品的客户不需要 EAASP 平台)|
+| Phase focus | EVOLUTION_PATH §三 Phase 0–2.5 已 SHIPPED,Phase 3–6 按 8 Phase 路线渐进推进 | A.0–A.8 已 SHIPPED;后续补 grid-desktop feature + web-platform 测试覆盖 |
+| Production customer | 部署 EAASP 平台的企业(可一仓跑 EAASP L1–L4 全套);或通过 L1 contract 接 customer 平台 | 想要 Grid 独立产品的企业(可单独部署 grid-server / grid-platform)|
 
 (see ADR-V2-024 supersedes ADR-V2-023 — 表格 column 命名从 Leg A/B 切换为 双轴 framing; substance unchanged for engine/data-integration 职责切, 见 ADR-V2-024 §1)
 
@@ -36,22 +40,46 @@
 
 ---
 
-## EAASP v2 Architecture (L0–L4) — engine 接入面's target environment (原 Leg A, see ADR-V2-024 supersedes ADR-V2-023)
+## EAASP v2 Architecture (L0–L4) — 同仓共生的引擎层 (见 `docs/design/EAASP/` 权威设计文档)
 
 ```
-L4 Orchestration       tools/eaasp-l4-orchestration/        session lifecycle, SSE fan-out, governance gates
-L3 Governance          tools/eaasp-l3-governance/           policy DSL, risk classification, deny/allow
-L2 Memory & Skills     tools/eaasp-l2-memory-engine/        L2 memory (FTS + HNSW + time-decay hybrid)
-                       tools/eaasp-skill-registry/          skill manifest storage + MCP tool bridge
-                       tools/eaasp-mcp-orchestrator/        MCP server lifecycle across sessions
-                       tools/eaasp-certifier/               contract certification harness
-L1 Runtime (7 adapters) Grid primary + 6 comparison runtimes — see table below
-L0 Protocol            proto/eaasp/runtime/v2/              common.proto / runtime.proto / hook.proto
+L4 Orchestration       tools/eaasp-l4-orchestration/        session lifecycle + SSE fan-out + governance gates
+                                                            (Phase 4 A2A / Event Room ⏸ 未实现 per EVOLUTION_PATH)
+L3 Governance          tools/eaasp-l3-governance/           policy DSL + risk classification + shadow/enforce mode
+                                                            (Phase 3 OPA 后端 + 完整审批链 ⏸ 未实现)
+L2 Memory & Skills     tools/eaasp-l2-memory-engine/        L2 memory (FTS + HNSW + time-decay hybrid, ✅ 全量)
+                       tools/eaasp-skill-registry/          skill manifest storage + MCP tool bridge (Cargo)
+                       tools/eaasp-mcp-orchestrator/        MCP server lifecycle across sessions (Cargo)
+                       tools/eaasp-certifier/               contract certification harness (Cargo)
+L1 Runtime (7 adapters) grid-runtime (Rust, 主力) + 6 comparison runtimes (claude-code / goose / nanobot /
+                                                            pydantic-ai / claw-code / ccb;hermes frozen)
+L0 Protocol            proto/eaasp/runtime/v2/              common.proto / runtime.proto (17 RPC) + hook.proto (4 RPC)
+                                                            合计 21 RPC 方法(CLAUDE.md 历史措辞"16 methods"是简化表述)
 ```
 
-**Important**: The `tools/eaasp-*/` in this repo are **local shadow implementations** used for the engine 接入面 test harness (原 Leg A's test harness, see ADR-V2-024 supersedes ADR-V2-023). The real production EAASP L2/L3/L4 lives in a separate project owned by another team. Grid's job on the engine 接入面 (原 Leg A) is to ship `grid-engine` / `grid-runtime` that conforms to the L1 contract; EAASP handles the L2–L4 orchestration in production.
+**关键定性 — 2026-07-17 docs sync 修正**:
 
-L2–L4 talk to L1 via gRPC (`proto/eaasp/runtime/v2/runtime.proto`, 16 methods). L1 is substitutable — each adapter implements the same contract.
+- `tools/eaasp-*/` **是 EAASP v2.0 平台尚未完整实现前、按平台契约做的"模拟器"级参考实现**(per EVOLUTION_PATH §三 8 Phase 路线:Phase 0–2.5 已 SHIPPED,L3 OPA 后端 / L4 A2A / L5 Cowork UI / Phase 6 生态扩展均⏸待后续 milestone 推进)
+- **不存在"上游 EAASP"独立项目** — EAASP 平台设计文档权威源同仓在 `docs/design/EAASP/`,**`EAASP-Design-Specification-v2.0.docx` 是规范权威**
+- **CLAUDE.md/AGENTS.md 历史措辞 "high-fidelity local shadows" / "production EAASP lives in separate project" 错误** — 已在 2026-07-17 docs sync PR 改为"模拟器级参考实现";具体修正记录见 `docs/PROJECT_PRODUCT_OVERVIEW.md` §五
+- L2–L4 本仓内通过 gRPC `proto/eaasp/runtime/v2/runtime.proto` 调用 L1;L1 substitutable — 每个 adapter 实现同一 contract,7 个 runtime 全部 pass contract-v1.2.0
+
+### EAASP 平台设计文档索引(必读)— `docs/design/EAASP/`
+
+| 文档 | 作用 |
+|------|------|
+| `EAASP-Design-Specification-v2.0.docx` | **规范权威**(4373KB,导出 markdown `/tmp/eaasp_v2_spec.md` 2944 行)|
+| `EAASP_v2_0_EVOLUTION_PATH.md` | 长期 cross-phase 决策登记(5 层 + 3 管道 + 4 元范式 + 7 阶段演化 + 决策登记表)|
+| `EAASP_v2_0_MVP_SCOPE.md` | 圈 2 MVP 范围细化 |
+| `EAASP_v2_0_Platform_Product_Forms.docx` | 产品形态蓝图 |
+| `EAASP_v2_Executive_Overview.docx` + `.html` | 高管摘要 / 对外简版 |
+| `PHASE1_EVENT_ENGINE_DESIGN.md` / `PHASE_3_DESIGN.md` | 各 Phase 设计(Phase 3 ⏸ 未实现) |
+| `L1_RUNTIME_ADAPTATION_GUIDE.md` | L1 runtime adapter 实现指南 |
+| `L1_RUNTIME_STRATEGY.md` + 7 个 R1-R4 eval + `L1_RUNTIME_TIER_SPEC_*` 中英对照 | L1 Runtime 生态策略 + 4 tier 横切 |
+| `PROVIDER_CAPABILITY_MATRIX.md` | LLM provider matrix |
+| `E2E_VERIFICATION_GUIDE.md` | E2E 验证脚本 living spec |
+| `DEFERRED_LEDGER.md` | 跨 phase D-item SSOT(100% ✅ CLOSED)|
+| `adrs/ADR-V2-*.md` 23 个 ADR | 战略 + 契约 ADR,ADR-V2-024 + V2-029 为当前双轴 substance |
 
 ### L1 Runtime adapters in this repo (1 + 6)
 
@@ -92,7 +120,7 @@ Legend: **A** = used by engine 接入面 (原 Leg A, EAASP integration, see ADR-
 
 **Build order**: `grid-types` → `grid-sandbox` / `grid-engine` (parallel) → everything else. Cargo workspace handles this automatically.
 
-**Grid 独立产品 dormancy (原 Leg B dormancy, ADR-V2-023 P2 retained under ADR-V2-024, see ADR-V2-024 supersedes ADR-V2-023)**: `grid-server`, `grid-platform`, `grid-desktop` crates compile and are maintained at skeleton level, but are **not** being feature-developed. New PRs touching these need justification (reviewer prompt: "is this really necessary now?"). Activation requires ADR-V2-024 双轴 framework trigger conditions to be met (原 ADR-V2-023 §P5 reframed under 双轴 model).
+**Grid 独立产品 status (原 Leg B, ADR-V2-023 P2 retained under ADR-V2-024, see ADR-V2-024 supersedes ADR-V2-023,activation SHIPPED 2026-06-17)**: Grid 独立产品 Activation 8 phases (A.0–A.8) **已 SHIPPED**。`grid-server` / `grid-platform` / `web/` / `web-platform` 是 active 的,持续 feature 工作。`grid-desktop` 处于功能补完阶段(IPC 命令齐但 agent/session 交互未实装,详 `docs/PROJECT_PRODUCT_OVERVIEW.md` §4.1)。Activation 已经 past,不再 trigger-gated。
 
 ### EAASP Python/TS tools (`tools/`)
 
