@@ -103,6 +103,19 @@ Grid 的记忆是四层架构：
 
 ---
 
+## 产品状态
+
+- Grid 独立产品 Activation 八个阶段（A.0–A.8）已于 2026-06-17 全部交付。
+- EAASP 核心 L0/L1/L2/L3/L4 工程实现与运行时合同验证,均已在当前参考实现中完成。
+- 仓库共包含 7 个 L1 运行时,其中包括 6 个对比运行时。
+- `contract-v1.1.0` 是 Phase 3 历史签字版合同;`contract-v1.2.0` 是当前最新合同。
+- `tools/eaasp-*` 是 EAASP v2.0 平台合同的模拟器级参考实现,不存在独立的"上游 EAASP"项目。
+- 后续 EAASP 平台演进(Phase 3 生产级 OPA 审批链、Phase 4 A2A / Event Room、Phase 5 L5 Cowork UI、Phase 6 生态扩展)仍待推进。
+
+更详细的产品情况,请参见 [`docs/PROJECT_PRODUCT_OVERVIEW.md`](docs/PROJECT_PRODUCT_OVERVIEW.md)。
+
+---
+
 ## 快速开始
 
 ```bash

@@ -23,6 +23,19 @@
 
 ---
 
+## Product status (canonical facts, 2026-07-17 sync)
+
+The canonical facts below match [`docs/PROJECT_PRODUCT_OVERVIEW.md`](docs/PROJECT_PRODUCT_OVERVIEW.md) and the dated audit snapshot `docs/status/PROJECT_PRODUCT_STATUS_2026-07-17.md`.
+
+- **Grid Activation**: 8 phases (A.0–A.8) **shipped on 2026-06-17**. Post-Activation work continues (`grid-desktop` feature completion, `web-platform/` test coverage).
+- **EAASP core engineering**: L0 (protocol) + L1 (runtime contract) + L2 (memory & skills) + L3 (governance) + L4 (orchestration) reference implementation and contract validation are **complete for the current research/reference implementation** in this repository.
+- **EAASP platform evolution — explicitly pending**: Phase 3 production OPA approval chain, Phase 4 A2A / Event Room, Phase 5 L5 Cowork UI, Phase 6 ecosystem expansion. These remain future work in the EVOLUTION_PATH 8-Phase roadmap.
+- **L1 runtimes**: **7 total** in this repository — 1 production (`grid-runtime`) + 6 comparison runtimes (`claude-code`, `goose`, `nanobot`, `pydantic-ai`, `claw-code`, `ccb`; `hermes` frozen per ADR-V2-017).
+- **Contract version**: `contract-v1.2.0` is the **current latest**; `contract-v1.1.0` is the **historical Phase 3 sign-off** (2026-04-18).
+- **`tools/eaasp-*` framing**: simulator-level reference implementations of the EAASP v2.0 platform contract, hosted in this same repository. **No separate upstream EAASP project exists**; the EAASP platform design authoritative source is `docs/design/EAASP/` (with `EAASP-Design-Specification-v2.0.docx` as the spec of record).
+
+---
+
 ## Product legs at a glance (ADR-V2-024 双轴模型, supersedes ADR-V2-023)
 
 | Dimension | engine 接入面 (原 Leg A, see ADR-V2-024) | Grid 独立产品 (原 Leg B, see ADR-V2-024) |
@@ -96,7 +109,9 @@ L0 Protocol            proto/eaasp/runtime/v2/              common.proto / runti
 
 The 6 comparison runtimes exist in this repo to validate that **the L1 contract is truly portable** — if another team implements `claude-code` / `goose` / `nanobot` / `pydantic-ai` / `claw-code` / `ccb` against the same proto and passes contract v1.1, then `grid-runtime` can't be secretly depending on undocumented behavior. They are **test fixtures for the contract**, not competitors and not products.
 
-Phase 3 sign-off (2026-04-18): all 7 runtimes pass `contract-v1.1.0` (42 PASS / 22 XFAIL each).
+Phase 3 sign-off (2026-04-18): all 7 runtimes pass `contract-v1.1.0` (42 PASS / 22 XFAIL each) — `contract-v1.1.0` is the historical Phase 3 sign-off version.
+
+**Current contract: `contract-v1.2.0`** — adopted after Phase 3 sign-off. All 7 runtimes in the repo currently certify against `contract-v1.2.0`.
 
 ### Rust crates
 
@@ -111,9 +126,9 @@ Legend: **A** = used by engine 接入面 (原 Leg A, EAASP integration, see ADR-
 | `grid-runtime` | A (primary) / B (in-process) | L1 runtime adapter wrapping `grid-engine`. engine 接入面 (原 Leg A, see ADR-V2-024) exposes it via gRPC; Grid 独立产品 (原 Leg B) uses it in-process |
 | `grid-cli` | A (aux) / B (primary) | CLI binary (`grid` command). engine 接入面 (原 Leg A, see ADR-V2-024) uses EAASP's own CLI; Grid 独立产品 (原 Leg B) uses this as the main client |
 | `grid-eval` | A (aux) / B (primary) | Evaluation harness — suites, scorers, benchmarks. engine 接入面 (原 Leg A, see ADR-V2-024) uses EAASP eval; Grid 独立产品 (原 Leg B) uses this |
-| `grid-server` | **B only (dormant)** | Single-user workbench HTTP/WS server (Axum) |
-| `grid-platform` | **B only (dormant)** | Multi-tenant platform server (Axum + JWT auth + quota) |
-| `grid-desktop` | **B only (dormant)** | Tauri desktop app (excluded from default build — `cargo build -p grid-desktop` to build) |
+| `grid-server` | **B** (active, primary) | Single-user workbench HTTP/WS server (Axum) |
+| `grid-platform` | **B** (active, primary) | Multi-tenant platform server (Axum + JWT auth + quota) |
+| `grid-desktop` | **B** (active, feature-completion) | Tauri desktop app (excluded from default build — `cargo build -p grid-desktop` to build) |
 | `eaasp-goose-runtime` | A | L1 adapter for Block goose (Rust) — comparison runtime |
 | `eaasp-claw-code-runtime` | A | L1 adapter for claw-code (Rust) — comparison runtime |
 | `eaasp-scoped-hook-mcp` | A | stdio MCP proxy that injects Pre/Post-ToolUse hooks per ADR-V2-006 |
@@ -135,14 +150,14 @@ Legend: **A** = used by engine 接入面 (原 Leg A, EAASP integration, see ADR-
 | `eaasp-certifier` | Contract certification harness (Rust) |
 | `mock-scada` | Example external system for verification skills |
 
-### Frontend (Grid 独立产品 only, dormant — 原 Leg B only, see ADR-V2-024 supersedes ADR-V2-023)
+### Frontend (Grid 独立产品 only — 原 Leg B, see ADR-V2-024 supersedes ADR-V2-023)
 
-`web/` and `web-platform/` are both **Grid 独立产品 components** (原 Leg B components, ADR-V2-023 P2 retained under ADR-V2-024, see ADR-V2-024). They hold scaffolding / `package.json` / `vite.config.ts` only — **no feature implementation**. Do NOT treat them as implementation targets until ADR-V2-024 双轴 framework triggers Grid 独立产品 activation (原 Leg B activation reframed).
+`web/` and `web-platform/` are both **Grid 独立产品 components** (原 Leg B components, ADR-V2-023 P2 retained under ADR-V2-024, see ADR-V2-024). Activation 8 phases **SHIPPED 2026-06-17** — both frontends are active. `web/` is production-quality; `web-platform/` carries quality caveats (test coverage gaps in some flows, see `docs/PROJECT_PRODUCT_OVERVIEW.md` §4.1 / `.planning/STATE.md` Audit Findings Summary).
 
 | Path | Target product | Status |
 |------|----------------|--------|
-| `web/` | Single-user workbench UI (React + TypeScript + Vite + Jotai + Tailwind) | Dormant — scaffolding only |
-| `web-platform/` | Multi-tenant platform UI | Dormant — scaffolding only |
+| `web/` | Single-user workbench UI (React + TypeScript + Vite + Jotai + Tailwind) | Active — production-quality post-Activation |
+| `web-platform/` | Multi-tenant platform UI | Active — feature-complete with quality caveats |
 
 ---
 
