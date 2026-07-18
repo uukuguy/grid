@@ -16,35 +16,36 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Phase: Grid 独立产品 Activation (Post-Debt)
+## Current Phase: Post-Activation (next milestone TBD)
 
-**Goal:** Activate the dormant Grid independent product leg per ADR-V2-024. Technical debt is fully cleared (DEFERRED_LEDGER.md main D-table: 100% ✅ CLOSED). All remaining items are 📦 long-term or deferred to future milestones. The engine layer (grid-engine, grid-runtime, grid-cli, grid-server) is production-ready.
+**Goal:** Bring the GSD planning state to the post-Activation reality so future sessions and external readers can find a single, maintained source. Grid 独立产品 Activation SHIPPED 2026-06-17 (8/8 phases A.0–A.8). All technical debt cleared (DEFERRED_LEDGER.md 100% ✅ CLOSED). v3.6 Post-Activation Docs Sync in progress (3 sub-phases 3.6.1/3.6.2/3.6.3). Next milestone definition pending.
 
-**Activation targets:**
-- **grid-server** (single-user workbench) — already has WS, auth, config hot-reload from v3.1. Needs: frontend pairing, full feature set audit.
-- **grid-cli** — already feature-complete (command tree, streaming, TUI, session management).
-- **grid-platform** (multi-tenant server) — crate scaffolding only. Needs: full implementation.
-- **grid-desktop** (Tauri app) — crate scaffolding only. Needs: full implementation.
-- **web/** (single-user workbench UI) — scaffolding only. Needs: React UI implementation.
-- **web-platform/** (multi-tenant platform UI) — scaffolding only. Needs: React UI implementation.
-- **grid-eval** — scaffolding only. Needs: evaluation suite implementation.
+**Post-Activation scope** (candidate next milestones, not yet activated):
+
+| Surface | Quality | Gap | Future milestone |
+|---------|---------|-----|------------------|
+| `web-platform/` | 7.5/10 | Markdown + toast + skeletons + error states | Quality gap closure |
+| `grid-desktop` | 6.5/10 | Icons + IPC proxy + Grid rebrand (Tauri 2) | Quality gap closure |
+| EAASP v2.0 platform evolution | ⏸ 未实现 | 4 platform-evolution gaps: Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem | v3.7+ EAASP platform phase |
+
+**See also (canonical sources)**:
+- `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
+- `docs/status/PRODUCT_STATUS_2026-07-17.md` (dated audit snapshot)
 
 **Key context:**
 - 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
-- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first, then platform/desktop/web.
+- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on.
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
 **Previous milestones:**
+- **Grid 独立产品 Activation SHIPPED 2026-06-17** (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
 - v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
 - v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
 - v3.3 Engine + Platform Debt Sweep ✅ SHIPPED 2026-06-07
-- v3.2 Tech-Debt Triage ✅ SHIPPED 2026-05-26
-- v3.1 Engine Hardening ✅ SHIPPED 2026-05-22
 
 ## Core Value
 
-**Grid 全栈 + EAASP 各层引擎都是 user 工时主战场;Grid 同时支撑通用 agent 场景与企业级 AI 应用。** 具体技术不可妥协约束:Grid 作为 substitutable L1 runtime 通过 16-method gRPC contract(`proto/eaasp/runtime/v2/runtime.proto`)被 L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。这个可替换性意味着 grid-engine 不能依赖未文档化行为,本仓库内 6 个 comparison runtime(claude-code / goose / nanobot / pydantic-ai / claw-code / ccb)是契约的活体测试。
-
+Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 substitutable L1 runtime,且任何符合当前 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off (2026-04-18, 42 PASS / 22 XFAIL × 7 runtime) 历史契约版本。
 ## Requirements
 
 ### Validated
@@ -70,9 +71,10 @@
 
 ### Active
 
-<!-- Milestone v3.3 started 2026-06-01. Requirements scoped per /gsd-roadmapper output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
+<!-- v3.6 Post-Activation Docs Sync + 4 EAASP platform-evolution gaps are the open scope. -->
 
-- [ ] **Phase 9 milestone (v3.5) Debt Finalization** (started 2026-06-16) — ~4-6 phases / LEDGER normalize ~85 rows then sweep remaining. Zero P1 rows — cleanup milestone. Last debt milestone before Grid 独立产品 activation.
+- [ ] **v3.6 Post-Activation Docs Sync** (started 2026-07-17) — 3 sub-phases 3.6.1/3.6.2/3.6.3 sync project docs (SSOT + snapshot + AGENTS/CLAUDE/READMEs + planning state) to post-Activation reality. All 3 sub-phases' CONTEXT/DISCUSSION-LOG/PLAN artifacts committed 2026-07-19.
+- [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. v3.7+ candidates.
 
 ### Out of Scope
 
