@@ -95,6 +95,19 @@ The engine processes every tool call through: **autonomy check → risk classifi
 
 ---
 
+## Product status
+
+- Grid Activation A.0–A.8 shipped on 2026-06-17.
+- EAASP core L0/L1/L2/L3/L4 engineering and runtime-contract validation are complete for the current reference implementation.
+- The repository contains 7 L1 runtimes in total, including 6 comparison runtimes.
+- `contract-v1.1.0` is the Phase 3 historical sign-off; `contract-v1.2.0` is the current latest contract.
+- `tools/eaasp-*` are simulator-level reference implementations of the EAASP v2.0 platform; there is no separate upstream EAASP project.
+- Future EAASP platform work (Phase 3 production OPA approval chain, Phase 4 A2A / Event Room, Phase 5 L5 Cowork UI, Phase 6 ecosystem expansion) remains pending.
+
+For the maintained product-status overview, see `docs/PROJECT_PRODUCT_OVERVIEW.md`.
+
+---
+
 ## Quick Start
 
 ```bash
