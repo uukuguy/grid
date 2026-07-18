@@ -16,42 +16,34 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Phase: Post-Activation (next milestone definition)
+## Current Phase: Grid 独立产品 Activation (Post-Debt)
 
-**Goal:** Grid Activation milestone SHIPPED 2026-06-17 (all 8 phases A.0–A.8 complete). Technical debt era closed (DEFERRED_LEDGER.md main D-table: 100% ✅ CLOSED at v3.5). Engine layer (grid-engine, grid-runtime, grid-cli, grid-server) is production-ready. Grid components are now active post-Activation with documented quality scores (see `.planning/STATE.md` Audit Findings Summary); `web-platform/` (7.5) and `grid-desktop` (6.5) remain below the 9.0+ quality bar and need further feature work.
+**Goal:** Activate the dormant Grid independent product leg per ADR-V2-024. Technical debt is fully cleared (DEFERRED_LEDGER.md main D-table: 100% ✅ CLOSED). All remaining items are 📦 long-term or deferred to future milestones. The engine layer (grid-engine, grid-runtime, grid-cli, grid-server) is production-ready.
 
-**Current activation status (post-2026-06-17):**
-- **grid-cli** — SHIPPED (Activation Score 8/10, Quality 9.0, 140+ tests, 16 commands, full TUI)
-- **web/** — SHIPPED (Activation Score 7/10, Quality 9.0, 9 vitest tests, 8 tabs, no mocks)
-- **grid-server** — SHIPPED (Activation Score 6/10, Quality 9.0, 25 integration test files, HMAC/JWT, ~130 endpoints)
-- **grid-eval** — SHIPPED (Activation Score 7/10, Quality 9.0, 10 scorers, 12 suites, CI workflow, parallel runner)
-- **grid-platform** — SHIPPED (Activation Score 6/10, Quality 9.0, 37 tests, ErrorCode enum, quota wired, 5MB limits)
-- **web-platform/** — SHIPPED but quality gap (Activation Score 3/10, Quality 7.5, needs Markdown + toast + skeletons + error states for 9.0+)
-- **grid-desktop** — SHIPPED but quality gap (Activation Score 3/10, Quality 6.5, needs Icons, IPC proxy, Grid rebrand for 9.0+)
-
-EAASP core L0/L1/L2/L3/L4 reference implementation and contract validation are complete. EAASP v2.0 platform-evolution gaps remain future work: production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion.
+**Activation targets:**
+- **grid-server** (single-user workbench) — already has WS, auth, config hot-reload from v3.1. Needs: frontend pairing, full feature set audit.
+- **grid-cli** — already feature-complete (command tree, streaming, TUI, session management).
+- **grid-platform** (multi-tenant server) — crate scaffolding only. Needs: full implementation.
+- **grid-desktop** (Tauri app) — crate scaffolding only. Needs: full implementation.
+- **web/** (single-user workbench UI) — scaffolding only. Needs: React UI implementation.
+- **web-platform/** (multi-tenant platform UI) — scaffolding only. Needs: React UI implementation.
+- **grid-eval** — scaffolding only. Needs: evaluation suite implementation.
 
 **Key context:**
-- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer. **Historical Leg A/B references in this file are SUPERSEDED by ADR-V2-024 dual-axis framing; retained only as historical anchors with `see ADR-V2-024 supersedes ADR-V2-023` notes.**
+- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
 - Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first, then platform/desktop/web.
-- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1, retained under ADR-V2-024 dual-axis).
-- L1 contract is currently v1.2.0; v1.1.0 is the historical Phase 3 sign-off reference.
+- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
-**Product status sources (canonical):**
-- `docs/PROJECT_PRODUCT_OVERVIEW.md` — maintained product-status SSOT
-- `docs/status/PRODUCT_STATUS_2026-07-17.md` — dated 2026-07-17 audit snapshot
-
-**Completed milestones:**
-- Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8, 5 commits)
-- v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (3 phases 9.0/9.1/9.2, LEDGER 100% ✅ CLOSED, 56 rows normalized)
-- v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases 7.0–8.6, 21 plans, ~85 INBOX rows → 67 REQ-IDs, ADR-V2-033 + ADR-V2-017 §2 Accepted)
+**Previous milestones:**
+- v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
+- v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
 - v3.3 Engine + Platform Debt Sweep ✅ SHIPPED 2026-06-07
 - v3.2 Tech-Debt Triage ✅ SHIPPED 2026-05-26
 - v3.1 Engine Hardening ✅ SHIPPED 2026-05-22
 
 ## Core Value
 
-**Grid 全栈 + EAASP 各层引擎都是 user 工时主战场;Grid 同时支撑通用 agent 场景与企业级 AI 应用。** 具体技术不可妥协约束:Grid 作为 substitutable L1 runtime 通过 gRPC contract(`proto/eaasp/runtime/v2/runtime.proto`)被 L2-L4 调用,且任何符合 contract-v1.2.0 的对比 runtime 都能替换它。这个可替换性意味着 grid-engine 不能依赖未文档化行为,本仓库内 6 个 comparison runtime(claude-code / goose / nanobot / pydantic-ai / claw-code / ccb)是契约的活体测试。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本;`contract-v1.2.0` 是当前最新版本。
+**Grid 全栈 + EAASP 各层引擎都是 user 工时主战场;Grid 同时支撑通用 agent 场景与企业级 AI 应用。** 具体技术不可妥协约束:Grid 作为 substitutable L1 runtime 通过 16-method gRPC contract(`proto/eaasp/runtime/v2/runtime.proto`)被 L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。这个可替换性意味着 grid-engine 不能依赖未文档化行为,本仓库内 6 个 comparison runtime(claude-code / goose / nanobot / pydantic-ai / claw-code / ccb)是契约的活体测试。
 
 ## Requirements
 
@@ -73,15 +65,14 @@ EAASP core L0/L1/L2/L3/L4 reference implementation and contract validation are c
 - ✓ **Phase-driven 开发流水**(Phase 2 → 4a 共 14 个归档 phase) —— ADR governance plugin + Deferred ledger SSOT
 - ✓ **Debt 水位归零**(2026-04-20 @ commit `8629505`) —— D148/D149/D151/D152/D153/D154/D155 全 ✅ CLOSED 后无新 P1-active
 - ✓ **Phase 4 主决策**(2026-04-28) —— 走"双轴模型(engine vs data/integration)主框架 + 两腿都推进(产品形态实例)" 路径; 详见 ADR-V2-024 (commit `f497eef`, status: Accepted, supersedes ADR-V2-023) + audit doc `docs/design/EAASP/adrs/decisions/2026-04-27-leg-decision-audit.md`
-- ✓ **Phase 5 milestone (v3.1) Engine Hardening** (2026-05-22) —— Phases 5.0/5.1/5.2/5.3/5.4/5.5 全 6 phase 完成; 23/23 REQ-ID traceability ✅ (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1); 6 ADR Accepted: ADR-V2-025 (Phase 5.1, Runtime Tier Strategy) + ADR-V2-026 (Phase 5.3, Agent Loop ExecutionMode supersedes V2-016) + ADR-V2-027 (Phase 5.3, OpenAI-compat Quirks) + ADR-V2-028 (Phase 5.4, Strict-by-default Config Validation) + ADR-V2-029 (Phase 5.5, Engine vs Data/Integration Boundary, commit `0b23a01`) + ADR-V2-032 (Phase 5.5, TUI Log Path Convention, commit `1b9afd1`); 18 D-items closed across milestone; F3 ADR enforcement.trace baseline 33 WARN → 12 explicit-strategic + 0 unjustified. grid-cli + grid-server 优先发力组合 per ADR-V2-024 §1 双轴模型 / Open Item #3 完成; 其余 (grid-platform / grid-desktop / web*) 保持 dormant. *(Historical state at v3.1 close 2026-05-22; superseded by Grid Activation milestone SHIPPED 2026-06-17 — see Current Phase section.)*
+- ✓ **Phase 5 milestone (v3.1) Engine Hardening** (2026-05-22) —— Phases 5.0/5.1/5.2/5.3/5.4/5.5 全 6 phase 完成; 23/23 REQ-ID traceability ✅ (CLI 6 + SERVER 5 + CONTRACT 3 + WATCHLIST 8 + INTERFACE 1); 6 ADR Accepted: ADR-V2-025 (Phase 5.1, Runtime Tier Strategy) + ADR-V2-026 (Phase 5.3, Agent Loop ExecutionMode supersedes V2-016) + ADR-V2-027 (Phase 5.3, OpenAI-compat Quirks) + ADR-V2-028 (Phase 5.4, Strict-by-default Config Validation) + ADR-V2-029 (Phase 5.5, Engine vs Data/Integration Boundary, commit `0b23a01`) + ADR-V2-032 (Phase 5.5, TUI Log Path Convention, commit `1b9afd1`); 18 D-items closed across milestone; F3 ADR enforcement.trace baseline 33 WARN → 12 explicit-strategic + 0 unjustified. grid-cli + grid-server 优先发力组合 per ADR-V2-024 §1 双轴模型 / Open Item #3 完成; 其余 (grid-platform / grid-desktop / web*) 保持 dormant.
 - ✓ **Phase 6 milestone (v3.2) Tech-Debt Triage & CI Red Line Clearance** (2026-05-26) —— Phases 6.0/6.1/6.2 全 3 phase 完成; 6/6 REQ-ID traceability ✅ (CI-01 @ `e27e300` Phase 6.0 NEW-X4 pytest fixture-scope rename + CLI-X2 @ `0595e31`+`a0a6c28` Phase 6.1 NEW-X2 sibling typed GridError + CLI-X3 @ `adf2c08`+`97f59e5` Phase 6.1 NEW-X3 --all-features Phase BA archaeology + TRIAGE-01 @ `9842dda` 93 main-NS row classify + TRIAGE-02 @ `e2a6349`+`835de4e`+`0f600b6` DEAD physical migration + TRIAGE-03 @ `24ee8ed` v3.3-INBOX.md); 0 ADRs Accepted (intentional light-triage milestone per ROADMAP Granularity 备注 v3.2 — code work scope-limited to 3 P2/P3 row, mega sweep deferred to v3.3+ per TRIAGE-03 output); 3 REQ-IDs closed via TRIAGE-01/02/03 cascade + 8 DEAD rows archived per TRIAGE-02. **Scope methodology correction**: 93 open main-namespace D-rows triaged (ROADMAP est. 102; scout claim 128 was grep-methodology error) — documented in LEDGER §状态变更日志 2026-05-26 entry, REQUIREMENTS.md left unchanged per CONTEXT.md §specifics.
 
 ### Active
 
-<!-- Post-Activation: Grid Activation milestone SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5 Debt Finalization SHIPPED 2026-06-16. Next milestone scope to be defined. Requirements scoped per `/gsd-roadmapper` output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
+<!-- Milestone v3.3 started 2026-06-01. Requirements scoped per /gsd-roadmapper output; see ROADMAP.md + REQUIREMENTS.md for phase-level traceability. -->
 
-- [ ] **Post-Activation quality gaps** (post-2026-06-17) — bring `web-platform/` (Quality 7.5 → 9.0+) and `grid-desktop` (Quality 6.5 → 9.0+) up to the bar the rest of the components have hit. Markdown + toast + skeletons + error states for web-platform/; Icons, IPC proxy, Grid rebrand for grid-desktop.
-- [ ] **EAASP v2.0 platform-evolution scope** — explicitly retained as future work, not part of post-Activation scope: production OPA approval chain (Phase 3), A2A / Event Room (Phase 4), L5 Cowork UI (Phase 5), ecosystem expansion (Phase 6). See `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
+- [ ] **Phase 9 milestone (v3.5) Debt Finalization** (started 2026-06-16) — ~4-6 phases / LEDGER normalize ~85 rows then sweep remaining. Zero P1 rows — cleanup milestone. Last debt milestone before Grid 独立产品 activation.
 
 ### Out of Scope
 
@@ -152,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-07-17 — Docs sync: PROJECT.md aligned to post-Activation reality (Grid Activation SHIPPED 2026-06-17, v3.5 Debt Finalization SHIPPED, EAASP core complete + platform gaps explicit). Canonical product status: `docs/PROJECT_PRODUCT_OVERVIEW.md` + dated snapshot `docs/status/PRODUCT_STATUS_2026-07-17.md`. Historical Leg A/B references remain in this file only as superseded anchors per ADR-V2-024 dual-axis. Current contract = `contract-v1.2.0`; `contract-v1.1.0` = Phase 3 historical sign-off. Milestone Grid 独立产品 Activation (8/8 phases A.0–A.8) ✅ SHIPPED 2026-06-17. Milestone v3.5 (Debt Finalization) ✅ SHIPPED 2026-06-16. Milestone v3.4 (Full INBOX Drain) ✅ SHIPPED 2026-06-16. Milestone v3.3 (Engine + Platform Debt Sweep) ✅ SHIPPED 2026-06-07. Milestone v3.2 (Tech-Debt Triage) ✅ SHIPPED 2026-05-26. Milestone v3.1 (Engine Hardening) ✅ SHIPPED 2026-05-22.*
+*Last updated: 2026-06-16 — Milestone v3.5 (Debt Finalization — LEDGER Audit & Clean Sweep) STARTED 2026-06-16. ~4-6 phases planned (9.0+ new) to normalize DEFERRED_LEDGER.md statuses + sweep genuinely remaining items. End state: 100% ✅ CLOSED uniformity, last debt milestone before Grid 独立产品 activation. Milestone v3.4 (Full INBOX Drain) ✅ CLOSED 2026-06-16 (10/10 phases, ~55 REQ-IDs). Milestone v3.3 (Engine + Platform Debt Sweep) ✅ CLOSED 2026-06-07. Milestone v3.2 (Tech-Debt Triage) ✅ CLOSED 2026-05-26. Milestone v3.1 (Engine Hardening) ✅ CLOSED 2026-05-22.*
