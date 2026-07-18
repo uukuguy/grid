@@ -16,6 +16,14 @@ language: 中文(per global CLAUDE.md `docs/` 目录规则)
 >
 > 修正点 = docs sync across CLAUDE.md / README.* / ADR-V2-024 Note / MEMORY.md,本次 PR 一并完成。
 
+### See also(双向 cross-link)
+
+- **📌 不可变审计快照(2026-07-17 时刻锁)**:`docs/status/PRODUCT_STATUS_2026-07-17.md` — 7-section 自包含快照,记录本 SSOT 在 2026-07-17 docs sync 时刻的完整事实,含 baseline SHA `05c6d7db` 与本 commit SHA。
+- **📘 ADRs 战略权威**:`docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md`(双轴 substance)+ `ADR-V2-029-engine-data-integration-boundary.md`(双轴 crate-level enforcement)。
+- **📐 EAASP 平台设计规范权威**:`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`(`EAASP_v2_0_EVOLUTION_PATH.md` §"权威规范")。
+
+> 本 SSOT 是 **可维护** 的事实表;`docs/status/PRODUCT_STATUS_<date>.md` 是 **只读快照**。两者必须严格一致——任何 SSOT 改动都应触发同日期或后续日期的新快照。
+
 ---
 
 ## 一、这是什么 — 两轴模型 (engine vs data/integration)
@@ -113,7 +121,12 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | `tools/eaasp-certifier/` | 1,954 Rust + 0 dedicated | Phase 3 ✅ contract harness | contract 认证 harness(Rust, Cargo workspace member) |
 | `tools/eaasp-common/` | 31 Py + 1 test | minimal | shared types(SDK) |
 | `tools/mock-scada/` | — | mature | 验证 skill 用的外部系统示例(Python 进程,集成 L3 policy / L4 orchestration) |
-| `proto/eaasp/runtime/v2/` | 17 + 4 RPC = **21 方法** | frozen | L0 Protocol,runtime.proto(17) + hook.proto(4)+ common.proto |
+| `proto/eaasp/runtime/v2/` | 17 + 4 RPC = **21 方法**(详见下方 split) | frozen | L0 Protocol,runtime.proto(17) + hook.proto(4)+ common.proto |
+
+**L0 协议 split(reconciling 16/17/21)**:
+- **L1 contract = 16 方法** = `12 MUST + 4 Optional`(per v2.0 spec §8.5 + EVOLUTION_PATH §2.4)— L1 runtime 必须实现的 API surface。
+- **`runtime.proto` = 17 RPC** = 16 spec + `EmitEvent`(OPTIONAL per ADR-V2-001)— v2 spec 之外的 1 个 OPTIONAL RPC。
+- **协议总 = 21 RPC** = 17 `runtime.proto` + 4 `hook.proto`(`hook.proto` 是独立 RPC service)。CLAUDE.md / AGENTS.md 简化"16 methods"指 L1 contract 16 = 12+4。|
 
 ### 2.3 L1 Runtime 生态(`lang/*` 7 个 + Cargo adapters 3 个)
 
@@ -140,6 +153,18 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 
 ## 三、当前里程碑状态(2026-07-17)
 
+### 3.0 状态快照 (2026-07-17 快照)
+
+> 本节是项目当前的"5 个 canonical 事实",锁在 2026-07-17 docs sync 时刻。后续修改 **必须** 走 GSD/ADR governance 路径(`/adr:status` + `/adr:new`),不许私下更新本表。
+
+| # | 事实 | 状态 |
+|---|------|------|
+| 1 | Grid 独立产品 Activation 全 8 阶段(A.0–A.8)✅ SHIPPED 2026-06-17,repo 已重命名 grid-sandbox → grid | ✅ |
+| 2 | L1 contract 当前版本 = `contract-v1.2.0`(Phase 5.3 2026-05-20 引入 ADR-V2-026 ExecutionMode + ADR-V2-027 OpenAI-compat Quirks);Phase 3 sign-off baseline = `contract-v1.1.0`(42 PASS / 22 XFAIL × 7 runtime) | ✅ |
+| 3 | L1 runtime 生态 = 1 主力(grid-runtime)+ 6 comparison(7 个 adapter 含 hermes frozen);L1 contract 16 方法 = 12 MUST + 4 Optional | ✅ |
+| 4 | `tools/eaasp-*/` 是 **EAASP v2.0 平台尚未完整实现前、按平台契约做的模拟器级参考实现**;不存在"上游 EAASP"独立项目;EAASP 平台设计文档权威源同仓 `docs/design/EAASP/`(`EAASP-Design-Specification-v2.0.docx` 为规范权威) | ✅ |
+| 5 | EAASP 平台 v2.0 设计规范的 5 层 + 3 管道 + 4 元范式 + 7 阶段演化已实现约 40–50%(圈 2 + 圈 3 + Phase 0–2.5);4 个 EAASP 平台演化缺口(Phase 3 OPA 审批链 / Phase 4 A2A Router + Event Room / Phase 5 L5 Cowork UI / Phase 6 生态扩展 Marketplace + 多租户 + SDK)⏸ 待后续 milestone 推进 | 🟡 STARTED |
+
 ### 3.1 SHIPPED 里程碑
 
 | Milestone | 关闭日期 | 关键产出 |
@@ -151,6 +176,27 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | v3.4 Phase 7/8 — Full INBOX Drain | 2026-06-16 | 10 phases / 67 REQ-IDs / 2 ADRs(V2-033 + V2-017 §2) |
 | v3.5 Phase 9 — Debt Finalization | 2026-06-16 | LEDGER 100% ✅ CLOSED(56 rows)|
 | **Grid 独立产品 Activation(A.0–A.8)** | **2026-06-17** | 8 phases,Repo rename grid-sandbox→grid,README publish |
+
+### 3.1.1 EAASP Phase 演化路线对应里程碑
+
+> Source-of-truth phase→milestone 映射表(per `EAASP_v2_0_EVOLUTION_PATH.md` §三 8 Phase 路线)。
+
+| EVOLUTION_PATH Phase | 标题 | 关闭日期 | 备注 |
+|---------------------|------|---------|------|
+| 0 | Infrastructure Foundation | 2026-04-12 | 5 层服务骨架 + 16 方法契约 |
+| 0.5 | MVP 全层贯通 | 2026-04-13 | L4→L1 真 gRPC + LLM agent 执行 |
+| 0.75 | L2 MCP 编排 | 2026-04-13 | 三 runtime 统一 MCP transport |
+| 1 | Event-driven foundation | 2026-04-14 | L4 Event Engine + Session Event Stream |
+| 2 | Memory and evidence | 2026-04-16 | L2 memory + skill extraction + PreCompact |
+| 2.5 | L1 Runtime 生态首批 | 2026-04-17 | 7 个 L1 runtime + 契约测试集 |
+| 3 | Approval and verification | ⏸ 未启动 | Phase 3 OPA 后端 + 完整审批链 未实现 |
+| 3.5 | chunk_type Unification | 2026-04-20 | ADR-V2-021 Accepted |
+| 3.6 | Post-Activation Docs Sync | 2026-07-17 STARTED | docs sync,本项目当前 phase |
+| 4a | Project review / GSD Bootstrap | 2026-04-27→28 | ADR-V2-024 双轴模型 Accepted + GSD 治理 |
+| 4 | Multi-agent collaboration | ⏸ 未启动 | A2A Router + ReviewSet + T0 Harness 未实现 |
+| 5 | Complete collaboration space | ⏸ 未启动 | L5 Cowork UI + IM bot + 回溯闭环 未实现 |
+| 6 | Ecosystem expansion | ⏸ 未启动 | Marketplace + 多租户 + SDK 未实现 |
+| — | **Grid 独立产品 Activation (A.0–A.8)** | **2026-06-17** | 8 phases + repo rename grid-sandbox → grid |
 
 ### 3.2 关键 KPI 当前值
 
@@ -167,6 +213,7 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 | 最新 contract 版本 | contract-v1.2.0 (L1 marketplace contract) |
 | Pending commits 未 push | 0 |
 | Grid 独立产品 Activation phases | 8/8 SHIPPED |
+| **EAASP 平台未来工作 (OOS, 未实现)** | **4 gaps**(Phase 3 OPA 审批链 / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 生态扩展) |
 
 ---
 
@@ -202,7 +249,20 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 
 ---
 
-## 五、与历史文档的差异(本次 docs sync 修正点)
+## 五、显式平台演化缺口(explicit platform-evolution gaps)
+
+> 这是 §3.0 状态快照事实 #5 的展开,按 EVOLUTION_PATH §三 8 Phase 路线的顺序列出 4 个 EAASP 平台演化缺口。每条都标 **🟡 STARTED / OOS, 未实现**(per GSD/ADR governance 标记体系),不会在 v3.6 范围处理,作为后续 milestone 的入口。
+
+| # | 缺口 | 关联 Phase(EVOLUTION_PATH)| 当前 in-repo 状态 | 未来 milestone 入口 |
+|---|------|--------------------------|------------------|------------------|
+| 1 | **生产级 OPA 后端 + 5 阶段审批链** | Phase 3(Approval and verification) | `tools/eaasp-l3-governance/` Phase 1 基础 ✅(Policy DSL + risk classification + shadow/enforce mode);**OPA 后端 + 完整审批链 ⏸ 未实现**(per `PHASE_3_DESIGN.md`) | v3.7+ 启动 EAASP Phase 3 实施 |
+| 2 | **A2A Router + Event Room(Multi-agent collaboration)** | Phase 4(Multi-agent collaboration) | `tools/eaasp-l4-orchestration/` Phase 1 基础 ✅(session orchestration + SSE fan-out);**A2A Router + ReviewSet + T0 Harness ⏸ 未实现** | v3.7+ 启动 EAASP Phase 4 实施 |
+| 3 | **L5 Cowork UI(Complete collaboration space)** | Phase 5(Complete collaboration space) | `tools/eaasp-cli-v2/` Phase 0 ✅(L5 endpoint 模拟器);**L5 Cowork UI(4 卡)+ IM bot + 回溯闭环 ⏸ 未实现** | v3.7+ 启动 EAASP Phase 5 实施 |
+| 4 | **生态扩展(Marketplace + 多租户 SaaS SDK)** | Phase 6(Ecosystem expansion) | **全部 ⏸ 未实现**(per EVOLUTION_PATH §三 Phase 6) | v3.7+ 启动 EAASP Phase 6 实施 |
+
+**Cross-link:** 上述 4 gap 与 §3.0 状态快照事实 #5、§3.1.1 phase→milestone 表 ⏸ 行、§3.2 KPI 表 OOS 行 双向锚定,任何对缺口的实施改动需先建 ADR(走 `/adr:new --type strategy`)+ 更新本文。
+
+## 六、与历史文档的差异(本次 docs sync 修正点)
 
 | 文档 | 旧措辞(错) | 新措辞(对) | 修正原因 |
 |------|------------|------------|---------|
@@ -214,7 +274,7 @@ EAASP v2.0 实现进度对照 EVOLUTION_PATH § 3.1(8 Phase 演化路线):
 
 ---
 
-## 六、Reference Linkage
+## 七、Reference Linkage
 
 ### 6.1 EAASP 平台设计文档权威源(同仓 `docs/design/EAASP/`)
 
