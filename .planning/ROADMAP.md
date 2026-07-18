@@ -12,7 +12,8 @@
 - ✅ **v3.3 Phase 7 — Engine + Platform Debt Sweep** — SHIPPED 2026-06-07 (Phase 7.3 L3 RBAC, 8/8 REQ-IDs)
 - ✅ **v3.4 Phase 7/8 — Full INBOX Drain** — SHIPPED 2026-06-16 (10 phases, 67 REQ-IDs, 2 ADRs)
 - ✅ **v3.5 Phase 9 — Debt Finalization** — SHIPPED 2026-06-16 (3 phases, LEDGER 100% CLOSED)
-- 🟡 **Grid 独立产品 Activation** — SCOPING (post-debt, post-v3.5)
+- ✅ **Grid 独立产品 Activation** — SHIPPED 2026-06-17 (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`; `AGENTS.md` / `CLAUDE.md` / READMEs / `docs/PROJECT_PRODUCT_OVERVIEW.md` are the maintained product-status entrypoints)
+- 🟡 **v3.6 Post-Activation Docs Sync** — post-Activation narrative alignment (2026-07-18 STARTED)
 
 ---
 
@@ -95,10 +96,59 @@ A.8 grid-eval — independent, can run anytime with web/ components
 
 ---
 
+## Milestone: v3.6 Post-Activation Docs Sync 🟡 STARTED 2026-07-18
+
+**Goal:** Align the canonical product-status narrative to the post-Activation reality so future sessions and external readers can find a single, maintained source. Carry forward the docs-sync work the prior session drafted in the `grid-eaasp-product-docs-sync-2026-07-18` working set without mixing the docs-sync flow into the GSD phase management path (no superpowers/lwm/project-state artifacts in `.planning/`).
+
+**Context:** Grid 独立产品 Activation shipped 2026-06-17 (8/8 phases A.0–A.8). On 2026-07-17 a docs sync draft was sketched in the conversation but not committed. On 2026-07-18 the user instructed to bring the docs sync into the GSD project-management system — the working set was reset to `05c6d7db` and the v3.6 phase was created in `ROADMAP.md`. This phase reconciles the post-Activation narrative and the EAASP v2 platform-evolution status (Phase 3 OPA approval chain / Phase 4 A2A / Phase 5 L5 Cowork / Phase 6 ecosystem) across the project's public, internal, and planning surfaces.
+
+**Activation targets (post-Activation):**
+
+| Surface | Current State | v3.6 Target |
+|---------|---------------|-------------|
+| `docs/PROJECT_PRODUCT_OVERVIEW.md` | Pre-Activation narrative (Activation listed as scoping) | Maintained SSOT with 5 canonical facts + Section 3 status snapshot + Section 4 future work + 16/17/21 RPC reconciliation |
+| `AGENTS.md` / `CLAUDE.md` | Pre-Activation toolchain framing | Canonical-facts block; preserved Leg A/B see-link to ADR-V2-024; CLAUDE.md symlink to AGENTS.md |
+| `README.md` / `README.zh.md` | Bilingual pre-Activation product status | Bilingual "Product status" section in front of Quick Start; same 5 facts in both languages (genuine Chinese, not literal English copy) |
+| `.planning/PROJECT.md` / `.planning/STATE.md` | Pre-Activation current phase + stale `[ ]` activation tag | Post-Activation focus; v3.5 / Activation marked shipped; EAASP platform gaps declared as future work |
+| `docs/status/PRODUCT_STATUS_<date>.md` | (none) | New immutable date-stamped audit snapshot that locks the canonical facts at the sync moment |
+
+**Shared core rule (ADR-V2-023 P1 retained under ADR-V2-024):** docs changes are documentation-only and must not touch `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` or any source code under `crates/`, `lang/`, `tools/`, `web/`, `web-platform/`, or `proto/`.
+
+### Phase 3.6.1: docs/PROJECT_PRODUCT_OVERVIEW.md SSOT + dated snapshot
+
+**Goal:** Establish the maintained product-status SSOT and a date-stamped immutable audit snapshot.
+
+- [ ] Plan 3.6.1-01: SSOT additions (Section 3 status snapshot, Section 3.1.1 EAASP phase→milestone alignment, Section 4 explicit future work) + new immutable `docs/status/PRODUCT_STATUS_2026-07-18.md` snapshot.
+- Validate: 9-token parity check across both files (`2026-06-17`, `A.8`, `7`, `6 comparison`, `contract-v1.1.0`, `contract-v1.2.0`, `模拟器级参考实现`, `A2A`, `Cowork`).
+
+### Phase 3.6.2: AGENTS.md canonical-facts block + CLAUDE.md symlink + README status sections
+
+**Goal:** Surface the canonical facts at the project's root entrypoint and the public bilingual READMEs.
+
+- [ ] Plan 3.6.2-01: AGENTS.md canonical-facts block; CLAUDE.md re-create as relative symlink to AGENTS.md (git mode 120000); English README "Product status" section; Chinese README `产品状态` section in genuine Chinese.
+- Validate: `test -L CLAUDE.md && readlink CLAUDE.md = AGENTS.md`; bilingual parity check (3 tokens in both languages + `6 comparison` in EN + `6 个对比` in ZH).
+
+### Phase 3.6.3: .planning/PROJECT.md + .planning/STATE.md sync
+
+**Goal:** Bring the GSD planning state into alignment with the post-Activation reality.
+
+- [ ] Plan 3.6.3-01: rewrite PROJECT.md current-phase block to post-Activation; mark v3.5 shipped; declare EAASP platform-evolution gaps as future work; correct the `4/7 components at 9.0+` to `5/7` (scoreboard-table vs prose mismatch in STATE.md Audit Findings Summary); update STATE.md core value to v1.2.0 current + v1.1.0 historical; add canonical-source links to SSOT and dated snapshot.
+- Validate: Task 3 planning token check (3 tokens: `2026-06-17`, `contract-v1.2.0`, `PROJECT_PRODUCT_OVERVIEW.md`).
+
+### Success Criteria
+
+1. SSOT and dated snapshot agree on the 5 canonical facts and the 4 EAASP platform gaps.
+2. `AGENTS.md` carries the canonical-facts block with the correct `docs/status/PRODUCT_STATUS_2026-07-18.md` link; `CLAUDE.md` is a relative symlink to `AGENTS.md` (mode 120000).
+3. Bilingual READMEs have matching "Product status" sections in genuine Chinese (not literal English copy).
+4. `.planning/PROJECT.md` / `.planning/STATE.md` describe post-Activation reality and reference the SSOT and dated snapshot.
+5. No superpowers, project-state, lwm, or other GSD-incompatible skill artifacts appear in `.planning/` or anywhere in the working tree (clean working tree, no untracked scratch dirs).
+
+---
+
 ## Coverage Index
 
 To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps discovered.
 
 ---
 
-*Last updated: 2026-06-17 — Grid 独立产品 Activation milestone SHIPPED (8/8 phases complete).*
+*Last updated: 2026-07-18 — v3.6 Post-Activation Docs Sync phase added after Grid 独立产品 Activation SHIPPED 2026-06-17.*

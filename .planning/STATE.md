@@ -1,17 +1,19 @@
 ---
 gsd_state_version: 1.0
-milestone: activation
-milestone_name: Grid 独立产品 Activation
-status: complete
-  stopping: All milestones SHIPPED. Repo renamed grid-sandbox → grid. README published.
-  last_updated: "2026-06-17"
-  last_activity: 2026-06-17
+milestone: v3.6
+milestone_name: v3.6 Post-Activation Docs Sync
+status: in_progress
+  stopping: Phase 3.6 docs sync (SSOT + snapshot + AGENTS/CLAUDE/READMEs + planning state) in progress; previous milestones v3.0–v3.5 and Grid 独立产品 Activation SHIPPED 2026-06-17.
+  last_updated: "2026-07-18"
+  last_activity: "2026-07-18"
   progress:
-    total_phases: 8
-    completed_phases: 8
-    total_plans: 8
-    completed_plans: 8
-    percent: 100
+    total_phases: 3
+    completed_phases: 0
+    total_plans: 3
+    completed_plans: 0
+    percent: 0
+  v3.5_shipped: true
+  activation_shipped: true
 ---
 
 # Project State
