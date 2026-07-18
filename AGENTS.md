@@ -23,6 +23,29 @@
 
 ---
 
+## Product status (canonical facts, 2026-07-17 sync)
+
+The canonical facts below match `docs/PROJECT_PRODUCT_OVERVIEW.md` and the dated audit snapshot `docs/status/PRODUCT_STATUS_2026-07-17.md`.
+
+- **Grid Activation**: 8 phases (A.0–A.8) **shipped on 2026-06-17**. Post-Activation work continues (`grid-desktop` feature completion, `web-platform/` test coverage).
+- **EAASP core engineering**: L0 (protocol) + L1 (runtime contract) + L2 (memory & skills) + L3 (governance) + L4 (orchestration) reference implementation and contract validation are **complete for the current research/reference implementation** in this repository.
+- **EAASP platform evolution — explicitly pending**: Phase 3 production OPA approval chain, Phase 4 A2A / Event Room, Phase 5 L5 Cowork UI, Phase 6 ecosystem expansion. These remain future work in the EVOLUTION_PATH 8-Phase roadmap.
+- **L1 runtimes**: **7 total** in this repository — 1 production (`grid-runtime`) + 6 comparison runtimes (`claude-code`, `goose`, `nanobot`, `pydantic-ai`, `claw-code`, `ccb`; `hermes` frozen per ADR-V2-017).
+- **Contract version**: `contract-v1.2.0` is the **current latest**; `contract-v1.1.0` is the **historical Phase 3 sign-off** (2026-04-18, 42 PASS / 22 XFAIL × 7 runtime).
+- **`tools/eaasp-*` framing**: simulator-level reference implementations of the EAASP v2.0 platform contract, hosted in this same repository. **No separate upstream EAASP project exists**; the EAASP platform design authoritative source is `docs/design/EAASP/` (with `EAASP-Design-Specification-v2.0.docx` as the spec of record).
+
+### See also (canonical sources)
+
+| Source | Path | Description |
+|--------|------|-------------|
+| Maintained SSOT | `docs/PROJECT_PRODUCT_OVERVIEW.md` | Project-level single source of truth for product status |
+| Dated audit snapshot | `docs/status/PRODUCT_STATUS_2026-07-17.md` | Immutable 7-section audit of 2026-07-17 docs sync moment |
+| Dual-axis strategic anchor | `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` | engine vs data/integration dual-axis substance |
+| Dual-axis boundary | `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` | Crate-level enforcement of dual-axis boundary |
+| EAASP spec of record | `docs/design/EAASP/EAASP-Design-Specification-v2.0.docx` | Authoritative EAASP v2.0 platform design specification |
+
+---
+
 ## Product legs at a glance (ADR-V2-024 双轴模型, supersedes ADR-V2-023)
 
 | Dimension | engine 接入面 (原 Leg A, see ADR-V2-024) | Grid 独立产品 (原 Leg B, see ADR-V2-024) |
