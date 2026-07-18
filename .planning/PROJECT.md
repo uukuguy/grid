@@ -16,17 +16,24 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Phase: Post-Activation (next milestone TBD)
+## Current Phase: v3.7 实战可用性补全 (Production-Usability Closure)
 
-**Goal:** Bring the GSD planning state to the post-Activation reality so future sessions and external readers can find a single, maintained source. Grid 独立产品 Activation SHIPPED 2026-06-17 (8/8 phases A.0–A.8). All technical debt cleared (DEFERRED_LEDGER.md 100% ✅ CLOSED). v3.6 Post-Activation Docs Sync in progress (3 sub-phases 3.6.1/3.6.2/3.6.3). Next milestone definition pending.
+**Goal:** Close the gap between Activation Quality 9.0+ scores and 实战可用性 (real-world usability) declared by the user on 2026-07-19. Activation 9.0 ≠ 实战可用 — `grid-cli` / `web/` / `EAASP 本地仿真` must be runnable end-to-end against realistic enterprise-agent scenarios before this milestone closes. `grid-server` multi-user login scenario is explicitly deferred to the next milestone per user direction.
 
-**Post-Activation scope** (candidate next milestones, not yet activated):
+**v3.7 scope** (per user 2026-07-19):
 
-| Surface | Quality | Gap | Future milestone |
-|---------|---------|-----|------------------|
-| `web-platform/` | 7.5/10 | Markdown + toast + skeletons + error states | Quality gap closure |
-| `grid-desktop` | 6.5/10 | Icons + IPC proxy + Grid rebrand (Tauri 2) | Quality gap closure |
-| EAASP v2.0 platform evolution | ⏸ 未实现 | 4 platform-evolution gaps: Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem | v3.7+ EAASP platform phase |
+| Surface | Activation Score | Real-world Status | v3.7 Target |
+|---------|------------------|-------------------|-------------|
+| `grid-cli` | 9.0 | 完整独立工作 (单用户跑 agent) | 端到端实战 verification; 16 commands work in 真实场景 walkthrough |
+| `web/` (grid-web single-user UI) | 9.0 | 实战不可用 (per user) | Dashboard for monitoring/tracking agents; close Activation-9.0 ↔ 实战-不可用 gap |
+| `tools/eaasp-*/` (EAASP 本地仿真) | 5/7 audit | 接近实战企业平台 | Simulator-level → credible enterprise simulation; wire minimum Phase 3 governance gate hooks |
+| `grid-server` multi-user login | 9.0 | Deferred to v3.8 | RBAC + JWT tenant scoping + cross-user session isolation — user explicitly deferred |
+
+**Out of scope (deferred to v3.8+):**
+
+- `grid-server` multi-user login scenario — single-user stack must be 实战可用 first.
+- EAASP v2.0 platform-evolution gaps (Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem) — only the minimum credible hooks are wired in v3.7.3; full implementations remain future work.
+- `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) — user did NOT include them in v3.7; stay in Activation-deferred backlog.
 
 **See also (canonical sources)**:
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
@@ -38,6 +45,7 @@
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
 **Previous milestones:**
+- **v3.6 Post-Activation Docs Sync SHIPPED 2026-07-19** (7 docs commits @ a29f626, 46/46 UAT PASS)
 - **Grid 独立产品 Activation SHIPPED 2026-06-17** (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
 - v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
 - v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
@@ -71,10 +79,10 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 
 ### Active
 
-<!-- v3.6 Post-Activation Docs Sync + 4 EAASP platform-evolution gaps are the open scope. -->
+<!-- v3.7 实战可用性补全 + 4 EAASP platform-evolution gaps are the open scope. -->
 
-- [ ] **v3.6 Post-Activation Docs Sync** (started 2026-07-17) — 3 sub-phases 3.6.1/3.6.2/3.6.3 sync project docs (SSOT + snapshot + AGENTS/CLAUDE/READMEs + planning state) to post-Activation reality. All 3 sub-phases' CONTEXT/DISCUSSION-LOG/PLAN artifacts committed 2026-07-19.
-- [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. v3.7+ candidates.
+- [ ] **v3.7 实战可用性补全 (Production-Usability Closure)** (started 2026-07-19) — 4 phases: 3.7.1 grid-cli 实战补全, 3.7.2 web/ dashboard 实战化, 3.7.3 EAASP 本地仿真实战补全, 3.7.4 SKIPPED (grid-server multi-user deferred to v3.8).
+- [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. v3.7.3 wires minimum credible Phase 3 governance hooks; full implementations remain v3.8+ candidates.
 
 ### Out of Scope
 

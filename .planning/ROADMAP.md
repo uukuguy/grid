@@ -13,7 +13,8 @@
 - ✅ **v3.4 Phase 7/8 — Full INBOX Drain** — SHIPPED 2026-06-16 (10 phases, 67 REQ-IDs, 2 ADRs)
 - ✅ **v3.5 Phase 9 — Debt Finalization** — SHIPPED 2026-06-16 (3 phases, LEDGER 100% CLOSED)
 - ✅ **Grid 独立产品 Activation** — SHIPPED 2026-06-17 (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`; `AGENTS.md` / `CLAUDE.md` / READMEs / `docs/PROJECT_PRODUCT_OVERVIEW.md` are the maintained product-status entrypoints)
-- 🟡 **v3.6 Post-Activation Docs Sync** — post-Activation narrative alignment (2026-07-18 STARTED)
+- ✅ **v3.6 Post-Activation Docs Sync** — SHIPPED 2026-07-19 (7 docs commits @ a29f626, 46/46 UAT PASS, clean tree; SSOT + snapshot + AGENTS/CLAUDE/READMEs/planning state synced to post-Activation reality)
+- 🟡 **v3.7 实战可用性补全 (Production-Usability Closure)** — 4 phases STARTED 2026-07-19; closes Activation Quality 9.0+ ↔ 实战不可用 gap across `grid-cli` / `web/` / `EAASP 本地仿真`; `grid-server` 多用户登录场景 deferred to next milestone
 
 ---
 
@@ -151,4 +152,82 @@ To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps disc
 
 ---
 
-*Last updated: 2026-07-18 — v3.6 Post-Activation Docs Sync phase added after Grid 独立产品 Activation SHIPPED 2026-06-17.*
+## Milestone: v3.7 实战可用性补全 (Production-Usability Closure) 🟡 STARTED 2026-07-19
+
+**Goal:** Close the gap between the **Activation Quality 9.0+ scores** (declared in v3.6 docs sync) and **实战可用性 (real-world usability)** declared by the user on 2026-07-19. Activation 9.0 ≠ 实战可用 — `grid-cli` / `web/` / `EAASP 本地仿真` need to be runnable end-to-end against realistic enterprise-agent scenarios before this milestone closes.
+
+**Context:** Activation milestone (8/8 phases A.0–A.8) shipped 2026-06-17 with the **Quality Scoreboard** in `.planning/STATE.md` scoring `grid-cli`/`web/`/`grid-server`/`grid-eval`/`grid-platform` at 9.0+ each. On 2026-07-19 the user clarified: these scores measure internal code health, NOT real-world usability. `grid-cli` must let one person drive an agent end-to-end; `web/` must be a usable dashboard for monitoring/tracking agents; `EAASP` local tools must be a credible simulation of an enterprise platform close enough to production. The user explicitly **deferred** `grid-server` multi-user login scenario to the next milestone — single-user grid-server work landed in Phase A.1.
+
+**Scope (priority-ordered per user direction 2026-07-19):**
+
+| Crate/Tool | Activation Score | Real-world Status | v3.7 Target |
+|------------|------------------|-------------------|-------------|
+| `crates/grid-cli/` | 9.0 ✅ | **完整独立工作** — needs end-to-end实战 verification | Run any enterprise-style agent scenario from CLI without manual stitching; verify all 16 commands work in a 真实场景 walkthrough |
+| `web/` (grid-web single-user UI) | 9.0 ✅ | **实战不可用** (per user 2026-07-19) | Dashboard for monitoring/tracking agent execution; close the Activation-9.0 ↔ 实战-不可用 gap |
+| `tools/eaasp-*/` (EAASP 本地仿真) | 5/7 audit | **接近实战企业平台** — simulator-level → credible enterprise simulation | Wire enough of L0/L1/L2/L3/L4 + Phase 3 governance gate hooks so a 真实 enterprise workflow can be exercised locally without external EAASP |
+| `crates/grid-server/` | 9.0 ✅ | **Deferred** to next milestone | Multi-user login scenario (per user 2026-07-19) → v3.8 |
+
+**Out of scope (deferred to v3.8+):**
+
+- `grid-server` multi-user login scenario — RBAC + JWT tenant scoping + cross-user session isolation. User explicitly deferred until single-user stack is 实战可用.
+- EAASP v2.0 platform-evolution gaps (Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem) — still future work, NOT addressed by v3.7.
+- `web-platform/` (multi-tenant UI, Quality 7.5) and `grid-desktop` (Quality 6.5) — these are Activation-shipped but below 9.0+; user did NOT include them in v3.7 scope, so they stay in Activation-deferred backlog.
+
+**Shared core rule (ADR-V2-023 P1 retained under ADR-V2-024):** any change to `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge` must work for both engine 接入面 and Grid independent product. v3.7 work predominantly touches `crates/grid-cli/` + `web/` + `tools/eaasp-*/` — none are shared core, but if a change crosses that boundary it must respect the rule.
+
+**Acceptance standard — "实战可用" definition (per user 2026-07-19):**
+
+1. **grid-cli**: A non-developer can `grid` + start a realistic enterprise-style task (multi-step agent with tool use, memory, hooks) and observe meaningful output without CLI-flag tuning.
+2. **grid-web** (`web/`): A non-developer can open the dashboard, observe a running agent's progress in real time, see its tool calls, see its memory writes, and stop/resume it without code intervention.
+3. **EAASP 本地仿真**: A non-developer can `eaasp session run -s <skill> -r <runtime> "<prompt>"` against a realistic enterprise scenario and see L2 memory + L3 governance gate + L4 SSE streaming behave as a credible enterprise platform would — close enough to实战 that a customer could evaluate the platform locally before committing to deployment.
+
+### Phase 3.7.1: grid-cli 实战可用性补全
+
+**Goal:** Make `grid-cli` runnable end-to-end for realistic enterprise-agent scenarios without manual stitching.
+
+- [ ] Plan 3.7.1-01: Audit current `grid` command surface (16 commands) against 3–5 realistic enterprise scenarios (multi-step agent + tool use + memory + hooks + LLM streaming). Identify every gap between Activation-9.0 code quality and end-to-end runnability.
+- [ ] Plan 3.7.1-02: Close the gaps surfaced in 3.7.1-01. Each plan must pass: (a) the scenario runs from a clean checkout with documented env vars; (b) no manual CLI-flag tuning required; (c) output is meaningful and actionable for a non-developer observer.
+- Validate: 3 实战 scenarios PASS end-to-end without code intervention; documented in `docs/status/PRODUCTION_USABILITY_2026-XX-XX.md` walkthrough.
+
+### Phase 3.7.2: web/ 实战可用性补全 (grid-web dashboard 实战化)
+
+**Goal:** Close the gap between Activation-9.0 and 实战不可用 for `web/`. Specifically: build a dashboard that a non-developer can open, observe a running agent, see its tool calls, see its memory writes, and stop/resume it without code intervention.
+
+- [ ] Plan 3.7.2-01: Identify the specific "实战不可用" gaps in `web/` — likely candidates: WS streaming reconnect on agent crash, tool-call event ordering in UI, memory write visibility, stop/resume UX, mock fallbacks still in code paths per A.2 audit.
+- [ ] Plan 3.7.2-02: Close the gaps. End-to-end test: open `web/` against a running `grid-server` + a real agent task; verify monitor/track/stop/resume works without devtools intervention.
+- Validate: Video/walkthrough of a non-developer running an enterprise scenario through `web/` end-to-end; UAT pass with 1–2 external observers (or self-recorded walkthrough if external observers not available).
+
+### Phase 3.7.3: EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)
+
+**Goal:** Move `tools/eaasp-*/` from "simulator-level reference implementation" (per docs/PROJECT_PRODUCT_OVERVIEW.md) to "credible enterprise simulation close enough to实战 that a customer could evaluate locally".
+
+- [ ] Plan 3.7.3-01: Audit which of the 8 EAASP evolution phases are SHIPPED (Phase 0–2.5 ✅ per canonical facts) vs deferred (Phase 3 OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem). For each deferred phase that affects 实战 credibility, identify what minimally must be wired to make the simulation believable.
+- [ ] Plan 3.7.3-02: Wire the minimum credible set of deferred-phase hooks into the simulation — e.g. Phase 3 governance gate hooks so risk-classified actions actually pause for approval rather than silently pass. Don't implement the full deferred phase; only the hooks needed for credibility.
+- Validate: 1 实战 enterprise scenario (e.g. "agent writes to external system, governance gate triggers, user approves, action completes") runs end-to-end through EAASP local tools with observable governance behavior.
+
+### Phase 3.7.4: SKIPPED — grid-server multi-user deferred to v3.8
+
+Per user 2026-07-19: "grid-server 是下一步再讨论，目前先把单用户的 grid-cli/grid-web/EAASP仿真做好". This phase is intentionally left empty. v3.8 candidate scope will be defined when 3.7.1/3.7.2/3.7.3 close.
+
+### Success Criteria
+
+1. `grid-cli` runs 3 documented enterprise scenarios end-to-end without manual CLI-flag tuning.
+2. `web/` runs a real agent scenario with non-developer-observable dashboard monitor/track/stop/resume.
+3. `tools/eaasp-*/` runs a real enterprise scenario with credible governance gate behavior.
+4. No regression in v3.6 docs-sync SSOT, snapshot, AGENTS/CLAUDE/READMEs, or planning state.
+5. `grid-server` work stays untouched (deferred to v3.8).
+6. `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge` changes (if any) respect ADR-V2-023 P1 shared-core rule.
+
+### Phase 4: --milestone v3.7 --name Production-Usability Closure --description 4 phases: grid-cli / web/ / EAASP 本地仿真 实战补全; grid-server 多用户 deferred
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 3
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 4 to break down)
+
+---
+
+*Last updated: 2026-07-19 — v3.7 Production-Usability Closure added after v3.6 SHIPPED.*

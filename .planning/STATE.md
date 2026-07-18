@@ -1,19 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: v3.6 Post-Activation Docs Sync
+milestone: v3.7
+milestone_name: v3.7 实战可用性补全 (Production-Usability Closure)
 status: in_progress
-  stopping: Phase 3.6 docs sync (SSOT + snapshot + AGENTS/CLAUDE/READMEs + planning state) in progress; previous milestones v3.0–v3.5 and Grid 独立产品 Activation SHIPPED 2026-06-17.
-  last_updated: "2026-07-18"
-  last_activity: "2026-07-18"
+  stopping: v3.6 SHIPPED 2026-07-19. v3.7 STARTED 2026-07-19 per user direction: closes Activation Quality 9.0+ ↔ 实战可用 gap across grid-cli / web/ / EAASP 本地仿真. grid-server multi-user login scenario explicitly deferred to v3.8.
+  last_updated: "2026-07-19"
+  last_activity: "2026-07-19"
   progress:
-    total_phases: 3
+    total_phases: 4
     completed_phases: 0
-    total_plans: 3
+    total_plans: 0
     completed_plans: 0
     percent: 0
   v3.5_shipped: true
   activation_shipped: true
+  v3_6_shipped: true
+  v3_7_started: true
 ---
 
 # Project State
@@ -117,9 +119,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19 (this docs-sync)
-Stopped at: Grid 独立产品 Activation milestone COMPLETE (8/8 phases, SHIPPED 2026-06-17). Docs-sync 2026-07-19 brought `.planning/PROJECT.md` and `.planning/STATE.md` into post-Activation alignment (Phase 3.6 complete).
-Resume path: Next milestone — see ROADMAP.md
+Last session: 2026-07-19 (docs-sync resumed)
+Stopped at: v3.6 SHIPPED — 7 docs commits @ a29f626, 46/46 UAT PASS, clean working tree. HANDOFF.md recorded. Awaiting user pick of next milestone (Candidates A/B/C1-C4 in `3.6-HANDOFF.md` §"What is NOT done").
+Resume path: User must decide which candidate becomes next milestone; options below in this resume.
 
 Prior sessions:
 - 2026-06-17: **Phase A.8 grid-eval CI completed** — concurrency group + summary report
