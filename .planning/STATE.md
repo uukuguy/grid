@@ -22,8 +22,12 @@ status: in_progress
 
 See: .planning/PROJECT.md
 
-**Core value:** Grid 作为 substitutable L1 runtime,通过 16-method gRPC contract 被 EAASP L2-L4 调用,且任何符合 contract-v1.1 的对比 runtime 都能替换它。
-**Current focus:** Grid 独立产品 Activation — ALL 8 PHASES COMPLETE. Milestone SHIPPED 2026-06-17.
+**Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
+**Current focus:** Post-Activation. Grid 独立产品 Activation milestone SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.6 Post-Activation Docs Sync in progress (3 sub-phases 3.6.1/3.6.2/3.6.3). Next milestone definition pending. EAASP core L0/L1/L2/L3/L4 reference implementation and contract validation are complete; platform-evolution gaps (production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion) remain explicit future work.
+
+Canonical product-status sources:
+- `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
+- `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
 
 ## Current Position
 
@@ -64,7 +68,7 @@ Last activity: 2026-06-17 (this session)
 | grid-desktop | Icon assets (PNG), 3 new IPC commands, Grid rebrand | 9 → 9 |
 | grid-eval | CI concurrency group, test summary reporting | existing |
 
-*4/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
+*5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
 ## Completed Milestones
 
@@ -106,14 +110,15 @@ None.
 
 ### Blockers/Concerns
 
-- **Grid 独立产品 dormancy**: `grid-server`, `grid-platform`, `grid-desktop`, `web/`, `web-platform/` all dormant per ADR-V2-024. Need activation audit to assess current state vs production readiness.
+- **Quality gaps in shipped components**: `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) shipped with Activation but remain below the 9.0+ bar the rest of the components have hit. Need follow-on feature work (Markdown + toast + skeletons + error states for web-platform/; Icons + IPC proxy + Grid rebrand for grid-desktop).
+- **EAASP v2.0 platform-evolution gaps (explicit future work)**: production OPA approval chain (Phase 3), A2A / Event Room (Phase 4), L5 Cowork UI (Phase 5), ecosystem expansion (Phase 6) — per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. Out of post-Activation scope; future milestone candidates.
 - **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
 
 ## Session Continuity
 
-Last session: 2026-06-17
-Stopped at: Grid 独立产品 Activation milestone COMPLETE (8/8 phases)
+Last session: 2026-07-19 (this docs-sync)
+Stopped at: Grid 独立产品 Activation milestone COMPLETE (8/8 phases, SHIPPED 2026-06-17). Docs-sync 2026-07-19 brought `.planning/PROJECT.md` and `.planning/STATE.md` into post-Activation alignment (Phase 3.6 complete).
 Resume path: Next milestone — see ROADMAP.md
 
 Prior sessions:
