@@ -89,7 +89,7 @@ async fn main() {
         }
     };
 
-    if let Err(e) = run_command(cli.command, &state).await {
+    if let Err(e) = run_command(cli.command, cli.retry, &state).await {
         eprintln!("Error: {}", e);
         // NEW-A3 (Phase 5.5): downcast to typed GridError so variant-specific
         // exit codes (SessionNotFound=4, AuthFailed=3, ...) are preserved.
@@ -104,7 +104,7 @@ async fn main() {
     }
 }
 
-async fn run_command(command: Commands, state: &AppState) -> Result<()> {
+async fn run_command(command: Commands, retry: bool, state: &AppState) -> Result<()> {
     match command {
         Commands::Run {
             resume,
@@ -160,6 +160,20 @@ async fn run_command(command: Commands, state: &AppState) -> Result<()> {
         Commands::Root { action } => handle_root(action, state).await?,
         Commands::Sandbox { action } => handle_sandbox(action, state).await?,
         Commands::Eval { action } => handle_eval(action, state).await?,
+        Commands::Quickstart { scenario, json } => {
+            let parsed = scenario
+                .parse::<commands::quickstart::QuickstartScenario>()
+                .map_err(|e| anyhow::anyhow!(e))?;
+            commands::execute_quickstart(
+                commands::quickstart::QuickstartOptions {
+                    scenario: parsed,
+                    retry,
+                    output_json: json,
+                },
+                state,
+            )
+            .await?;
+        }
     }
     Ok(())
 }

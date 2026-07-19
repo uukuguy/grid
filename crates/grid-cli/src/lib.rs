@@ -60,6 +60,10 @@ pub struct Cli {
     /// Suppress non-essential output
     #[arg(short, long, global = true)]
     pub quiet: bool,
+
+    /// Retry transient errors automatically (per Phase 3.7.1 D-06)
+    #[arg(long, global = true)]
+    pub retry: bool,
 }
 
 #[derive(Parser)]
@@ -180,6 +184,16 @@ pub enum Commands {
     Completions {
         #[command(subcommand)]
         action: CompletionsCommands,
+    },
+
+    /// Quickstart: pre-flight + run a named scenario (Phase 3.7.1 D-03/D-04)
+    Quickstart {
+        /// Scenario to run: S1 (default), S2, S3, S4, S5
+        #[arg(value_name = "SCENARIO", default_value = "S1")]
+        scenario: String,
+        /// Emit machine-parseable JSON (overrides TTY detection)
+        #[arg(long)]
+        json: bool,
     },
 }
 
