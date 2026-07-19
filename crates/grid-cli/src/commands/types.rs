@@ -72,6 +72,12 @@ pub enum SessionCommands {
         #[arg(value_name = "SESSION_ID")]
         session_id: String,
     },
+    /// Resume a previous session (replay history and continue streaming)
+    Resume {
+        /// Session ID
+        #[arg(value_name = "SESSION_ID")]
+        session_id: String,
+    },
     /// Delete a session (soft delete - marks as deleted)
     Delete {
         /// Session ID

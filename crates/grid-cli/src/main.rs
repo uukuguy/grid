@@ -131,6 +131,7 @@ async fn run_command(command: Commands, retry: bool, state: &AppState) -> Result
             theme,
             add_dirs,
             dual,
+            parallel,
         } => {
             execute_run(
                 commands::run::RunOptions {
@@ -140,6 +141,7 @@ async fn run_command(command: Commands, retry: bool, state: &AppState) -> Result
                     theme,
                     add_dirs,
                     dual,
+                    parallel,
                 },
                 state,
             )

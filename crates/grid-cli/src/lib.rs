@@ -88,6 +88,9 @@ pub enum Commands {
         /// Enable dual agent mode (Plan + Build agents)
         #[arg(long)]
         dual: bool,
+        /// Parallel mode: launch N agents concurrently (S5 batch scenario, REQ-AUDIT-02)
+        #[arg(long, value_name = "N")]
+        parallel: Option<usize>,
     },
 
     /// Send a single query (headless mode)

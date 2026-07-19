@@ -11,6 +11,7 @@ use rusqlite::Connection;
 use crate::output::OutputConfig;
 
 /// Application state shared across commands
+#[derive(Clone)]
 pub struct AppState {
     /// Database path
     #[allow(dead_code)]

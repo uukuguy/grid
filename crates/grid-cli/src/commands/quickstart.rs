@@ -169,18 +169,15 @@ async fn run_s4_streaming_stop_resume(state: &AppState, _opts: &QuickstartOption
 
 async fn run_s5_parallel_batch(state: &AppState, opts: &QuickstartOptions) -> Result<()> {
     println!("\n=== S5: Parallel batch ===");
-    // Plan 02 Task 3 adds `parallel: Option<usize>` to RunOptions and wires the
-    // dispatch through `execute_run`. Until that ships, this is a no-op marker
-    // so the quickstart path itself remains callable.
-    println!("Plan 02 Task 3 adds `grid run --parallel N` to RunOptions.");
-    println!("Once shipped, S5 will launch N agents in parallel and aggregate results.");
+    println!("Launching 3 parallel agents (S5 default batch size)...");
     println!(
-        "retry flag from --retry global: {} (will wire into Run/Ask in Task 3)",
+        "retry flag from --retry global: {} (propagates to per-agent ask)",
         opts.retry
     );
 
-    // Smoke-test execute_run with current (pre-Task-3) RunOptions shape:
-    let _ = execute_run(
+    // Task 3 wired `parallel: Option<usize>` into RunOptions + execute_run,
+    // so this invocation now actually launches 3 agents via tokio::spawn.
+    execute_run(
         RunOptions {
             resume: false,
             session_id: None,
@@ -188,19 +185,13 @@ async fn run_s5_parallel_batch(state: &AppState, opts: &QuickstartOptions) -> Re
             theme: "indigo".to_string(),
             add_dirs: vec![],
             dual: false,
+            parallel: Some(3),
         },
         state,
     )
-    .await
-    .map_err(|e| {
-        eprintln!(
-            "execute_run scaffolding (full parallel wire-up in Task 3): {}",
-            e
-        );
-        e
-    });
+    .await?;
 
-    println!("=== S5 scaffolding complete ===");
+    println!("=== S5 complete ===");
     Ok(())
 }
 

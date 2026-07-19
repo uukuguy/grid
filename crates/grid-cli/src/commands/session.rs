@@ -11,6 +11,7 @@ pub async fn handle_session(action: SessionCommands, state: &AppState) -> Result
         SessionCommands::List { limit } => list_sessions(limit, state).await?,
         SessionCommands::Create { name } => create_session(name, state).await?,
         SessionCommands::Show { session_id } => show_session(session_id, state).await?,
+        SessionCommands::Resume { session_id } => resume_session(session_id, state).await?,
         SessionCommands::Delete { session_id } => delete_session(session_id, state).await?,
         SessionCommands::Kill { session_id, purge } => kill_session(session_id, purge, state).await?,
         SessionCommands::Export {
@@ -198,6 +199,36 @@ async fn export_session(
         }
     }
 
+    Ok(())
+}
+
+/// Resume a session: load history, print last assistant message, instruct user
+/// how to continue via `grid ask --session <id>` (per Phase 3.7.1 D-01 S4 acceptance).
+async fn resume_session(session_id: String, state: &AppState) -> Result<()> {
+    let session_store = state.agent_runtime.session_store();
+    let sid = grid_types::SessionId::from_string(&session_id);
+
+    let _session = session_store
+        .get_session(&sid)
+        .await
+        .ok_or_else(|| crate::error::GridError::session_not_found(session_id.clone()))?;
+
+    let messages = session_store
+        .get_messages(&sid)
+        .await
+        .unwrap_or_default();
+
+    println!("Resuming session: {} ({} messages)", session_id, messages.len());
+    if let Some(last) = messages
+        .iter()
+        .rev()
+        .find(|m| matches!(m.role, grid_types::MessageRole::Assistant))
+    {
+        println!("Last assistant message:\n  {}", last.text_content());
+    } else {
+        println!("(no prior assistant message in this session)");
+    }
+    println!("\nTo continue, run: grid ask --session {}", session_id);
     Ok(())
 }
 
