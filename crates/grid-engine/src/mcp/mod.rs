@@ -1,5 +1,6 @@
 pub mod bridge;
 pub mod convert;
+pub mod log_entry;
 pub mod manager;
 pub mod oauth;
 pub mod server;
@@ -9,6 +10,7 @@ pub mod storage;
 pub mod traits;
 
 pub use bridge::McpToolBridge;
+pub use log_entry::{LogEntry, LogLevel};
 pub use manager::McpManager;
 pub use oauth::{
     InMemoryTokenStore, McpOAuthManager, OAuthConfig, OAuthToken, OAuthTokenStore, PkceChallenge,
