@@ -90,16 +90,34 @@ async fn main() {
     };
 
     if let Err(e) = run_command(cli.command, cli.retry, &state).await {
-        eprintln!("Error: {}", e);
         // NEW-A3 (Phase 5.5): downcast to typed GridError so variant-specific
         // exit codes (SessionNotFound=4, AuthFailed=3, ...) are preserved.
-        // Previously `GridError::other(e.to_string()).into()` always returned
-        // ExitCode::General (= 1), losing the typed variant.
+        // Phase 3.7.1 D-05/D-06/D-07: when GridError is available, emit
+        // text format on TTY stderr (error: + fix: + hint: lines) or
+        // JSON format on non-TTY stderr.
         let exit_code: ExitCode = e
             .downcast_ref::<GridError>()
             .cloned()
             .map(ExitCode::from)
             .unwrap_or_else(|| GridError::other(e.to_string()).into());
+        let stderr_is_tty = std::io::IsTerminal::is_terminal(&std::io::stderr());
+        if let Some(ge) = e.downcast_ref::<GridError>() {
+            if stderr_is_tty {
+                eprintln!("error: {}", ge);
+                if !ge.fix_hint().is_empty() {
+                    eprintln!("fix:   {}", ge.fix_hint());
+                }
+                if ge.is_retryable() {
+                    eprintln!("hint:  transient, retry with --retry");
+                }
+            } else {
+                let json = serde_json::to_string(&ge.to_json())
+                    .unwrap_or_else(|_| "{}".to_string());
+                eprintln!("{}", json);
+            }
+        } else {
+            eprintln!("error: {}", e);
+        }
         std::process::exit(exit_code as i32);
     }
 }
