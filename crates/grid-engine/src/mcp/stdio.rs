@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tracing::{debug, info, warn};
 
 use rmcp::model::{
@@ -12,6 +13,8 @@ use rmcp::transport::{ConfigureCommandExt, TokioChildProcess};
 use rmcp::{RoleClient, ServiceExt};
 
 use super::convert;
+use super::log_entry::LogEntry;
+use super::manager::McpManager;
 use super::traits::{
     validate_resource_uri, McpClient, McpPromptInfo, McpPromptResult, McpResourceContent,
     McpResourceInfo, McpServerConfig, McpToolInfo,
@@ -20,6 +23,13 @@ use super::traits::{
 pub struct StdioMcpClient {
     config: McpServerConfig,
     service: Option<RunningService<RoleClient, ()>>,
+    /// Phase 3.7.1 Plan 03: optional manager for stderr capture.
+    /// Set via `with_log_manager`; when None, stderr is still captured
+    /// (D-12) but entries are dropped on the floor.
+    /// NOTE: not wired in McpManager::add_server to avoid Arc<Self> cycle.
+    /// Callers that want log capture (e.g. S6 integration test, future
+    /// CLI refactor) construct the client with `.with_log_manager(arc)`.
+    log_manager: Option<std::sync::Arc<tokio::sync::Mutex<McpManager>>>,
 }
 
 impl StdioMcpClient {
@@ -27,7 +37,18 @@ impl StdioMcpClient {
         Self {
             config,
             service: None,
+            log_manager: None,
         }
+    }
+
+    /// Phase 3.7.1 Plan 03: attach the manager so captured stderr
+    /// lines are pushed into the per-server log buffer + broadcast.
+    pub fn with_log_manager(
+        mut self,
+        mgr: std::sync::Arc<tokio::sync::Mutex<McpManager>>,
+    ) -> Self {
+        self.log_manager = Some(mgr);
+        self
     }
 }
 
@@ -52,7 +73,7 @@ impl McpClient for StdioMcpClient {
         // IMPORTANT: TokioChildProcessBuilder::new() defaults stderr to Stdio::inherit(),
         // and its spawn() overwrites any stderr set via configure(). We must use the
         // builder's .stderr() method so it takes effect.
-        let (transport, _stderr) = TokioChildProcess::builder(
+        let (transport, stderr_opt) = TokioChildProcess::builder(
             tokio::process::Command::new(&config.command).configure(move |c| {
                 for arg in &args {
                     c.arg(arg);
@@ -62,9 +83,39 @@ impl McpClient for StdioMcpClient {
                 }
             }),
         )
-        .stderr(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .context("Failed to spawn MCP server process")?;
+
+        // Phase 3.7.1 Plan 03 (D-12): spawn a tokio task to capture stderr
+        // lines and push them into the manager's log buffer.
+        if let Some(stderr) = stderr_opt {
+            let server_name = config.name.clone();
+            let log_manager = self.log_manager.clone();
+            tokio::spawn(async move {
+                let mut reader = BufReader::new(stderr).lines();
+                loop {
+                    match reader.next_line().await {
+                        Ok(Some(line)) => {
+                            if let Some(mgr) = log_manager.as_ref() {
+                                let mut guard = mgr.lock().await;
+                                guard.push_log_entry(&server_name, LogEntry::now(line));
+                            }
+                            // If no manager attached, drop the line (D-12 fallback).
+                        }
+                        Ok(None) => break, // EOF: child closed stderr
+                        Err(e) => {
+                            warn!(
+                                server = %server_name,
+                                error = %e,
+                                "stderr reader failed; stopping log capture"
+                            );
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         let service = ()
             .serve(transport)
