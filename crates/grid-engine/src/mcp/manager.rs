@@ -1,14 +1,15 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tracing::{debug, info, warn};
 
 use crate::tools::ToolRegistry;
 
 use super::bridge::McpToolBridge;
+use super::log_entry::{LogEntry, LogLevel};
 use super::sse::SseMcpClient;
 use super::stdio::StdioMcpClient;
 use super::traits::{
@@ -51,6 +52,40 @@ struct McpServerEntry {
 
 fn default_auto_start() -> bool {
     true
+}
+
+/// Per-server log buffer cap (D-11). Matches `tail -1000` industry default.
+const LOG_BUFFER_CAP: usize = 1000;
+/// Per-server broadcast channel cap (D-11). 256 listeners is generous;
+/// older entries dropped on overflow per tokio::sync::broadcast semantics.
+const LOG_BROADCAST_CAP: usize = 256;
+
+/// Per-server log state: bounded ring buffer + broadcast sender.
+/// Phase 3.7.1 Plan 03 (REQ-AUDIT-04) per D-10/D-11.
+#[derive(Debug)]
+struct ServerLogs {
+    buffer: VecDeque<LogEntry>,
+    sender: broadcast::Sender<LogEntry>,
+}
+
+impl ServerLogs {
+    fn new() -> Self {
+        let (sender, _) = broadcast::channel(LOG_BROADCAST_CAP);
+        Self {
+            buffer: VecDeque::with_capacity(LOG_BUFFER_CAP),
+            sender,
+        }
+    }
+
+    /// Append an entry, dropping oldest if buffer is full (drop-old semantics).
+    fn push(&mut self, entry: LogEntry) {
+        if self.buffer.len() == LOG_BUFFER_CAP {
+            self.buffer.pop_front();
+        }
+        self.buffer.push_back(entry.clone());
+        // Ignore SendError (no active receivers is normal).
+        let _ = self.sender.send(entry);
+    }
 }
 
 /// Expand `${VAR}` and `${VAR:-default}` references in a string using env vars.
@@ -116,6 +151,8 @@ pub struct McpManager {
     /// Key = server name, Value = session_id that installed it.
     /// Servers installed at startup (pre-configured) have no session owner.
     server_owners: HashMap<String, Option<String>>,
+    /// Phase 3.7.1 Plan 03: per-server log buffer + broadcast.
+    logs: HashMap<String, ServerLogs>,
 }
 
 impl McpManager {
@@ -125,6 +162,7 @@ impl McpManager {
             tool_infos: HashMap::new(),
             runtime_states: HashMap::new(),
             server_owners: HashMap::new(),
+            logs: HashMap::new(),
         }
     }
 
@@ -567,6 +605,46 @@ impl McpManager {
         let client = client.read().await;
         client.get_prompt(name, args).await
     }
+
+    // ── Logs (Phase 3.7.1 Plan 03, REQ-AUDIT-04, D-10/D-11) ──
+
+    /// Pull the most recent N log entries for a server (static tail).
+    /// Returns an empty Vec if the server has no buffer yet.
+    pub fn take_recent_logs(&self, name: &str, lines: usize) -> Vec<LogEntry> {
+        let Some(logs) = self.logs.get(name) else {
+            return Vec::new();
+        };
+        let skip = logs.buffer.len().saturating_sub(lines);
+        logs.buffer.iter().skip(skip).cloned().collect()
+    }
+
+    /// Subscribe to live log entries for a server. Each subscriber gets
+    /// its own Receiver; existing buffered entries are NOT replayed (use
+    /// `take_recent_logs` for that).
+    pub fn subscribe_logs(&self, name: &str) -> broadcast::Receiver<LogEntry> {
+        let logs = self
+            .logs
+            .get(name)
+            .expect("subscribe_logs: no buffer for server");
+        logs.sender.subscribe()
+    }
+
+    /// Internal: push a parsed entry into the server's buffer + broadcast.
+    /// Auto-creates the buffer on first push. Public so stdio.rs reader
+    /// task can call it after acquiring the manager lock.
+    pub fn push_log_entry(&mut self, name: &str, entry: LogEntry) {
+        self.logs
+            .entry(name.to_string())
+            .or_insert_with(ServerLogs::new)
+            .push(entry);
+    }
+
+    /// Test helper: check whether a server has any log buffer (true after
+    /// first push_log_entry, false before any log line has been captured).
+    #[cfg(test)]
+    pub fn has_log_buffer(&self, name: &str) -> bool {
+        self.logs.contains_key(name)
+    }
 }
 
 impl Default for McpManager {
@@ -743,5 +821,51 @@ mod tests {
         let config_path = tmp.path().join("nonexistent.json");
         let removed = McpManager::remove_from_config_file(&config_path, "x").unwrap();
         assert!(!removed);
+    }
+
+    #[test]
+    fn test_log_buffer_cap_drops_oldest() {
+        let mut mgr = McpManager::new();
+        for i in 0..1500 {
+            mgr.push_log_entry(
+                "test-srv",
+                LogEntry {
+                    timestamp: chrono::Utc::now(),
+                    level: LogLevel::Info,
+                    message: format!("line {}", i),
+                },
+            );
+        }
+        let recent = mgr.take_recent_logs("test-srv", 1000);
+        assert_eq!(recent.len(), 1000);
+        // First surviving message is "line 500" (oldest 500 dropped).
+        assert!(recent[0].message.contains("line 500"));
+        assert!(recent[999].message.contains("line 1499"));
+    }
+
+    #[test]
+    fn test_subscribe_logs_receives_new_entries() {
+        let mut mgr = McpManager::new();
+        // Buffer must exist before subscribe (subscribe_logs requires the buffer).
+        mgr.push_log_entry(
+            "test-srv",
+            LogEntry {
+                timestamp: chrono::Utc::now(),
+                level: LogLevel::Info,
+                message: "first".to_string(),
+            },
+        );
+        let mut rx = mgr.subscribe_logs("test-srv");
+        mgr.push_log_entry(
+            "test-srv",
+            LogEntry {
+                timestamp: chrono::Utc::now(),
+                level: LogLevel::Error,
+                message: "second".to_string(),
+            },
+        );
+        let received = rx.try_recv().expect("should receive new entry");
+        assert_eq!(received.message, "second");
+        assert_eq!(received.level, LogLevel::Error);
     }
 }
