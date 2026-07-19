@@ -175,10 +175,7 @@ a0ee775f feat(grid-cli): add `grid quickstart <scenario>` subcommand (REQ-AUDIT-
 
 ## Deferred to next milestone (per audit verdict)
 
-- **REQ-AUDIT-04** `grid mcp logs` live streaming — requires upstream
-  `agent_runtime.mcp_manager` API change. Recommend Plan 03.
-- **REQ-AUDIT-03** `grid eval run` actual wiring (currently stub) — requires
-  `octo-eval::main` refactor into a lib API. Recommend Plan 03.
+None — all 9 REQ-AUDITs closed (REQ-AUDIT-03 observability + REQ-AUDIT-04 full closure by Plan 03 on 2026-07-20).
 
 ## Plan 03 additions (REQ-AUDIT-04) — 2026-07-20
 
