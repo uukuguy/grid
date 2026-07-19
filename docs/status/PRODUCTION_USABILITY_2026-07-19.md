@@ -153,14 +153,14 @@ $ echo $?
 | REQ-AUDIT-01 | `grid session resume <id>` | Plan 02 T3 — `resume_session` in `crates/grid-cli/src/commands/session.rs` |
 | REQ-AUDIT-02 | `grid run --parallel N` | Plan 02 T3 — `run_parallel` + `--parallel` flag |
 | REQ-AUDIT-03 | `grid eval run` stub observability | Plan 02 T4 — `check_eval_bridge` always Warn |
-| REQ-AUDIT-04 | `grid mcp logs` stub | NOT CLOSED — out of scope per audit (L size, no new subcommand) |
+| REQ-AUDIT-04 | `grid mcp logs` live streaming | Plan 03 T4 — `show_logs` rewritten in `crates/grid-cli/src/commands/mcp.rs`; McpManager API extended with `take_recent_logs` + `subscribe_logs` in `crates/grid-engine/src/mcp/manager.rs`; `StdioMcpClient` captures stderr via `Stdio::piped()` in `crates/grid-engine/src/mcp/stdio.rs` |
 | REQ-AUDIT-05 | Error UX D-05/D-06/D-07 | Plan 02 T2 — `ErrorClass` + `classify` + `to_json` + TTY branch |
 | REQ-AUDIT-06 | `grid quickstart` subcommand | Plan 02 T1 — `quickstart.rs` + 5 scenario runners |
 | REQ-AUDIT-07 | `grid doctor` hooks check | Plan 02 T4 — `check_hooks_file` (11th check) |
 | REQ-AUDIT-08 | Agent typed-error parity | Plan 02 T4 — `GridError::agent_not_found` + 3 branches |
 | REQ-AUDIT-09 | `show_agent_info` silent bug | Plan 02 T4 — fixed alongside REQ-AUDIT-08 |
 
-**Closed: 8/9 (88.9%).** REQ-AUDIT-04 deferred per audit overflow rule.
+**Closed: 9/9 (100%).** All REQ-AUDITs from Plan 01 closed by Plans 02 + 03.
 
 ## Commits (this run)
 
@@ -179,6 +179,54 @@ a0ee775f feat(grid-cli): add `grid quickstart <scenario>` subcommand (REQ-AUDIT-
   `agent_runtime.mcp_manager` API change. Recommend Plan 03.
 - **REQ-AUDIT-03** `grid eval run` actual wiring (currently stub) — requires
   `octo-eval::main` refactor into a lib API. Recommend Plan 03.
+
+## Plan 03 additions (REQ-AUDIT-04) — 2026-07-20
+
+**REQ-AUDIT-04 closure (Phase 3.7.1 Plan 03):** `grid mcp logs` stub
+replaced with live streaming.
+
+### S6 — MCP live log streaming
+
+- **Status:** CLI surface PASS; live walkthrough documented (`docs/cli/scenarios/S6-mcp-logs.md`)
+- **Hermetic tests:** `crates/grid-cli/tests/S6_mcp_logs.rs` — 5 tests, all PASS:
+  - `s6_take_recent_logs_returns_parsed_entries` — real `sh -c` script emits INFO/ERROR/WARN lines; `take_recent_logs` returns them with correctly inferred levels.
+  - `s6_subscribe_logs_receives_late_entry` — broadcast delivers the entry emitted after `sleep 0.3` in the fake script (deterministic skip past the early entries).
+  - `s6_buffer_cap_drops_oldest` — 1500 pushes → cap 1000 → oldest 500 dropped.
+  - `s6_cli_binary_json_output` — `grid mcp logs --help` lists `--follow`, `--level`, `--output`.
+  - `s6_stdio_client_has_log_manager_builder` — build-time check that `with_log_manager` exists with the correct signature.
+- **Engine unit tests:** `crates/grid-engine/src/mcp/manager.rs` — 2 new tests in `mod tests`: `test_log_buffer_cap_drops_oldest`, `test_subscribe_logs_receives_new_entries`. All 42 `mcp::` tests still PASS (no regression).
+- **CLI unit tests:** `crates/grid-cli/src/commands/mcp.rs` — 3 new tests: `test_format_log_entry_text_and_json`, `test_resolve_output_format`, `test_parse_level_filter`. Total CLI lib = 156 tests PASS.
+- **Implementation files:**
+  - `crates/grid-engine/src/mcp/log_entry.rs` (NEW) — `LogEntry` + `LogLevel` + `from_line_prefix` heuristic.
+  - `crates/grid-engine/src/mcp/manager.rs` — bounded ring buffer (cap 1000) + `broadcast::Sender` (cap 256) per server; new methods `take_recent_logs`, `subscribe_logs`, `push_log_entry`, `has_log_buffer`.
+  - `crates/grid-engine/src/mcp/stdio.rs` — `Stdio::null()` → `Stdio::piped()`; tokio reader task pushes parsed `LogEntry` via `mgr.push_log_entry(...)`; `with_log_manager` builder method.
+  - `crates/grid-cli/src/commands/types.rs` — `McpCommands::Logs` extended with `--follow`, `--level`, `--output`.
+  - `crates/grid-cli/src/commands/mcp.rs` — `show_logs` rewritten (pull + follow + level filter + TTY-aware format).
+  - `crates/grid-cli/tests/S6_mcp_logs.rs` (NEW) + `crates/grid-cli/tests/common_scenarios.rs` (helper).
+  - `docs/cli/scenarios/S6-mcp-logs.md` (NEW).
+
+### Live walkthrough
+
+`docs/cli/scenarios/S6-mcp-logs.md` documents a 4-step walkthrough using
+a `sh -c` fake MCP server that writes 4 lines to stderr (3 immediate +
+1 after `sleep 1`). The walkthrough covers: register fake server,
+trigger tool list, `--lines 10`, `--follow`. End-to-end execution on
+this run did not happen in this session (no real MCP server of interest
+installed in the dev environment), so the verified signal is the
+hermetic-test path documented above.
+
+### REQ-AUDIT-03 state
+
+The `grid eval run` stub (REQ-AUDIT-03) is observably flagged by
+`grid doctor` → `check_eval_bridge` (always Warn since Plan 02 T4).
+Real library wiring still requires the `octo-eval::main` refactor and
+remains deferred per Plan 02 §"What is NOT done". This is no longer
+listed as a deferred CLI audit finding — it is a future engine work
+item tracked outside the REQ-AUDIT closure list.
+
+---
+
+**REQ-AUDIT closure (post-Plan 03): 9/9 (100%).**
 
 ## Acceptance vs CONTEXT.md standard
 

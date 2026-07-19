@@ -24,6 +24,7 @@ interface fits your workflow:
 | S3 | Hook-driven governance | `grid quickstart S3` | [S3-hook-driven-governance.md](scenarios/S3-hook-driven-governance.md) |
 | S4 | Streaming stop/resume | `grid quickstart S4` | [S4-streaming-stop-resume.md](scenarios/S4-streaming-stop-resume.md) |
 | S5 | Parallel batch | `grid quickstart S5` | [S5-parallel-batch.md](scenarios/S5-parallel-batch.md) |
+| S6 | MCP live log streaming | `grid mcp logs <name> [--follow] [--level error] [--output json]` | [S6-mcp-logs.md](scenarios/S6-mcp-logs.md) |
 
 ---
 
