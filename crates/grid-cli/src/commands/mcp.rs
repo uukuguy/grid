@@ -19,7 +19,13 @@ pub async fn handle_mcp(action: McpCommands, state: &AppState) -> Result<()> {
         } => add_server(name, command, args, env_vars, state).await?,
         McpCommands::Remove { name } => remove_server(name, state).await?,
         McpCommands::Status { name } => show_status(name, state).await?,
-        McpCommands::Logs { name, lines } => show_logs(name, lines, state).await?,
+        McpCommands::Logs {
+            name,
+            lines,
+            follow,
+            level,
+            output,
+        } => show_logs(name, lines, follow, level, output, state).await?,
     }
     Ok(())
 }
@@ -114,15 +120,58 @@ impl TextOutput for McpStatusOutput {
     }
 }
 
-#[derive(Serialize)]
-struct McpLogsOutput {
-    name: String,
-    message: String,
+// Phase 3.7.1 Plan 03: per-line log entry output (text + JSON).
+// Per-line emission is required for --follow streaming; the previous
+// McpLogsOutput was a single-message wrapper, insufficient.
+
+fn format_log_entry_text(entry: &grid_engine::mcp::LogEntry) -> String {
+    format!(
+        "{} [{}] {}",
+        entry.timestamp.to_rfc3339(),
+        match entry.level {
+            grid_engine::mcp::LogLevel::Info => "INFO ",
+            grid_engine::mcp::LogLevel::Warn => "WARN ",
+            grid_engine::mcp::LogLevel::Error => "ERROR",
+        },
+        entry.message,
+    )
 }
 
-impl TextOutput for McpLogsOutput {
-    fn to_text(&self) -> String {
-        format!("{}: {}", self.name, self.message)
+fn format_log_entry_json(entry: &grid_engine::mcp::LogEntry) -> String {
+    serde_json::json!({
+        "timestamp": entry.timestamp.to_rfc3339(),
+        "level": match entry.level {
+            grid_engine::mcp::LogLevel::Info => "info",
+            grid_engine::mcp::LogLevel::Warn => "warn",
+            grid_engine::mcp::LogLevel::Error => "error",
+        },
+        "message": entry.message,
+    })
+    .to_string()
+}
+
+/// D-14: text default; JSON when --output json OR stdout is not a TTY.
+fn resolve_output_format(explicit: Option<&str>) -> &'static str {
+    match explicit {
+        Some("json") => "json",
+        Some("text") => "text",
+        _ => {
+            if std::io::IsTerminal::is_terminal(&std::io::stdout()) {
+                "text"
+            } else {
+                "json"
+            }
+        }
+    }
+}
+
+/// D-13: parse --level value to a LogLevel filter; None = all levels.
+fn parse_level_filter(value: Option<&str>) -> Option<grid_engine::mcp::LogLevel> {
+    match value.map(str::to_ascii_lowercase).as_deref() {
+        Some("info") => Some(grid_engine::mcp::LogLevel::Info),
+        Some("warn") => Some(grid_engine::mcp::LogLevel::Warn),
+        Some("error") => Some(grid_engine::mcp::LogLevel::Error),
+        _ => None,
     }
 }
 
@@ -260,23 +309,102 @@ async fn show_status(name: Option<String>, state: &AppState) -> Result<()> {
     Ok(())
 }
 
-async fn show_logs(name: String, _lines: usize, state: &AppState) -> Result<()> {
-    // MCP log retrieval is not directly exposed by McpManager.
-    // Show status info as a fallback.
-    let mgr = state.agent_runtime.mcp_manager();
-    let guard = mgr.lock().await;
-    let runtime_state = guard.get_runtime_state(&name);
-    drop(guard);
+async fn show_logs(
+    name: String,
+    lines: usize,
+    follow: bool,
+    level: Option<String>,
+    output: Option<String>,
+    state: &AppState,
+) -> Result<()> {
+    let format = resolve_output_format(output.as_deref());
+    let level_filter = parse_level_filter(level.as_deref());
 
-    let out = McpLogsOutput {
-        name,
-        message: format!(
-            "Server state: {:?} (live log streaming not yet available)",
-            runtime_state
-        ),
-    };
-    output::print_output(&out, &state.output_config);
-    Ok(())
+    let mgr = state.agent_runtime.mcp_manager();
+    let mut stdout = std::io::stdout().lock();
+
+    if follow {
+        // ── Follow mode (D-13 push path) ──
+        // The buffer must exist before subscribe; if no log line
+        // has been captured yet, subscribe would panic. Create a
+        // placeholder entry to materialize the buffer.
+        {
+            let mut guard = mgr.lock().await;
+            if !guard.has_log_buffer(&name) {
+                guard.push_log_entry(
+                    &name,
+                    grid_engine::mcp::LogEntry::now(String::new()),
+                );
+            }
+        }
+        let mut rx = {
+            let guard = mgr.lock().await;
+            guard.subscribe_logs(&name)
+        };
+        // Ctrl-C handler: tokio::signal::ctrl_c breaks the loop and
+        // returns Ok(()) so exit code is 0 (D-13 "clean exit").
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                return Ok(());
+            }
+            _ = async {
+                while let Ok(entry) = rx.recv().await {
+                    // Skip the placeholder empty-message entries.
+                    if entry.message.is_empty() {
+                        continue;
+                    }
+                    if let Some(filter) = level_filter {
+                        if entry.level != filter {
+                            continue;
+                        }
+                    }
+                    let line = match format {
+                        "json" => format_log_entry_json(&entry),
+                        _ => format_log_entry_text(&entry),
+                    };
+                    use std::io::Write;
+                    let _ = writeln!(stdout, "{}", line);
+                    let _ = stdout.flush();
+                }
+            } => {}
+        }
+        Ok(())
+    } else {
+        // ── Pull mode (D-10 take_recent_logs) ──
+        let entries = {
+            let guard = mgr.lock().await;
+            guard.take_recent_logs(&name, lines)
+        };
+        if entries.is_empty() {
+            // Fall back to status info if buffer is empty (e.g. user
+            // asked for logs on a server that was never connected
+            // or hasn't emitted anything yet).
+            let state_val = {
+                let guard = mgr.lock().await;
+                guard.get_runtime_state(&name)
+            };
+            eprintln!(
+                "{}: no log entries yet (server state: {:?}). Use --follow to wait for new lines.",
+                name, state_val
+            );
+            return Ok(());
+        }
+        use std::io::Write;
+        for entry in entries {
+            if let Some(filter) = level_filter {
+                if entry.level != filter {
+                    continue;
+                }
+            }
+            let line = match format {
+                "json" => format_log_entry_json(&entry),
+                _ => format_log_entry_text(&entry),
+            };
+            let _ = writeln!(stdout, "{}", line);
+        }
+        let _ = stdout.flush();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -346,11 +474,47 @@ mod tests {
     }
 
     #[test]
-    fn test_mcp_logs_output() {
-        let out = McpLogsOutput {
-            name: "srv".to_string(),
-            message: "state info".to_string(),
+    fn test_format_log_entry_text_and_json() {
+        let entry = grid_engine::mcp::LogEntry {
+            timestamp: chrono::DateTime::parse_from_rfc3339("2026-07-20T10:23:45Z")
+                .unwrap()
+                .with_timezone(&chrono::Utc),
+            level: grid_engine::mcp::LogLevel::Info,
+            message: "Server started".to_string(),
         };
-        assert!(out.to_text().contains("srv"));
+        let text = format_log_entry_text(&entry);
+        assert!(text.contains("2026-07-20T10:23:45"));
+        assert!(text.contains("INFO"));
+        assert!(text.contains("Server started"));
+        let json = format_log_entry_json(&entry);
+        assert!(json.contains("\"level\":\"info\""));
+        assert!(json.contains("\"message\":\"Server started\""));
+    }
+
+    #[test]
+    fn test_resolve_output_format() {
+        assert_eq!(resolve_output_format(Some("json")), "json");
+        assert_eq!(resolve_output_format(Some("text")), "text");
+        // When explicit is None, the result depends on TTY status; just
+        // confirm it returns one of the two valid values.
+        let auto = resolve_output_format(None);
+        assert!(auto == "text" || auto == "json");
+    }
+
+    #[test]
+    fn test_parse_level_filter() {
+        assert_eq!(
+            parse_level_filter(Some("info")),
+            Some(grid_engine::mcp::LogLevel::Info)
+        );
+        assert_eq!(
+            parse_level_filter(Some("WARN")),
+            Some(grid_engine::mcp::LogLevel::Warn)
+        );
+        assert_eq!(
+            parse_level_filter(Some("Error")),
+            Some(grid_engine::mcp::LogLevel::Error)
+        );
+        assert_eq!(parse_level_filter(None), None);
     }
 }

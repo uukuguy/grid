@@ -199,14 +199,23 @@ pub enum McpCommands {
         #[arg(value_name = "NAME")]
         name: Option<String>,
     },
-    /// Show MCP server logs
+    /// Show MCP server logs (live streaming)
     Logs {
         /// Server name
         #[arg(value_name = "NAME")]
         name: String,
-        /// Number of log lines
+        /// Number of log lines (ignored when --follow is set)
         #[arg(short, long, default_value = "50")]
         lines: usize,
+        /// Follow log output (live stream, Ctrl-C to exit)
+        #[arg(short = 'f', long)]
+        follow: bool,
+        /// Filter by log level (info|warn|error)
+        #[arg(long, value_parser = ["info", "warn", "error"])]
+        level: Option<String>,
+        /// Output format (text|json). Defaults to text on TTY, JSON on non-TTY.
+        #[arg(long, value_parser = ["text", "json"])]
+        output: Option<String>,
     },
 }
 

@@ -639,9 +639,10 @@ impl McpManager {
             .push(entry);
     }
 
-    /// Test helper: check whether a server has any log buffer (true after
-    /// first push_log_entry, false before any log line has been captured).
-    #[cfg(test)]
+    /// Check whether a server has any log buffer (true after first
+    /// push_log_entry, false before any log line has been captured).
+    /// Used by `show_logs --follow` to materialize the buffer before
+    /// subscribing; also exercised by unit tests.
     pub fn has_log_buffer(&self, name: &str) -> bool {
         self.logs.contains_key(name)
     }
