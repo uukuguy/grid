@@ -1,22 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.7
-milestone_name: v3.7 Production-Usability Closure (实战可用性补全)
+milestone: v3.6
+milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
 status: executing
-  stopping: Phase 3.7.1 grid-cli 实战可用性 PLANNED 2026-07-19 (2 plans, all 14 verification checks PASS). Ready for /gsd-execute-phase 3.7.1. v3.6 SHIPPED 2026-07-19 (a29f626).
-stopped_at: Phase 3.7.1 context gathered
-last_updated: "2026-07-19T03:04:18.389Z"
-last_activity: "2026-07-19 -- Phase 03.7.1 planning complete"
+stopped_at: Phase 3.7.1 SHIPPED, awaiting next-milestone decision
+last_updated: "2026-07-19T21:25:27.184Z"
+last_activity: 2026-07-19
 progress:
-  total_phases: 4
+  total_phases: 3
   completed_phases: 0
-  total_plans: 2
+  total_plans: 0
   completed_plans: 0
-  v3.5_shipped: true
-  activation_shipped: true
-  v3_6_shipped: true
-  v3_7_started: true
-  phase_3_7_1_planned: true
 ---
 
 # Project State
@@ -26,7 +20,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** v3.7 实战可用性补全 STARTED 2026-07-19. Closes Activation Quality 9.0+ ↔ 实战可用 gap across grid-cli / web/ / EAASP 本地仿真. Phase 3.7.1 grid-cli context GATHERED 2026-07-19 (CONTEXT.md + DISCUSSION-LOG.md @ db695a29). grid-server multi-user login scenario deferred to v3.8 per user direction. EAASP v2.0 platform-evolution gaps (production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion) remain explicit future work outside v3.7.
+**Current focus:** Phase 03.7.1 — grid-cli
 
 Canonical product-status sources:
 
@@ -35,7 +29,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Status: Ready to execute
+Phase: 03.7.1
+Plan: Not started
+Status: Executing Phase 03.7.1
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -49,7 +45,7 @@ Status: Ready to execute
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-07-19 -- Phase 03.7.1 planning complete
+Last activity: 2026-07-19
 
 ## Audit Findings Summary (Post-Activation Scores)
 
@@ -123,9 +119,15 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19T01:08:58.421Z
-Stopped at: Phase 3.7.1 context gathered
-Resume path: User must decide which candidate becomes next milestone; options below in this resume.
+Last session: 2026-07-19T04:30:00.000Z
+Stopped at: Phase 3.7.1 SHIPPED, awaiting next-milestone decision
+Resume path: User must pick Candidate A / B / C / D for next milestone (see 3.7.1-HANDOFF.md "What is NOT done").
+
+Prior sessions:
+
+- 2026-07-19 (this session): Phase 3.7.1 SHIPPED — 8/9 REQ-AUDITs closed, 14/14 hermetic tests PASS
+- 2026-07-19: Phase 3.7.1 context gathered (CONTEXT.md + DISCUSSION-LOG.md @ db695a29)
+- 2026-07-19: Phase 3.6 SHIPPED @ a29f626 (7 docs commits, 46/46 UAT PASS)
 
 Prior sessions:
 
