@@ -74,6 +74,8 @@ pub enum GridError {
     AuthFailed(String),
     /// Session not found
     SessionNotFound(String),
+    /// Agent not found
+    AgentNotFound(String),
     /// Network/API error
     NetworkError(String),
     /// Rate limited
@@ -91,6 +93,7 @@ impl fmt::Display for GridError {
         match self {
             GridError::AuthFailed(msg) => write!(f, "Authentication failed: {}", msg),
             GridError::SessionNotFound(id) => write!(f, "Session not found: {}", id),
+            GridError::AgentNotFound(id) => write!(f, "Agent not found: {}", id),
             GridError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             GridError::RateLimited(msg) => write!(f, "Rate limited: {}", msg),
             GridError::StorageError(msg) => write!(f, "Storage error: {}", msg),
@@ -107,6 +110,7 @@ impl From<GridError> for ExitCode {
         match err {
             GridError::AuthFailed(_) => ExitCode::AuthFailed,
             GridError::SessionNotFound(_) => ExitCode::SessionNotFound,
+            GridError::AgentNotFound(_) => ExitCode::SessionNotFound, // reuse 4 (per plan spec)
             GridError::NetworkError(_) => ExitCode::NetworkError,
             GridError::RateLimited(_) => ExitCode::RateLimited,
             GridError::StorageError(_) => ExitCode::StorageError,
@@ -125,6 +129,16 @@ impl GridError {
     /// Create a session not found error
     pub fn session_not_found(id: impl Into<String>) -> Self {
         GridError::SessionNotFound(id.into())
+    }
+
+    /// Create an agent not found error (REQ-AUDIT-08 parity with NEW-A3)
+    pub fn agent_not_found(id: impl Into<String>) -> Self {
+        GridError::AgentNotFound(id.into())
+    }
+
+    /// Hook validation error (Permanent — bad config; not retryable)
+    pub fn hook_validation(msg: impl Into<String>) -> Self {
+        GridError::Other(format!("Hook validation: {}", msg.into()))
     }
 
     /// Create a network error
@@ -157,6 +171,7 @@ impl GridError {
             }
             GridError::AuthFailed(_)
             | GridError::SessionNotFound(_)
+            | GridError::AgentNotFound(_)
             | GridError::StorageError(_)
             | GridError::Other(_) => ErrorClass::Permanent,
         }
@@ -174,6 +189,7 @@ impl GridError {
             GridError::SessionNotFound(_) => {
                 "grid session list (then resume a valid session id)"
             }
+            GridError::AgentNotFound(_) => "grid agent list (then use a valid agent id)",
             GridError::NetworkError(_) => "grid doctor --repair",
             GridError::RateLimited(_) => "wait, or grid quickstart --retry",
             GridError::StorageError(_) => "grid doctor --repair",

@@ -43,6 +43,12 @@ pub async fn run_doctor(repair: bool, state: &AppState) -> Result<bool> {
     // Check 10: Shell completion availability
     checks.push(check_shell_completion());
 
+    // Check 11: Hooks file validity (REQ-AUDIT-07, Phase 3.7.1 S3)
+    checks.push(check_hooks_file());
+
+    // Check 12: Eval bridge stub status (REQ-AUDIT-03 observability)
+    checks.push(check_eval_bridge());
+
     let pass_count = checks.iter().filter(|c| c.status == CheckStatus::Pass).count();
     let warn_count = checks.iter().filter(|c| c.status == CheckStatus::Warn).count();
     let fail_count = checks.iter().filter(|c| c.status == CheckStatus::Fail).count();
@@ -410,6 +416,84 @@ fn check_shell_completion() -> CheckResult {
             fix_hint: None,
             repair_result: None,
         }
+    }
+}
+
+/// Check 11: Validate GRID_HOOKS_FILE if set (REQ-AUDIT-07, Phase 3.7.1 S3 scenario).
+/// Warns if missing (S3 requires it but not other scenarios), fails if file
+/// exists but is unparseable. Per threat model T-3.7.1-04, READ-ONLY — no
+/// filesystem writes happen during this check.
+fn check_hooks_file() -> CheckResult {
+    match std::env::var("GRID_HOOKS_FILE") {
+        Ok(path) => {
+            let p = Path::new(&path);
+            if !p.exists() {
+                CheckResult {
+                    name: "Hooks File".to_string(),
+                    status: CheckStatus::Fail,
+                    message: format!("GRID_HOOKS_FILE={} does not exist", path),
+                    fix_hint: Some(
+                        "unset GRID_HOOKS_FILE or create the file at the specified path"
+                            .to_string(),
+                    ),
+                    repair_result: None,
+                }
+            } else {
+                match std::fs::read_to_string(p) {
+                    Ok(content) => {
+                        if content.trim().is_empty() {
+                            CheckResult {
+                                name: "Hooks File".to_string(),
+                                status: CheckStatus::Warn,
+                                message: format!("{} is empty", path),
+                                fix_hint: None,
+                                repair_result: None,
+                            }
+                        } else {
+                            CheckResult {
+                                name: "Hooks File".to_string(),
+                                status: CheckStatus::Pass,
+                                message: format!("{} ({} bytes)", path, content.len()),
+                                fix_hint: None,
+                                repair_result: None,
+                            }
+                        }
+                    }
+                    Err(e) => CheckResult {
+                        name: "Hooks File".to_string(),
+                        status: CheckStatus::Fail,
+                        message: format!("Cannot read {}: {}", path, e),
+                        fix_hint: Some("check file permissions".to_string()),
+                        repair_result: None,
+                    },
+                }
+            }
+        }
+        Err(_) => CheckResult {
+            name: "Hooks File".to_string(),
+            status: CheckStatus::Warn,
+            message: "GRID_HOOKS_FILE not set (S3 hook-driven scenario requires it)"
+                .to_string(),
+            fix_hint: Some("export GRID_HOOKS_FILE=./hooks.yaml".to_string()),
+            repair_result: None,
+        },
+    }
+}
+
+/// Check 12: Eval bridge stub status (REQ-AUDIT-03 observability).
+/// Detects whether `grid eval run` is a stub (prints cargo instructions) or
+/// wired. Always Warn for now — wiring eval is out of scope; this check is
+/// observability only.
+fn check_eval_bridge() -> CheckResult {
+    CheckResult {
+        name: "Eval Bridge".to_string(),
+        status: CheckStatus::Warn,
+        message: "grid eval run is a stub (requires octo-eval lib refactor)".to_string(),
+        fix_hint: Some(
+            "Use `cargo run -p octo-eval -- run --suite <name>` until the bridge is wired"
+                .to_string(),
+        ),
+        repair_result: None,
     }
 }
 

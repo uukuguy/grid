@@ -84,7 +84,7 @@ async fn show_agent_info(agent_id: String, state: &AppState) -> Result<()> {
             println!("  Created: {}", created);
         }
         None => {
-            eprintln!("Agent not found: {}", agent_id);
+            return Err(crate::error::GridError::agent_not_found(agent_id).into());
         }
     }
     Ok(())
@@ -120,8 +120,7 @@ async fn update_agent_state(
         state.agent_catalog.update_state(&aid, new_state.clone());
         println!("Agent {} is now {}", agent_id, new_state);
     } else {
-        eprintln!("Agent not found: {}", agent_id);
-        anyhow::bail!("cannot {} agent: not found", action);
+        return Err(crate::error::GridError::agent_not_found(agent_id).into());
     }
     Ok(())
 }
@@ -132,8 +131,7 @@ async fn delete_agent(agent_id: String, state: &AppState) -> Result<()> {
     if state.agent_catalog.unregister(&aid).is_some() {
         println!("Deleted agent: {}", agent_id);
     } else {
-        eprintln!("Agent not found: {}", agent_id);
-        anyhow::bail!("cannot delete agent: not found");
+        return Err(crate::error::GridError::agent_not_found(agent_id).into());
     }
     Ok(())
 }
