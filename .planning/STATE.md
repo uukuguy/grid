@@ -1,21 +1,22 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.7
-milestone_name: v3.7 实战可用性补全 (Production-Usability Closure)
+milestone_name: v3.7 Production-Usability Closure (实战可用性补全)
 status: in_progress
-  stopping: v3.6 SHIPPED 2026-07-19. v3.7 STARTED 2026-07-19 per user direction: closes Activation Quality 9.0+ ↔ 实战可用 gap across grid-cli / web/ / EAASP 本地仿真. grid-server multi-user login scenario explicitly deferred to v3.8.
-  last_updated: "2026-07-19"
-  last_activity: "2026-07-19"
-  progress:
-    total_phases: 4
-    completed_phases: 0
-    total_plans: 0
-    completed_plans: 0
-    percent: 0
+  stopping: Phase 3.7.1 grid-cli 实战可用性 context gathered (db695a29). Ready for /gsd-plan-phase 3.7.1. v3.6 SHIPPED 2026-07-19 (a29f626).
+stopped_at: Phase 3.7.1 context gathered
+last_updated: "2026-07-19T01:08:58.424Z"
+last_activity: "2026-07-19 (3.7.1 discuss-phase complete)"
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   v3.5_shipped: true
   activation_shipped: true
   v3_6_shipped: true
   v3_7_started: true
+  phase_3_7_1_context_gathered: true
 ---
 
 # Project State
@@ -25,9 +26,10 @@ status: in_progress
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Post-Activation. Grid 独立产品 Activation milestone SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.6 Post-Activation Docs Sync in progress (3 sub-phases 3.6.1/3.6.2/3.6.3). Next milestone definition pending. EAASP core L0/L1/L2/L3/L4 reference implementation and contract validation are complete; platform-evolution gaps (production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion) remain explicit future work.
+**Current focus:** v3.7 实战可用性补全 STARTED 2026-07-19. Closes Activation Quality 9.0+ ↔ 实战可用 gap across grid-cli / web/ / EAASP 本地仿真. Phase 3.7.1 grid-cli context GATHERED 2026-07-19 (CONTEXT.md + DISCUSSION-LOG.md @ db695a29). grid-server multi-user login scenario deferred to v3.8 per user direction. EAASP v2.0 platform-evolution gaps (production OPA approval chain, A2A/Event Room, L5 Cowork UI, ecosystem expansion) remain explicit future work outside v3.7.
 
 Canonical product-status sources:
+
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
 - `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
 
@@ -75,6 +77,7 @@ Last activity: 2026-06-17 (this session)
 ## Completed Milestones
 
 ### v3.5 Debt Finalization ✅ SHIPPED 2026-06-16
+
 - 3 phases (9.0/9.1/9.2), 0 ADRs
 - LEDGER main D-table: 100% ✅ CLOSED (56 rows standardized)
 - Phase 9.0: LEDGER audit + normalize 56 D-rows (17 notation fix + 30 newly closed + 9 genuine actives)
@@ -82,6 +85,7 @@ Last activity: 2026-06-17 (this session)
 - Phase 9.2: Final LEDGER close-out, 100% uniformity
 
 ### v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16
+
 - 10 phases (7.0–8.6), 21 plans, 39 tasks
 - ~85 INBOX rows → 67 REQ-IDs fully drained
 - 2 ADRs Accepted: ADR-V2-033 (EventSink gRPC) + ADR-V2-017 §2 (double-Terminate NO-OP)
@@ -119,11 +123,12 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19 (docs-sync resumed)
-Stopped at: v3.6 SHIPPED — 7 docs commits @ a29f626, 46/46 UAT PASS, clean working tree. HANDOFF.md recorded. Awaiting user pick of next milestone (Candidates A/B/C1-C4 in `3.6-HANDOFF.md` §"What is NOT done").
+Last session: 2026-07-19T01:08:58.421Z
+Stopped at: Phase 3.7.1 context gathered
 Resume path: User must decide which candidate becomes next milestone; options below in this resume.
 
 Prior sessions:
+
 - 2026-06-17: **Phase A.8 grid-eval CI completed** — concurrency group + summary report
 - 2026-06-17: **Phase A.7 grid-desktop completed** — brand name, IPC commands, updater fix
 - 2026-06-17: **Phase A.6 web-platform/ Production completed** — ErrorBoundary, Toast, Markdown, dashboard fix
