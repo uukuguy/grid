@@ -51,3 +51,40 @@ fn chrono_now_nanos() -> u128 {
         .map(|d| d.as_nanos())
         .unwrap_or(0)
 }
+
+/// Phase 3.7.1 Plan 03 S6 (REQ-AUDIT-04 hermetic test, per D-15).
+/// Helper reserved for future tests that want a config-file-based spawn
+/// path; the S6 test exercises StdioMcpClient directly (no JSON config).
+#[allow(dead_code)]
+pub struct McpServerConfigFixture {
+    pub name: String,
+    pub config_path: std::path::PathBuf,
+    pub isolated_root: std::path::PathBuf,
+}
+
+#[allow(dead_code)]
+pub fn spawn_fake_mcp_server_config(
+    label: &str,
+    script: &str,
+) -> (String, std::path::PathBuf, McpServerConfigFixture) {
+    let server_name = format!("fake-{}-{}", label, chrono_now_nanos());
+    let dir = isolated_tmpdir(label);
+    let config_path = dir.join("mcp.json");
+    std::fs::write(
+        &config_path,
+        format!(
+            r#"{{ "mcpServers": {{ "{}": {{ "command": "sh", "args": ["-c", {:?}], "env": {{}} }} }} }}"#,
+            server_name, script,
+        ),
+    )
+    .expect("write fake mcp config");
+    (
+        server_name.clone(),
+        dir.clone(),
+        McpServerConfigFixture {
+            name: server_name,
+            config_path,
+            isolated_root: dir,
+        },
+    )
+}
