@@ -1,6 +1,6 @@
 .PHONY: dev build check test clean fmt lint server web all install setup \
         cli cli-run cli-ask cli-agent cli-session cli-config cli-doctor \
-        studio studio-tui studio-dashboard build-studio \
+        tui dashboard studio-tui studio-dashboard \
         verify verify-runtime verify-api verify-api-mcp \
         eval-list eval-run eval-compare eval-benchmark eval-benchmark-mini \
         eval-history eval-report eval-trace eval-diagnose eval-diff eval-progress \
@@ -87,18 +87,24 @@ build:
 build-full:
 	cargo build --features full
 
+# Build the unified `grid` binary (default features: CLI + TUI + Dashboard, ~25MB)
 build-cli:
 	cargo build -p grid-cli --bin grid
 
-build-studio:
-	cargo build -p grid-cli --features studio
-
+# Full build of `grid` binary with all features (CLI + TUI + Dashboard + TLS, ~46MB)
 build-cli-full:
 	cargo build -p grid-cli --features full
 
 # 编译构建 (release, 含全部功能)
 release:
 	cargo build --release --features full
+
+# Quick aliases for common subcommands
+tui:
+	cargo run --bin grid -- tui
+
+dashboard:
+	cargo run --bin grid -- dashboard
 
 # 运行后端服务器 (exec ensures Ctrl+C reaches the server directly)
 server:
@@ -194,20 +200,16 @@ cli-ask:
 	@cargo run --quiet -p grid-cli --bin grid -- --project $(TEST_PROJECT) ask "$(QUERY)" $(CLI_ARGS)
 
 # ============================================================
-# Studio 命令 (grid-studio = TUI + Dashboard, 需要 studio feature)
+# TUI / Dashboard (统一 grid binary, 不再需要 grid-studio 二进制)
 # ============================================================
 
-# TUI 全屏模式
-studio-tui: build-studio
-	@if [ -f target/debug/grid-studio ]; then \
-		target/debug/grid-studio --project $(TEST_PROJECT) --verbose $(CLI_ARGS); \
-	else \
-		cargo run --quiet -p grid-cli --features studio --bin grid-studio -- --project $(TEST_PROJECT) --verbose $(CLI_ARGS); \
-	fi
+# TUI 全屏模式 (alias: `make tui`)
+studio-tui: build-cli
+	@cargo run --quiet -p grid-cli --bin grid -- tui --project $(TEST_PROJECT) $(CLI_ARGS)
 
-# 启动 Web Dashboard
-studio-dashboard: build-studio
-	@cargo run --quiet -p grid-cli --features studio --bin grid-studio -- --project $(TEST_PROJECT) dashboard $(CLI_ARGS)
+# 启动 Web Dashboard (alias: `make dashboard`)
+studio-dashboard: build-cli
+	@cargo run --quiet -p grid-cli --bin grid -- dashboard --project $(TEST_PROJECT) $(CLI_ARGS)
 
 # 别名: studio = studio-tui
 studio: studio-tui

@@ -2,9 +2,6 @@
 //!
 //! The primary consumer is `grid-desktop`, which needs `commands::dashboard::build_router`
 //! to embed the dashboard HTTP server inside the Tauri app.
-//!
-//! Feature flags:
-//! - `studio`: Enables TUI (ratatui) and Dashboard (axum) modules
 
 use clap::Parser;
 
@@ -15,11 +12,8 @@ use commands::{
 
 pub mod commands;
 pub mod error;
-#[cfg(feature = "studio")]
-pub mod dashboard;
 pub mod output;
 pub mod repl;
-#[cfg(feature = "studio")]
 pub mod tui;
 pub(crate) mod ui;
 
@@ -104,6 +98,44 @@ pub enum Commands {
         /// Use specific agent
         #[arg(short, long)]
         agent: Option<String>,
+    },
+
+    /// Start full-screen TUI mode (conversation-centric workbench)
+    Tui {
+        /// Color theme
+        #[arg(long, default_value = "indigo")]
+        theme: String,
+    },
+
+    /// Launch embedded web dashboard (HTTP server)
+    Dashboard {
+        /// Port to listen on
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Open browser on start
+        #[arg(long)]
+        open: bool,
+        /// Enable TLS/HTTPS
+        #[arg(long)]
+        enable_tls: bool,
+        /// Path to TLS certificate (PEM format)
+        #[arg(long)]
+        cert_path: Option<String>,
+        /// Path to TLS private key (PEM format)
+        #[arg(long)]
+        key_path: Option<String>,
+        /// Require API key authentication for protected endpoints
+        #[arg(long)]
+        require_auth: bool,
+        /// Allowed CORS origins (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        allowed_origins: Vec<String>,
+        /// Generate self-signed TLS certificate for development
+        #[arg(long)]
+        generate_cert: bool,
     },
 
     /// Manage agents
@@ -197,48 +229,5 @@ pub enum Commands {
         /// Emit machine-parseable JSON (overrides TTY detection)
         #[arg(long)]
         json: bool,
-    },
-}
-
-/// Studio-only commands (TUI + Dashboard), only available with "studio" feature
-#[cfg(feature = "studio")]
-#[derive(Parser)]
-pub enum StudioCommands {
-    /// Start full-screen TUI mode
-    Tui {
-        /// Color theme
-        #[arg(long, default_value = "indigo")]
-        theme: String,
-    },
-
-    /// Launch embedded web dashboard
-    Dashboard {
-        /// Port to listen on
-        #[arg(short, long, default_value = "8080")]
-        port: u16,
-        /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-        /// Open browser on start
-        #[arg(long)]
-        open: bool,
-        /// Enable TLS/HTTPS
-        #[arg(long)]
-        enable_tls: bool,
-        /// Path to TLS certificate (PEM format)
-        #[arg(long)]
-        cert_path: Option<String>,
-        /// Path to TLS private key (PEM format)
-        #[arg(long)]
-        key_path: Option<String>,
-        /// Require API key authentication for protected endpoints
-        #[arg(long)]
-        require_auth: bool,
-        /// Allowed CORS origins (comma-separated)
-        #[arg(long, value_delimiter = ',')]
-        allowed_origins: Vec<String>,
-        /// Generate self-signed TLS certificate for development
-        #[arg(long)]
-        generate_cert: bool,
     },
 }

@@ -12,27 +12,13 @@ path = "src/lib.rs"
 name = "grid"
 path = "src/main.rs"
 
-[[bin]]
-name = "grid-studio"
-path = "src/studio_main.rs"
-required-features = ["studio"]
-
 [features]
-default = []
-# Studio mode: TUI + Dashboard (adds ratatui, crossterm, axum, tower-http)
-studio = [
-    "dep:ratatui",
-    "dep:crossterm",
-    "dep:axum",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:ignore",
-    "dep:unicode-width",
-    "dep:dirs",
-]
-# Enable all heavy features (WASM, Docker, PDF) for production builds
-full = ["grid-engine/full", "studio"]
-dashboard-tls = ["studio", "axum-server", "rcgen"]
+# Production-ready build: enables grid-engine extras (WASM/Docker/PDF)
+# plus dashboard TLS support (axum-server + rcgen).
+full = ["grid-engine/full", "dashboard-tls"]
+# Dashboard TLS for remote access (HTTPS + self-signed cert generation).
+# Implied by `full`; toggleable for development builds.
+dashboard-tls = ["dep:axum-server", "dep:rcgen"]
 
 [dependencies]
 # Internal crates
@@ -89,25 +75,23 @@ rustyline = { version = "17", features = ["with-file-history"] }
 # XDG paths
 directories = "6"
 
-# ── Studio-only dependencies (gated by "studio" feature) ──
-
 # TUI framework
-crossterm = { version = "0.28", features = ["event-stream"], optional = true }
-ratatui = { workspace = true, optional = true }
+crossterm = { version = "0.28", features = ["event-stream"] }
+ratatui = { workspace = true }
 
 # Web server (for embedded dashboard)
-axum = { workspace = true, optional = true }
-tower = { workspace = true, optional = true }
-tower-http = { workspace = true, optional = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
 
 # Home directory detection (for TUI path shortener)
-dirs = { version = "6", optional = true }
+dirs = "6"
 
 # Unicode character width calculation (for TUI)
-unicode-width = { version = "0.2", optional = true }
+unicode-width = "0.2"
 
 # Gitignore-aware file traversal (for TUI autocomplete)
-ignore = { version = "0.4", optional = true }
+ignore = "0.4"
 
 # TLS support (optional, for dashboard remote access)
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }

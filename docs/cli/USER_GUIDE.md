@@ -45,7 +45,8 @@ language: mixed (English headings / commands / code; Chinese explanations)
    - [5.15 `doctor` — 健康检查](#515-doctor--健康检查)
    - [5.16 `completions` — Shell 补全](#516-completions--shell-补全)
    - [5.17 `quickstart` — 场景化快速启动](#517-quickstart--场景化快速启动)
-   - [5.18 Studio 命令 (`tui` / `dashboard`)](#18-studio-命令-tui--dashboard)
+   - [5.18 `tui` — 全屏 TUI 工作台](#518-tui--全屏-tui-工作台)
+   - [5.19 `dashboard` — 嵌入式 Web Dashboard](#519-dashboard--嵌入式-web-dashboard)
 6. [环境变量](#6-环境变量)
 7. [实战场景速查](#7-实战场景速查)
 8. [故障排查](#8-故障排查)
@@ -94,18 +95,17 @@ grid --retry run           # 自动重试 transient 错误
 ### 2.1 编译
 
 ```bash
-# 标准 release 构建 (CLI 17 个命令, 不含 Studio)
+# 标准 release 构建 (CLI + TUI + Dashboard, ~25MB)
 cargo build --release --bin grid
 
-# Studio 二进制 (TUI + Dashboard, 独立 binary)
-cargo build --release --bin grid-studio --features studio
+# Full release (含 dashboard TLS / self-signed cert, ~46MB)
+cargo build --release --bin grid --features full
 
 # 安装到 PATH
 cp target/release/grid /usr/local/bin/
-cp target/release/grid-studio /usr/local/bin/   # 可选, 启用 TUI/Dashboard
 ```
 
-> 详见 [§5.18 Studio 命令](#518-studio-命令-tui--dashboard) 了解 `tui`/`dashboard` 子命令为何不在默认 `grid` 二进制中。
+> 单一 `grid` 二进制提供全部 19 个子命令 (`ask` / `run` / `tui` / `dashboard` / `mcp` / ...)。TUI + Dashboard 默认启用,无需额外 feature flag。`--features full` 仅用于启用 dashboard 的 HTTPS + 自签名证书生成。
 
 ### 2.2 初始化新项目
 
@@ -887,34 +887,13 @@ grid quickstart S4 --json          # S4 流式 stop/resume, JSON 输出
 
 ---
 
-### 5.18 Studio 命令 (`tui` / `dashboard`)
+### 5.18 `tui` — 全屏 TUI 工作台
 
-> ⚠️ **重要**: `tui` 和 `dashboard` 不在默认 `grid` 二进制中。它们由独立的 **`grid-studio`** 二进制提供,通过 `--features studio` 编译,定义在 `crates/grid-cli/Cargo.toml:16-18`。
->
-> 默认 `make release` 或 `cargo build --release` 只生成 `grid` 二进制 (无 studio)。如果你运行 `./target/release/grid tui` 会报 `error: unrecognized subcommand 'tui'`。
-
-**两种使用方式**:
+启动全屏 TUI 模式 (类似 Claude Code / aider),基于 ratatui 0.29。
 
 ```bash
-# 方式 A: 使用专用 grid-studio 二进制 (推荐)
-cargo build --release --bin grid-studio --features studio
-./target/release/grid-studio tui
-./target/release/grid-studio dashboard --open
-
-# 方式 B: 在默认 grid 二进制中启用 studio feature (不推荐 — 混合职责)
-cargo build --release -p grid-cli --features studio
-./target/release/grid tui    # 现在可工作
-
-# 方式 C: 用 Makefile 包装 (Makefile:201-210)
-make studio-tui             # 自动 build + run grid-studio
-make studio-dashboard
+grid tui [OPTIONS]
 ```
-
-Makefile 方式 (`make studio-tui`) 是项目内部推荐路径,自动处理 build + run。
-
-#### `grid-studio tui --theme <name>`
-
-启动全屏 TUI 模式 (类似 Claude Code / aider)。
 
 | 标志 | 默认值 | 说明 |
 |------|--------|------|
@@ -924,9 +903,20 @@ Makefile 方式 (`make studio-tui`) 是项目内部推荐路径,自动处理 bui
 - `Ctrl-P` 命令面板
 - `Ctrl-H` 历史浏览
 
-#### `grid dashboard [--port N] [--host H] [--open] [--enable-tls]`
+TUI 日志路径: 默认 `./logs/tui.log`,可通过 `GRID_TUI_LOG` 覆盖 (per ADR-V2-032)。
 
-启动嵌入式 Web dashboard。
+```bash
+grid tui
+GRID_TUI_LOG=/tmp/grid-tui.log grid tui   # 自定义日志路径
+```
+
+### 5.19 `dashboard` — 嵌入式 Web Dashboard
+
+启动嵌入式 Web dashboard (Axum HTTP server)。
+
+```bash
+grid dashboard [OPTIONS]
+```
 
 | 标志 | 简写 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -1046,7 +1036,7 @@ grid dashboard --port 443 --host 0.0.0.0 \
 | `database is locked` | `lsof data/grid.db` | 另一进程持有锁 |
 | 退出码 3 (AuthFailed) | `grid auth status` | 凭据失效 |
 | 退出码 4 (SessionNotFound) | `grid session list` | session 已删除 |
-| `error: unrecognized subcommand 'tui'` 或 `dashboard` | `cargo build --release --bin grid-studio --features studio && ./target/release/grid-studio tui` 或 `make studio-tui` | 默认 `grid` 二进制无 studio feature;Studio 是独立 `grid-studio` 二进制。详见 [§5.18](#518-studio-命令-tui--dashboard) |
+| `error: unrecognized subcommand 'tui'` 或 `dashboard` | `cargo build --release --bin grid` (默认 features 已包含 TUI/Dashboard) 或 `make tui` | 旧版 grid-studio 二进制已合并,所有命令在统一 grid binary 中 |
 
 ### 8.2 重置 / 清理
 

@@ -1,7 +1,7 @@
-//! Grid CLI - Local CLI for interacting with Grid agents
+//! Grid CLI - Local CLI for interacting with Grid agents.
 //!
-//! This is the lightweight CLI binary (`grid`).
-//! For the full-screen TUI + Dashboard, use `grid-studio` (requires "studio" feature).
+//! Single binary exposing ask / run / tui / dashboard / web / ... subcommands.
+//! See `grid --help` for the full list.
 
 use anyhow::Result;
 use clap::Parser;
@@ -15,6 +15,7 @@ use grid_cli::commands::{
 };
 use grid_cli::error::{ExitCode, GridError};
 use grid_cli::output;
+use grid_cli::tui;
 use grid_cli::{Cli, Commands};
 
 fn init_logging(verbose: bool) {
@@ -34,12 +35,77 @@ fn init_logging(verbose: bool) {
         .init();
 }
 
+/// Resolve the TUI log file path. Honors `GRID_TUI_LOG` for explicit override,
+/// otherwise writes to `./logs/tui.log` in the current working directory (close
+/// to the repo for fast `tail -f` access during development).
+///
+/// See ADR-V2-032 for the convention.
+fn resolve_tui_log_path() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("GRID_TUI_LOG") {
+        return std::path::PathBuf::from(p);
+    }
+    let cwd_logs = std::env::current_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join("logs");
+    let _ = std::fs::create_dir_all(&cwd_logs);
+    cwd_logs.join("tui.log")
+}
+
+fn init_logging_tui(verbose: bool) {
+    let filter = if verbose {
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("grid_cli=info,grid_engine=debug"))
+    } else {
+        EnvFilter::new("grid_cli=warn,grid_engine=warn")
+    };
+
+    let log_path = resolve_tui_log_path();
+    eprintln!("[grid tui] log: {}", log_path.display());
+
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path);
+
+    let builder = fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(false);
+
+    match log_file {
+        Ok(file) => {
+            builder.with_writer(std::sync::Mutex::new(file)).init();
+        }
+        Err(e) => {
+            eprintln!(
+                "[grid tui] WARNING: failed to open {}: {} — logging to stderr",
+                log_path.display(),
+                e
+            );
+            builder.init();
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
 
     let cli = Cli::parse();
-    init_logging(cli.verbose);
+
+    // Initialize logging per subcommand (TUI logs to file; everything else logs to stderr).
+    let is_tui = matches!(cli.command, Commands::Tui { .. });
+    if is_tui {
+        init_logging_tui(cli.verbose);
+    } else {
+        init_logging(cli.verbose);
+    }
 
     info!("Starting Grid CLI");
 
@@ -161,6 +227,40 @@ async fn run_command(command: Commands, retry: bool, state: &AppState) -> Result
                 state,
             )
             .await?;
+        }
+        Commands::Tui { .. } => {
+            tui::run_tui_conversation(state).await?;
+        }
+        Commands::Dashboard {
+            port,
+            host,
+            open,
+            enable_tls,
+            cert_path,
+            key_path,
+            require_auth,
+            allowed_origins,
+            generate_cert,
+        } => {
+            let (cert_path, key_path, tls_enabled) = if generate_cert {
+                let cert_dir = state.grid_root.tls_dir();
+                let (cp, kp) = commands::dashboard_cert::generate_self_signed_cert(&cert_dir)?;
+                (Some(cp), Some(kp), true)
+            } else {
+                (cert_path, key_path, enable_tls)
+            };
+
+            let opts = commands::dashboard::DashboardOptions {
+                port,
+                host,
+                open,
+                tls_enabled,
+                cert_path,
+                key_path,
+                require_auth,
+                allowed_origins,
+            };
+            commands::dashboard::run_dashboard(&opts).await?;
         }
         Commands::Agent { action } => handle_agent(action, state).await?,
         Commands::Session { action } => handle_session(action, state).await?,
