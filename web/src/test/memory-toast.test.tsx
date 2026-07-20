@@ -23,7 +23,7 @@ import { toastsAtom, pushMemoryEventAtom } from "../atoms/ui";
 function TestProbe({
   pushFnRef,
 }: {
-  pushFnRef: React.MutableRefObject<((input: { content: string }) => void) | null>;
+  pushFnRef: React.RefObject<((input: { content: string }) => void) | null>;
 }) {
   const push = useSetAtom(pushMemoryEventAtom);
   // Expose push via ref so the test can call it outside of React lifecycle.

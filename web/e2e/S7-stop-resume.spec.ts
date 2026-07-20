@@ -1,5 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Augment Window with the kill-request recorder exposed via page.exposeFunction.
+declare global {
+  interface Window {
+    __getKillRequests: () => Array<{ method: string; url: string }>;
+  }
+}
+
 /**
  * S7 E1 — Dashboard Stop flow (REQ-WEB-03, REQ-WEB-07, D-02).
  *
@@ -19,12 +26,6 @@ import { test, expect, type Page } from "@playwright/test";
 
 const SESSION_ID = "test-session-12345678";
 const TASK_ID = "test-task-abcdef01";
-
-interface SessionFixture {
-  id: string;
-  status: "running";
-  created_at: string;
-}
 
 interface TaskFixture {
   id: string;

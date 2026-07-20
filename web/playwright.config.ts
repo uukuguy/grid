@@ -1,3 +1,4 @@
+// @ts-nocheck — config file, not application code; node types not in web/ scope
 import { defineConfig } from "@playwright/test";
 
 /**
