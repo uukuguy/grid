@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
 status: executing
-stopped_at: Phase 3.7.1 SHIPPED, awaiting next-milestone decision
-last_updated: "2026-07-19T21:25:27.184Z"
+stopped_at: Phase 3.7.2 UI-SPEC approved (7/7 dimensions PASS)
+last_updated: "2026-07-20T02:19:37.757Z"
 last_activity: 2026-07-19
 progress:
   total_phases: 3
@@ -119,8 +119,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19T04:30:00.000Z
-Stopped at: Phase 3.7.1 SHIPPED, awaiting next-milestone decision
+Last session: 2026-07-20T02:19:37.754Z
+Stopped at: Phase 3.7.2 UI-SPEC approved (7/7 dimensions PASS)
 Resume path: User must pick Candidate A / B / C / D for next milestone (see 3.7.1-HANDOFF.md "What is NOT done").
 
 Prior sessions:

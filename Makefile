@@ -1,6 +1,7 @@
 .PHONY: dev build check test clean fmt lint server web all install setup \
-        cli cli-run cli-ask cli-agent cli-session cli-config cli-doctor \
-        tui dashboard studio-tui studio-dashboard \
+        help \
+        tui dashboard \
+        cli cli-run cli-ask cli-agent cli-session cli-config cli-doctor cli-mcp-logs \
         verify verify-runtime verify-api verify-api-mcp \
         eval-list eval-run eval-compare eval-benchmark eval-benchmark-mini \
         eval-history eval-report eval-trace eval-diagnose eval-diff eval-progress \
@@ -39,6 +40,52 @@ TEST_PROJECT ?= $(PWD)/examples/demo-project
 # ============================================================
 # 主要命令
 # ============================================================
+
+# Show this help (with grouped, curated targets — full list: `make help-full`)
+help:
+	@echo "Grid Platform — Make targets"
+	@echo ""
+	@echo "Development workflow:"
+	@echo "  make dev           Start backend + frontend dev servers (concurrent)"
+	@echo "  make build         cargo build (workspace, debug)"
+	@echo "  make check        cargo check --workspace (fastest, no binaries)"
+	@echo "  make test          cargo test --workspace"
+	@echo "  make fmt           cargo fmt --all"
+	@echo "  make lint          cargo clippy --workspace -- -D warnings"
+	@echo "  make clean         cargo clean"
+	@echo ""
+	@echo "Production / release:"
+	@echo "  make release       cargo build --release --features full (all binaries)"
+	@echo "  make install       First-time setup (npm install for web/)"
+	@echo "  make all           build + web-build"
+	@echo ""
+	@echo "Grid CLI (single binary — 19 subcommands: ask / run / tui / dashboard / ...):"
+	@echo "  make tui           Launch grid tui (alias: grid tui)"
+	@echo "  make dashboard     Launch grid dashboard (alias: grid dashboard --open)"
+	@echo "  make cli           Show grid --help"
+	@echo "  make cli-ask QUERY=\"...\"   Single headless query"
+	@echo "  make cli-run       Interactive REPL session"
+	@echo "  make cli-agent     List agents"
+	@echo "  make cli-session   List sessions"
+	@echo "  make cli-config    Show config"
+	@echo "  make cli-doctor    Run health diagnostics"
+	@echo "  make cli-mcp-logs NAME=<name>   Tail MCP server logs"
+	@echo ""
+	@echo "Servers:"
+	@echo "  make server        Run grid-server (backend, port 3001)"
+	@echo "  make web           Run web/ dev server (port 5173)"
+	@echo "  make web-build     Build web/ production bundle"
+	@echo ""
+	@echo "Quickstart / verification:"
+	@echo "  make verify        Static checks (cargo check + tsc + vite build)"
+	@echo "  make verify-runtime   Print runtime verification checklist"
+	@echo ""
+	@echo "EAASP / L1 runtimes / L2-L4 tools:"
+	@echo "  See 'make help-full' or grep Makefile for the 130+ advanced targets"
+
+# Show ALL targets (long output)
+help-full:
+	@$(MAKE) -p 2>/dev/null | grep -E '^[a-zA-Z_-]+:.*##' | head -50
 
 # 同时启动后端 + 前端开发服务器
 dev:
@@ -98,13 +145,6 @@ build-cli-full:
 # 编译构建 (release, 含全部功能)
 release:
 	cargo build --release --features full
-
-# Quick aliases for common subcommands
-tui:
-	cargo run --bin grid -- tui
-
-dashboard:
-	cargo run --bin grid -- dashboard
 
 # 运行后端服务器 (exec ensures Ctrl+C reaches the server directly)
 server:
@@ -179,56 +219,56 @@ clean-web:
 clean-all: clean clean-web
 
 # ============================================================
-# CLI 命令 (grid-cli)
+# Grid CLI 快捷方式 (统一 grid binary, 19 subcommands)
 # ============================================================
 
 CLI_ARGS ?=
 QUERY    ?=
+NAME     ?=
 
-# 显示 CLI 帮助
+# Show grid --help
 cli:
 	cargo run -p grid-cli --bin grid -- --help
 
-# 交互式 REPL 会话
+# Launch full-screen TUI (equivalent to: grid tui)
+tui:
+	@cargo run --quiet -p grid-cli --bin grid -- tui --project $(TEST_PROJECT) $(CLI_ARGS)
+
+# Launch embedded Web Dashboard (equivalent to: grid dashboard)
+dashboard:
+	@cargo run --quiet -p grid-cli --bin grid -- dashboard --project $(TEST_PROJECT) $(CLI_ARGS)
+
+# Interactive REPL session (equivalent to: grid run)
 cli-run:
 	@cargo run --quiet -p grid-cli --bin grid -- --project $(TEST_PROJECT) run $(CLI_ARGS)
 
-# 单次提问 (headless 模式)
-# 用法: make cli-ask QUERY="你的问题"
+# Single headless query
+# Usage: make cli-ask QUERY="your question"
 cli-ask:
 	@if [ -z "$(QUERY)" ]; then echo "Usage: make cli-ask QUERY=\"your question\""; exit 1; fi
 	@cargo run --quiet -p grid-cli --bin grid -- --project $(TEST_PROJECT) ask "$(QUERY)" $(CLI_ARGS)
 
-# ============================================================
-# TUI / Dashboard (统一 grid binary, 不再需要 grid-studio 二进制)
-# ============================================================
-
-# TUI 全屏模式 (alias: `make tui`)
-studio-tui: build-cli
-	@cargo run --quiet -p grid-cli --bin grid -- tui --project $(TEST_PROJECT) $(CLI_ARGS)
-
-# 启动 Web Dashboard (alias: `make dashboard`)
-studio-dashboard: build-cli
-	@cargo run --quiet -p grid-cli --bin grid -- dashboard --project $(TEST_PROJECT) $(CLI_ARGS)
-
-# 别名: studio = studio-tui
-studio: studio-tui
-
-# Agent 管理
+# List agents
 cli-agent:
 	cargo run -p grid-cli --bin grid -- --project $(TEST_PROJECT) agent list
 
-# Session 管理
+# List sessions
 cli-session:
 	cargo run -p grid-cli --bin grid -- --project $(TEST_PROJECT) session list
 
-# 配置管理
+# Show config
 cli-config:
 	cargo run -p grid-cli --bin grid -- --project $(TEST_PROJECT) config show
 
-# 健康诊断
+# Run health diagnostics
 cli-doctor:
 	cargo run -p grid-cli --bin grid -- --project $(TEST_PROJECT) doctor
+
+# Tail MCP server logs
+# Usage: make cli-mcp-logs NAME=<server-name>
+cli-mcp-logs:
+	@if [ -z "$(NAME)" ]; then echo "Usage: make cli-mcp-logs NAME=<server-name>"; exit 1; fi
+	@cargo run --quiet -p grid-cli --bin grid -- mcp logs "$(NAME)" --follow --project $(TEST_PROJECT)
 
 # ============================================================
 # 评估命令 (grid-eval)
