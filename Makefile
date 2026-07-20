@@ -58,8 +58,9 @@ help:
 	@echo "  make verify        Static checks (cargo check + tsc + vite build)"
 	@echo "  make verify-runtime   Print runtime verification checklist"
 	@echo ""
-	@echo "EAASP / L1 runtimes / L2-L4 tools:"
-	@echo "  See 'make help-full' or grep Makefile for the 130+ advanced targets"
+	@echo "Full target list:"
+	@echo "  make help-full     Show every target with its command"
+	@echo "  cat Makefile       Source of truth (~580 lines)"
 
 # Show ALL targets (long output)
 help-full:
