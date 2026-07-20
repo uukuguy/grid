@@ -143,6 +143,8 @@ class WsManager {
     this.intentionalDisconnect = true;
     this.ws?.close();
     this.ws = null;
+    // Reset the attempt counter so the next connect() starts at attempt 1
+    this.reconnectAttempts = 0;
     this.statusChangeHandler?.("disconnected", 0);
   }
 

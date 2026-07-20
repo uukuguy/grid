@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStore } from "jotai";
 import { toastsAtom, addToastAtom, removeToastAtom } from "../atoms/ui";
 import {
@@ -11,6 +11,11 @@ import {
   activeSessionIdAtom,
   isStreamingAtom,
   streamingTextAtom,
+  toolExecutionsAtom,
+  sessionStatusAtom,
+  stoppedByUserAtom,
+  recentlyAddedMemoryIdsAtom,
+  addRecentlyAddedMemoryIdAtom,
 } from "../atoms/session";
 
 describe("UI atoms", () => {
@@ -66,5 +71,79 @@ describe("Session atoms", () => {
   it("streamingTextAtom defaults to empty string", () => {
     const store = createStore();
     expect(store.get(streamingTextAtom)).toBe("");
+  });
+});
+
+describe("Session status atoms (REQ-WEB-03, D-02)", () => {
+  it("sessionStatusAtom is 'running' when isStreamingAtom is true", () => {
+    const store = createStore();
+    store.set(isStreamingAtom, true);
+    expect(store.get(sessionStatusAtom)).toBe("running");
+  });
+
+  it("sessionStatusAtom is 'running' when a tool execution is running", () => {
+    const store = createStore();
+    store.set(toolExecutionsAtom, [
+      {
+        toolId: "t1",
+        toolName: "Bash",
+        input: {},
+        status: "running",
+      },
+    ]);
+    expect(store.get(sessionStatusAtom)).toBe("running");
+  });
+
+  it("sessionStatusAtom is 'stopped' when stoppedByUserAtom is true", () => {
+    const store = createStore();
+    store.set(isStreamingAtom, false);
+    store.set(stoppedByUserAtom, true);
+    expect(store.get(sessionStatusAtom)).toBe("stopped");
+  });
+
+  it("sessionStatusAtom is 'idle' when no streaming and not stopped", () => {
+    const store = createStore();
+    store.set(isStreamingAtom, false);
+    store.set(stoppedByUserAtom, false);
+    expect(store.get(sessionStatusAtom)).toBe("idle");
+  });
+
+  it("stoppedByUserAtom flips true on Stop, false on Resume", () => {
+    const store = createStore();
+    expect(store.get(stoppedByUserAtom)).toBe(false);
+    store.set(stoppedByUserAtom, true);
+    expect(store.get(stoppedByUserAtom)).toBe(true);
+    store.set(stoppedByUserAtom, false);
+    expect(store.get(stoppedByUserAtom)).toBe(false);
+  });
+});
+
+describe("recentlyAddedMemoryIdsAtom (REQ-WEB-04)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("adds an id and removes it after 4500ms", () => {
+    const store = createStore();
+    expect(store.get(recentlyAddedMemoryIdsAtom)).toEqual([]);
+    store.set(addRecentlyAddedMemoryIdAtom, "mem-1");
+    expect(store.get(recentlyAddedMemoryIdsAtom)).toEqual(["mem-1"]);
+    vi.advanceTimersByTime(4500);
+    expect(store.get(recentlyAddedMemoryIdsAtom)).toEqual([]);
+  });
+
+  it("removes only the expired id when multiple are present", () => {
+    const store = createStore();
+    store.set(addRecentlyAddedMemoryIdAtom, "mem-1");
+    vi.advanceTimersByTime(2000);
+    store.set(addRecentlyAddedMemoryIdAtom, "mem-2");
+    vi.advanceTimersByTime(2500);
+    // After 4500ms total, mem-1 should be gone but mem-2 still present.
+    expect(store.get(recentlyAddedMemoryIdsAtom)).toEqual(["mem-2"]);
+    vi.advanceTimersByTime(2000);
+    expect(store.get(recentlyAddedMemoryIdsAtom)).toEqual([]);
   });
 });

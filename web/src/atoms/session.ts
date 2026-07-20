@@ -17,6 +17,61 @@ export interface ToolExecution {
   status: "running" | "complete";
 }
 
+// ── Session Status (D-02, REQ-WEB-03) ──
+
+/**
+ * Lifecycle flag toggled by the SessionControls Stop/Resume buttons.
+ * - `true` when the user explicitly clicked Stop
+ * - `false` when the user clicked Resume or a new session starts
+ */
+export const stoppedByUserAtom = atom<boolean>(false);
+
+/**
+ * Derived session status:
+ *   - `running` when isStreaming is true OR any tool is in `running` state
+ *   - `stopped` when stoppedByUserAtom is true (user pressed Stop)
+ *   - `idle` otherwise (no streaming, no tool, not user-stopped)
+ *   - `paused` reserved for future use (server-driven pause)
+ */
+export const sessionStatusAtom = atom<
+  "running" | "paused" | "stopped" | "idle"
+>((get) => {
+  const isStreaming = get(isStreamingAtom);
+  const hasRunningTool = get(toolExecutionsAtom).some(
+    (t) => t.status === "running",
+  );
+  if (isStreaming || hasRunningTool) return "running";
+  const stopped = get(stoppedByUserAtom);
+  return stopped ? "stopped" : "idle";
+});
+
+/**
+ * Recently-added memory IDs (REQ-WEB-04). Each id is removed 4500ms after
+ * being added (3s highlight + 1.5s fade buffer per UI-SPEC §9.4).
+ *
+ * Read/write primitive atom so pages can subscribe to the current set.
+ * The auto-expiration logic lives in `addRecentlyAddedMemoryIdAtom` below.
+ */
+const MEMORY_HIGHLIGHT_MS = 4500;
+
+export const recentlyAddedMemoryIdsAtom = atom<string[]>([]);
+
+/** Write-only atom: add a memory id (auto-expires after 4500ms). */
+export const addRecentlyAddedMemoryIdAtom = atom(
+  null,
+  (get, set, id: string) => {
+    const prev = get(recentlyAddedMemoryIdsAtom);
+    if (prev.includes(id)) return;
+    set(recentlyAddedMemoryIdsAtom, [...prev, id]);
+    setTimeout(() => {
+      set(
+        recentlyAddedMemoryIdsAtom,
+        get(recentlyAddedMemoryIdsAtom).filter((x) => x !== id),
+      );
+    }, MEMORY_HIGHLIGHT_MS);
+  },
+);
+
 export interface SessionInfo {
   id: string;
   createdAt: string;

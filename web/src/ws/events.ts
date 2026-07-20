@@ -9,6 +9,7 @@ import {
   toolExecutionsAtom,
   sessionsAtom,
   migrateFallbackMessagesAtom,
+  addRecentlyAddedMemoryIdAtom,
 } from "../atoms/session";
 import {
   executionRecordsAtom,
@@ -16,12 +17,36 @@ import {
   pushLiveEventAtom,
   contextStatusAtom,
 } from "../atoms/debug";
-import { addToastAtom } from "../atoms/ui";
+import { addToastAtom, pushMemoryEventAtom } from "../atoms/ui";
 
 let streamBuffer = "";
 let thinkingBuffer = "";
 
+/** Last received sequence number for debug-mode gap detection (D-04, REQ-WEB-01). */
+let lastSeq: number | null = null;
+
+/**
+ * If `?debug=1` is set in the URL, log a concrete seq gap message.
+ * No-op in normal mode (per plan §REQ-WEB-01).
+ */
+function maybeLogSeqGap(received: number | undefined): void {
+  if (typeof window === "undefined") return;
+  const debug = new URLSearchParams(window.location.search).get("debug") === "1";
+  if (!debug) return;
+  if (typeof received !== "number") return;
+  if (lastSeq === null) {
+    lastSeq = received;
+    return;
+  }
+  if (received !== lastSeq + 1) {
+    // Concatenated template matches the plan's required message format.
+    console.log(`WS sequence gap: expected ${lastSeq + 1}, received ${received}`);
+  }
+  lastSeq = received;
+}
+
 export function handleWsEvent(msg: ServerMessage, set: Setter, get?: Getter) {
+  maybeLogSeqGap(msg.seq);
   switch (msg.type) {
     case "session_created": {
       set(sessionIdAtom, msg.session_id);
@@ -187,6 +212,20 @@ export function handleWsEvent(msg: ServerMessage, set: Setter, get?: Getter) {
         timestamp: Date.now(),
         type: "memory_flushed",
         summary: `Memory flushed: ${msg.facts_count} facts extracted`,
+      });
+      break;
+
+    case "memory_added":
+      // Emit a cyan "Memory written" toast and tag the memory id for the
+      // Memory page's highlight pulse (REQ-WEB-02, REQ-WEB-04).
+      set(pushMemoryEventAtom, { content: msg.content, id: msg.memory_id });
+      set(addRecentlyAddedMemoryIdAtom, msg.memory_id);
+      set(pushLiveEventAtom, {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        type: "memory_added",
+        summary: `Memory written: ${msg.content.slice(0, 60)}`,
+        data: { memory_id: msg.memory_id, category: msg.category },
       });
       break;
 
