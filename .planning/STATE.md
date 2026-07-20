@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
+milestone: v3.7
+milestone_name: 实战可用性补全 (Production-Usability Closure)
 status: executing
-stopped_at: Phase 3.7.2 UI-SPEC approved (7/7 dimensions PASS)
-last_updated: "2026-07-20T02:19:37.757Z"
-last_activity: 2026-07-19
+stopped_at: Phase 03.7.2 planning complete (2 plans verified, ready for execute)
+last_updated: "2026-07-20T11:00:44.199Z"
+last_activity: 2026-07-20 -- Phase 03.7.2 planning complete
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 0
-  total_plans: 0
   completed_plans: 0
+  total_plans: 6
 ---
 
 # Project State
@@ -31,7 +31,7 @@ Canonical product-status sources:
 
 Phase: 03.7.1
 Plan: Not started
-Status: Executing Phase 03.7.1
+Status: Ready to execute
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -45,7 +45,7 @@ Status: Executing Phase 03.7.1
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-07-19
+Last activity: 2026-07-20 -- Phase 03.7.2 planning complete
 
 ## Audit Findings Summary (Post-Activation Scores)
 
