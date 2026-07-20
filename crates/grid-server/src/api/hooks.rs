@@ -117,7 +117,7 @@ async fn list_wasm_plugins() -> Json<Vec<WasmPluginInfo>> {
         let result = plugins
             .into_iter()
             .map(|p| WasmPluginInfo {
-                name: p.name.clone(),
+                name: p.manifest.name.clone(),
                 status: "discovered".to_string(),
             })
             .collect();

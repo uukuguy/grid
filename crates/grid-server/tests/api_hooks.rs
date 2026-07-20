@@ -45,4 +45,17 @@ async fn hooks_wasm_list_returns_ok() {
     let (status, body) = app.get("/api/v1/hooks/wasm").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.is_array());
+    // Field-shape invariant: every entry must have a `name` (string) and
+    // `status` (string) field. Guards against the DiscoveredPlugin -> WasmPluginInfo
+    // mapping regressing (e.g. accessing `p.name` instead of `p.manifest.name`).
+    for entry in body.as_array().unwrap() {
+        assert!(
+            entry.get("name").and_then(|v| v.as_str()).is_some(),
+            "wasm plugin entry missing `name` string field: {entry}"
+        );
+        assert!(
+            entry.get("status").and_then(|v| v.as_str()).is_some(),
+            "wasm plugin entry missing `status` string field: {entry}"
+        );
+    }
 }
