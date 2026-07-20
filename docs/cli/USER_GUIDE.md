@@ -94,15 +94,18 @@ grid --retry run           # 自动重试 transient 错误
 ### 2.1 编译
 
 ```bash
-# 标准 release 构建
+# 标准 release 构建 (CLI 17 个命令, 不含 Studio)
 cargo build --release --bin grid
 
-# 含 Studio TUI / Dashboard (--features studio)
-cargo build --release --bin grid --features studio
+# Studio 二进制 (TUI + Dashboard, 独立 binary)
+cargo build --release --bin grid-studio --features studio
 
 # 安装到 PATH
 cp target/release/grid /usr/local/bin/
+cp target/release/grid-studio /usr/local/bin/   # 可选, 启用 TUI/Dashboard
 ```
+
+> 详见 [§5.18 Studio 命令](#518-studio-命令-tui--dashboard) 了解 `tui`/`dashboard` 子命令为何不在默认 `grid` 二进制中。
 
 ### 2.2 初始化新项目
 
@@ -886,9 +889,30 @@ grid quickstart S4 --json          # S4 流式 stop/resume, JSON 输出
 
 ### 5.18 Studio 命令 (`tui` / `dashboard`)
 
-需要 `--features studio` 编译。
+> ⚠️ **重要**: `tui` 和 `dashboard` 不在默认 `grid` 二进制中。它们由独立的 **`grid-studio`** 二进制提供,通过 `--features studio` 编译,定义在 `crates/grid-cli/Cargo.toml:16-18`。
+>
+> 默认 `make release` 或 `cargo build --release` 只生成 `grid` 二进制 (无 studio)。如果你运行 `./target/release/grid tui` 会报 `error: unrecognized subcommand 'tui'`。
 
-#### `grid tui --theme <name>`
+**两种使用方式**:
+
+```bash
+# 方式 A: 使用专用 grid-studio 二进制 (推荐)
+cargo build --release --bin grid-studio --features studio
+./target/release/grid-studio tui
+./target/release/grid-studio dashboard --open
+
+# 方式 B: 在默认 grid 二进制中启用 studio feature (不推荐 — 混合职责)
+cargo build --release -p grid-cli --features studio
+./target/release/grid tui    # 现在可工作
+
+# 方式 C: 用 Makefile 包装 (Makefile:201-210)
+make studio-tui             # 自动 build + run grid-studio
+make studio-dashboard
+```
+
+Makefile 方式 (`make studio-tui`) 是项目内部推荐路径,自动处理 build + run。
+
+#### `grid-studio tui --theme <name>`
 
 启动全屏 TUI 模式 (类似 Claude Code / aider)。
 
@@ -1022,6 +1046,7 @@ grid dashboard --port 443 --host 0.0.0.0 \
 | `database is locked` | `lsof data/grid.db` | 另一进程持有锁 |
 | 退出码 3 (AuthFailed) | `grid auth status` | 凭据失效 |
 | 退出码 4 (SessionNotFound) | `grid session list` | session 已删除 |
+| `error: unrecognized subcommand 'tui'` 或 `dashboard` | `cargo build --release --bin grid-studio --features studio && ./target/release/grid-studio tui` 或 `make studio-tui` | 默认 `grid` 二进制无 studio feature;Studio 是独立 `grid-studio` 二进制。详见 [§5.18](#518-studio-命令-tui--dashboard) |
 
 ### 8.2 重置 / 清理
 
