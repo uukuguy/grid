@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: 实战可用性补全 (Production-Usability Closure)
 status: executing
-stopped_at: Phase 03.7.2 execution started (Wave 1 Plan 01 audit in progress)
-last_updated: "2026-07-20T12:27:09.274Z"
-last_activity: 2026-07-20 -- Phase 03.7.2 execution started
+stopped_at: Phase 03.7.2 SHIPPED ✅ — 8/9 REQ-WEB closed; ready for Phase 3.7.3 EAASP
+last_updated: "2026-07-20T15:28:29.173Z"
+last_activity: 2026-07-20 -- Phase 03.7.2 SHIPPED (2/2 plans, 8/9 REQ-WEB closed)
 progress:
-  total_phases: 8
+  total_phases: 4
   completed_phases: 1
   total_plans: 7
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 75
 ---
 
 # Project State
@@ -30,8 +30,8 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.7.2 (web-production) — EXECUTING
-Plan: 1 of 2
+Phase: 3.7.3
+Plan: Not started
 Status: Executing Phase 03.7.2
 
 | Wave | Phase | Status |
@@ -46,7 +46,7 @@ Status: Executing Phase 03.7.2
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-07-20 -- Phase 03.7.2 execution started
+Last activity: 2026-07-20
 
 ## Audit Findings Summary (Post-Activation Scores)
 
