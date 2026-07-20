@@ -34,8 +34,14 @@ help:
 	@echo ""
 	@echo "Production / release:"
 	@echo "  make release       cargo build --release --features full (all binaries)"
+	@echo "  make build-full    cargo build --features full (sandbox + TLS variants)"
 	@echo "  make install       First-time setup (npm install for web/)"
 	@echo "  make all           build + web-build"
+	@echo ""
+	@echo "Note: 'full' pulls in grid-engine/full (WASM/Docker/PDF) + dashboard-tls."
+	@echo "Daily iteration: use 'make build' (default features only). See Makefile"
+	@echo "comments on build-full / release for when full is actually needed."
+	@echo "TODO Phase 3.7.7: remove 'full' feature, use explicit --features <name>."
 	@echo ""
 	@echo "Grid CLI (single binary — 19 subcommands: ask / run / tui / dashboard / ...):"
 	@echo "  make tui           Launch grid tui (alias: grid tui)"
@@ -110,6 +116,21 @@ build:
 	cargo build
 
 # 完整构建 (含 WASM/Docker/PDF 等全部功能)
+#
+# `--features full` pulls in TWO feature groups:
+#   1. grid-engine/full  → WASM + Docker + PDF sandbox backends
+#   2. dashboard-tls    → axum-server + rcgen (HTTPS + self-signed cert)
+#
+# Use when:
+#   - Modifying sandbox backends (WASM/Docker/PDF in crates/grid-engine/src/sandbox/)
+#   - Verifying dashboard HTTPS / self-signed cert generation
+#
+# DO NOT use for daily grid-cli / grid-server / web/ iteration — those
+# code paths don't touch full features and you'll waste time compiling
+# axum-server/rcgen dependencies.
+#
+# TODO(Phase 3.7.7): replace `full` with explicit `--features <name>`
+# composition. See CLAUDE.md / DEFERRED_LEDGER for rationale.
 build-full:
 	cargo build --features full
 
@@ -118,6 +139,14 @@ build-cli:
 	cargo build -p grid-cli --bin grid
 
 # Release build (full features: CLI + TUI + Dashboard + TLS, ~46MB)
+#
+# Same feature composition as build-full, but with release profile
+# (LTO, opt-level=3, single codegen unit). Use for:
+#   - Production deployment artifacts
+#   - CI release job
+#   - Performance benchmarks
+#
+# TODO(Phase 3.7.7): see build-full comment.
 # Note: build-cli-full was removed — `release` is the canonical alias.
 release:
 	cargo build --release --features full
