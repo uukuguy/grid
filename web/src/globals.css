@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "highlight.js/styles/github-dark.css";
 
+@layer base {
+  /* Respect OS-level reduced-motion preference (REQ-WEB-05, UI-SPEC §12.5).
+     Tailwind 4 @layer keeps motion overrides after utility classes so
+     they win when users opt out of motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 @theme {
   --color-background: #09090b;
   --color-foreground: #fafafa;

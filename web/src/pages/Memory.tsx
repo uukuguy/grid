@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { sessionIdAtom } from "@/atoms/session";
+import { Database } from "lucide-react";
+import { sessionIdAtom, recentlyAddedMemoryIdsAtom } from "@/atoms/session";
+import { cn } from "@/lib/utils";
 
 interface MemoryBlock {
   id: string;
@@ -52,6 +54,9 @@ export default function Memory() {
   const [availableSessions, setAvailableSessions] = useState<string[]>([]);
   const [selectedSessionFilter, setSelectedSessionFilter] = useState<string>("");
   const sessionId = useAtomValue(sessionIdAtom);
+  // Recent memory ids — drives the cyan highlight pulse on freshly-written rows
+  // (REQ-WEB-04, UI-SPEC §9.4).
+  const recentlyAddedIds = useAtomValue(recentlyAddedMemoryIdsAtom);
 
   useEffect(() => {
     fetchWorkingMemory();
@@ -156,11 +161,17 @@ export default function Memory() {
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Memory Explorer</h2>
-          <p className="text-sm text-muted-foreground">
-            View and manage AI memory across different layers
-          </p>
+          {/* Live badge — proactive disclosure that this page auto-updates
+              (UI-SPEC §9.4 affordance 2, REQ-WEB-04). */}
+          <span
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-normal"
+            aria-label="Live updates"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {/* Session filter dropdown */}
@@ -183,7 +194,7 @@ export default function Memory() {
               fetchAvailableSessions();
               if (sessionId) fetchSessionMessages();
             }}
-            className="text-xs px-2 py-1 rounded border border-border hover:bg-secondary/50"
+            className="text-xs px-2 py-1 rounded border border-border hover:bg-secondary/50 font-normal"
           >
             Refresh
           </button>
@@ -231,7 +242,10 @@ export default function Memory() {
         ) : activeMemory === "timeline" ? (
           <TimelineView entries={timelineEntries} />
         ) : (
-          <PersistentMemoryView memories={filteredPersistentMemory} />
+          <PersistentMemoryView
+            memories={filteredPersistentMemory}
+            recentlyAddedIds={recentlyAddedIds}
+          />
         )}
       </div>
 
@@ -350,13 +364,23 @@ function SessionMemoryView({ messages }: { messages: ChatMessage[] }) {
   );
 }
 
-function PersistentMemoryView({ memories }: { memories: PersistentMemory[] }) {
+function PersistentMemoryView({
+  memories,
+  recentlyAddedIds,
+}: {
+  memories: PersistentMemory[];
+  recentlyAddedIds: string[];
+}) {
   if (memories.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
-        <p>No persistent memories</p>
-        <p className="text-sm mt-2">
-          Use memory_store tool to save important information
+        <Database
+          className="mx-auto h-12 w-12 text-muted-foreground animate-pulse"
+          aria-hidden="true"
+        />
+        <p className="mt-3 font-medium">No persistent memories</p>
+        <p className="text-sm mt-1">
+          Memories the agent chooses to retain will appear here in real time.
         </p>
       </div>
     );
@@ -378,29 +402,38 @@ function PersistentMemoryView({ memories }: { memories: PersistentMemory[] }) {
         ))}
       </div>
 
-      {/* Memory List */}
+      {/* Memory List — rows whose id is in recentlyAddedIds get the cyan
+          highlight pulse (UI-SPEC §9.4 affordance 1). */}
       <div className="space-y-2">
-        {memories.map((mem) => (
-          <div
-            key={mem.id}
-            className="p-3 bg-secondary rounded-lg border border-border hover:border-primary/50 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium px-2 py-0.5 bg-primary/10 rounded">
-                  {mem.category}
-                </span>
+        {memories.map((mem) => {
+          const isNew = recentlyAddedIds.includes(mem.id);
+          return (
+            <div
+              key={mem.id}
+              className={cn(
+                "p-3 rounded-lg border border-border transition-colors",
+                isNew
+                  ? "bg-cyan-950/30 border-cyan-700/50"
+                  : "bg-secondary hover:border-primary/50",
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium px-2 py-0.5 bg-primary/10 rounded">
+                    {mem.category}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {mem.importance.toFixed(1)}
+                  </span>
+                </div>
                 <span className="text-xs text-muted-foreground">
-                  {mem.importance.toFixed(1)}
+                  {mem.created_at}
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {mem.created_at}
-              </span>
+              <p className="text-sm line-clamp-3">{mem.content}</p>
             </div>
-            <p className="text-sm line-clamp-3">{mem.content}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

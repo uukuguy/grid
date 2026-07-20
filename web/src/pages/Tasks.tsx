@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSetAtom } from "jotai";
+import { Play, Square, ListTodo } from "lucide-react";
 import { addToastAtom } from "../atoms/ui";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -24,6 +26,10 @@ interface TaskExecution {
   error?: string;
 }
 
+function truncateId(id: string): string {
+  return id.length > 8 ? id.slice(0, 8) : id;
+}
+
 export default function Tasks() {
   const addToast = useSetAtom(addToastAtom);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -32,6 +38,11 @@ export default function Tasks() {
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Tracks which task ids have an in-flight Stop/Resume action so the
+  // corresponding icon button can be aria-busy.
+  const [pendingTaskActions, setPendingTaskActions] = useState<Set<string>>(
+    new Set(),
+  );
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -49,7 +60,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   const fetchTaskDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
@@ -67,7 +78,7 @@ export default function Tasks() {
     } finally {
       setDetailLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   const submitTask = async () => {
     if (!prompt.trim()) return;
@@ -110,6 +121,36 @@ export default function Tasks() {
     }
   };
 
+  /**
+   * Cancel a running task (UI-SPEC §9.3 + REQ-WEB-07).
+   * grid-server treats DELETE /api/v1/tasks/:id as a graceful cancel; the
+   * 4xx-without-confirm() pattern matches D-08 "instant" semantics.
+   */
+  const cancelTask = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (pendingTaskActions.has(id)) return;
+    setPendingTaskActions((prev) => new Set(prev).add(id));
+    try {
+      const res = await fetch(`/api/v1/tasks/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      await fetchTasks();
+      if (selectedTask?.task.id === id) await fetchTaskDetail(id);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Failed to cancel task";
+      addToast({ type: "error", message: msg });
+    } finally {
+      setPendingTaskActions((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -127,7 +168,7 @@ export default function Tasks() {
         <button
           onClick={fetchTasks}
           disabled={loading}
-          className="text-xs px-2 py-1 rounded border border-border hover:bg-secondary/50 disabled:opacity-40"
+          className="text-xs px-2 py-1 rounded border border-border hover:bg-secondary/50 disabled:opacity-40 font-normal"
         >
           Refresh
         </button>
@@ -147,9 +188,9 @@ export default function Tasks() {
           <button
             onClick={submitTask}
             disabled={submitting || !prompt.trim()}
-            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed font-normal"
           >
-            {submitting ? "Submitting..." : "Submit"}
+            {submitting ? "Sending..." : "Send task"}
           </button>
         </div>
       </div>
@@ -159,16 +200,9 @@ export default function Tasks() {
         {/* Task List */}
         <div className="w-1/2 border-r border-border overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-muted-foreground">Loading...</span>
-            </div>
+            <SkeletonRows count={3} />
           ) : tasks.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center text-muted-foreground">
-                <p>No tasks</p>
-                <p className="text-sm mt-2">Submit a task to get started</p>
-              </div>
-            </div>
+            <EmptyTasks />
           ) : (
             <div className="divide-y divide-border">
               {tasks.map((task) => (
@@ -185,12 +219,32 @@ export default function Tasks() {
                     </span>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={task.status} />
+                      {/* Inline Stop (icon-only) when running — UI-SPEC §9.3 */}
+                      {task.status === "running" && (
+                        <button
+                          type="button"
+                          onClick={(e) => cancelTask(task.id, e)}
+                          disabled={pendingTaskActions.has(task.id)}
+                          aria-busy={pendingTaskActions.has(task.id)}
+                          aria-label={`Stop task ${truncateId(task.id)}`}
+                          title={`Stop task ${truncateId(task.id)}`}
+                          className={cn(
+                            "inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors h-6 w-6",
+                            "hover:bg-destructive/10 hover:text-destructive",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                            pendingTaskActions.has(task.id) &&
+                              "opacity-50 cursor-wait",
+                          )}
+                        >
+                          <Square className="h-3.5 w-3.5 fill-current" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteTask(task.id);
                         }}
-                        className="text-xs text-muted-foreground hover:text-destructive px-1"
+                        className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded font-normal"
                       >
                         Delete
                       </button>
@@ -210,11 +264,13 @@ export default function Tasks() {
         {/* Task Detail */}
         <div className="w-1/2 overflow-auto">
           {detailLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-muted-foreground">Loading...</span>
-            </div>
+            <SkeletonRows count={2} />
           ) : selectedTask ? (
-            <TaskDetailView task={selectedTask} />
+            <TaskDetailView
+              task={selectedTask}
+              onCancel={cancelTask}
+              isCancelling={pendingTaskActions.has(selectedTask.task.id)}
+            />
           ) : (
             <div className="flex items-center justify-center h-full">
               <span className="text-muted-foreground text-sm">
@@ -241,8 +297,20 @@ export default function Tasks() {
   );
 }
 
-function TaskDetailView({ task: taskDetail }: { task: TaskDetail }) {
+function TaskDetailView({
+  task: taskDetail,
+  onCancel,
+  isCancelling,
+}: {
+  task: TaskDetail;
+  onCancel: (id: string, e?: React.MouseEvent) => Promise<void>;
+  isCancelling: boolean;
+}) {
   const { task, executions } = taskDetail;
+  const showResume = task.status === "pending" || task.status === "failed";
+  // Resume not supported on tasks in this phase — surface a warning toast
+  // instead of silently failing.
+  const addToast = useSetAtom(addToastAtom);
 
   return (
     <div className="p-4 space-y-4">
@@ -250,7 +318,52 @@ function TaskDetailView({ task: taskDetail }: { task: TaskDetail }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-medium">Task Details</h3>
-          <StatusBadge status={task.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={task.status} />
+            {task.status === "running" && (
+              <button
+                type="button"
+                onClick={(e) => onCancel(task.id, e)}
+                disabled={isCancelling}
+                aria-busy={isCancelling}
+                aria-label={`Stop task ${truncateId(task.id)}`}
+                title={`Stop task ${truncateId(task.id)}`}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-xs font-normal text-foreground",
+                  "transition-colors duration-150",
+                  "hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  isCancelling && "opacity-50 cursor-wait",
+                )}
+              >
+                <Square className="h-3.5 w-3.5 fill-current" />
+                <span>Stop</span>
+              </button>
+            )}
+            {showResume && (
+              <button
+                type="button"
+                onClick={() =>
+                  addToast({
+                    type: "warning",
+                    title: "Resume not supported",
+                    message: "Tasks cannot be resumed — re-submit if needed.",
+                  })
+                }
+                aria-label="Resume not supported for tasks"
+                title="Resume not supported for tasks"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs font-normal text-muted-foreground",
+                  "transition-colors duration-150",
+                  "hover:bg-secondary/70",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                )}
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>Resume</span>
+              </button>
+            )}
+          </div>
         </div>
         <div className="text-sm text-muted-foreground">
           <p>
@@ -340,5 +453,33 @@ function StatusBadge({ status }: { status: "pending" | "running" | "success" | "
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${style}`}>
       {status}
     </span>
+  );
+}
+
+/** Three skeleton rows (UI-SPEC §15.2 — Tasks page loading state). */
+function SkeletonRows({ count }: { count: number }) {
+  return (
+    <div className="flex flex-col gap-2 p-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-muted animate-pulse h-12 rounded-md"
+          aria-hidden="true"
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Empty state with ListTodo icon (UI-SPEC §10.4). */
+function EmptyTasks() {
+  return (
+    <div className="flex items-center justify-center h-full px-4">
+      <div className="text-center text-muted-foreground">
+        <ListTodo className="mx-auto h-12 w-12 text-muted-foreground" aria-hidden="true" />
+        <p className="mt-3 font-medium">No tasks yet</p>
+        <p className="text-sm mt-1">Submit a task above to get started</p>
+      </div>
+    </div>
   );
 }

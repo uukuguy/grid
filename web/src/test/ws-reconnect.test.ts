@@ -35,7 +35,7 @@ class MockWebSocket {
   onclose: (() => void) | null = null;
   onerror: ((err: unknown) => void) | null = null;
   sent: string[] = [];
-  private _closed = false;
+  _closed = false;
 
   constructor(url: string) {
     this.url = url;
@@ -83,8 +83,8 @@ async function advanceAndClose(maxMs: number): Promise<void> {
 
 beforeEach(() => {
   MockWebSocket.instances = [];
-  (globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket =
-    MockWebSocket as unknown as typeof WebSocket;
+  (globalThis as unknown as { WebSocket: unknown }).WebSocket =
+    MockWebSocket as unknown;
   vi.useFakeTimers();
   // Provide minimal browser globals the manager reads
   (globalThis as unknown as { localStorage: Storage }).localStorage = {
@@ -148,8 +148,8 @@ describe("wsManager reconnect (REQ-WEB-05, D-05)", () => {
         creationTimes.push(Date.now());
       }
     }
-    (globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket =
-      TrackedWebSocket as unknown as typeof WebSocket;
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket =
+      TrackedWebSocket as unknown;
     MockWebSocket.instances = [];
 
     wsManager.connect("session-timed");

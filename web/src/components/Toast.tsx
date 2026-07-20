@@ -5,6 +5,7 @@ import {
   XCircle,
   AlertTriangle,
   Info,
+  Database,
   X,
 } from "lucide-react";
 import { toastsAtom, removeToastAtom, type Toast } from "../atoms/ui";
@@ -14,6 +15,7 @@ const ICON_MAP = {
   error: XCircle,
   warning: AlertTriangle,
   info: Info,
+  memory: Database,
 } as const;
 
 const COLOR_MAP = {
@@ -21,6 +23,9 @@ const COLOR_MAP = {
   error: "border-red-600 bg-red-950/80 text-red-200",
   warning: "border-amber-600 bg-amber-950/80 text-amber-200",
   info: "border-blue-600 bg-blue-950/80 text-blue-200",
+  // Cyan distinguishes memory writes from primary blue (which signals a
+  // primary action in progress). 10.2:1 contrast on dark background (AAA).
+  memory: "border-cyan-600 bg-cyan-950/80 text-cyan-200",
 } as const;
 
 const ICON_COLOR_MAP = {
@@ -28,6 +33,7 @@ const ICON_COLOR_MAP = {
   error: "text-red-400",
   warning: "text-amber-400",
   info: "text-blue-400",
+  memory: "text-cyan-400",
 } as const;
 
 function ToastItem({ toast }: { toast: Toast }) {
@@ -45,6 +51,7 @@ function ToastItem({ toast }: { toast: Toast }) {
     <div
       className={`pointer-events-auto flex w-80 items-start gap-3 rounded-lg border p-3 shadow-lg backdrop-blur-sm ${COLOR_MAP[toast.type]}`}
       role="alert"
+      aria-live={toast.type === "memory" ? "polite" : undefined}
     >
       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${ICON_COLOR_MAP[toast.type]}`} />
       <div className="min-w-0 flex-1">

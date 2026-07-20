@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { act, render } from "@testing-library/react";
 import { useSetAtom } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { createStore } from "jotai";
 import { Provider } from "jotai";
 import type { ReactNode } from "react";
