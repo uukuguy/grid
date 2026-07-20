@@ -138,11 +138,8 @@ build-full:
 build-cli:
 	cargo build -p grid-cli --bin grid
 
-# Full build of `grid` binary with all features (CLI + TUI + Dashboard + TLS, ~46MB)
-build-cli-full:
-	cargo build -p grid-cli --features full
-
-# 编译构建 (release, 含全部功能)
+# Release build (full features: CLI + TUI + Dashboard + TLS, ~46MB)
+# Note: build-cli-full was removed — `release` is the canonical alias.
 release:
 	cargo build --release --features full
 
