@@ -8,7 +8,7 @@
         skill-registry-build skill-registry-start skill-registry-test \
         mcp-orch-build mcp-orch-start mcp-orch-test runtime-verify \
         check-pyright-prereqs check-ccb-types-ts-sync autofix build-cli \
-        build-full clean-all clean-web config-gen fmt-check help-full release \
+        clean-all clean-web config-gen fmt-check help-full release \
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint
 
@@ -33,15 +33,12 @@ help:
 	@echo "  make clean         cargo clean"
 	@echo ""
 	@echo "Production / release:"
-	@echo "  make release       cargo build --release --features full (all binaries)"
-	@echo "  make build-full    cargo build --features full (sandbox + TLS variants)"
+	@echo "  make release       cargo build --release --features sandbox-wasm,sandbox-docker,file-parsing,dashboard-tls"
 	@echo "  make install       First-time setup (npm install for web/)"
 	@echo "  make all           build + web-build"
 	@echo ""
-	@echo "Note: 'full' pulls in grid-engine/full (WASM/Docker/PDF) + dashboard-tls."
-	@echo "Daily iteration: use 'make build' (default features only). See Makefile"
-	@echo "comments on build-full / release for when full is actually needed."
-	@echo "TODO Phase 3.7.7: remove 'full' feature, use explicit --features <name>."
+	@echo "Note: 'release' enables WASM/Docker sandboxes, file-parsing (PDF/Excel), and"
+	@echo "dashboard TLS. Daily iteration: use 'make build' (default features only)."
 	@echo ""
 	@echo "Grid CLI (single binary — 19 subcommands: ask / run / tui / dashboard / ...):"
 	@echo "  make tui           Launch grid tui (alias: grid tui)"
@@ -115,41 +112,22 @@ autofix:
 build:
 	cargo build
 
-# 完整构建 (含 WASM/Docker/PDF 等全部功能)
-#
-# `--features full` pulls in TWO feature groups:
-#   1. grid-engine/full  → WASM + Docker + PDF sandbox backends
-#   2. dashboard-tls    → axum-server + rcgen (HTTPS + self-signed cert)
-#
-# Use when:
-#   - Modifying sandbox backends (WASM/Docker/PDF in crates/grid-engine/src/sandbox/)
-#   - Verifying dashboard HTTPS / self-signed cert generation
-#
-# DO NOT use for daily grid-cli / grid-server / web/ iteration — those
-# code paths don't touch full features and you'll waste time compiling
-# axum-server/rcgen dependencies.
-#
-# TODO(Phase 3.7.7): replace `full` with explicit `--features <name>`
-# composition. See CLAUDE.md / DEFERRED_LEDGER for rationale.
-build-full:
-	cargo build --features full
-
 # Build the unified `grid` binary (default features: CLI + TUI + Dashboard, ~25MB)
 build-cli:
 	cargo build -p grid-cli --bin grid
 
-# Release build (full features: CLI + TUI + Dashboard + TLS, ~46MB)
+# Release build (CLI + TUI + Dashboard + TLS + WASM/Docker sandboxes + PDF/Excel, ~46MB)
 #
-# Same feature composition as build-full, but with release profile
-# (LTO, opt-level=3, single codegen unit). Use for:
+# Use for:
 #   - Production deployment artifacts
 #   - CI release job
 #   - Performance benchmarks
 #
-# TODO(Phase 3.7.7): see build-full comment.
-# Note: build-cli-full was removed — `release` is the canonical alias.
+# Daily grid-cli / grid-server / web/ iteration does NOT need `release` —
+# those code paths don't touch the extra features and you'll waste time
+# compiling axum-server / rcgen / wasmtime / bollard / calamine / pdf-extract.
 release:
-	cargo build --release --features full
+	cargo build --release --features sandbox-wasm,sandbox-docker,file-parsing,dashboard-tls
 
 # 运行后端服务器 (exec ensures Ctrl+C reaches the server directly)
 server:

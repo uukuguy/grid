@@ -5,7 +5,6 @@ version.workspace = true
 
 [features]
 default = []
-full = ["grid-engine/full"]
 sandbox-wasm = ["grid-engine/sandbox-wasm"]
 sandbox-docker = ["grid-engine/sandbox-docker"]
 tls = ["grid-engine/tls", "dep:axum-server"]

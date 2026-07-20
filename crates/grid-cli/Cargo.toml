@@ -13,11 +13,8 @@ name = "grid"
 path = "src/main.rs"
 
 [features]
-# Production-ready build: enables grid-engine extras (WASM/Docker/PDF)
-# plus dashboard TLS support (axum-server + rcgen).
-full = ["grid-engine/full", "dashboard-tls"]
 # Dashboard TLS for remote access (HTTPS + self-signed cert generation).
-# Implied by `full`; toggleable for development builds.
+# Used by `make release` — pass via `--features dashboard-tls` for TLS builds.
 dashboard-tls = ["dep:axum-server", "dep:rcgen"]
 
 [dependencies]

@@ -98,8 +98,8 @@ grid --retry run           # 自动重试 transient 错误
 # 标准 release 构建 (CLI + TUI + Dashboard, ~25MB)
 cargo build --release --bin grid
 
-# Full release (含 dashboard TLS / self-signed cert, ~46MB)
-cargo build --release --bin grid --features full
+# Full release (含 sandbox WASM/Docker + file-parsing + dashboard TLS, ~46MB)
+cargo build --release --bin grid --features sandbox-wasm,sandbox-docker,file-parsing,dashboard-tls
 
 # 安装到 PATH
 cp target/release/grid /usr/local/bin/

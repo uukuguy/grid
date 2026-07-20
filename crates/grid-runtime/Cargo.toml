@@ -6,7 +6,6 @@ description = "EAASP L1 Agent Runtime — Tier 1 Harness implementation"
 
 [features]
 default = []
-full = ["grid-engine/full"]
 sandbox-wasm = ["grid-engine/sandbox-wasm"]
 sandbox-docker = ["grid-engine/sandbox-docker"]
 

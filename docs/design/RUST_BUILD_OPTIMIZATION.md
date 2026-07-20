@@ -151,10 +151,9 @@ Clean build octo-cli = **112s**，各 crate 耗时：
 | `sandbox-wasm` | octo-sandbox | 关 | Wasmtime WASM 沙箱 |
 | `sandbox-docker` | octo-sandbox | 关 | Docker 容器沙箱 |
 | `pdf` | octo-engine | 关 | PDF 文件解析工具 |
-| `full` | octo-cli | 关 | 启用上述全部 |
 
 日常开发 `cargo build` 不带 feature → 编译时间 **112s → ~40s**（-65%）。
-完整构建 `cargo build --features full` → 包含全部功能。
+完整构建 `cargo build --release --features sandbox-wasm,sandbox-docker,file-parsing,dashboard-tls` → 包含全部功能。
 
 ### codegen-units 调整
 

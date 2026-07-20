@@ -5,7 +5,6 @@ version.workspace = true
 
 [features]
 default = []
-full = ["grid-engine/full"]
 
 [dependencies]
 grid-types = { workspace = true }

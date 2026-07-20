@@ -61,8 +61,8 @@ redis = { version = "0.27", features = ["tokio-comp", "streams"], optional = tru
 
 [features]
 default = ["tiktoken"]
-# Enable all optional heavy features (WASM sandbox, Docker sandbox, PDF/Excel parsing)
-full = ["sandbox-wasm", "sandbox-docker", "file-parsing"]
+# Independent optional feature groups — pass `--features <name>` (or comma-list)
+# to enable in builds. No aggregate feature; consumers compose explicitly.
 file-parsing = ["dep:calamine", "dep:pdf-extract", "dep:zip"]
 sandbox-wasm = ["dep:wasmtime", "dep:wasmtime-wasi", "dep:base64"]
 sandbox-docker = ["dep:bollard", "dep:base64"]

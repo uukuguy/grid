@@ -617,8 +617,8 @@ cargo build -p grid-cli --no-default-features --features cli
 # → 产出: grid
 
 # 完整工作台
-cargo build -p grid-cli --features full
-# → 产出: grid-studio (或 grid --tui / grid --web)
+cargo build -p grid-cli --release --features sandbox-wasm,sandbox-docker,file-parsing,dashboard-tls
+# → 产出: grid (含 TUI / Dashboard / sandbox / TLS)
 ```
 
 **阶段二（完全拆分）**：独立 crate
