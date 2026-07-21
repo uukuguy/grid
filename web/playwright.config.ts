@@ -8,7 +8,11 @@ import { defineConfig } from "@playwright/test";
  * backend, NOT a live grid-server. No LLM API key is required.
  *
  * If `WEB_BASE_URL` is set (e.g. by CI), use it; otherwise fall back to the
- * Vite dev server (http://127.0.0.1:5180 — see web/vite.config.ts).
+ * Vite dev server (http://localhost:5180 — see web/vite.config.ts).
+ *
+ * NOTE: `localhost` not `127.0.0.1` — Vite's default `server.host` resolves
+ * to the IPv6 `[::1]` only on macOS; using `localhost` works for both v4
+ * and v6 resolution paths.
  *
  * Browser binaries must be installed separately (`npx playwright install`).
  */
@@ -24,7 +28,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   use: {
-    baseURL: process.env.WEB_BASE_URL ?? "http://127.0.0.1:5180",
+    baseURL: process.env.WEB_BASE_URL ?? "http://localhost:5180",
     trace: "retain-on-failure",
     video: "retain-on-failure",
     // Surface unexpected console errors as test failures (sentinel).

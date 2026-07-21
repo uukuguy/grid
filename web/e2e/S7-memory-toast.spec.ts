@@ -17,6 +17,18 @@ const SESSION_ID = "test-session-mem";
 const MEMORY_ID = "mem-fixture-001";
 
 async function installRoutes(page: Page): Promise<void> {
+  // Mock /api/v1/config so config.ts init resolves without grid-server.
+  await page.route("**/api/v1/config", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        host: "localhost", port: 3001, api_url: "/api/v1",
+        ws_url: "ws://localhost:5180/ws", mcp_servers_dir: null,
+        provider: "openai", model: null,
+      }),
+    });
+  });
   await page.route("**/api/v1/sessions/active", async (route) => {
     await route.fulfill({
       status: 200,
