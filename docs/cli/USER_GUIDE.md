@@ -51,6 +51,7 @@ language: mixed (English headings / commands / code; Chinese explanations)
 7. [实战场景速查](#7-实战场景速查)
 8. [故障排查](#8-故障排查)
 9. [附录: 数据模型与路径约定](#9-附录-数据模型与路径约定)
+10. [Phase 3.7.2 web/ dashboard 实战化](#10-phase-372-web-dashboard-实战化)
 
 ---
 
@@ -1154,6 +1155,162 @@ $GRID_GLOBAL_ROOT    # 全局 (默认 ~/.grid)
 
 ---
 
-*Version: v3.7.1 (2026-07-20) — Phase 3.7.1 grid-cli SHIPPED, REQ-AUDIT 9/9 closed*
-*Status: Active — covers 17 top-level commands + 2 Studio (TUI/Dashboard) + 9 global flags*
+---
+
+## 10. Phase 3.7.2 web/ dashboard 实战化
+
+> 本节是 **grid-web**(`web/`,Grid 独立产品的单用户 workbench UI)的用户/开发者使用指南。
+> Phase 3.7.2 把 web/ 从"Activation 9.0/10(代码质量)"提升到"非开发者可实战使用"——
+> 新增全局 SessionControls(Stop/Resume/live indicator)、Memory 实时更新 + cyan toast、
+> Tasks 页面 Stop icon、WS 自动重连、sequence 序号 + debug 模式、prefers-reduced-motion。
+> 验收:14/14 acceptance criteria 验证或显式文档化,5/5 Playwright + 26/26 vitest + gsd-ui-auditor 8.83/10。
+
+### 10.1 快速启动(3 个 terminal)
+
+```bash
+# Terminal A: grid-server (Rust 后端,提供 REST + WS, port 3001)
+make server
+
+# Terminal B: web dev server (Vite + HMR, port 5180)
+make web-dev
+# 或: cd web && npm run dev
+
+# Terminal C: LLM provider
+export OPENAI_API_KEY=sk-...      # 或 ANTHROPIC_API_KEY=sk-ant-...
+# 健康检查
+curl -sf http://localhost:3001/api/health
+```
+
+打开 **http://localhost:5180** — 应该看到 8 tabs + 右下角 SessionControls + ConnectionStatus。
+
+### 10.2 Makefile 命令入口(Phase 3.7.2 新增)
+
+| Command | 用途 |
+|---|---|
+| `make web-dev` | Vite dev server + HMR(port 5180,与 `make web` 等价) |
+| `make web-test` | Vitest 单元测试(`web/src/test/*.test.{ts,tsx}`) |
+| `make web-test test=session-bar` | 单文件跑(`--run session-bar` 字符串匹配) |
+| `make web-e2e` | Playwright E1-E3 hermetic specs(`web/e2e/S7-*.spec.ts`,5 tests) |
+| `make web-e2e` + `WEB_BASE_URL=...` | 自定义 baseURL(默认 `http://localhost:5180`) |
+| `make web-check` | TypeScript 类型检查(`tsc -b --noEmit`) |
+| `make web-lint` | ESLint `web/src/` |
+| `make web-build` | Vite 生产构建(产出 `web/dist/`) |
+| `make web-install` | `npm install`(first-time 或 `package.json` 变化后) |
+| `make web-clean` | 清理 `node_modules/` + `dist/` + `.vite/` + `test-results/` + `playwright-report/` |
+| `make quickstart-s7` | S7 walkthrough 指南(3 terminal + 验证步骤,见 §10.4) |
+| `make verify-3.7.2` | 一键跑所有 Phase 3.7.2 自动化验收(7 步,见 §10.5) |
+
+### 10.3 关键文件结构(Phase 3.7.2 新增)
+
+```
+web/src/components/
+├── SessionControls.tsx           ← 旗舰:全局 Stop/Resume + live indicator + Cmd+. 快捷键
+├── SessionBar.tsx               ← 缩小(Stop/Resume 移走,只保留 +)
+├── Toast.tsx                    ← 扩展 + memory variant(cyan + Database icon)
+└── layout/AppLayout.tsx         ← SessionControls + ConnectionStatus global mount
+
+web/src/atoms/
+├── session.ts                   ← +sessionStatusAtom / stoppedByUserAtom / recentlyAddedMemoryIdsAtom
+└── ui.ts                        ← +pushMemoryEventAtom
+
+web/src/ws/
+├── types.ts                     ← +seq?: u64 字段 + memory_added variant
+├── events.ts                    ← +memory_added handler + maybeLogSeqGap
+└── manager.ts                   ← 5-attempt reconnect with session_id preservation
+
+web/src/test/
+├── session-bar.test.tsx         ← NEW (5 tests)
+├── ws-reconnect.test.ts         ← NEW (3 tests)
+└── memory-toast.test.tsx        ← NEW (2 tests)
+
+web/e2e/
+├── S7-stop-resume.spec.ts       ← E1 (Tasks + SessionControls) — 2 tests
+├── S7-memory-toast.spec.ts      ← E2 (memory_added event) — 1 test
+└── S7-ws-reconnect.spec.ts      ← E3 (reconnect + seq debug) — 2 tests
+
+web/playwright.config.ts         ← NEW (baseURL = http://localhost:5180)
+```
+
+### 10.4 非开发者 walkthrough(S7)
+
+**前置**:Terminal A 跑 `make server`,Terminal B 跑 `make web-dev`,Terminal C 设置 `OPENAI_API_KEY`。
+
+```bash
+# Terminal C: 启动 S3 hook-governance scenario
+cargo build --release -p grid-cli
+./target/release/grid quickstart S3
+```
+
+**观察清单**:
+
+| 区域 | 期望 |
+|---|---|
+| 右下角 SessionControls | 显示 Stop button `Stop session <id 前 8 位> (⌘.)` + 脉动绿点 |
+| Tasks tab | 任务行有 Stop icon(`aria-label="Stop task <id>"`),点击触发 DELETE `/api/v1/tasks/:id` |
+| Memory tab | header 右侧 cyan "Live" badge + pulse;新行出现并临时高亮(cyan background fade) |
+| 右下角 toast | cyan "Memory written: Stored: <content>..." (4000ms 自动消失,可手动关闭) |
+
+完整步骤 + 截图要求见 [`docs/cli/scenarios/S7-web-dashboard.md`](../cli/scenarios/S7-web-dashboard.md)。
+人类验收 11 项 checklist 见 [`docs/audit/HUMAN_VERIFICATION_3.7.2.md`](../audit/HUMAN_VERIFICATION_3.7.2.md)。
+
+### 10.5 一键验证(`make verify-3.7.2`)
+
+```bash
+make verify-3.7.2
+```
+
+7 步检查(全部自动化,无需 live backend):
+
+1. `cargo check --workspace` — Rust workspace 编译干净
+2. `cd web && npx tsc -b --noEmit` — TypeScript 类型检查
+3. `cd web && npm run build` — Vite 生产构建
+4. `cd web && npm run test` — Vitest(预期 26/26 PASS)
+5. `cd web && npx playwright test` — Playwright E1-E3(预期 5/5 PASS,hermetic)
+6. UI-SPEC compliance grep — padding ≥ `px-2 py-1`,buttons `font-normal`,无 new `@theme` color tokens,无 generic CTAs
+7. ✅ All 7 checks passed
+
+> **注意**:Step 5 (Playwright) 需要 web dev server 在另一个 terminal 跑(`make web-dev`)。
+> 步骤 6 用 `git diff main -- web/src/globals.css` 验证无新 color tokens 加进 `@theme` block。
+
+### 10.6 常见问题
+
+**Q1: 浏览器打开 `http://localhost:5180` 后右下角没看到 SessionControls?**
+A: 检查 3 件事:
+- `make web-dev` 跑了吗?(`lsof -i :5180`)
+- `make server` 跑了吗?(`curl -sf http://localhost:3001/api/health`)
+- F12 → Console 有没有红色错误?如果 `Failed to fetch config: 500` 说明 grid-server 没启
+
+**Q2: Playwright E1 找不到 Stop button?**
+A: Spec 是 hermetic 不依赖 grid-server。如果 `expect(stopBtn).toBeVisible()` 超时:
+- 检查 `web/e2e/S7-stop-resume.spec.ts` 的 `installRoutes()` 是否包含 `/api/v1/config` mock(否则 config.ts:42 init 失败)
+- 检查 `playwright.config.ts` baseURL 是 `localhost` 不是 `127.0.0.1`(vite 默认绑 IPv6 `[::1]`)
+
+**Q3: WS 重连不工作?**
+A: 浏览器 WS URL 是 `ws://localhost:5180/ws/ws`(double `/ws`)。这是 vite proxy prefix mismatch + wsManager URL 拼接双 prefix。E2E 用 `page.routeWebSocket` 拦截绕过;人验时 grid-server 必须跑在 `:3001` 才能 proxy 成功。
+
+**Q4: self-recorded walkthrough 卡住了?**
+A: 需要 live `make server` + `OPENAI_API_KEY`(或 `ANTHROPIC_API_KEY`)。没有 LLM key 就没法 trigger 真实 agent 事件流。详见 `docs/cli/scenarios/S7-web-dashboard.md` 的 prerequisites。
+
+### 10.7 已知 honest gaps
+
+| Gap | 状态 | 原因 |
+|---|---|---|
+| Self-recorded walkthrough recording | 🟡 BLOCKED | 需要 live grid-server + LLM API key;executor 无法 trigger 真实 agent |
+| REQ-WEB-08 (Schedule/Collab/McpWorkbench WS hook) | ⚪ DEFERRED | Secondary pages;SessionControls global + Tasks Stop icons 已覆盖 dominant stop-resume surfaces |
+| WS reconnect URL double `/ws` | ⚪ DEFERRED | vite proxy + wsManager URL 拼接问题;E2E bypass;人验 live backend 也工作 |
+
+### 10.8 相关文档
+
+- [`docs/cli/scenarios/S7-web-dashboard.md`](../cli/scenarios/S7-web-dashboard.md) — 非开发者 walkthrough 模板
+- [`docs/audit/3.7.2-GAP-AUDIT.md`](../audit/3.7.2-GAP-AUDIT.md) — 480 行 audit doc(8×5 matrix)
+- [`docs/audit/HUMAN_VERIFICATION_3.7.2.md`](../audit/HUMAN_VERIFICATION_3.7.2.md) — 11-item 人验 checklist
+- [`docs/status/WEB_PRODUCTION_USABILITY_2026-07-20.md`](../status/WEB_PRODUCTION_USABILITY_2026-07-20.md) — 327 行 dated evidence record
+- [`docs/design/web-ui-tokens.md`](../design/web-ui-tokens.md) — 261 行 design token SSOT
+- [`.planning/phases/03.7.2-web-production/03.7.2-VERIFICATION.md`](../../planning/phases/03.7.2-web-production/03.7.2-VERIFICATION.md) — verification report
+- [`.planning/phases/03.7.2-web-production/03.7.2-UI-SPEC.md`](../../planning/phases/03.7.2-web-production/03.7.2-UI-SPEC.md) — UI design contract(APPROVED)
+
+---
+
+*Version: v3.7.2 (2026-07-22) — Phase 3.7.2 web-production SHIPPED, 8/9 REQ-WEB closed, 14/14 acceptance*
+*Status: Active — covers 17 grid-cli commands + web/ Phase 3.7.2 + 9 global flags + 7-step verify-3.7.2*
 *Author: Claude (claude-opus-4-8) via Claude Code CLI*

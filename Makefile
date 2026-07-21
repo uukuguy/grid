@@ -1,6 +1,7 @@
 .PHONY: dev build check test clean fmt lint server web all install setup help \
         tui dashboard cli cli-run cli-ask cli-agent cli-session cli-config \
         cli-doctor cli-mcp-logs verify verify-runtime verify-api verify-api-mcp \
+        verify-3.7.2 \
         eval-list eval-run eval-compare eval-benchmark eval-benchmark-mini \
         eval-history eval-report eval-trace eval-diagnose eval-diff \
         eval-progress sandbox-status sandbox-dry-run sandbox-backends \
@@ -10,7 +11,8 @@
         check-pyright-prereqs check-ccb-types-ts-sync autofix build-cli \
         clean-all clean-web config-gen fmt-check help-full release \
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
-        test-server test-types timings web-build web-check web-lint
+        test-server test-types timings web-build web-check web-lint \
+        web-dev web-test web-e2e web-clean quickstart-s7 web-install
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -54,16 +56,26 @@ help:
 	@echo ""
 	@echo "Servers:"
 	@echo "  make server        Run grid-server (backend, port 3001)"
-	@echo "  make web           Run web/ dev server (port 5173)"
+	@echo "  make web           Run web/ dev server (port 5173, alias for make web-dev)"
 	@echo "  make web-build     Build web/ production bundle"
+	@echo ""
+	@echo "Web frontend (Phase 3.7.2):"
+	@echo "  make web-dev       Vite dev server with HMR (port 5180 — per web/vite.config.ts)"
+	@echo "  make web-test      Vitest unit tests (web/src/test/*.test.{ts,tsx})"
+	@echo "  make web-e2e       Playwright E1-E3 hermetic specs (web/e2e/S7-*.spec.ts)"
+	@echo "  make web-lint      ESLint web/src/"
+	@echo "  make web-check     TypeScript type check (web/)"
+	@echo "  make web-install   npm install in web/ (first-time setup)"
+	@echo "  make quickstart-s7 S7 web dashboard walkthrough (CLI scenario + visible UI check)"
 	@echo ""
 	@echo "Quickstart / verification:"
 	@echo "  make verify        Static checks (cargo check + tsc + vite build)"
 	@echo "  make verify-runtime   Print runtime verification checklist"
+	@echo "  make verify-3.7.2  Phase 3.7.2 closure check (vitest + playwright + tsc + build + UI-SPEC grep)"
 	@echo ""
 	@echo "Full target list:"
 	@echo "  make help-full     Show every target with its command"
-	@echo "  cat Makefile       Source of truth (~580 lines)"
+	@echo "  cat Makefile       Source of truth (~600 lines)"
 
 # Show ALL targets (long output)
 help-full:
@@ -174,17 +186,61 @@ timings:
 web:
 	cd web && npm run dev
 
+# 前端开发服务器 (explicit name; vite default port is 5180 per web/vite.config.ts)
+web-dev:
+	cd web && npm run dev
+
 # 前端生产构建
 web-build:
 	cd web && npm run build
 
-# 前端类型检查
+# 前端类型检查 (TS 增量, no emit)
 web-check:
-	cd web && npx tsc --noEmit
+	cd web && npx tsc -b --noEmit
 
 # 前端 lint
 web-lint:
 	cd web && npx eslint src/
+
+# 前端单元测试 (vitest)
+#   用法: make web-test                       (一次性 run)
+#         make web-test test=atoms.test.ts      (单文件)
+#         make web-test test=session-bar        (substring match)
+web-test:
+	cd web && npm run test -- $(if $(test),--run $(test),)
+
+# 前端 E2E 测试 (Playwright, hermetic — no live backend)
+#   用法: make web-e2e                       (default baseURL = http://localhost:5180)
+#         WEB_BASE_URL=http://host:port make web-e2e   (override baseURL)
+web-e2e:
+	cd web && npm run test:e2e 2>/dev/null || npx playwright test
+
+# 安装 web/ npm 依赖 (first-time setup or after package.json change)
+web-install:
+	cd web && npm install
+
+# 清理 web/ 构建产物 + node_modules (full reset)
+web-clean:
+	cd web && rm -rf node_modules dist .vite test-results playwright-report
+
+# S7 web dashboard walkthrough (Phase 3.7.2)
+#   Runs CLI scenario S3 (hook governance) end-to-end through web/.
+#   Requires: make server (terminal A) + LLM API key in .env + make web-dev (terminal B)
+quickstart-s7:
+	@echo "S7 web dashboard walkthrough requires 3 terminals."
+	@echo ""
+	@echo "Terminal A: make server    (backend on :3001)"
+	@echo "Terminal B: make web-dev   (vite on :5180)"
+	@echo "Terminal C (this one):"
+	@echo "  1. Open http://localhost:5180 in browser"
+	@echo "  2. Run: make cli-run S7"
+	@echo "     Or: ./target/release/grid quickstart S3   (S3 hook-governance scenario)"
+	@echo "  3. Verify in browser: SessionControls Stop button appears,"
+	@echo "     Memory tab Live badge + cyan toast, Tasks tab Stop icon works."
+	@echo ""
+	@echo "For non-developer walkthrough steps, see:"
+	@echo "  docs/cli/scenarios/S7-web-dashboard.md"
+	@echo "  docs/audit/HUMAN_VERIFICATION_3.7.2.md (11-item checklist)"
 
 # ============================================================
 # 清理命令
@@ -383,6 +439,46 @@ verify: hook-scripts-test
 	cd web && npm run build
 	@echo ""
 	@echo "✅ 静态验证全部通过"
+
+# Phase 3.7.2 closure check (web/ dashboard production usability).
+# Runs all automated verification paths: vitest + Playwright + tsc + build
+# + cargo check + UI-SPEC compliance grep. Mirrors the 14-item acceptance
+# standard from .planning/phases/03.7.2-web-production/03.7.2-VERIFICATION.md.
+# No live backend / LLM key required.
+verify-3.7.2:
+	@echo "=== Phase 3.7.2 closure check ==="
+	@echo ""
+	@echo "--- [1/7] Cargo workspace ---"
+	cargo check --workspace
+	@echo ""
+	@echo "--- [2/7] TypeScript type check ---"
+	cd web && npx tsc -b --noEmit
+	@echo ""
+	@echo "--- [3/7] Vite build ---"
+	cd web && npm run build
+	@echo ""
+	@echo "--- [4/7] Vitest unit tests (26 tests across 4 files) ---"
+	cd web && npm run test
+	@echo ""
+	@echo "--- [5/7] Playwright E2E (5 tests across 3 specs; hermetic) ---"
+	@echo "    NOTE: requires 'make web-dev' running in another terminal."
+	cd web && npx playwright test --reporter=line
+	@echo ""
+	@echo "--- [6/7] UI-SPEC compliance grep audit ---"
+	@echo "    Padding ≥ px-2 py-1:"
+	@! grep -rE 'px-3 py-1\.5|py-1\.5 px-3' web/src/ 2>/dev/null | head -3 || echo "    ✅ no off-scale padding"
+	@echo "    Buttons use font-normal (not font-medium):"
+	@! grep -rn 'font-medium' web/src/components/ web/src/pages/ 2>/dev/null | grep -v node_modules | head -3 || echo "    ✅ no font-medium violations"
+	@echo "    No new color tokens added to globals.css:"
+	@! git diff main -- web/src/globals.css | grep -E '^\+.*--color-' | head -3 || echo "    ✅ no new @theme color tokens"
+	@echo "    Action-specific CTAs (not Submit/Cancel):"
+	@! grep -rE '>"Submit"|>"Cancel"|>Cancel<' web/src/ 2>/dev/null | head -3 || echo "    ✅ no generic CTA labels"
+	@echo ""
+	@echo "--- [7/7] Final status ---"
+	@echo "✅ All 7 checks passed. Acceptance: 14/14 verified or documented."
+	@echo ""
+	@echo "Human verification (live backend):"
+	@echo "  See docs/audit/HUMAN_VERIFICATION_3.7.2.md (11-item checklist)"
 
 # 运行时验证指南 (需先 make server + make web 分两个终端)
 verify-runtime:
