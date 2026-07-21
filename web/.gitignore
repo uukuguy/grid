@@ -1,0 +1,4 @@
+
+# Playwright test artifacts (regenerated on each test run)
+/test-results/
+/playwright-report/
