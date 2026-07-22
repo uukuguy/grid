@@ -116,6 +116,38 @@ pub struct V2Frontmatter {
     /// rather than the generic `tool_choice=Required`.
     #[serde(default)]
     pub workflow: Option<WorkflowMetadata>,
+    /// REQ-EAASP-01 (Phase 3.7.3): per-skill risk classification.
+    /// Three values: `read`, `write_local`, `write_external` (snake_case
+    /// wire format). Absent values default to `read` so legacy skill
+    /// manifests keep their current auto-allow behavior.
+    #[serde(default)]
+    pub risk_level: RiskLevel,
+}
+
+/// REQ-EAASP-01 (Phase 3.7.3): risk-level taxonomy used in skill frontmatter.
+///
+/// Mirrors the Python `RiskLevel` literal in
+/// `tools/eaasp-l3-governance/src/eaasp_l3_governance/managed_settings.py`.
+/// Wire values are the lowercase snake_case strings; Rust deserializes them
+/// back into the typed enum via `#[serde(rename_all = "snake_case")]`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RiskLevel {
+    #[default]
+    Read,
+    WriteLocal,
+    WriteExternal,
+}
+
+impl RiskLevel {
+    /// Lowercase snake_case wire string — matches Python `RiskLevel` literal.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RiskLevel::Read => "read",
+            RiskLevel::WriteLocal => "write_local",
+            RiskLevel::WriteExternal => "write_external",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -467,5 +499,38 @@ mod hook_subst_tests {
         };
         let err = substitute_scoped_hooks(&hooks, &vars_full()).expect_err("must error");
         assert!(matches!(err, HookSubstitutionError::Unknown(name) if name == "NOPE"));
+    }
+
+    // ─── REQ-EAASP-01 (Phase 3.7.3): risk_level tests ──────────────────────
+    #[test]
+    fn risk_level_defaults_to_read_when_absent() {
+        let fm: V2Frontmatter =
+            serde_yaml::from_str("name: legacy-skill\nversion: 0.1.0\n").unwrap();
+        assert_eq!(fm.risk_level, RiskLevel::Read);
+        assert_eq!(fm.risk_level.as_str(), "read");
+    }
+
+    #[test]
+    fn risk_level_round_trips_all_three_values() {
+        for (yaml_value, expected) in [
+            ("read", RiskLevel::Read),
+            ("write_local", RiskLevel::WriteLocal),
+            ("write_external", RiskLevel::WriteExternal),
+        ] {
+            let yaml = format!("name: x\nrisk_level: {yaml_value}\n");
+            let fm: V2Frontmatter = serde_yaml::from_str(&yaml).unwrap();
+            assert_eq!(fm.risk_level, expected);
+            // Re-serialize and re-parse to confirm wire format round-trip.
+            let json = serde_json::to_string(&fm).unwrap();
+            let back: V2Frontmatter = serde_json::from_str(&json).unwrap();
+            assert_eq!(back.risk_level, expected);
+            assert!(json.contains(&format!("\"risk_level\":\"{yaml_value}\"")));
+        }
+    }
+
+    #[test]
+    fn risk_level_rejects_unknown_values() {
+        let bad = serde_yaml::from_str::<V2Frontmatter>("name: x\nrisk_level: execute_arbitrary\n");
+        assert!(bad.is_err(), "unknown risk_level must be rejected");
     }
 }

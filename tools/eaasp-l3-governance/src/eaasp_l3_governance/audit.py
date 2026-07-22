@@ -48,6 +48,20 @@ class TelemetryEventOut(BaseModel):
     tiebreaker: int
 
 
+# REQ-EAASP-02 (Phase 3.7.3): row shape for `governance_decisions` table.
+# Mirrors the DDL column order in `db.py`.
+class GovernanceDecisionOut(BaseModel):
+    decision_id: str
+    session_id: str
+    hook_id: str
+    tool_name: str
+    risk_level: str
+    decision: str
+    approver: str | None
+    rationale: str
+    ts: str
+
+
 class AuditStore:
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
@@ -215,6 +229,148 @@ class AuditStore:
             "source": "l3_fallback",
         }
 
+    # ─── REQ-EAASP-02 — governance decision ledger ──────────────────────────
+    async def record_governance_decision(
+        self,
+        decision_id: str,
+        session_id: str,
+        hook_id: str,
+        tool_name: str,
+        risk_level: str,
+        decision: str,
+        approver: str | None,
+        rationale: str,
+    ) -> GovernanceDecisionOut:
+        """Append-only insert into ``governance_decisions``.
+
+        Frozen contract (`docs/audit/3.7.3-GAP-AUDIT.md` §6):
+        - Single-line signature above is the canonical public method.
+        - Input validation happens BEFORE any DB open (no partial row possible).
+        - BEGIN IMMEDIATE + rollback-on-error + close-on-finally.
+        - Returns the persisted row as ``GovernanceDecisionOut``.
+        - Never updates/replaces an existing row — that is a different decision_id.
+        """
+        # Input validation — every identifier must be non-empty.
+        if not decision_id:
+            raise ValueError("decision_id must be a non-empty string")
+        if not session_id:
+            raise ValueError("session_id must be a non-empty string")
+        if not hook_id:
+            raise ValueError("hook_id must be a non-empty string")
+        if not tool_name:
+            raise ValueError("tool_name must be a non-empty string")
+        if not rationale:
+            raise ValueError("rationale must be a non-empty string")
+        # Enum validation — DB CHECK constraints also enforce these, but
+        # validating here gives callers a clean ValueError instead of an
+        # aiosqlite IntegrityError on every code path.
+        if risk_level not in {"read", "write_local", "write_external"}:
+            raise ValueError(
+                f"risk_level must be 'read', 'write_local', or 'write_external', "
+                f"got {risk_level!r}"
+            )
+        if decision not in {"allow", "approve", "deny", "gate_request"}:
+            raise ValueError(
+                f"decision must be 'allow', 'approve', 'deny', or 'gate_request', "
+                f"got {decision!r}"
+            )
+
+        db = await connect(self.db_path)
+        try:
+            await db.execute("BEGIN IMMEDIATE")
+            try:
+                await db.execute(
+                    """
+                    INSERT INTO governance_decisions
+                        (decision_id, session_id, hook_id, tool_name,
+                         risk_level, decision, approver, rationale)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        decision_id,
+                        session_id,
+                        hook_id,
+                        tool_name,
+                        risk_level,
+                        decision,
+                        approver,
+                        rationale,
+                    ),
+                )
+                cur = await db.execute(
+                    """
+                    SELECT decision_id, session_id, hook_id, tool_name,
+                           risk_level, decision, approver, rationale, ts
+                    FROM governance_decisions WHERE decision_id = ?
+                    """,
+                    (decision_id,),
+                )
+                row = await cur.fetchone()
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
+        finally:
+            await db.close()
+
+        assert row is not None
+        return _row_to_governance(row)
+
+    async def get_governance_decision(
+        self, decision_id: str
+    ) -> GovernanceDecisionOut | None:
+        """Look up a single decision by primary key. Returns None if absent."""
+        db = await connect(self.db_path)
+        try:
+            cur = await db.execute(
+                """
+                SELECT decision_id, session_id, hook_id, tool_name,
+                       risk_level, decision, approver, rationale, ts
+                FROM governance_decisions WHERE decision_id = ?
+                """,
+                (decision_id,),
+            )
+            row = await cur.fetchone()
+        finally:
+            await db.close()
+        return _row_to_governance(row) if row else None
+
+    async def query_governance_decisions(
+        self,
+        session_id: str | None = None,
+        limit: int = 100,
+    ) -> list[GovernanceDecisionOut]:
+        """Newest-first list of governance decisions. Limit clamped (C3).
+
+        Mirrors ``query()`` shape for telemetry events so callers can reuse
+        the same pagination semantics.
+        """
+        safe_limit = _clamp_limit(limit, default=100, maximum=500)
+        where: list[str] = []
+        params: list[Any] = []
+        if session_id is not None:
+            where.append("session_id = ?")
+            params.append(session_id)
+        where_clause = ("WHERE " + " AND ".join(where)) if where else ""
+
+        sql = f"""
+            SELECT decision_id, session_id, hook_id, tool_name,
+                   risk_level, decision, approver, rationale, ts
+            FROM governance_decisions
+            {where_clause}
+            ORDER BY ts DESC, decision_id DESC
+            LIMIT ?
+        """
+        params.append(safe_limit)
+
+        db = await connect(self.db_path)
+        try:
+            cur = await db.execute(sql, params)
+            rows = await cur.fetchall()
+        finally:
+            await db.close()
+        return [_row_to_governance(r) for r in rows]
+
 
 def _row_to_event(row: Any) -> TelemetryEventOut:
     payload_raw = row["payload_json"]
@@ -228,6 +384,20 @@ def _row_to_event(row: Any) -> TelemetryEventOut:
         payload=payload,
         received_at=row["received_at"],
         tiebreaker=row["tiebreaker"],
+    )
+
+
+def _row_to_governance(row: Any) -> GovernanceDecisionOut:
+    return GovernanceDecisionOut(
+        decision_id=row["decision_id"],
+        session_id=row["session_id"],
+        hook_id=row["hook_id"],
+        tool_name=row["tool_name"],
+        risk_level=row["risk_level"],
+        decision=row["decision"],
+        approver=row["approver"],
+        rationale=row["rationale"],
+        ts=row["ts"],
     )
 
 

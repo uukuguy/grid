@@ -53,6 +53,24 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_session
     ON telemetry_events(session_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_telemetry_received_at
     ON telemetry_events(received_at DESC);
+
+-- REQ-EAASP-02 (Phase 3.7.3): append-only governance decision ledger.
+-- Captures both the initial gate_request and the final approve/deny decision
+-- as separate rows (different decision_id values) — see audit §6.3.
+CREATE TABLE IF NOT EXISTS governance_decisions (
+    decision_id TEXT PRIMARY KEY,
+    session_id  TEXT NOT NULL,
+    hook_id     TEXT NOT NULL,
+    tool_name   TEXT NOT NULL,
+    risk_level  TEXT NOT NULL CHECK(risk_level IN ('read','write_local','write_external')),
+    decision    TEXT NOT NULL CHECK(decision IN ('allow','approve','deny','gate_request')),
+    approver    TEXT,
+    rationale   TEXT NOT NULL,
+    ts          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_session_ts
+    ON governance_decisions(session_id, ts DESC);
 """
 
 

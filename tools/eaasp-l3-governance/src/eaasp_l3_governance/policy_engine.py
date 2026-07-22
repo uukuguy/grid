@@ -12,6 +12,15 @@ Contract 1 (Policy Deployment) surface:
 - ``latest_version()`` — most recent version row, used by session validate.
 - ``get_mode_override()`` — look up a single hook's override (None if unset).
 
+Contract 5 (Risk Gate — Phase 3.7.3 / REQ-EAASP-03):
+
+- ``evaluate_gate()`` — given a ``session_id``, ``hook_id``, ``tool_name``,
+  ``risk_level``, and human-readable ``action_preview``, return a
+  ``GateDecision`` describing whether the action may proceed immediately
+  (``allow``) or requires synchronous human/CLI approval
+  (``gate_request``). Every result is appended to the
+  ``governance_decisions`` ledger so the audit trail is complete.
+
 All write operations are wrapped in ``BEGIN IMMEDIATE`` transactions per
 reviewer note C1 (L2 S3.T2 lesson).
 """
@@ -19,12 +28,14 @@ reviewer note C1 (L2 S3.T2 lesson).
 from __future__ import annotations
 
 import json
-from typing import Any
+import uuid
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from .audit import AuditStore
 from .db import connect
-from .managed_settings import ManagedSettings, ensure_mode
+from .managed_settings import ManagedSettings, ensure_mode, ensure_risk_level
 
 
 class DeployResult(BaseModel):
@@ -63,9 +74,37 @@ class HookNotFoundError(Exception):
         super().__init__(f"hook_id {hook_id!r} not found in latest policy version")
 
 
+# REQ-EAASP-03 (Phase 3.7.3): gate decision contract.
+# Wire shape is fixed by the audit §5.1 spec; do not rename or remove fields.
+GateDecisionValue = Literal["allow", "approve", "deny", "gate_request"]
+
+
+class GateDecision(BaseModel):
+    decision_id: str
+    decision: GateDecisionValue
+    rationale: str
+
+
+def _new_gate_id() -> str:
+    """Return a fresh ``gd_<uuid4-hex>`` request id.
+
+    Final decisions append ``_final`` at the call site (not here) so the
+    request and final rows can be distinguished in the audit ledger while
+    sharing a primary-key lineage.
+    """
+    return f"gd_{uuid.uuid4().hex}"
+
+
 class PolicyEngine:
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str, audit_store: AuditStore | None = None) -> None:
         self.db_path = db_path
+        # Optional injection for callers that want gate decisions persisted
+        # in the same DB; defaults to a fresh AuditStore on the same path.
+        self._audit = audit_store if audit_store is not None else AuditStore(db_path)
+
+    @property
+    def audit(self) -> AuditStore:
+        return self._audit
 
     # ─── Contract 1: PUT /v1/policies/managed-hooks ───────────────────────
     async def deploy(self, settings: ManagedSettings) -> DeployResult:
@@ -252,6 +291,100 @@ class PolicyEngine:
             hook_count=row["hook_count"],
             mode_summary=_load_mode_summary(row["mode_summary"]),
             payload=json.loads(row["payload_json"]),
+        )
+
+    # ─── REQ-EAASP-03 — risk-aware gate decision ──────────────────────────
+    async def evaluate_gate(
+        self,
+        session_id: str,
+        hook_id: str,
+        tool_name: str,
+        risk_level: str,
+        action_preview: str,
+    ) -> GateDecision:
+        """Return a ``GateDecision`` and persist it in the audit ledger.
+
+        Single-line signature is the canonical public contract (audit §5.1).
+        Decision matrix (audit §5.2):
+
+        +------------------+----------+-----------------------------+
+        | risk_level       | mode     | decision / rationale        |
+        +------------------+----------+-----------------------------+
+        | read             | any      | allow / (read auto-allowed) |
+        | write_local      | shadow   | allow / "shadow mode"       |
+        | write_external   | shadow   | allow / "shadow mode"       |
+        | write_local      | enforce  | gate_request /              |
+        |                  |          | "approval required"         |
+        | write_external   | enforce  | gate_request /              |
+        |                  |          | "approval required"         |
+        +------------------+----------+-----------------------------+
+
+        The mode precedence is: ``managed_hooks_mode_overrides`` (if set) wins
+        over the latest version's hook declaration (audit §5.2).
+
+        Every allow and gate_request decision is appended to the
+        ``governance_decisions`` ledger with ``approver=None`` (the request
+        row does not yet have a human approver; final approve/deny rows use
+        ``cli:--yes`` / ``cli:--no`` / ``cli:interactive``).
+        """
+        # ── 1. Input validation BEFORE any DB open ─────────────────────────
+        if not session_id:
+            raise ValueError("session_id must be a non-empty string")
+        if not hook_id:
+            raise ValueError("hook_id must be a non-empty string")
+        if not tool_name:
+            raise ValueError("tool_name must be a non-empty string")
+        if not action_preview:
+            raise ValueError("action_preview must be a non-empty string")
+        # risk_level: defense-in-depth — Pydantic normally catches this, but
+        # raw-string callers (skill metadata) bypass that path.
+        validated_risk = ensure_risk_level(risk_level)
+
+        # ── 2. Resolve the hook + effective mode ──────────────────────────
+        latest = await self.latest_version()
+        if latest is None:
+            raise HookNotFoundError(hook_id)
+
+        hook_payload = None
+        for hook in latest.payload.get("hooks", []):
+            if isinstance(hook, dict) and hook.get("hook_id") == hook_id:
+                hook_payload = hook
+                break
+        if hook_payload is None:
+            raise HookNotFoundError(hook_id)
+
+        declared_mode = hook_payload.get("mode", "enforce")
+        override = await self.get_mode_override(hook_id)
+        effective_mode = override.mode if override is not None else declared_mode
+
+        # ── 3. Decision matrix ─────────────────────────────────────────────
+        if validated_risk == "read":
+            decision: GateDecisionValue = "allow"
+            rationale = "read auto-allowed"
+        elif effective_mode == "shadow":
+            decision = "allow"
+            rationale = "shadow mode"
+        else:
+            assert effective_mode == "enforce"  # validated by ensure_mode upstream
+            decision = "gate_request"
+            rationale = "approval required"
+
+        # ── 4. Persist + return ────────────────────────────────────────────
+        decision_id = _new_gate_id()
+        await self._audit.record_governance_decision(
+            decision_id=decision_id,
+            session_id=session_id,
+            hook_id=hook_id,
+            tool_name=tool_name,
+            risk_level=validated_risk,
+            decision=decision,
+            approver=None,
+            rationale=rationale,
+        )
+        return GateDecision(
+            decision_id=decision_id,
+            decision=decision,
+            rationale=rationale,
         )
 
 

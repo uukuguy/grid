@@ -8,6 +8,9 @@ The only shape invariants enforced are:
 3. Each hook declares a ``mode`` in ``{'enforce', 'shadow'}``.
 4. Optional ``agent_id`` / ``skill_id`` fields are used by the session
    ``/validate`` endpoint for simple wildcard match.
+5. Optional ``risk_level`` in ``{'read', 'write_local', 'write_external'}``
+   (REQ-EAASP-01, Phase 3.7.3, D-01/D-07). Defaults to ``"read"`` so legacy
+   payloads keep current behavior.
 
 Anything else in the payload is preserved verbatim (``extras``) so that L1
 runtimes that understand richer hook definitions keep receiving the data
@@ -23,6 +26,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 HookMode = Literal["enforce", "shadow"]
 _VALID_MODES: set[str] = {"enforce", "shadow"}
 
+# REQ-EAASP-01 (Phase 3.7.3): three-value risk taxonomy.
+# Mirrors the Rust `RiskLevel` enum in `tools/eaasp-skill-registry/src/skill_parser.rs`.
+RiskLevel = Literal["read", "write_local", "write_external"]
+_VALID_RISK_LEVELS: set[str] = {"read", "write_local", "write_external"}
+
 
 class ManagedHook(BaseModel):
     """A single managed hook definition inside managed-settings.json."""
@@ -32,6 +40,10 @@ class ManagedHook(BaseModel):
     hook_id: str = Field(..., min_length=1)
     phase: str = Field(..., min_length=1)  # PreToolUse / PostToolUse / Stop / ...
     mode: HookMode = "enforce"
+    # D-01 / D-07: default to "read" so legacy hooks without risk metadata
+    # keep their current auto-allow behavior. The L3 policy engine consults
+    # this field after the tool is resolved but before side-effect dispatch.
+    risk_level: RiskLevel = "read"
     agent_id: str | None = None  # "*" or exact match for session validate
     skill_id: str | None = None  # "*" or exact match for session validate
     handler: str | None = None  # free-form URI (http://…, python:pkg.mod:fn, …)
@@ -76,6 +88,22 @@ def ensure_mode(mode: str) -> HookMode:
     if mode not in _VALID_MODES:
         raise ValueError(f"mode must be 'enforce' or 'shadow', got {mode!r}")
     return mode  # type: ignore[return-value]
+
+
+def ensure_risk_level(risk_level: str) -> RiskLevel:
+    """Defense-in-depth: validate risk_level even when coming from raw strings.
+
+    Pydantic will usually reject invalid values before this helper is
+    reached, but the policy engine accepts raw strings (from skill metadata
+    that may not have been validated upstream) and must validate them BEFORE
+    any audit row is written.
+    """
+    if risk_level not in _VALID_RISK_LEVELS:
+        raise ValueError(
+            f"risk_level must be 'read', 'write_local', or 'write_external', "
+            f"got {risk_level!r}"
+        )
+    return risk_level  # type: ignore[return-value]
 
 
 def hook_matches(
