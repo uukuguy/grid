@@ -16,6 +16,58 @@ from .output import print_json, print_panel, print_table
 app = typer.Typer(help="Session lifecycle commands")
 
 
+# REQ-EAASP-05 (Phase 3.7.3): governance decision provenance labels.
+# These exact strings are persisted in the L3 ``governance_decisions`` ledger
+# and surfaced via L4 ``governance.decision`` events (audit §7.2, threat T-3.7.3-06).
+APPROVER_CLI_YES = "cli:--yes"
+APPROVER_CLI_NO = "cli:--no"
+APPROVER_CLI_INTERACTIVE = "cli:interactive"
+
+# Exit codes used by the CLI surface. CliError's 4xx/5xx mapping already
+# uses 2/3/4; we reserve 4 for governance denials so they line up with the
+# same numeric code used for 5xx server errors (both are "blocked").
+DENY_EXIT_CODE = 4
+
+
+def _resolve_gate_request(
+    request: dict[str, Any],
+    *,
+    yes: bool = False,
+    no: bool = False,
+    interactive_yes: Optional[bool] = None,
+) -> tuple[str, str]:
+    """Resolve a ``gate_request`` to a final ``(decision, approver)`` pair.
+
+    Precedence: ``yes`` > ``no`` > ``interactive_yes`` (None ⇒ default deny).
+    ``interactive_yes=None`` is the "user pressed Enter on empty" case — the
+    safe default per the apt/yum confirmation prompt pattern.
+
+    The decision value here is what the L3 ledger persists and what the L4
+    ``governance.decision`` event carries. It is NOT the eventual tool-side
+    effect — that comes from the caller's dispatch helper.
+    """
+    if yes and no:
+        # Defensive: caller already validates the CLI flags, but never trust.
+        raise ValueError("--yes and --no are mutually exclusive")
+    if yes:
+        return "approve", APPROVER_CLI_YES
+    if no:
+        return "deny", APPROVER_CLI_NO
+    if interactive_yes:
+        return "approve", APPROVER_CLI_INTERACTIVE
+    # Default deny — empty input / 'n' / 'N' all map here.
+    return "deny", APPROVER_CLI_INTERACTIVE
+
+
+def _exit_after_denied_gate() -> None:
+    """Surface a denied governance gate as ``typer.Exit(DENY_EXIT_CODE)``.
+
+    Single source of truth so the deny code stays consistent across the
+    `run` flow and any future S8 harness driver.
+    """
+    raise typer.Exit(DENY_EXIT_CODE)
+
+
 # ── ADR-V2-021: canonical chunk_type wire values ─────────────────────────────
 # L4 SSE serializes the ChunkType proto enum → lowercase snake_case wire string
 # (see tools/eaasp-l4-orchestration/.../session_orchestrator.py, S2.T1 fix
@@ -363,8 +415,23 @@ def run(
     skill: str = typer.Option(..., "--skill", "-s"),
     runtime: str = typer.Option("grid-runtime", "--runtime", "-r"),
     no_stream: bool = typer.Option(False, "--no-stream"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="Approve governance gates non-interactively (REQ-EAASP-05).",
+    ),
+    no: bool = typer.Option(
+        False,
+        "--no",
+        help="Deny governance gates non-interactively (REQ-EAASP-05).",
+    ),
 ) -> None:
     """Create a session and immediately send a message (create + send in one step)."""
+    # REQ-EAASP-05 / audit §7.2: --yes and --no are mutually exclusive.
+    # Reject before any session creation so a flag typo fails fast.
+    if yes and no:
+        raise typer.BadParameter("--yes and --no are mutually exclusive")
+
     cfg = CliConfig.from_env()
     console = Console()
 
