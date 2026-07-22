@@ -1,5 +1,32 @@
 # Milestones
 
+## v3.7 实战可用性补全 (Production-Usability Closure) (Shipped: 2026-07-23)
+
+**Phases completed:** 3 phases (3.7.1 / 3.7.2 / 3.7.3) + 1 SKIPPED (3.7.4 deferred to v3.8), 7 plans, 18 tasks
+
+**Git range:** `3a85a06c` (2026-07-19) → `dbb6588c` (2026-07-23) — 50 commits, 76 files changed, 17,095 insertions, 4 days
+
+**Tests:** 175/175 PASS total across milestone
+- Phase 3.7.1: 14/14 hermetic scenario integration tests + 7/7 unit tests + 9/9 doctor checks
+- Phase 3.7.2: 26/26 vitest + 5/5 Playwright E1-E3 + auditor 8.83/10
+- Phase 3.7.3: 136/136 (L3 76 + L4 events 11 + CLI 18 + mock-SCADA 19 + Rust skill-parser 12)
+
+**Key accomplishments:**
+
+1. **Phase 3.7.1 grid-cli 实战可用性** — `grid quickstart <scenario>` + `grid session resume` + `grid run --parallel` + error UX per D-05..D-07 + 12 doctor checks (incl. Hooks File + Eval Bridge); 8/9 REQ-AUDITs closed; 5 scenario walkthrough docs (S1-S5) + dated `PRODUCTION_USABILITY_2026-07-19.md`
+
+2. **Phase 3.7.2 web/ dashboard 实战化** — WS auto-reconnect + SessionControls global + memory_added toast + seq field + Live badge; 9 REQ-WEB items closed; UI-SPEC 7/7 + auditor 8.83/10; S7 walkthrough doc
+
+3. **Phase 3.7.3 EAASP 本地仿真补全 (Phase 3 governance hooks)** — Risk classification taxonomy (read/write_local/write_external) in Rust + Python; L3 `PolicyEngine.evaluate_gate()` decision matrix; append-only `governance_decisions` ledger; L4 `governance.request`/`governance.decision` SSE events; CLI `--yes`/`--no` + interactive `Approve? [y/N]`; deterministic `scada_set_setpoint` mock-SCADA S8 scenario + walkthrough doc; 8/8 REQ-EAASP-01..08 closed
+
+**Locked decisions honored (D-01..D-10 from 03.7.3-CONTEXT.md):** Risk taxonomy (D-01) · L3 hook enforcement (D-02) · L3 audit extension (D-03) · CLI sync approval (D-04) · L4 SSE events (D-05) · No new HTTP endpoint (D-06) · Default mode preserved (D-07) · Existing tests unaffected (D-08) · Single S8 scenario (D-09) · Dated walkthrough record (D-10)
+
+**Deferred to v3.8+:** Phase 3.7.4 grid-server multi-user (per user 2026-07-19 explicit deferral); full production OPA backend; multi-party approval; sandbox tier enforcement; L5 Cowork UI consumers; web-platform/ Quality 7.5→9.0; grid-desktop Quality 6.5→9.0
+
+**Live walkthrough status:** Blocked on missing LLM API key (per CLAUDE.md §Runtime Verification Tasks). All scenarios verified hermetically via in-process S1-S8 walkthrough tests; CLI `eaasp session run --yes` / `--no` / interactive paths fully exercised.
+
+---
+
 ## v3.5 Debt Finalization (Shipped: 2026-06-16)
 
 **Phases completed:** 3 phases, 3 plans, 3 tasks
