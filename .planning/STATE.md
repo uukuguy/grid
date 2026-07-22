@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
 status: completed
-stopped_at: Completed 03.7.3-01-PLAN.md
-last_updated: "2026-07-22T21:04:55.002Z"
+stopped_at: v3.7 milestone SHIPPED + ARCHIVED (2026-07-23) — v3.8 candidate scope decision pending
+last_updated: "2026-07-22T21:30:08.360Z"
 last_activity: 2026-07-22
 progress:
   total_phases: 3
@@ -129,8 +129,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-22T17:10:23Z
-Stopped at: Completed 03.7.3-01-PLAN.md
+Last session: 2026-07-22T21:30:08.357Z
+Stopped at: v3.7 milestone SHIPPED + ARCHIVED (2026-07-23) — v3.8 candidate scope decision pending
 Resume path: Execute 03.7.3-02-PLAN.md using docs/audit/3.7.3-GAP-AUDIT.md as the frozen contract.
 
 Prior sessions:
