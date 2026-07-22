@@ -22,10 +22,10 @@ SSE events), the EAASP CLI (synchronous `--yes`/`--no` + interactive
 `Approve? [y/N]` prompt), and a deterministic mock-SCADA setpoint fixture
 that changes only on approval.
 
-**Hermetic verification: 75/75 PASS** across L3 + L4 + CLI + mock-SCADA +
-Rust skill-parser tests:
-- L3 governance: 41/41 (`test_policy_engine.py` + `test_audit.py` + `test_gate_engine.py` + `test_audit_governance.py`)
-- L4 orchestration: 11/11 (`test_event_stream.py` + `test_sse_governance_events.py`)
+**Hermetic verification: 131/131 PASS** across L3 + L4 + CLI + mock-SCADA +
+Rust skill-parser tests (76 L3 full suite + 6 L4 governance events + 18 CLI + 19 mock-SCADA + 12 Rust skill-parser):
+- L3 governance: 76/76 (full `uv run pytest tests/` in `tools/eaasp-l3-governance`)
+- L4 orchestration: 6/6 (targeted `test_sse_governance_events.py`)
 - EAASP CLI: 18/18 (`test_cmd_session.py` + `test_cli_approval.py`)
 - mock-SCADA: 19/19 (`test_server.py` + `test_snapshots.py`)
 - Rust skill-parser: 12/12 (3 new risk-level tests + 9 existing)

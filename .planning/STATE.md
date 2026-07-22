@@ -114,7 +114,7 @@ Last activity: 2026-07-23 -- Phase 3.7.3 Plan 02 governance gate SHIPPED (8/8 RE
 - **LEDGER 100% CLOSED** (2026-06-16): DEFERRED_LEDGER.md main D-table fully standardized. Zero P1/P2/P3 active rows. 17 genuinely ACTIVE items filed as 📦 long-term (Phase 4–6 concern) or 🔵 P3-defer edge cases.
 - **Debt era over** (2026-06-16): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — shift to product activation.
 - **Priority target**: grid-cli + grid-server first (per ADR-V2-024 Open Item #3), then platform/desktop/web.
-- **Phase 3.7.3 gate boundary** (2026-07-23): SHIPPED 2/2 plans. risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged. 8/8 REQ-EAASP closed; 136/136 targeted tests PASS (L3 76 + L4 11 + CLI 18 + mock-SCADA 19 + Rust 12). Live walkthrough BLOCKED on missing LLM API key (hermetic S8 test proves same code path).
+- **Phase 3.7.3 gate boundary** (2026-07-23): SHIPPED 2/2 plans. risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged. 8/8 REQ-EAASP closed; 131/131 targeted tests PASS (L3 76 + L4 6 + CLI 18 + mock-SCADA 19 + Rust 12). Live walkthrough BLOCKED on missing LLM API key (hermetic S8 test proves same code path).
 
 ### Pending Todos
 
