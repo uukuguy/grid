@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
+milestone: v3.7
+milestone_name: Production-Usability Closure 🟡 IN PROGRESS
 status: executing
-stopped_at: Completed 03.7.3-01-PLAN.md
-last_updated: "2026-07-22T17:10:23Z"
-last_activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
+stopped_at: Completed 03.7.3-02-PLAN.md
+last_updated: "2026-07-23T09:38:00Z"
+last_activity: 2026-07-23 -- Phase 3.7.3 Plan 02 governance gate SHIPPED
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 3
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -29,9 +29,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 3.7.3 (EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)) — EXECUTING
-Plan: 2 of 2
-Status: Plan 01 complete; ready for Plan 02 implementation
+Phase: 3.7.3 (EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)) — SHIPPED
+Plan: 2 of 2 complete
+Status: v3.7.3 milestone complete (2/2 plans, 8/8 REQ-EAASP closed)
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -45,7 +45,7 @@ Status: Plan 01 complete; ready for Plan 02 implementation
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
+Last activity: 2026-07-23 -- Phase 3.7.3 Plan 02 governance gate SHIPPED (8/8 REQ-EAASP, 136 tests PASS)
 
 ## Audit Findings Summary (Post-Activation Scores)
 
@@ -71,6 +71,15 @@ Last activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
 *5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
 ## Completed Milestones
+
+### v3.7 Production-Usability Closure ✅ SHIPPED 2026-07-23
+
+- 3 phases (3.7.1, 3.7.2, 3.7.3), 9/9 REQ-AUDITs + 8/8 REQ-EAASP closed.
+- Phase 3.7.1: grid-cli 实战可用性 (S1-S6 scenarios, 14/14 hermetic tests).
+- Phase 3.7.2: web/ Production Polish + Makefile entry points + USER_GUIDE §10.
+- Phase 3.7.3: EAASP governance gate (REQ-EAASP-01..08) — L3 risk-aware gate,
+  L4 SSE events, CLI sync approval UX, mock-SCADA scada_set_setpoint,
+  S8 walkthrough, dated evidence (136 tests PASS).
 
 ### v3.5 Debt Finalization ✅ SHIPPED 2026-06-16
 
@@ -105,7 +114,7 @@ Last activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
 - **LEDGER 100% CLOSED** (2026-06-16): DEFERRED_LEDGER.md main D-table fully standardized. Zero P1/P2/P3 active rows. 17 genuinely ACTIVE items filed as 📦 long-term (Phase 4–6 concern) or 🔵 P3-defer edge cases.
 - **Debt era over** (2026-06-16): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — shift to product activation.
 - **Priority target**: grid-cli + grid-server first (per ADR-V2-024 Open Item #3), then platform/desktop/web.
-- **Phase 3.7.3 gate boundary** (2026-07-23): risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged.
+- **Phase 3.7.3 gate boundary** (2026-07-23): SHIPPED 2/2 plans. risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged. 8/8 REQ-EAASP closed; 136/136 targeted tests PASS (L3 76 + L4 11 + CLI 18 + mock-SCADA 19 + Rust 12). Live walkthrough BLOCKED on missing LLM API key (hermetic S8 test proves same code path).
 
 ### Pending Todos
 

@@ -202,7 +202,7 @@ To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps disc
 **Goal:** Move `tools/eaasp-*/` from "simulator-level reference implementation" (per docs/PROJECT_PRODUCT_OVERVIEW.md) to "credible enterprise simulation close enough to实战 that a customer could evaluate locally".
 
 - [x] Plan 3.7.3-01: Audit which of the 8 EAASP evolution phases are SHIPPED (Phase 0–2.5 ✅ per canonical facts) vs deferred (Phase 3 OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem). For each deferred phase that affects 实战 credibility, identify what minimally must be wired to make the simulation believable.
-- [ ] Plan 3.7.3-02: Wire the minimum credible set of deferred-phase hooks into the simulation — e.g. Phase 3 governance gate hooks so risk-classified actions actually pause for approval rather than silently pass. Don't implement the full deferred phase; only the hooks needed for credibility.
+- [x] Plan 3.7.3-02: Wire the minimum credible set of deferred-phase hooks into the simulation — e.g. Phase 3 governance gate hooks so risk-classified actions actually pause for approval rather than silently pass. Don't implement the full deferred phase; only the hooks needed for credibility. **SHIPPED 2026-07-23** — 8/8 REQ-EAASP closed (Rust RiskLevel enum + L3 evaluate_gate + append-only audit + L4 SSE events + CLI --yes/--no + S8 mock-SCADA setpoint). 136/136 targeted tests PASS.
 - Validate: 1 实战 enterprise scenario (e.g. "agent writes to external system, governance gate triggers, user approves, action completes") runs end-to-end through EAASP local tools with observable governance behavior.
 
 ### Phase 3.7.4: SKIPPED — grid-server multi-user deferred to v3.8
