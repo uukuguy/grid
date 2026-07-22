@@ -249,3 +249,153 @@ async def test_decision_is_persisted_in_audit_ledger(
     assert rows[0].tool_name == "scada_set_setpoint"
     assert rows[0].approver is None
     assert rows[0].rationale == "approval required"
+
+
+# ─── REQ-EAASP-06/07 — S8 hermetic cross-component flow ─────────────────────
+
+
+async def test_s8_full_flow_approve_changes_setpoint_and_emits_ordered_events(
+    policy_engine: PolicyEngine,
+    audit_store,
+) -> None:
+    """Hermetic S8 walkthrough: gate_request → audit row → approve → tool side effect.
+
+    Walks the same code path the CLI would walk: ``evaluate_gate`` returns a
+    gate_request, we resolve it to ``approve`` (mirroring ``_resolve_gate_request``),
+    persist the final audit row, and only then "invoke" the deterministic
+    SCADA setpoint. The mock-SCADA handler is exercised directly via the
+    in-memory setpoint helpers (which is the same code path the MCP server
+    would call).
+    """
+    # Lazy import: keep the L3 test package independent of mock-scada
+    # importlib graph so this test fails clearly if either moves.
+    import importlib
+
+    snapshots = importlib.import_module("mock_scada.snapshots")
+    server = importlib.import_module("mock_scada.server")
+
+    snapshots.reset_setpoints_for_tests()
+    initial = snapshots.get_setpoint("xfmr-042", "temperature_limit_c")
+    assert initial == 65.0
+
+    await policy_engine.deploy(_settings_with("h_pre", mode="enforce"))
+
+    # 1. evaluate_gate BEFORE tool dispatch
+    request = await policy_engine.evaluate_gate(
+        session_id="sess_s8",
+        hook_id="h_pre",
+        tool_name="scada_set_setpoint",
+        risk_level="write_external",
+        action_preview="xfmr-042/temperature_limit_c=70.0",
+    )
+    assert request.decision == "gate_request"
+
+    # 2. CLI resolves the gate (mirrors _resolve_gate_request in cmd_session)
+    final_decision = "approve"
+    final_approver = "cli:--yes"
+    final_rationale = f"resolved request {request.decision_id}: cli --yes"
+    final_id = f"{request.decision_id}_final"
+    await audit_store.record_governance_decision(
+        decision_id=final_id,
+        session_id="sess_s8",
+        hook_id="h_pre",
+        tool_name="scada_set_setpoint",
+        risk_level="write_external",
+        decision=final_decision,
+        approver=final_approver,
+        rationale=final_rationale,
+    )
+
+    # 3. NOW call the SCADA tool (mirrors what the runtime does after approve)
+    tool_calls: list[dict] = []
+
+    def tracked_tool(args: dict) -> dict:
+        tool_calls.append(args)
+        return server._handle_scada_set_setpoint(args)
+
+    if final_decision == "approve":
+        tracked_tool(
+            {"device_id": "xfmr-042", "setpoint_name": "temperature_limit_c", "value": 70.0}
+        )
+
+    # 4. Verify the audit ledger holds BOTH rows (request + final)
+    all_rows = await audit_store.query_governance_decisions(session_id="sess_s8")
+    assert len(all_rows) == 2
+    ids = {r.decision_id for r in all_rows}
+    assert ids == {request.decision_id, final_id}
+    # Newest-first ordering → final row first
+    assert all_rows[0].decision_id == final_id
+    assert all_rows[0].decision == "approve"
+    assert all_rows[0].approver == "cli:--yes"
+    # Then the request row
+    assert all_rows[1].decision_id == request.decision_id
+    assert all_rows[1].decision == "gate_request"
+
+    # 5. State changed exactly once
+    assert snapshots.get_setpoint("xfmr-042", "temperature_limit_c") == 70.0
+    assert len(tool_calls) == 1
+    snapshots.reset_setpoints_for_tests()
+
+
+async def test_s8_deny_branch_leaves_state_unchanged(
+    policy_engine: PolicyEngine,
+    audit_store,
+) -> None:
+    """Denial path: gate_request → CLI deny → no tool call → state stays 65.0."""
+    import importlib
+
+    snapshots = importlib.import_module("mock_scada.snapshots")
+    server = importlib.import_module("mock_scada.server")
+
+    snapshots.reset_setpoints_for_tests()
+    assert snapshots.get_setpoint("xfmr-042", "temperature_limit_c") == 65.0
+
+    await policy_engine.deploy(_settings_with("h_pre", mode="enforce"))
+
+    request = await policy_engine.evaluate_gate(
+        session_id="sess_s8_deny",
+        hook_id="h_pre",
+        tool_name="scada_set_setpoint",
+        risk_level="write_external",
+        action_preview="xfmr-042/temperature_limit_c=70.0",
+    )
+    assert request.decision == "gate_request"
+
+    # CLI resolves to deny
+    final_decision = "deny"
+    final_approver = "cli:--no"
+    final_id = f"{request.decision_id}_final"
+    await audit_store.record_governance_decision(
+        decision_id=final_id,
+        session_id="sess_s8_deny",
+        hook_id="h_pre",
+        tool_name="scada_set_setpoint",
+        risk_level="write_external",
+        decision=final_decision,
+        approver=final_approver,
+        rationale=f"resolved request {request.decision_id}: cli --no",
+    )
+
+    tool_calls: list[dict] = []
+
+    def tracked_tool(args: dict) -> dict:
+        tool_calls.append(args)
+        return server._handle_scada_set_setpoint(args)
+
+    # D-04 invariant: deny ⇒ NO tool dispatch
+    if final_decision != "approve":
+        pass  # explicit no-op so the test reads as policy
+    else:  # pragma: no cover - intentional
+        tracked_tool(
+            {"device_id": "xfmr-042", "setpoint_name": "temperature_limit_c", "value": 70.0}
+        )
+
+    # 5. State unchanged, no tool calls
+    assert snapshots.get_setpoint("xfmr-042", "temperature_limit_c") == 65.0
+    assert tool_calls == []
+
+    rows = await audit_store.query_governance_decisions(session_id="sess_s8_deny")
+    assert len(rows) == 2
+    assert rows[0].decision == "deny"
+    assert rows[0].approver == "cli:--no"
+    snapshots.reset_setpoints_for_tests()

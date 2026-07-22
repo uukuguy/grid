@@ -27,7 +27,12 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from .snapshots import SCADA_WRITE_ERROR_MARKER, build_snapshot, snapshot_hash
+from .snapshots import (
+    SCADA_WRITE_ERROR_MARKER,
+    build_snapshot,
+    set_setpoint,
+    snapshot_hash,
+)
 
 import logging
 import sys
@@ -83,6 +88,37 @@ _TOOL_MANIFEST: list[Tool] = [
             "required": ["device_id", "field", "value"],
         },
     ),
+    Tool(
+        name="scada_set_setpoint",
+        description=(
+            "Update a deterministic SCADA setpoint. THIS IS AN EXTERNAL WRITE: "
+            "it MUST only be invoked after the L3 governance gate has produced "
+            "a `governance.decision` event with `decision=approve`. The S8 "
+            "scenario wires the `scada-set-setpoint` skill to require L3 "
+            "approval before this handler is reached. Inputs are validated; "
+            "invalid input never mutates the in-memory store."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "description": "Device identifier (S8 fixture: xfmr-042).",
+                },
+                "setpoint_name": {
+                    "type": "string",
+                    "description": (
+                        "Setpoint key (S8 fixture: temperature_limit_c)."
+                    ),
+                },
+                "value": {
+                    "type": "number",
+                    "description": "New finite numeric setpoint value (S8: 70.0).",
+                },
+            },
+            "required": ["device_id", "setpoint_name", "value"],
+        },
+    ),
 ]
 
 
@@ -107,6 +143,29 @@ def _handle_scada_write(args: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _handle_scada_set_setpoint(args: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic setpoint update (S8 external write target).
+
+    The handler itself does NOT enforce governance — that's the L3 gate's
+    job. This function only validates inputs and delegates to
+    ``set_setpoint``. The ``scada-set-setpoint`` skill declares
+    ``risk_level: write_external`` so the L3 PreToolUse hook routes every
+    invocation through ``evaluate_gate`` BEFORE the runtime hands control
+    to this handler.
+    """
+    _log.info(
+        "scada_set_setpoint device_id=%s setpoint=%s value=%s",
+        args.get("device_id", "?"),
+        args.get("setpoint_name", "?"),
+        args.get("value", "?"),
+    )
+    return set_setpoint(
+        device_id=args["device_id"],
+        setpoint_name=args["setpoint_name"],
+        value=args["value"],
+    )
+
+
 def build_server() -> Server:
     """Build the MCP server with tool handlers wired in."""
     server: Server = Server(SERVER_NAME)
@@ -122,6 +181,8 @@ def build_server() -> Server:
             result = _handle_scada_read_snapshot(arguments or {})
         elif name == "scada_write":
             result = _handle_scada_write(arguments or {})
+        elif name == "scada_set_setpoint":
+            result = _handle_scada_set_setpoint(arguments or {})
         else:
             raise ValueError(f"unknown tool: {name}")
         return [
