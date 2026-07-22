@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.7
-milestone_name: 实战可用性补全 (Production-Usability Closure)
+milestone: v3.6
+milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
 status: executing
-stopped_at: Phase 03.7.2 SHIPPED + VERIFIED — 14/14 acceptance, 5/5 Playwright, 8.83/10 auditor; v3.7 milestone is_last_phase=true (3.7.3 not started, 3.7.4 DEFERRED to v3.8)
-last_updated: "2026-07-21T15:28:30.588Z"
-last_activity: 2026-07-21 -- Phase 03.7.2 SHIPPED + verified
+stopped_at: Completed 03.7.3-01-PLAN.md
+last_updated: "2026-07-22T17:10:23Z"
+last_activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
 progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 4
-  percent: 75
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -21,7 +20,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Phase 03.7.2 — web-production
+**Current focus:** Phase 3.7.3 — EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)
 
 Canonical product-status sources:
 
@@ -30,9 +29,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.7.2
-Plan: Not started
-Status: Executing Phase 03.7.2
+Phase: 3.7.3 (EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete; ready for Plan 02 implementation
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -46,7 +45,7 @@ Status: Executing Phase 03.7.2
 | Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
 | Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
 
-Last activity: 2026-07-21
+Last activity: 2026-07-23 -- Phase 3.7.3 Plan 01 governance gate audit completed
 
 ## Audit Findings Summary (Post-Activation Scores)
 
@@ -106,6 +105,7 @@ Last activity: 2026-07-21
 - **LEDGER 100% CLOSED** (2026-06-16): DEFERRED_LEDGER.md main D-table fully standardized. Zero P1/P2/P3 active rows. 17 genuinely ACTIVE items filed as 📦 long-term (Phase 4–6 concern) or 🔵 P3-defer edge cases.
 - **Debt era over** (2026-06-16): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — shift to product activation.
 - **Priority target**: grid-cli + grid-server first (per ADR-V2-024 Open Item #3), then platform/desktop/web.
+- **Phase 3.7.3 gate boundary** (2026-07-23): risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged.
 
 ### Pending Todos
 
@@ -120,9 +120,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-20T02:19:37.754Z
-Stopped at: Phase 3.7.2 UI-SPEC approved (7/7 dimensions PASS)
-Resume path: User must pick Candidate A / B / C / D for next milestone (see 3.7.1-HANDOFF.md "What is NOT done").
+Last session: 2026-07-22T17:10:23Z
+Stopped at: Completed 03.7.3-01-PLAN.md
+Resume path: Execute 03.7.3-02-PLAN.md using docs/audit/3.7.3-GAP-AUDIT.md as the frozen contract.
 
 Prior sessions:
 
