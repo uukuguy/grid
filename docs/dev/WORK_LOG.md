@@ -6,6 +6,22 @@
 > **维护规则**: prepend-on-top per-phase observation block; 历史 entries 不改写; 累积观察形成 GSD usage manual。
 > **Leg A/B 措辞政策** (Phase 4.2 T6 sweep, 2026-04-28, see ADR-V2-024 supersedes ADR-V2-023): GSD Adoption Notes 与 active-milestone Phase 4.x entry 一律使用 ADR-V2-024 双轴模型措辞 (engine 接入面 / Grid 独立产品); Phase 4a 及更早历史 entry 保留原 Leg A/Leg B 措辞作为历史快照, 不回写。
 
+### v3.7 milestone — 实战可用性补全 + GSD auto-chain climb (2026-07-19 → 2026-07-23)
+
+> **Scope**: 整 v3.7 milestone 4-day session — 3 phases shipped (3.7.1 grid-cli / 3.7.2 web/ / 3.7.3 EAASP 本地仿真); 50 commits / 76 files / 17,095 insertions; 175/175 tests PASS; `climb 持续自主推进 3.7.3` user authorization unlocked single-session end-to-end execution (discuss → plan → execute → verify → milestone-close) with 0 human checkpoints. v3.7.4 SKIPPED per user 2026-07-19 explicit deferral → v3.8 candidate scope decision pending.
+
+- **观察 1: GSD `auto` flag 在 plan-phase → execute-phase 链上正确传播 chain state** (`workflow._auto_chain_active=true` 由 `discuss-phase --auto` 设置, plan-phase step 15 + execute-phase step 5.7 都读取, 实现 flat chain without re-prompting). 关键 setting 时点: `discuss-phase --auto` exit 后立即 set; plan-phase init 重新 read; execute-phase init 再次 read — 3 处都拿到 true 才 chain 跑通
+  - 收获: 未来 phase 都默认 `--auto` 除非 user 显式要中途介入; 手 single-session 跑 multi-phase 用 `climb 持续自主推进` + auto-chain = 5 skills (discuss / plan / execute / complete-milestone) 0 checkpoint
+- **观察 2: `gsd-tools milestone complete` 在 multi-milestone ROADMAP 上 analyzer 误判 v3.6 (latest heading)** —— produce 0 phases / 0 plans / 0 tasks in entry; archive 文件本身正确写入 (`milestones/v3.7-ROADMAP.md` 20.2K),但 `MILESTONES.md` 自动条目数字错误
+  - 不顺手点: orchestrator 必须验证 JSON counts before trusting, 不能盲信 auto-entry. Phase 4.1 Q9 类 lesson (LEDGER/STATE 转述 stale) 跨工具复现 — gsd-tools 转述 phase counts 同样会 stale
+  - 收获: milestone close 后 manual supplement MILESTONES.md entry with actual stats — 这次手动补了 3 phases / 7 plans / 18 tasks / 50 commits / 175 tests PASS. Pattern 落地到 v3.8+: `milestone complete` 之后必 verify entry counts + manual fix
+- **观察 3: `--no-transition` flag 是 auto-chain 与 manual handoff 之间的分水岭** —— plan-phase auto-advance to execute-phase 时传 `--no-transition` 让 execute-phase 验证后 return 不再 chain next phase. 这次 v3.7 因为是 milestone boundary (`milestone close` ≠ `transition`), execute-phase 用 `--no-transition` → 返回后由独立 `/gsd-complete-milestone` skill 处理归档
+  - 收获: chain flow 是 `discuss → plan → execute` (同 milestone 内 phases), 而 milestone closure 是独立 skill. 跨 milestone 必须 break chain, 用 `--no-transition` 显式断点
+- **观察 4: Pyright `reportArgumentType "str | None" → str` on SQLite ROW access 是项目级 false-positive** —— Phase 3.7.3 `record_governance_decision()` 接 `row[0]` 时 7 个参数都报 warning, 但 runtime 131/131 PASS + CHECK constraint 保证非 NULL. 跟 Phase 5.4 Fact 5 同模式 (Pyright on lang/ 有真假诊断) — 这类 warning 一律 ignore, runtime tests 才是 ground truth
+  - 收获: Pyright warnings 在新 Python 代码上默认不修, 只在 SPECIFIC correctness issue (unreachable code, missing imports outside sandbox) 才动
+- **观察 5: 50-commit v3.7 batch unpushed (`main...origin/main [ahead 42]`) 持续累积** —— 累积跨 v3.5 + v3.6 + v3.7 三个 milestone. 这次只 push 了 v3.7 tag (`git push origin v3.7`), commits 仍 unpushed. 不是 blocker (本仓 CI 不严), 但 git log 长期远离 origin
+  - 收获: push 决策持续 defer 给 user (CLAUDE.md 默认 auto-allow, 但 user 偏 manual for 50+ commit batches). 标 进 RESUME-NEXT-SESSION 提示下次 session 优先 push
+
 ### Phase 4.1 — Audit-only Design-heavy Phase (2026-04-27)
 
 > **Scope**: Phase 4.1 audit-only design-heavy phase (vs 4.0 mechanical cleanup) 跑 GSD 时浮现的不顺手处。**来源**: T1+T2 段 verbatim from `04.1-OBSERVATIONS-WIP.md` (T3 跨 `/clear` 边界 handoff artifact, 已在 Step 6.4 删除); T3 user 决定 SKIP / GOVERNANCE-03 deferred; T4+T5 post-resume 同 session 直接观察; 整体 vs 4.0 对比作为 cross-cutting reflection。
