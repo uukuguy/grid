@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
@@ -253,6 +253,45 @@ impl AuthConfig {
             Ok(token_data) => Some(token_data.claims),
             Err(_) => None,
         }
+    }
+
+    /// 签发 JWT token（v3.8 multi-user）
+    ///
+    /// Returns the encoded compact JWS and the expiration timestamp.
+    /// Error string is operator-actionable (never panics) so callers can
+    /// surface a 401/500 with diagnostic body without crashing the server.
+    pub fn mint_jwt(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        email: &str,
+        role: &str,
+        ttl_secs: i64,
+    ) -> Result<(String, i64), String> {
+        let secret = self
+            .jwt_secret
+            .as_ref()
+            .ok_or_else(|| "GRID_JWT_SECRET not configured".to_string())?;
+
+        let now = Utc::now().timestamp();
+        let exp = now + ttl_secs;
+        let claims = JwtClaims {
+            sub: user_id.into(),
+            email: email.into(),
+            role: role.into(),
+            tenant_id: tenant_id.into(),
+            iat: now,
+            exp,
+        };
+
+        let token = encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(secret.as_bytes()),
+        )
+        .map_err(|e| format!("jwt_encode_failed: {e}"))?;
+
+        Ok((token, exp))
     }
 }
 
