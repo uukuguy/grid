@@ -24,11 +24,17 @@ const DEFAULT_HMAC_SECRET: &str = "grid-default-hmac-secret-change-in-production
 use super::roles::Role;
 
 /// JWT claims structure
+///
+/// `tenant_id` is REQUIRED for multi-user mode (v3.8); tokens signed before
+/// v3.8 (which lack this field) deserialize to `None` and `validate_jwt`
+/// returns `None`. This is a deliberate breaking change documented in
+/// `docs/status/PRODUCT_STATUS_2026-07-17.md` §Auth Migration.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtClaims {
     pub sub: String,   // User ID
     pub email: String, // User email
     pub role: String,  // User role
+    pub tenant_id: String, // Tenant ID (v3.8+ — required)
     pub exp: i64,      // Expiration timestamp
     pub iat: i64,      // Issued at timestamp
 }
