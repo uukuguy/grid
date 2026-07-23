@@ -124,7 +124,8 @@ fn token_without_tenant_id_rejected() {
     // Hand-craft a JWT with the legacy claims (no tenant_id) using the same
     // secret. jsonwebtoken requires the secret to actually decode the JSON
     // before checking fields. To produce a "no tenant_id" token we use a
-    // separately constructed serializer.
+    // separately constructed serializer. (v3.8.1 also requires `jti`; this
+    // legacy-shape token lacks both → still rejected for the right reason.)
     use jsonwebtoken::{encode, EncodingKey, Header};
     let claims = serde_json::json!({
         "sub": "user-a",
@@ -153,6 +154,7 @@ fn expired_token_rejected() {
     let claims = serde_json::json!({
         "sub": "user-a",
         "tenant_id": "tenant-x",
+        "jti": "test-jti-001",
         "email": "a@example.com",
         "role": "user",
         "iat": 0i64,

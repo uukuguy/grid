@@ -29,12 +29,17 @@ use super::roles::Role;
 /// v3.8 (which lack this field) deserialize to `None` and `validate_jwt`
 /// returns `None`. This is a deliberate breaking change documented in
 /// `docs/status/PRODUCT_STATUS_2026-07-17.md` §Auth Migration.
+///
+/// `jti` is REQUIRED for v3.8.1 (logout blacklist); tokens without it
+/// fail `validate_jwt`. Distinct from `sub` (subject) — `sub` is the user,
+/// `jti` is the token's per-issuance identifier (UUIDv4).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
     pub sub: String,        // User ID
     pub email: String,      // User email
     pub role: String,       // User role
     pub tenant_id: String,  // Tenant ID (v3.8+ — required)
+    pub jti: String,        // Per-token identifier (v3.8.1+ — required for blacklist)
     pub exp: i64,           // Expiration timestamp
     pub iat: i64,           // Issued at timestamp
 }
@@ -332,6 +337,7 @@ impl AuthConfig {
             email: email.into(),
             role: role.into(),
             tenant_id: tenant_id.into(),
+            jti: uuid::Uuid::new_v4().to_string(),
             iat: now,
             exp,
         };
