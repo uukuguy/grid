@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::{body::Body, extract::Request, middleware::Next, response::Response};
 use grid_engine::audit::{AuditEvent, AuditStorage};
-use grid_engine::auth::UserContext;
+use grid_engine::auth::{JwtClaims, UserContext};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 
@@ -52,6 +52,15 @@ pub async fn audit_middleware(
         .get::<UserContext>()
         .and_then(|u| u.user_id.clone());
 
+    // v3.8.1+: also extract tenant_id + role from Extension<JwtClaims>
+    // (set by AuthMode::Full middleware in 03.8.0). For non-Full modes
+    // (None / ApiKey) the JWT extension is absent and both fall back to None.
+    let (tenant_id, role) = req
+        .extensions()
+        .get::<JwtClaims>()
+        .map(|c| (Some(c.tenant_id.clone()), Some(c.role.clone())))
+        .unwrap_or((None, None));
+
     // Extract client IP
     let client_ip = req
         .extensions()
@@ -90,6 +99,8 @@ pub async fn audit_middleware(
     // Log asynchronously (don't block the response)
     let db_path = state.get_db_path().await;
     let log_user_id = user_id;
+    let log_tenant_id = tenant_id;
+    let log_role = role;
     let log_client_ip = client_ip;
     let log_method = method;
     let log_path = path;
@@ -110,6 +121,8 @@ pub async fn audit_middleware(
         let event = AuditEvent {
             event_type: "http_request".to_string(),
             user_id: log_user_id,
+            tenant_id: log_tenant_id,   // v3.8.1+ — populated from Extension<JwtClaims>
+            role: log_role,             // v3.8.1+ — populated from Extension<JwtClaims>
             session_id: None,
             resource_id: None,
             action: format!("{} {}", log_method, log_path),
