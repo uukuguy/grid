@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Post-Activation Docs Sync 🟡 STARTED 2026-07-18
-status: completed
-stopped_at: v3.7 milestone SHIPPED + ARCHIVED (2026-07-23) — v3.8 candidate scope decision pending
-last_updated: "2026-07-22T21:30:08.360Z"
-last_activity: 2026-07-22
+milestone: v3.8
+milestone_name: grid-server multi-user login (Tenant + RBAC + JWT) 🟡 STARTED 2026-07-23
+status: not-started
+stopped_at: v3.8 milestone bootstrapping — REQUIREMENTS/ROADMAP pending
+last_updated: "2026-07-23T22:15:00.000Z"
+last_activity: 2026-07-23
 progress:
-  total_phases: 3
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,7 +20,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Phase 3.7.3 — EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)
+**Current focus:** Milestone v3.8 — grid-server multi-user login (Tenant + RBAC + JWT). Phase numbering continues after v3.7 (last phase was 03.7.3). User-deferred from v3.7.4 on 2026-07-19, in priority per ADR-V2-024 Open Item #3.
 
 Canonical product-status sources:
 
@@ -29,9 +29,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 3.7.4
-Plan: Not started
-Status: v3.7.3 milestone complete (2/2 plans, 8/8 REQ-EAASP closed)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Milestone v3.8 initialized, REQUIREMENTS + ROADMAP pending
+Last activity: 2026-07-23 — v3.8 milestone started
 
 | Wave | Phase | Status |
 |------|-------|--------|
@@ -129,9 +130,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-22T21:30:08.357Z
-Stopped at: v3.7 milestone SHIPPED + ARCHIVED (2026-07-23) — v3.8 candidate scope decision pending
-Resume path: Execute 03.7.3-02-PLAN.md using docs/audit/3.7.3-GAP-AUDIT.md as the frozen contract.
+Last session: 2026-07-23 (this climb session)
+Stopped at: v3.8 milestone bootstrapped (PROJECT.md + STATE.md updated). REQUIREMENTS + ROADMAP pending.
+Resume path: Pick up at REQUIREMENTS.md definition for v3.8. Bataon: `.planning/RESUME-NEXT-SESSION.md` (regenerate after ROADMAP committed).
 
 Prior sessions:
 

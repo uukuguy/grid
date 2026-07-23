@@ -16,24 +16,46 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Phase: v3.7 实战可用性补全 (Production-Usability Closure)
+## Current Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT)
 
-**Goal:** Close the gap between Activation Quality 9.0+ scores and 实战可用性 (real-world usability) declared by the user on 2026-07-19. Activation 9.0 ≠ 实战可用 — `grid-cli` / `web/` / `EAASP 本地仿真` must be runnable end-to-end against realistic enterprise-agent scenarios before this milestone closes. `grid-server` multi-user login scenario is explicitly deferred to the next milestone per user direction.
+**Goal:** Take `grid-server` from single-user (`AuthMode::ApiKey` with `TenantContext::for_single_user`) to a real multi-user tenancy model: JWT-issued sessions that carry tenant + role claims, RBAC enforced at the route-handler layer, and session isolation that prevents cross-user data leak. Source of scope: user deferred from v3.7.4 on 2026-07-19; ADR-V2-024 Open Item #3 (grid-cli + grid-server priority axis) natural extension.
 
-**v3.7 scope** (per user 2026-07-19):
+**Target features:**
 
-| Surface | Activation Score | Real-world Status | v3.7 Target |
-|---------|------------------|-------------------|-------------|
-| `grid-cli` | 9.0 | 完整独立工作 (单用户跑 agent) | 端到端实战 verification; 16 commands work in 真实场景 walkthrough |
-| `web/` (grid-web single-user UI) | 9.0 | 实战不可用 (per user) | Dashboard for monitoring/tracking agents; close Activation-9.0 ↔ 实战-不可用 gap |
-| `tools/eaasp-*/` (EAASP 本地仿真) | 5/7 audit | 接近实战企业平台 | Simulator-level → credible enterprise simulation; wire minimum Phase 3 governance gate hooks |
-| `grid-server` multi-user login | 9.0 | Deferred to v3.8 | RBAC + JWT tenant scoping + cross-user session isolation — user explicitly deferred |
+- **JWT tenant scoping** — `AuthMode::Full` route validates JWT claims (`tenant_id`, `user_id`, `role`); request context is per-tenant; invalid/missing claims → 401
+- **Multi-user session isolation** — `TenantContext::for_multi_user(tenant_id, user_id, role)`; cross-user session access (`GET /api/v1/sessions/<id>` owned by user B, called by user A) → 403
+- **RBAC route-layer enforcement** — `Role × Action` matrix already exists (`viewer`/`user`/`admin`/`owner` × 7 actions); wire enforcement through `tower` middleware so handlers can declare `requires(Permission::Write)` etc.
+- **Password / API key issuance endpoints** — login + token mint; refresh token path
+- **Per-user audit trail** — `audit_log` rows tag `user_id` and `tenant_id`; existing `audit.rs` middleware extends to stamp them when set
+- **Tests** — hermetic integration tests: 2-user concurrent session isolation, role escalation blocked, JWT expiry, missing claim 401; full UAT walkthrough documented
 
-**Out of scope (deferred to v3.8+):**
+**Out of scope (deferred to v3.9+):**
 
-- `grid-server` multi-user login scenario — single-user stack must be 实战可用 first.
-- EAASP v2.0 platform-evolution gaps (Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem) — only the minimum credible hooks are wired in v3.7.3; full implementations remain future work.
-- `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) — user did NOT include them in v3.7; stay in Activation-deferred backlog.
+- `web-platform/` multi-tenant UI wiring (UI already at 7.5; multi-user wiring is independent and stays a separate milestone)
+- `grid-desktop` 6.5→9.0 (no scope change from v3.7)
+- EAASP v2.0 Phase 3 production OPA backend — only the in-process `PolicyEngine` from 3.7.3 is in scope; OPA sidecar is a separate item
+- Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem — untouched
+- SSO (SAML/OIDC) — defer; JWT-only this milestone
+
+**See also (canonical sources):**
+- `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
+- `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` (engine vs data/integration dual-axis; Open Item #3 = grid-cli + grid-server priority)
+- `crates/grid-engine/src/auth/roles.rs` (Role × Action matrix exists, this milestone wires enforcement)
+- `crates/grid-server/src/middleware/auth.rs` (existing 9.8K middleware — extends, does not replace)
+- `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
+
+**Key context:**
+- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
+- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; both at 9.0+ already, so this milestone pushes the priority axis to multi-user credibility.
+- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1). Auth is **Grid 独立产品** surface, but the engine-layer `AuthMode`/`Permission`/`Role` types live in `grid-engine` and are reused — no duplication.
+
+**Previous milestones:**
+- **v3.7 实战可用性补全 SHIPPED 2026-07-23** (3 phases: 3.7.1 grid-cli / 3.7.2 web/ / 3.7.3 EAASP; 3.7.4 SKIPPED → v3.8)
+- **v3.6 Post-Activation Docs Sync SHIPPED 2026-07-19**
+- **Grid 独立产品 Activation SHIPPED 2026-06-17** (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
+- v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
+- v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
+- v3.3 Engine + Platform Debt Sweep ✅ SHIPPED 2026-06-07
 
 **See also (canonical sources)**:
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
