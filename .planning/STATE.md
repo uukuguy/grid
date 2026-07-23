@@ -30,9 +30,9 @@ Canonical product-status sources:
 ## Current Position
 
 Phase: 03.8.1 — Login + Refresh + Logout + Audit stamping
-Plan: PARTIAL — T1 (UserStore) + T3 (JwtClaims.jti) SHIPPED; T2 (TokenBlacklist), T4 (HTTP handlers), T5 (Audit migration), T6 (tests) pending
-Status: 03.8.0 closed. 03.8.1 in progress (foundation landed).
-Last activity: 2026-07-23 — UserStore + jti field landed; paused at T5 audit migration
+Plan: PARTIAL — T1 (UserStore) + T2 (TokenBlacklist) + T3 (JwtClaims.jti) + T5 (Audit migration v14) + T5b (audit middleware enrichment) SHIPPED. Pending: T4 (HTTP handlers login/refresh/logout), T6 (hermetic tests).
+Status: 03.8.0 closed. 03.8.1 in progress (auth infrastructure landed; endpoints still pending).
+Last activity: 2026-07-23 — audit middleware reads tenant_id+role from Extension<JwtClaims>; 39/39 audit tests pass.
 
 | Wave | Phase | Status |
 |------|-------|--------|
