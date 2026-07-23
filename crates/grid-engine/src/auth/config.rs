@@ -142,11 +142,31 @@ impl Default for AuthConfig {
             );
             DEFAULT_HMAC_SECRET.to_string()
         });
+        let jwt_secret = match std::env::var("GRID_JWT_SECRET") {
+            Ok(s) if !s.is_empty() => {
+                if s.as_bytes().len() < 32 {
+                    tracing::warn!(
+                        "GRID_JWT_SECRET is shorter than 32 bytes ({} bytes). \
+                         HS256 recommends >= 32 bytes of entropy for production use.",
+                        s.as_bytes().len()
+                    );
+                }
+                Some(s)
+            }
+            _ => {
+                tracing::warn!(
+                    "GRID_JWT_SECRET is not set. AuthMode::Full will reject all token \
+                     mint/verify requests until this is configured. Single-user \
+                     (AuthMode::ApiKey) deployments are unaffected."
+                );
+                None
+            }
+        };
         Self {
             mode: AuthMode::default(),
             api_keys: HashMap::new(),
             require_user_id: false,
-            jwt_secret: None,
+            jwt_secret,
             hmac_secret,
         }
     }
