@@ -162,6 +162,8 @@ impl SandboxAuditEvent {
         AuditEvent {
             event_type: "sandbox".to_string(),
             user_id: None,
+            tenant_id: None,
+            role: None,
             session_id: session_id.map(|s| s.to_string()),
             resource_id: Some(self.sandbox_id.clone()),
             action: self.action.to_string(),

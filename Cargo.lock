@@ -3354,6 +3354,7 @@ dependencies = [
  "hex",
  "hmac",
  "http-body-util",
+ "jsonwebtoken",
  "rusqlite",
  "serde",
  "serde_json",

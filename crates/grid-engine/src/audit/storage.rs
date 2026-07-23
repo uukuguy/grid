@@ -10,6 +10,8 @@ pub struct AuditStorage {
 pub struct AuditEvent {
     pub event_type: String,
     pub user_id: Option<String>,
+    pub tenant_id: Option<String>,   // v3.8.1+ — populated from Extension<JwtClaims>
+    pub role: Option<String>,         // v3.8.1+ — populated from Extension<JwtClaims>
     pub session_id: Option<String>,
     pub resource_id: Option<String>,
     pub action: String,
@@ -18,12 +20,31 @@ pub struct AuditEvent {
     pub ip_address: Option<String>,
 }
 
+impl Default for AuditEvent {
+    fn default() -> Self {
+        Self {
+            event_type: String::new(),
+            user_id: None,
+            tenant_id: None,
+            role: None,
+            session_id: None,
+            resource_id: None,
+            action: String::new(),
+            result: String::new(),
+            metadata: None,
+            ip_address: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AuditRecord {
     pub id: i64,
     pub timestamp: String,
     pub event_type: String,
     pub user_id: Option<String>,
+    pub tenant_id: Option<String>,    // v3.8.1+ (nullable on rows from pre-v3.8.1)
+    pub role: Option<String>,         // v3.8.1+
     pub session_id: Option<String>,
     pub resource_id: Option<String>,
     pub action: String,
@@ -108,11 +129,13 @@ impl AuditStorage {
         );
 
         self.conn.execute(
-            "INSERT INTO audit_logs (timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO audit_logs (timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             rusqlite::params![
                 timestamp,
                 event.event_type,
                 event.user_id,
+                event.tenant_id,
+                event.role,
                 event.session_id,
                 event.resource_id,
                 event.action,
@@ -200,7 +223,7 @@ impl AuditStorage {
         limit: u32,
         offset: u32,
     ) -> rusqlite::Result<Vec<AuditRecord>> {
-        let mut sql = String::from("SELECT id, timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE 1=1");
+        let mut sql = String::from("SELECT id, timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE 1=1");
 
         if event_type.is_some() {
             sql.push_str(" AND event_type = ?");
@@ -232,14 +255,16 @@ impl AuditStorage {
                 timestamp: row.get(1)?,
                 event_type: row.get(2)?,
                 user_id: row.get(3)?,
-                session_id: row.get(4)?,
-                resource_id: row.get(5)?,
-                action: row.get(6)?,
-                result: row.get(7)?,
-                metadata: row.get(8)?,
-                ip_address: row.get(9)?,
-                prev_hash: row.get(10)?,
-                hash: row.get(11)?,
+                tenant_id: row.get(4)?,
+                role: row.get(5)?,
+                session_id: row.get(6)?,
+                resource_id: row.get(7)?,
+                action: row.get(8)?,
+                result: row.get(9)?,
+                metadata: row.get(10)?,
+                ip_address: row.get(11)?,
+                prev_hash: row.get(12)?,
+                hash: row.get(13)?,
             })
         })?;
 
@@ -255,7 +280,7 @@ impl AuditStorage {
         offset: u32,
     ) -> rusqlite::Result<Vec<AuditRecord>> {
         let mut sql = String::from(
-            "SELECT id, timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE event_type = 'sandbox'"
+            "SELECT id, timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE event_type = 'sandbox'"
         );
 
         if sandbox_id.is_some() {
@@ -287,14 +312,16 @@ impl AuditStorage {
                 timestamp: row.get(1)?,
                 event_type: row.get(2)?,
                 user_id: row.get(3)?,
-                session_id: row.get(4)?,
-                resource_id: row.get(5)?,
-                action: row.get(6)?,
-                result: row.get(7)?,
-                metadata: row.get(8)?,
-                ip_address: row.get(9)?,
-                prev_hash: row.get(10)?,
-                hash: row.get(11)?,
+                tenant_id: row.get(4)?,
+                role: row.get(5)?,
+                session_id: row.get(6)?,
+                resource_id: row.get(7)?,
+                action: row.get(8)?,
+                result: row.get(9)?,
+                metadata: row.get(10)?,
+                ip_address: row.get(11)?,
+                prev_hash: row.get(12)?,
+                hash: row.get(13)?,
             })
         })?;
 
@@ -313,7 +340,7 @@ impl AuditStorage {
         until: Option<&str>,
         limit: u32,
     ) -> rusqlite::Result<Vec<AuditRecord>> {
-        let mut sql = String::from("SELECT id, timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE 1=1");
+        let mut sql = String::from("SELECT id, timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE 1=1");
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(s) = since {
@@ -337,14 +364,16 @@ impl AuditStorage {
                 timestamp: row.get(1)?,
                 event_type: row.get(2)?,
                 user_id: row.get(3)?,
-                session_id: row.get(4)?,
-                resource_id: row.get(5)?,
-                action: row.get(6)?,
-                result: row.get(7)?,
-                metadata: row.get(8)?,
-                ip_address: row.get(9)?,
-                prev_hash: row.get(10)?,
-                hash: row.get(11)?,
+                tenant_id: row.get(4)?,
+                role: row.get(5)?,
+                session_id: row.get(6)?,
+                resource_id: row.get(7)?,
+                action: row.get(8)?,
+                result: row.get(9)?,
+                metadata: row.get(10)?,
+                ip_address: row.get(11)?,
+                prev_hash: row.get(12)?,
+                hash: row.get(13)?,
             })
         })?;
 
@@ -441,6 +470,8 @@ mod tests {
                 timestamp TEXT NOT NULL DEFAULT (datetime('now')),
                 event_type TEXT NOT NULL,
                 user_id TEXT,
+                tenant_id TEXT,
+                role TEXT,
                 session_id TEXT,
                 resource_id TEXT,
                 action TEXT NOT NULL,
@@ -460,6 +491,8 @@ mod tests {
         AuditEvent {
             event_type: event_type.to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: action.to_string(),
@@ -553,6 +586,8 @@ mod tests {
             .log(AuditEvent {
                 event_type: "sandbox".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: Some("sandbox-1".to_string()),
                 action: "Execute".to_string(),
@@ -566,6 +601,8 @@ mod tests {
             .log(AuditEvent {
                 event_type: "sandbox".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: Some("sandbox-2".to_string()),
                 action: "PolicyDeny".to_string(),

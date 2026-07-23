@@ -14,6 +14,8 @@ mod tests {
                 timestamp TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 user_id TEXT,
+                tenant_id TEXT,
+                role TEXT,
                 session_id TEXT,
                 resource_id TEXT,
                 action TEXT NOT NULL,
@@ -42,11 +44,13 @@ mod tests {
             let metadata_str = event.metadata.as_ref().map(|m| m.to_string());
 
             self.conn.execute(
-                "INSERT INTO audit_logs (timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO audit_logs (timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rusqlite::params![
                     chrono::Utc::now().to_rfc3339(),
                     event.event_type,
                     event.user_id,
+                    event.tenant_id,
+                    event.role,
                     event.session_id,
                     event.resource_id,
                     event.action,
@@ -66,7 +70,7 @@ mod tests {
             limit: u32,
             offset: u32,
         ) -> rusqlite::Result<Vec<AuditRecord>> {
-            let mut sql = String::from("SELECT id, timestamp, event_type, user_id, session_id, resource_id, action, result, metadata, ip_address FROM audit_logs WHERE 1=1");
+            let mut sql = String::from("SELECT id, timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address FROM audit_logs WHERE 1=1");
 
             if event_type.is_some() {
                 sql.push_str(" AND event_type = ?");
@@ -99,12 +103,14 @@ mod tests {
                     timestamp: row.get(1)?,
                     event_type: row.get(2)?,
                     user_id: row.get(3)?,
-                    session_id: row.get(4)?,
-                    resource_id: row.get(5)?,
-                    action: row.get(6)?,
-                    result: row.get(7)?,
-                    metadata: row.get(8)?,
-                    ip_address: row.get(9)?,
+                    tenant_id: row.get(4)?,
+                    role: row.get(5)?,
+                    session_id: row.get(6)?,
+                    resource_id: row.get(7)?,
+                    action: row.get(8)?,
+                    result: row.get(9)?,
+                    metadata: row.get(10)?,
+                    ip_address: row.get(11)?,
                     prev_hash: String::new(),
                     hash: String::new(),
                 })
@@ -146,6 +152,8 @@ mod tests {
         let event = AuditEvent {
             event_type: "user.login".to_string(),
             user_id: Some("user123".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: Some("session456".to_string()),
             resource_id: None,
             action: "login".to_string(),
@@ -167,6 +175,8 @@ mod tests {
             timestamp: "2024-01-01T00:00:00Z".to_string(),
             event_type: "user.login".to_string(),
             user_id: Some("user123".to_string()),
+            tenant_id: Some("tenant-x".to_string()),
+            role: Some("user".to_string()),
             session_id: Some("session456".to_string()),
             resource_id: None,
             action: "login".to_string(),
@@ -189,6 +199,8 @@ mod tests {
         let event = AuditEvent {
             event_type: "user.login".to_string(),
             user_id: Some("user123".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: Some("session456".to_string()),
             resource_id: None,
             action: "login".to_string(),
@@ -211,6 +223,8 @@ mod tests {
         let event = AuditEvent {
             event_type: "tool.execute".to_string(),
             user_id: Some("user456".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: Some("session789".to_string()),
             resource_id: Some("file.txt".to_string()),
             action: "execute".to_string(),
@@ -242,6 +256,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: "test.event".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: format!("action{}", i),
@@ -267,6 +283,8 @@ mod tests {
         let event1 = AuditEvent {
             event_type: "user.login".to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "login".to_string(),
@@ -279,6 +297,8 @@ mod tests {
         let event2 = AuditEvent {
             event_type: "user.logout".to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "logout".to_string(),
@@ -291,6 +311,8 @@ mod tests {
         let event3 = AuditEvent {
             event_type: "user.login".to_string(),
             user_id: Some("user2".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "login".to_string(),
@@ -317,6 +339,8 @@ mod tests {
         let event1 = AuditEvent {
             event_type: "test.event".to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "action1".to_string(),
@@ -329,6 +353,8 @@ mod tests {
         let event2 = AuditEvent {
             event_type: "test.event".to_string(),
             user_id: Some("user2".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "action2".to_string(),
@@ -341,6 +367,8 @@ mod tests {
         let event3 = AuditEvent {
             event_type: "test.event".to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "action3".to_string(),
@@ -370,6 +398,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: "test.event".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: format!("action{}", i),
@@ -397,6 +427,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: "test.event".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: format!("action{}", i),
@@ -424,6 +456,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: "user.login".to_string(),
                 user_id: Some(format!("user{}", i)),
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: "login".to_string(),
@@ -454,6 +488,8 @@ mod tests {
         let event = AuditEvent {
             event_type: "user.login".to_string(),
             user_id: Some("user1".to_string()),
+            tenant_id: None,
+            role: None,
             session_id: None,
             resource_id: None,
             action: "login".to_string(),
@@ -489,6 +525,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: "test.event".to_string(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: format!("action{}", i),
@@ -524,6 +562,8 @@ mod tests {
             let event = AuditEvent {
                 event_type: event_type.to_string(),
                 user_id: Some(user_id.to_string()),
+                tenant_id: None,
+                role: None,
                 session_id: None,
                 resource_id: None,
                 action: action.to_string(),

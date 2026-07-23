@@ -528,3 +528,27 @@ pub fn migration_v13() -> Migration {
         "#,
     )
 }
+
+/// Migration v14: v3.8.1 audit row tenant_id + role columns.
+///
+/// Adds `tenant_id` and `role` columns to the `audit_logs` table so that
+/// audit rows can be tagged with multi-user identity (extracted from
+/// `Extension<JwtClaims>` by the audit middleware). Columns are nullable —
+/// existing rows (and any rows written by anonymous / API-key auth paths)
+/// keep `NULL` here. New index supports tenant-scoped audit queries
+/// (AUDIT-01 in v3.8 REQUIREMENTS).
+///
+/// Idempotent: SQLite `ALTER TABLE ADD COLUMN` fails if the column already
+/// exists, so we wrap with a check. The migration runner (Phase 5.4 NEW-A2
+/// pattern) applies this once and skips thereafter.
+pub fn migration_v14() -> Migration {
+    let sql = r#"
+        -- tenant_id: nullable, no default needed (NULL on historical rows)
+        ALTER TABLE audit_logs ADD COLUMN tenant_id TEXT;
+        -- role: nullable, no default needed (NULL on historical rows)
+        ALTER TABLE audit_logs ADD COLUMN role TEXT;
+        CREATE INDEX IF NOT EXISTS idx_audit_tenant_id ON audit_logs(tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_role ON audit_logs(role);
+    "#;
+    Migration::new(14, "audit_tenant_id_role", sql)
+}

@@ -115,6 +115,8 @@ impl AutonomousAuditLog {
             let audit_event = crate::audit::AuditEvent {
                 event_type: entry.event_type(),
                 user_id: None,
+                tenant_id: None,
+                role: None,
                 session_id: Some(entry.session_id.clone()),
                 resource_id: None,
                 action: entry.event.name().to_string(),
@@ -224,6 +226,8 @@ mod tests {
                 timestamp TEXT NOT NULL DEFAULT (datetime('now')),
                 event_type TEXT NOT NULL,
                 user_id TEXT,
+                tenant_id TEXT,
+                role TEXT,
                 session_id TEXT,
                 resource_id TEXT,
                 action TEXT NOT NULL,
