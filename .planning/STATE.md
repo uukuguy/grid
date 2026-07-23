@@ -29,10 +29,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.8.0 — JWT primitive + AuthMode::Full path
-Plan: SHIPPED (8 commits, 9/9 hermetic tests PASS, 8/8 existing auth tests PASS)
-Status: Phase 03.8.0 closed. Next: 03.8.1 (login/refresh/logout endpoints + audit stamping).
-Last activity: 2026-07-23 — Phase 03.8.0 verified and SHIPPED
+Phase: 03.8.1 — Login + Refresh + Logout + Audit stamping
+Plan: PARTIAL — T1 (UserStore) + T3 (JwtClaims.jti) SHIPPED; T2 (TokenBlacklist), T4 (HTTP handlers), T5 (Audit migration), T6 (tests) pending
+Status: 03.8.0 closed. 03.8.1 in progress (foundation landed).
+Last activity: 2026-07-23 — UserStore + jti field landed; paused at T5 audit migration
 
 | Wave | Phase | Status |
 |------|-------|--------|
