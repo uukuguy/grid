@@ -76,4 +76,8 @@ Requirements grouped by category. REQ-IDs use v3.8 numbering — continue from v
 
 | Phase | REQ-IDs |
 |-------|---------|
-| _TBD_ | _all 21 requirements_ |
+| **03.8.0** JWT primitive + AuthMode::Full path | AUTH-01, AUTH-04, AUTH-05 |
+| **03.8.1** Login / refresh / logout endpoints + audit | AUTH-02, AUTH-03, AUDIT-01 |
+| **03.8.2** RBAC route-layer + TenantContext::for_multi_user | RBAC-01, RBAC-02, RBAC-03, RBAC-04, TENANT-01, TENANT-02, TENANT-03, SESSION-01, SESSION-02, SESSION-03, AUDIT-02 |
+| **03.8.3** Docs + UAT walkthrough + regression sweep | DOC-01, DOC-02, DOC-03, TEST-01, TEST-02, TEST-03, TEST-04, TEST-05, TEST-06 |
+| **Total** | **21 REQ-IDs / 4 phases / 6 categories** |
