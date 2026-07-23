@@ -29,14 +29,14 @@ use super::roles::Role;
 /// v3.8 (which lack this field) deserialize to `None` and `validate_jwt`
 /// returns `None`. This is a deliberate breaking change documented in
 /// `docs/status/PRODUCT_STATUS_2026-07-17.md` §Auth Migration.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
-    pub sub: String,   // User ID
-    pub email: String, // User email
-    pub role: String,  // User role
-    pub tenant_id: String, // Tenant ID (v3.8+ — required)
-    pub exp: i64,      // Expiration timestamp
-    pub iat: i64,      // Issued at timestamp
+    pub sub: String,        // User ID
+    pub email: String,      // User email
+    pub role: String,       // User role
+    pub tenant_id: String,  // Tenant ID (v3.8+ — required)
+    pub exp: i64,           // Expiration timestamp
+    pub iat: i64,           // Issued at timestamp
 }
 
 /// 认证模式
@@ -143,24 +143,19 @@ impl Default for AuthConfig {
             DEFAULT_HMAC_SECRET.to_string()
         });
         let jwt_secret = match std::env::var("GRID_JWT_SECRET") {
-            Ok(s) if !s.is_empty() => {
-                if s.as_bytes().len() < 32 {
-                    tracing::warn!(
-                        "GRID_JWT_SECRET is shorter than 32 bytes ({} bytes). \
-                         HS256 recommends >= 32 bytes of entropy for production use.",
-                        s.as_bytes().len()
-                    );
-                }
-                Some(s)
-            }
-            _ => {
+            Ok(s) if s.as_bytes().len() >= MIN_JWT_SECRET_BYTES => Some(s),
+            Ok(s) => {
                 tracing::warn!(
-                    "GRID_JWT_SECRET is not set. AuthMode::Full will reject all token \
-                     mint/verify requests until this is configured. Single-user \
-                     (AuthMode::ApiKey) deployments are unaffected."
+                    "GRID_JWT_SECRET is shorter than {} bytes ({} bytes). \
+                     Treating as unset — AuthMode::Full will reject all token \
+                     mint/verify requests until a >= {}-byte secret is provided.",
+                    MIN_JWT_SECRET_BYTES,
+                    s.as_bytes().len(),
+                    MIN_JWT_SECRET_BYTES
                 );
                 None
             }
+            Err(_) => None,
         };
         Self {
             mode: AuthMode::default(),
@@ -169,6 +164,43 @@ impl Default for AuthConfig {
             jwt_secret,
             hmac_secret,
         }
+    }
+}
+
+/// Minimum acceptable length for `GRID_JWT_SECRET` (HS256 minimum per RFC 7518 §3.2:
+/// "A key of the same size as the hash output ... or larger MUST be used").
+/// 32 bytes = 256 bits, matching the HS256 output size.
+pub const MIN_JWT_SECRET_BYTES: usize = 32;
+
+/// Production constructor for `AuthConfig` — strict-by-default per ADR-V2-028 D1.
+///
+/// Refuses to construct when `auth.mode = Full` and `GRID_JWT_SECRET` is
+/// unset or shorter than `MIN_JWT_SECRET_BYTES`. Single-user mode
+/// (`ApiKey`/`None`) tolerates a missing JWT secret.
+///
+/// Returns `Err` with an operator-actionable message rather than panicking,
+/// so the bootstrap path can surface the diagnostic to the operator's logs.
+pub fn try_from_env() -> Result<AuthConfig, String> {
+    let cfg = AuthConfig::default();
+    if cfg.mode == AuthMode::Full {
+        match cfg.jwt_secret.as_ref() {
+            Some(s) if s.as_bytes().len() >= MIN_JWT_SECRET_BYTES => Ok(cfg),
+            Some(s) => Err(format!(
+                "GRID_JWT_SECRET is too short: {} bytes (need >= {} bytes). \
+                 Generate at least 256 bits of cryptographic randomness, e.g. \
+                 `openssl rand -base64 32`.",
+                s.as_bytes().len(),
+                MIN_JWT_SECRET_BYTES
+            )),
+            None => Err(
+                "auth.mode = full requires GRID_JWT_SECRET to be set. \
+                 Generate at least 256 bits of cryptographic randomness, e.g. \
+                 `openssl rand -base64 32`."
+                    .to_string(),
+            ),
+        }
+    } else {
+        Ok(cfg)
     }
 }
 
