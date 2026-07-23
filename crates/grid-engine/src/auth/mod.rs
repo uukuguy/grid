@@ -4,6 +4,7 @@ pub mod api_key;
 pub mod config;
 pub mod middleware;
 pub mod roles;
+pub mod user_store;
 
 // Re-export config types
 pub use config::*;
@@ -13,6 +14,9 @@ pub use middleware::*;
 
 // Re-export roles types
 pub use roles::*;
+
+// Re-export user_store types
+pub use user_store::{UserRecord, UserStore};
 
 // Re-export api_key types (StoredApiKey to avoid conflict with config's ApiKey)
 pub use api_key::{ApiKeyResponse, ApiKeyStorage, StoredApiKey};
