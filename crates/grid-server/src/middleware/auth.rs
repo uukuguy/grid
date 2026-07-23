@@ -165,11 +165,17 @@ pub async fn auth_middleware_with_role(
                         };
 
                         let mut req = req;
+                        // Existing UserContext continues to flatten claims for the
+                        // existing API surface (no regression).
                         req.extensions_mut().insert(UserContext {
-                            user_id: Some(claims.sub),
+                            user_id: Some(claims.sub.clone()),
                             permissions,
                             role,
                         });
+                        // v3.8: also expose full claims so handlers in 03.8.2 can
+                        // read tenant_id for cross-tenant scoping. Handlers that
+                        // don't need it simply don't extract this extension.
+                        req.extensions_mut().insert(claims);
                         Ok(next.run(req).await)
                     } else {
                         Err(StatusCode::UNAUTHORIZED)
