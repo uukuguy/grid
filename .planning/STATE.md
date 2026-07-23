@@ -29,10 +29,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Milestone v3.8 initialized, REQUIREMENTS + ROADMAP pending
-Last activity: 2026-07-23 — v3.8 milestone started
+Phase: 03.8.0 — JWT primitive + AuthMode::Full path
+Plan: SHIPPED (8 commits, 9/9 hermetic tests PASS, 8/8 existing auth tests PASS)
+Status: Phase 03.8.0 closed. Next: 03.8.1 (login/refresh/logout endpoints + audit stamping).
+Last activity: 2026-07-23 — Phase 03.8.0 verified and SHIPPED
 
 | Wave | Phase | Status |
 |------|-------|--------|
