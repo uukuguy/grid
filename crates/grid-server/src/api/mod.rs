@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod agents;
 pub mod audit;
+pub mod auth;
 pub mod autonomous;
 pub mod budget;
 pub mod collaboration;
@@ -59,6 +60,13 @@ impl PaginationParams {
 
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        // v3.8.1: multi-user auth surface (login/refresh/logout).
+        // These routes intentionally run BEFORE the AuthMode::Full middleware
+        // would; the handlers themselves extract + validate the bearer for
+        // refresh/logout, login uses the request body.
+        .route("/auth/login", post(auth::login_handler))
+        .route("/auth/refresh", post(auth::refresh_handler))
+        .route("/auth/logout", post(auth::logout_handler))
         // More specific routes first — multi-session lifecycle (AJ-T9)
         .route("/sessions/start", post(sessions::start_session))
         .route("/sessions/active", get(sessions::list_active_sessions))

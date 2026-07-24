@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use grid_engine::{
-    auth::AuthConfig, mcp::McpStorage, metrics::MetricsRegistry, scheduler::Scheduler,
+    auth::{AuthConfig, AuthMode, TokenBlacklist, UserStore},
+    mcp::McpStorage, metrics::MetricsRegistry, scheduler::Scheduler,
     tools::approval::ApprovalGate, tools::interaction::InteractionGate,
     AgentEvent, AgentExecutorHandle, AgentRuntime,
 };
@@ -63,6 +64,17 @@ pub struct AppState {
     pub interaction_gate: Arc<InteractionGate>,
     /// Latest token budget snapshot per session, updated by background listener.
     pub budget_cache: Arc<DashMap<SessionId, TokenBudgetSnapshot>>,
+    /// v3.8.1: credential store for `POST /api/v1/auth/login`. Seeded from
+    /// `GRID_USERS_JSON` at startup (see `UserStore::from_env`). `Arc::clone`
+    /// is cheap — the UserStore is internally HashMap-backed and immutable
+    /// post-load.
+    pub users: Arc<UserStore>,
+    /// v3.8.1: in-memory token blacklist for logout. Single-instance only
+    /// — multi-instance deployments need a shared backend (v3.9+).
+    pub token_blacklist: Arc<TokenBlacklist>,
+    /// v3.8.1: TTL applied to newly-minted JWTs. Read by
+    /// `crates/grid-server/src/api/auth.rs`. Default = 86400 (24 h).
+    pub token_ttl_secs: i64,
 }
 
 impl AppState {
@@ -105,6 +117,38 @@ impl AppState {
             }
         });
 
+        // v3.8.1: load credential store. In single-user (AuthMode::ApiKey/None)
+        // mode this is permitted to fail-soft: an empty store is used so the
+        // /auth/login endpoint returns 401 for everything (correct behavior).
+        // In AuthMode::Full, fail-fast per ADR-V2-028 strict-by-default.
+        let users: Arc<UserStore> = match std::env::var("GRID_USERS_JSON") {
+            Ok(json) => UserStore::from_json(&json).unwrap_or_else(|e| {
+                if auth_config.mode == AuthMode::Full {
+                    panic!(
+                        "GRID_USERS_JSON is set but parsing failed: {e}. \
+                         AuthMode::Full requires a valid bootstrap user list."
+                    );
+                }
+                tracing::warn!(
+                    "GRID_USERS_JSON parse failed ({e}); login disabled (empty store)"
+                );
+                UserStore::empty()
+            }),
+            Err(_) => {
+                if auth_config.mode == AuthMode::Full {
+                    tracing::warn!(
+                        "GRID_USERS_JSON is not set; AuthMode::Full login is disabled."
+                    );
+                }
+                UserStore::empty()
+            }
+        };
+        let token_blacklist = Arc::new(TokenBlacklist::new());
+        let token_ttl_secs: i64 = std::env::var("GRID_TOKEN_TTL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(86_400);
+
         Self {
             db_path,
             scheduler,
@@ -119,6 +163,9 @@ impl AppState {
             approval_gate,
             interaction_gate,
             budget_cache,
+            users,
+            token_blacklist,
+            token_ttl_secs,
         }
     }
 
