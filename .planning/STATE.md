@@ -29,10 +29,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.8.1 — Login + Refresh + Logout + Audit stamping
-Plan: PARTIAL — T1 (UserStore) + T2 (TokenBlacklist) + T3 (JwtClaims.jti) + T5 (Audit migration v14) + T5b (audit middleware enrichment) SHIPPED. Pending: T4 (HTTP handlers login/refresh/logout), T6 (hermetic tests).
-Status: 03.8.0 closed. 03.8.1 in progress (auth infrastructure landed; endpoints still pending).
-Last activity: 2026-07-23 — audit middleware reads tenant_id+role from Extension<JwtClaims>; 39/39 audit tests pass.
+Phase: 03.8.2 — RBAC route enforcement + TenantContext::for_multi_user + cross-tenant session isolation (next phase, not started)
+Plan: —
+Status: 03.8.0 + 03.8.1 SHIPPED. 03.8.2 is the next climb.
+Last activity: 2026-07-24 — Phase 03.8.1 SHIPPED (login/refresh/logout endpoints + audit enrichment). 6/6 v3.8.1 hermetic tests + 17/17 v3.8.0 regression + 39/39 grid-engine audit tests all PASS.
 
 | Wave | Phase | Status |
 |------|-------|--------|
