@@ -45,6 +45,7 @@ async fn test_audit_log_columns() {
             api_keys: Default::default(),
             require_user_id: false,
             jwt_secret: None,
+            token_blacklist: None,
             hmac_secret: "audit-test-secret".to_string(),
         };
         c.add_api_key(

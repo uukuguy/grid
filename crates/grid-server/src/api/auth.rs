@@ -150,13 +150,40 @@ pub async fn refresh_handler(
         ));
     }
     let ttl = ttl_for(&state);
+    // v3.8.1 hotfix (security review, stale-claim): re-read role and
+    // tenant_id from the UserStore (using `claims.sub` as the user_id key)
+    // before minting. If the user no longer exists, reject — otherwise
+    // an admin demoted from admin→user could keep refreshing their token
+    // (from a still-valid old token) and re-acquire admin until the old
+    // token's natural exp.
+    //
+    // This makes refresh transparently pick up role/tenant changes in the
+    // UserStore. The OLD token itself is NOT revoked (D-04 explicitly
+    // defers refresh-token rotation to v3.9+); its jti continues to be
+    // valid until the original `exp`, so the only way to revoke an
+    // already-issued token is `/logout` (which blacklists its jti).
+    let Some(record) = state.users.by_user_id(&claims.sub) else {
+        return Err(err(
+            StatusCode::UNAUTHORIZED,
+            "auth_failed",
+            "user no longer exists".into(),
+        ));
+    };
+    let role_wire = serde_json::to_string(&record.role)
+        .map_err(|e| err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "mint_failed",
+            format!("role serialization: {e}"),
+        ))?
+        .trim_matches('"')
+        .to_string();
     let (token, exp) = state
         .auth_config
         .mint_jwt(
-            &claims.tenant_id,
-            &claims.sub,
-            &claims.email,
-            &claims.role,
+            &record.tenant_id,
+            &record.user_id,
+            &record.email,
+            &role_wire,
             ttl,
         )
         .map_err(|e| {

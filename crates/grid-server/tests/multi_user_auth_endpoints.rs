@@ -37,6 +37,7 @@ fn full_mode_config() -> AuthConfig {
         api_keys: Default::default(),
         require_user_id: false,
         jwt_secret: Some("test-secret-must-be-thirty-two-bytes-or-more".to_string()),
+        token_blacklist: None,
         hmac_secret: "test-hmac".to_string(),
     }
 }
@@ -355,4 +356,88 @@ async fn login_minimal_via_router(
         .await
         .unwrap();
     serde_json::from_slice(&body_bytes).unwrap()
+}
+
+// ── v3.8.1 hotfix regression tests (security review) ─────────────────
+
+/// SECURITY HOTFIX 1 (broken-auth): a blacklisted jti must be rejected
+/// not only by /refresh but also by the AuthMode::Full middleware on
+/// every protected endpoint. Wires `config.token_blacklist` into a
+/// minimal-router regression test.
+#[tokio::test]
+async fn middleware_rejects_blacklisted_jti_after_logout() {
+    use axum::middleware::from_fn;
+    use grid_server::middleware::auth_middleware_with_role;
+
+    let auth_config = Arc::new(full_mode_config());
+    let blacklist = Arc::new(TokenBlacklist::new());
+    // Wire the blacklist into the AuthConfig exactly like AppState does.
+    let mut cfg_with_bl = (*auth_config).clone();
+    cfg_with_bl.token_blacklist = Some(blacklist.clone());
+    let cfg_with_bl = Arc::new(cfg_with_bl);
+
+    let protected = Router::new()
+        .route("/protected", post(|| async { "secret" }))
+        .layer(from_fn(move |req, next| {
+            let cfg = cfg_with_bl.clone();
+            async move {
+                match auth_middleware_with_role(req, next, &cfg).await {
+                    Ok(resp) => resp,
+                    Err(status) => axum::response::Response::builder()
+                        .status(status)
+                        .body(Body::empty())
+                        .expect("build error response"),
+                }
+            }
+        }));
+
+    let users = seeded_users();
+    let router = make_test_router_minimal(auth_config, users);
+
+    // Login → get an initial token.
+    let login = login_minimal_via_router(&router, "a@x", "hunter2").await;
+    let initial_token = login["access_token"].as_str().unwrap().to_string();
+
+    // First request to /protected → must succeed (200).
+    let req = Request::builder()
+        .method("POST")
+        .uri("/protected")
+        .header("authorization", format!("Bearer {initial_token}"))
+        .body(Body::empty())
+        .expect("protected request");
+    let resp = protected.clone().oneshot(req).await.expect("response");
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Manually blacklist the jti (simulating /logout).
+    let jti = decode_jti(&initial_token);
+    blacklist.blacklist(&jti, i64::MAX);
+
+    // Second request to /protected with the SAME token → must return 401.
+    let req = Request::builder()
+        .method("POST")
+        .uri("/protected")
+        .header("authorization", format!("Bearer {initial_token}"))
+        .body(Body::empty())
+        .expect("post-logout protected request");
+    let resp = protected.oneshot(req).await.expect("response");
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNAUTHORIZED,
+        "blacklisted jti must be rejected by middleware"
+    );
+}
+
+/// Decode the `jti` claim from a JWT. The token is HS256 and unencrypted
+/// (just base64url-encoded JSON in segment 2). We avoid a full validate_jwt
+/// round trip here because the test data is also under test (a mismatched
+/// signature would also cause a 401, defeating the test's purpose).
+fn decode_jti(token: &str) -> String {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+    let payload_b64 = token.split('.').nth(1).expect("token shape");
+    let bytes = URL_SAFE_NO_PAD
+        .decode(payload_b64)
+        .expect("payload base64url");
+    let v: Value = serde_json::from_slice(&bytes).expect("payload json");
+    v["jti"].as_str().expect("jti string").to_string()
 }

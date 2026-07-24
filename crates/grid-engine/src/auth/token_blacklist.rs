@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 /// Lazy-GC'd registry of revoked-token identifiers (the `jti` JWT claim).
+#[derive(Debug)]
 pub struct TokenBlacklist {
     /// jti string → expiry unix-timestamp (seconds). Lazy-evicted on read.
     entries: Mutex<HashMap<String, i64>>,

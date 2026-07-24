@@ -28,6 +28,7 @@ fn auth_config(mode: AuthMode, hmac_secret: &str) -> AuthConfig {
         api_keys: Default::default(),
         require_user_id: false,
         jwt_secret: None,
+        token_blacklist: None,
         hmac_secret: hmac_secret.to_string(),
     };
     if mode == AuthMode::ApiKey {

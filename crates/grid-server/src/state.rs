@@ -86,7 +86,18 @@ impl AppState {
         agent_handle: AgentExecutorHandle,
     ) -> Self {
         // Convert YAML config to runtime AuthConfig
-        let auth_config = config.auth.to_auth_config();
+        let mut auth_config = config.auth.to_auth_config();
+
+        // v3.8.1 token blacklist — must be created before wiring into
+        // auth_config below and shared with the AppState so the /logout
+        // handler can populate it.
+        let token_blacklist = Arc::new(TokenBlacklist::new());
+        // v3.8.1 hotfix (security review): wire the AppState-owned
+        // token_blacklist into the AuthConfig so AuthMode::Full middleware
+        // rejects post-logout JWTs on every protected endpoint. Without
+        // this wiring the /logout handler's blacklist had no effect on
+        // subsequent requests — a critical broken-auth bug.
+        auth_config.token_blacklist = Some(token_blacklist.clone());
 
         // Initialize metrics registry
         let metrics_registry = Arc::new(RwLock::new(MetricsRegistry::new()));
@@ -143,7 +154,6 @@ impl AppState {
                 UserStore::empty()
             }
         };
-        let token_blacklist = Arc::new(TokenBlacklist::new());
         let token_ttl_secs: i64 = std::env::var("GRID_TOKEN_TTL_SECS")
             .ok()
             .and_then(|s| s.parse().ok())

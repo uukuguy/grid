@@ -154,6 +154,21 @@ pub async fn auth_middleware_with_role(
             match token {
                 Some(t) => {
                     if let Some(claims) = config.validate_jwt(t) {
+                        // v3.8.1 hotfix (security review): consult the token
+                        // blacklist AFTER successful validate_jwt. A blacklisted
+                        // jti must be rejected even though the signature is
+                        // valid — that's the whole point of logout.
+                        //
+                        // `None` blacklist (default in non-multi-user modes,
+                        // and during tests that don't care) skips the check
+                        // rather than failing closed — preserves existing behavior
+                        // for callers that haven't wired a TokenBlacklist.
+                        if let Some(ref bl) = config.token_blacklist {
+                            if bl.is_blacklisted(&claims.jti) {
+                                return Err(StatusCode::UNAUTHORIZED);
+                            }
+                        }
+
                         let (permissions, role) = match claims.role.as_str() {
                             "admin" => (vec![Permission::Admin], Some(Role::Admin)),
                             "member" => {

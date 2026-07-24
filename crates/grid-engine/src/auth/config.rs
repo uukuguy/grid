@@ -6,6 +6,7 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -22,6 +23,7 @@ fn hash_api_key(key: &str, secret: &str) -> String {
 const DEFAULT_HMAC_SECRET: &str = "grid-default-hmac-secret-change-in-production";
 
 use super::roles::Role;
+use super::token_blacklist::TokenBlacklist;
 
 /// JWT claims structure
 ///
@@ -133,6 +135,13 @@ pub struct AuthConfig {
     pub api_keys: HashMap<String, ApiKey>, // key_hash -> ApiKey
     pub require_user_id: bool,             // 是否要求用户隔离
     pub jwt_secret: Option<String>,        // JWT secret for Full mode
+    /// v3.8.1: optional token blacklist consulted by AuthMode::Full middleware
+    /// after `validate_jwt` succeeds. When `Some`, every authenticated request
+    /// checks `is_blacklisted(claims.jti)` and returns 401 if matched. When
+    /// `None` (the default), the middleware does not consult any blacklist —
+    /// useful for single-user deployments and tests that don't care about
+    /// logout semantics.
+    pub token_blacklist: Option<Arc<TokenBlacklist>>,
     /// HMAC secret used when hashing API keys. Loaded from `GRID_HMAC_SECRET` env var.
     /// Falls back to a hardcoded default with a warning — always set this in production.
     pub hmac_secret: String,
@@ -167,6 +176,7 @@ impl Default for AuthConfig {
             api_keys: HashMap::new(),
             require_user_id: false,
             jwt_secret,
+            token_blacklist: None, // v3.8.1+ — wired explicitly via AppState when needed
             hmac_secret,
         }
     }

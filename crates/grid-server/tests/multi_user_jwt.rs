@@ -28,6 +28,7 @@ fn full_mode_config() -> AuthConfig {
         api_keys: Default::default(),
         require_user_id: false,
         jwt_secret: Some(TEST_JWT_SECRET.to_string()),
+        token_blacklist: None,
         hmac_secret: TEST_JWT_SECRET.to_string(),
     }
 }
@@ -80,6 +81,7 @@ fn mint_requires_secret_in_full_mode() {
         api_keys: Default::default(),
         require_user_id: false,
         jwt_secret: None, // <-- missing on purpose
+        token_blacklist: None,
         hmac_secret: TEST_JWT_SECRET.to_string(),
     };
     let result = cfg.mint_jwt("tenant-x", "user-a", "a@example.com", "user", 3600);
