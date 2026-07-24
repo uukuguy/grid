@@ -70,33 +70,49 @@ pub async fn list_audit(
     let limit = query.limit.unwrap_or(50).min(100);
     let offset = query.offset.unwrap_or(0);
 
-    // v3.8.2 AUDIT-02: when cross_tenant=true, write a SECURITY audit row
-    // AND require Owner privilege. Non-Owner callers receive 403; we
-    // record the attempt either way.
-    if query.cross_tenant.unwrap_or(false) {
-        let role = claims.as_ref().map(|c| c.role.clone());
-        let tenant = claims.as_ref().map(|c| c.tenant_id.clone());
+    // SECURITY-CONTRACT (AUDIT-02 hotfix — security review):
+    //
+    // Every /audit request MUST be tenant-scoped, unconditionally.
+    // The query path never reaches an un-scoped `count`/`query` unless
+    // the caller is Owner AND the explicit `cross_tenant=true` flag is
+    // set. Without cross_tenant, the Owner sees only their own tenant.
+    // Non-owner callers (Viewer/User/Admin) NEVER see another tenant's
+    // data regardless of the flag.
+    let cross_tenant_requested = query.cross_tenant.unwrap_or(false);
 
+    // Derive role + tenant from claims (set by AuthMode::Full
+    // middleware in 03.8.0). Absence of claims = AuthMode::None/
+    // ApiKey; the tenant identity is implicit and we fall back to
+    // the unscoped existing path (preserved for single-user mode per
+    // D-08 of the v3.8.1 plan).
+    let (role, tenant_id, user_id) = match claims.as_ref() {
+        Some(c) => (Some(c.role.clone()), Some(c.tenant_id.clone()), Some(c.sub.clone())),
+        None => (None, None, None),
+    };
+
+    let is_owner = role.as_deref() == Some("owner");
+    let allow_cross_tenant = cross_tenant_requested && is_owner;
+
+    // SECURITY-row audit for every cross_tenant attempt (whether Owner
+    // or not), so operators can detect rejected attempts via the
+    // regular tenant-scoped `/audit`.
+    if cross_tenant_requested {
         if let Some(audit_storage) = state.audit_storage() {
             use grid_engine::audit::AuditEvent;
             let _ = audit_storage.log(AuditEvent {
                 event_type: "security".to_string(),
-                user_id: claims.as_ref().map(|c| c.sub.clone()),
-                tenant_id: tenant.clone(),
+                user_id: user_id.clone(),
+                tenant_id: tenant_id.clone(),
                 role: role.clone(),
                 session_id: None,
                 resource_id: None,
                 action: "audit.cross_tenant_query".to_string(),
-                result: match role.as_deref() {
-                    Some("owner") => "authorized",
-                    _ => "rejected",
-                }
-                .to_string(),
+                result: if is_owner { "authorized" } else { "rejected" }.to_string(),
                 metadata: Some(json!({"event_type": "audit.cross_tenant_query"})),
                 ip_address: None,
             });
         }
-        if role.as_deref() != Some("owner") {
+        if !is_owner {
             return Err((
                 StatusCode::FORBIDDEN,
                 Json(json!({"error":"forbidden","message":"cross_tenant requires owner"})),
@@ -104,7 +120,7 @@ pub async fn list_audit(
         }
     }
 
-    // Get audit storage on-demand
+    // Get audit storage on-demand.
     let Some(audit_storage) = state.audit_storage() else {
         tracing::error!("Failed to create audit storage");
         return Ok(Json(AuditResponse {
@@ -113,17 +129,52 @@ pub async fn list_audit(
         }));
     };
 
-    // Get total count first
-    let total = audit_storage
-        .count(query.event_type.as_deref(), query.user_id.as_deref())
-        .unwrap_or(0);
-
-    let logs_result = audit_storage.query(
-        query.event_type.as_deref(),
-        query.user_id.as_deref(),
-        limit,
-        offset,
-    );
+    // Branch on the path. Default (any caller without cross_tenant,
+    // or any caller in single-user mode) is tenant-scoped. Owner +
+    // cross_tenant is the only un-scoped path.
+    let (total, logs_result) = if allow_cross_tenant {
+        let total = audit_storage
+            .count(query.event_type.as_deref(), query.user_id.as_deref())
+            .unwrap_or(0);
+        let logs = audit_storage.query(
+            query.event_type.as_deref(),
+            query.user_id.as_deref(),
+            limit,
+            offset,
+        );
+        (total, logs)
+    } else if let Some(tenant) = tenant_id.as_deref() {
+        // AuthMode::Full path: tenant-scoped.
+        let total = audit_storage
+            .count_for_tenant(
+                tenant,
+                query.event_type.as_deref(),
+                query.user_id.as_deref(),
+            )
+            .unwrap_or(0);
+        let logs = audit_storage.query_for_tenant(
+            tenant,
+            query.event_type.as_deref(),
+            query.user_id.as_deref(),
+            limit,
+            offset,
+        );
+        (total, logs)
+    } else {
+        // AuthMode::None / ApiKey path (D-08 single-user mode): the
+        // existing un-scoped path is the only choice (there's no
+        // tenant claim to scope on).
+        let total = audit_storage
+            .count(query.event_type.as_deref(), query.user_id.as_deref())
+            .unwrap_or(0);
+        let logs = audit_storage.query(
+            query.event_type.as_deref(),
+            query.user_id.as_deref(),
+            limit,
+            offset,
+        );
+        (total, logs)
+    };
 
     let logs: Vec<AuditRecordResponse> = logs_result
         .map(|records| records.into_iter().map(AuditRecordResponse::from).collect())

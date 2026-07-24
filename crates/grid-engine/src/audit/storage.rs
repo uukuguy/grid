@@ -271,6 +271,67 @@ impl AuditStorage {
         rows.collect()
     }
 
+    /// v3.8.2 (hotfix — security review): query audit rows within a
+    /// single tenant. SQL includes `tenant_id = ?` so a non-owner
+    /// caller can never read another tenant's audit trail.
+    pub fn query_for_tenant(
+        &self,
+        tenant_id: &str,
+        event_type: Option<&str>,
+        user_id: Option<&str>,
+        limit: u32,
+        offset: u32,
+    ) -> rusqlite::Result<Vec<AuditRecord>> {
+        let mut sql = String::from(
+            "SELECT id, timestamp, event_type, user_id, tenant_id, role, session_id, resource_id, action, result, metadata, ip_address, prev_hash, hash FROM audit_logs WHERE tenant_id = ?"
+        );
+
+        if event_type.is_some() {
+            sql.push_str(" AND event_type = ?");
+        }
+        if user_id.is_some() {
+            sql.push_str(" AND user_id = ?");
+        }
+
+        sql.push_str(" ORDER BY timestamp DESC LIMIT ? OFFSET ?");
+
+        let mut stmt = self.conn.prepare(&sql)?;
+
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        params.push(Box::new(tenant_id.to_string()));
+        if let Some(t) = event_type {
+            params.push(Box::new(t.to_string()));
+        }
+        if let Some(u) = user_id {
+            params.push(Box::new(u.to_string()));
+        }
+        params.push(Box::new(limit as i64));
+        params.push(Box::new(offset as i64));
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+
+        let rows = stmt.query_map(params_refs.as_slice(), |row| {
+            Ok(AuditRecord {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                event_type: row.get(2)?,
+                user_id: row.get(3)?,
+                tenant_id: row.get(4)?,
+                role: row.get(5)?,
+                session_id: row.get(6)?,
+                resource_id: row.get(7)?,
+                action: row.get(8)?,
+                result: row.get(9)?,
+                metadata: row.get(10)?,
+                ip_address: row.get(11)?,
+                prev_hash: row.get(12)?,
+                hash: row.get(13)?,
+            })
+        })?;
+
+        rows.collect()
+    }
+
     /// Query sandbox-specific audit events with optional filters
     pub fn query_sandbox_events(
         &self,
@@ -444,17 +505,54 @@ impl AuditStorage {
         let mut stmt = self.conn.prepare(&sql)?;
 
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-
         if let Some(t) = event_type {
             params.push(Box::new(t.to_string()));
         }
         if let Some(u) = user_id {
             params.push(Box::new(u.to_string()));
         }
-
         let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let count: i64 = stmt.query_row(params_refs.as_slice(), |row| row.get(0))?;
+        Ok(count)
+    }
 
-        stmt.query_row(params_refs.as_slice(), |row| row.get(0))
+    /// v3.8.2 (hotfix — security review): count audit rows within a single
+    /// tenant. SQL includes `tenant_id = ?` so a non-owner caller can
+    /// never enumerate another tenant's audit trail. Cross-tenant access
+    /// is reserved to the Owner path in `grid-server::api::audit`,
+    /// which uses the existing un-scoped `count` after an unconditional
+    /// owner check.
+    pub fn count_for_tenant(
+        &self,
+        tenant_id: &str,
+        event_type: Option<&str>,
+        user_id: Option<&str>,
+    ) -> rusqlite::Result<i64> {
+        let mut sql = String::from(
+            "SELECT COUNT(*) FROM audit_logs WHERE tenant_id = ?",
+        );
+
+        if event_type.is_some() {
+            sql.push_str(" AND event_type = ?");
+        }
+        if user_id.is_some() {
+            sql.push_str(" AND user_id = ?");
+        }
+
+        let mut stmt = self.conn.prepare(&sql)?;
+
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        params.push(Box::new(tenant_id.to_string()));
+        if let Some(t) = event_type {
+            params.push(Box::new(t.to_string()));
+        }
+        if let Some(u) = user_id {
+            params.push(Box::new(u.to_string()));
+        }
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params.iter().map(|p| p.as_ref()).collect();
+        let count: i64 = stmt.query_row(params_refs.as_slice(), |row| row.get(0))?;
+        Ok(count)
     }
 }
 
