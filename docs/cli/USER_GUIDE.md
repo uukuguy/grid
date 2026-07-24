@@ -2,8 +2,8 @@
 title: "grid-cli 使用指南手册"
 type: user-guide
 audience: end-user (developer / SRE / non-developer observer)
-version: v3.7.1
-date: 2026-07-20
+version: v3.8.3
+date: 2026-07-24
 author: Claude (claude-opus-4-8) via Claude Code CLI
 status: active
 language: mixed (English headings / commands / code; Chinese explanations)
@@ -52,6 +52,7 @@ language: mixed (English headings / commands / code; Chinese explanations)
 8. [故障排查](#8-故障排查)
 9. [附录: 数据模型与路径约定](#9-附录-数据模型与路径约定)
 10. [Phase 3.7.2 web/ dashboard 实战化](#10-phase-372-web-dashboard-实战化)
+11. [Phase 03.8.0+03.8.1+03.8.2+03.8.3 — grid-server 多用户登录 (JWT + RBAC + Tenant)](#11-phase-03800038100038200383--grid-server-多用户登录-jwt--rbac--tenant)
 
 ---
 
@@ -1311,6 +1312,266 @@ A: 需要 live `make server` + `OPENAI_API_KEY`(或 `ANTHROPIC_API_KEY`)。没�
 
 ---
 
-*Version: v3.7.2 (2026-07-22) — Phase 3.7.2 web-production SHIPPED, 8/9 REQ-WEB closed, 14/14 acceptance*
-*Status: Active — covers 17 grid-cli commands + web/ Phase 3.7.2 + 9 global flags + 7-step verify-3.7.2*
+## 11. Phase 03.8.0+03.8.1+03.8.2+03.8.3 — grid-server 多用户登录 (JWT + RBAC + Tenant)
+
+> **v3.8 多用户登录模式 (multi-user mode)** — 取代 v3.7 默认的单用户工作台模式。启用后 `grid-server` 通过 JWT 发放会话,所有受保护 endpoint 强制按 `(tenant_id, user_id, role)` 解析 `TenantContext` 并在 route handler 层执行 RBAC。
+>
+> 配套文档:
+> - [§11.6 — Operator env-var reference](#116-operator-环境变量参考)
+> - [`../../status/PRODUCTION_USABILITY_2026-07-24.md`](../../status/PRODUCTION_USABILITY_2026-07-24.md) — 5 scenarios UAT walkthrough
+> - [`.planning/phases/03.8.0-jwt-primitive/03.8.0-SUMMARY.md`](../../planning/phases/03.8.0-jwt-primitive/03.8.0-SUMMARY.md) — JWT primitive
+> - [`.planning/phases/03.8.1-auth-endpoints/03.8.1-SUMMARY.md`](../../planning/phases/03.8.1-auth-endpoints/03.8.1-SUMMARY.md) — login/refresh/logout
+> - [`.planning/phases/03.8.2-rbac-tenant/03.8.2-SUMMARY.md`](../../planning/phases/03.8.2-rbac-tenant/03.8.2-SUMMARY.md) — RBAC + tenant isolation
+
+### 11.1 登录流程 (login flow)
+
+`POST /api/v1/auth/login` 是 multi-user 模式的核心入口。客户端提交 `email` + `password`,服务器在 `UserStore` 中验证 Argon2id 哈希(见 `crates/grid-engine/src/auth/user_store.rs`),通过后签发 HS256 JWT。
+
+**请求:**
+
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"a@example.com","password":"hunter2"}'
+```
+
+**响应 (`200 OK`):**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_at": 1753353600
+}
+```
+
+**错误 (`401 Unauthorized`, AUTH-04):**
+
+```json
+{"error":"auth_failed","message":"invalid credentials"}
+```
+
+> **AUTH-04 安全保证**:无论错误是 "用户不存在" 还是 "密码错误",响应 body 完全相同 — 服务器不向攻击者泄漏用户是否存在。
+
+随后的请求通过 `Authorization: Bearer <token>` 头传递 JWT:
+
+```bash
+curl http://localhost:3001/api/v1/sessions \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
+```
+
+完整请求/响应代码见 `crates/grid-server/src/api/auth.rs::login_handler`。
+
+### 11.2 JWT claims 结构
+
+JWT payload (来自 `crates/grid-engine/src/auth/config.rs::JwtClaims`):
+
+| 字段 | 类型 | 含义 | 来源 |
+|------|------|------|------|
+| `sub` | string | user_id | `UserRecord.user_id` |
+| `email` | string | 用户邮箱 | `UserRecord.email` |
+| `role` | string | `viewer`/`user`/`admin`/`owner` | `UserRecord.role` |
+| `tenant_id` | string | **v3.8+ REQUIRED** | `UserRecord.tenant_id` |
+| `jti` | string (UUIDv4) | **v3.8.1+ REQUIRED** — per-token identifier for logout blacklist | 每次 mint 时新生成 |
+| `iat` | i64 | issued-at timestamp (Unix seconds) | 服务端 |
+| `exp` | i64 | expiration timestamp (Unix seconds) | `now + GRID_TOKEN_TTL_SECS` |
+
+> **重要历史变更**:
+> - v3.8.0 之前签发的 token 没有 `tenant_id` 字段 — `validate_jwt` 会拒绝它们(`multi_user_jwt::token_without_tenant_id_rejected` 覆盖此路径)。
+> - v3.8.0 之前签发的 token 没有 `jti` 字段 — v3.8.1 的 logout/blacklist 强制需要 `jti`,因此老 token 在 v3.8.1+ 上完全失效(security review hotfix `7f08ac53`)。
+> - 签名算法固定为 HS256(`jsonwebtoken::Algorithm::HS256`);生产环境的 secret 必须 ≥32 字节(RFC 7518 §3.2),否则 `try_from_env()` 在 `mode=full` 下 fail-fast 返回错误(ADR-V2-028 strict-by-default)。
+
+### 11.3 刷新 (refresh)
+
+`POST /api/v1/auth/refresh` 用旧 JWT 换新 JWT。refresh 的关键安全点:**role + tenant_id 从 `UserStore` 重读,不从老 JWT 的 claims 读取** —— 这防止了攻击者通过修改老 token 的 role claim 来实现权限提升(security review hotfix `7f08ac53` 修正的 stale-claim bug)。
+
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/refresh \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
+# 200 OK + 同样的 { access_token, token_type, expires_at } 响应
+```
+
+**v3.8.1 设计选择** (D-04 of 03.8.1 plan):refresh **不轮换 jti**。老 token 仍然有效直到其原 `exp` 时间。这简化了客户端(无须维护 refresh-token 黑名单),代价是被 logout 的老 token 仍可 refresh 一次。完整 jti 轮换是 v3.9+ 范围。
+
+### 11.4 注销 (logout)
+
+`POST /api/v1/auth/logout` 把当前 JWT 的 `jti` 加入 `TokenBlacklist`,直到该 token 的自然 `exp` 时间为止。返回 `204 No Content`:
+
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/logout \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
+# 204 No Content
+```
+
+**Full-mode 中间件**(见 `crates/grid-server/src/middleware/auth.rs`)在每个受保护 endpoint 验证 JWT 后立即检查 blacklist:
+
+```text
+validate_jwt(token) → Ok(claims)
+    ↓
+is_blacklisted(claims.jti) ? → 401 auth_failed
+    ↓ (not blacklisted)
+handler executes
+```
+
+> **Security hotfix `7f08ac53`**:v3.8.1 初版未把 blacklist 接入 AuthMode::Full 中间件,导致 logout 实际上不起作用(后续请求仍然放行)。hotfix 把 `TokenBlacklist` 通过 `AuthConfig::token_blacklist` 字段接入 AppState,每个 Full-mode 请求都强制检查。回归测试 `multi_user_auth_endpoints::logout_blacklists_token_and_subsequent_use_rejected` 覆盖此路径。
+
+> **v3.8.1 单实例限制**:`TokenBlacklist` 是进程内 `Arc<Mutex<HashMap>>`。多实例部署时 logout 仅对收到 logout 请求的那个实例生效。共享 blacklist 后端是 v3.9+ 范围。
+
+### 11.5 RBAC matrix 参考
+
+RBAC 通过 `Role × Action` 矩阵在 handler 层强制执行(`crates/grid-engine/src/auth/roles.rs::Role::can`)。`requires(Action)` middleware 在每个 route 入口读取 `Extension<JwtClaims>` 并检查 `Role::parse(claims.role).can(action)`。`Owner` 总是通过;`Viewer` 只能 `Read`。
+
+| Action ↓ \ Role → | `viewer` | `user` | `admin` | `owner` |
+|-------------------|----------|--------|---------|---------|
+| `read` | ✅ | ✅ | ✅ | ✅ |
+| `create_session` | ❌ | ✅ | ✅ | ✅ |
+| `run_agent` | ❌ | ✅ | ✅ | ✅ |
+| `manage_mcp` | ❌ | ❌ | ✅ | ✅ |
+| `manage_skills` | ❌ | ❌ | ✅ | ✅ |
+| `manage_users` | ❌ | ❌ | ❌ | ✅ |
+| `manage_config` | ❌ | ❌ | ❌ | ✅ |
+
+**在 v3.8.2 中的实际部署范围**:03.8.2 在三个 representative endpoint 上演示了 `requires(Action)`(`/admin/users`、`/audit`、`/sessions/{id}`)。完整 route catalog wiring 推迟到 v3.9+。当前未标 `requires()` 的 endpoint 仍走 legacy `UserContext::has_permission` 路径 —— v3.8.2 不引入回归。
+
+**跨租户数据访问**(TENANT-03):User A 在 Tenant X 调用 `GET /api/v1/sessions/<id>` 试图读取 Tenant Y 的 session —— 返回 `403 Forbidden` + body `{"error":"tenant_mismatch"}`,底层数据绝不出现在响应中。SessionStore 通过 `get_session_for_tenant(id, tenant_id, user_id) -> TenantSessionResult` 三态枚举强制此隔离(`Ok | TenantMismatch | NotFound`)。
+
+### 11.6 Operator 环境变量参考
+
+v3.8 multi-user 模式需要四个环境变量。严格模式(`mode=full`)下,任何缺失或非法值都会让服务 fail-fast,而不是回退到不安全的默认(ADR-V2-028 strict-by-default)。
+
+#### 11.6.1 `GRID_AUTH_MODE`
+
+覆盖 `config.yaml` 中的 `auth.mode`。可取值(大小写不敏感):
+
+| 值 | 行为 |
+|----|------|
+| `none` | 无认证。**生产环境禁止** — 服务启动时会打 warn 日志;在 `mode=api_key`/`full` 切换到 `none` 也会 panic 提示设 `GRID_HMAC_SECRET`。 |
+| `api_key` (默认) | API Key + HMAC-SHA256 验证。单用户模式 (v3.7 及之前),所有 key 共享 secret。 |
+| `full` | JWT + RBAC + 多租户。**本节描述的工作模式**。需要 `GRID_JWT_SECRET` + `GRID_USERS_JSON`。 |
+
+读取位置:`crates/grid-server/src/config.rs:496`。
+
+#### 11.6.2 `GRID_JWT_SECRET`
+
+`mode=full` 下 **REQUIRED**。HS256 签名 secret。最小长度 32 字节(256 bits,匹配 HS256 输出大小,符合 RFC 7518 §3.2)。
+
+```bash
+# 生成符合要求的 secret
+export GRID_JWT_SECRET=$(openssl rand -base64 32)
+```
+
+**失败语义** (ADR-V2-028 D1 — `try_from_env()`):
+
+- 未设置 → `Err("auth.mode = full requires GRID_JWT_SECRET to be set. ...")`。
+- 设置但 < 32 字节 → `Err("GRID_JWT_SECRET is too short: N bytes (need >= 32 bytes). ...")`。
+- `mode=api_key` 下未设置 → 静默 fallback,生产环境打 warn 日志(单用户模式不强制)。
+
+读取位置:`crates/grid-engine/src/auth/config.rs:159`(`AuthConfig::default`)与 `try_from_env()` (`:198`)。
+
+#### 11.6.3 `GRID_TOKEN_TTL_SECS`
+
+新发 JWT 的生存时间(秒)。默认 `86400` (24 小时)。
+
+```bash
+# 短一点(15 min)适合高安全场景
+export GRID_TOKEN_TTL_SECS=900
+```
+
+读取位置:`crates/grid-server/src/state.rs:157`。在 `AppState::new()` 时一次性读取,后续请求通过 `state.token_ttl_secs` 字段访问(中途中改变量需重启服务)。
+
+#### 11.6.4 `GRID_USERS_JSON`
+
+启动时的 bootstrap 用户凭据(JSON 数组)。每个元素的 wire shape:
+
+```json
+[
+  {
+    "user_id": "alice",
+    "tenant_id": "acme",
+    "email": "alice@acme.com",
+    "password": "hunter2-correct-horse",
+    "role": "admin"
+  },
+  {
+    "user_id": "bob",
+    "tenant_id": "globex",
+    "email": "bob@globex.com",
+    "password": "another-strong-password",
+    "role": "viewer"
+  }
+]
+```
+
+| 字段 | 含义 | 校验 |
+|------|------|------|
+| `user_id` | 内部用户 ID (也是 JWT `sub`) | 必须全局唯一,重复则解析失败 |
+| `tenant_id` | 用户所属 tenant | 必须非空(用于 TENANT-01/TENANT-03) |
+| `email` | 登录标识 (JWT `email`) | 必须全局唯一,重复则解析失败 |
+| `password` | 明文密码 | 启动时一次性 Argon2id 哈希;明文不进存储 |
+| `role` | `viewer`/`user`/`admin`/`owner` | 必须可被 `Role::parse` 解析,未知值拒绝 |
+
+**错误处理**(读取位置:`crates/grid-server/src/state.rs:135` + `crates/grid-engine/src/auth/user_store.rs:77`):
+
+- 未设置 + `mode=full` → 服务器启动时打 warn 日志,但不 panic(后续 `/auth/login` 返回 401 给所有调用,因为 user store 为空)。
+- 设置但 JSON 解析失败 → `mode=full` 下 panic(strict-by-default);`mode=api_key` 下 warn 并使用空 store(login 全面禁用)。
+- 任何 email/user_id/role 非法 → 启动失败,返回 operator-actionable 错误消息。
+
+**安全提示**:
+
+- **明文密码**仅出现在 JSON 输入瞬间,Argon2id 哈希(`$argon2id$v=19$m=...$t=...$p=...$salt$hash`)在 `UserStore` 中保存。
+- **不建议在 .env 中提交明文密码**;生产部署应使用 secret manager(AWS Secrets Manager / Vault / SOPS)将 JSON 注入到 `GRID_USERS_JSON` 环境变量。
+- **timing-side-channel 缓解**:`UserStore::verify_credentials` 在 "未知 email" 分支立即返回 `None`(不执行 Argon2 verify),理论上本地网络上的 timing-attack adversary 可以区分。v3.9+ 配合 login rate-limiting 实际上消除此 concern;constant-time fallback 可在 rate-limiting 落地后补上。
+
+### 11.7 单用户 vs 多用户模式切换
+
+**默认 = 单用户** (`mode=api_key`,无 `GRID_AUTH_MODE` env var)。所有 v3.7 之前部署 **零变更** 继续运行 —— 这是 R-1 回归纪律的硬要求。
+
+切换到 multi-user 模式:
+
+```bash
+# 1. 生成 JWT secret
+export GRID_JWT_SECRET=$(openssl rand -base64 32)
+
+# 2. 创建 user bootstrap JSON
+export GRID_USERS_JSON='[{"user_id":"alice","tenant_id":"acme","email":"alice@acme.com","password":"...","role":"admin"}]'
+
+# 3. (可选)调短 TTL
+export GRID_TOKEN_TTL_SECS=3600
+
+# 4. 设置 mode=full
+export GRID_AUTH_MODE=full
+
+# 5. 启动 grid-server
+cargo run --bin grid-server
+```
+
+切换后 **必须** 把现有 v3.7 ApiKey 客户端迁移到 JWT 登录流程。两种 mode 不能在同一进程内共存。
+
+### 11.8 已知 honest gaps
+
+| Gap | 状态 | 原因 |
+|-----|------|------|
+| Live UAT walkthrough (带真实 LLM key 的端到端) | 🟡 BLOCKED | 需要 `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`;hermetic UAT (5/5) 已通过 |
+| Refresh-token jti rotation (logout 后老 token 不能 refresh) | ⚪ DEFERRED (v3.9+) | v3.8.1 单 token 滑动过期 (D-04) |
+| 共享 TokenBlacklist 后端 (多实例部署 logout 跨实例生效) | ⚪ DEFERRED (v3.9+) | v3.8.1 仅进程内 `Arc<Mutex>` |
+| Full route catalog `requires(Action)` 强制覆盖 | ⚪ DEFERRED (v3.9+) | 03.8.2 仅在 3 个 representative endpoint 上演示 |
+| Constant-time `verify_credentials` fallback | ⚪ DEFERRED (v3.9+) | 配合 login rate-limiting 落地 |
+| DB-backed `users` 表 (取代 `GRID_USERS_JSON`) | ⚪ DEFERRED (v3.9+) | v3.8 接受 "edit env var + restart" 开发循环 |
+
+### 11.9 相关文档
+
+- [`../../status/PRODUCTION_USABILITY_2026-07-24.md`](../../status/PRODUCTION_USABILITY_2026-07-24.md) — 5-scenario UAT walkthrough
+- [`.planning/phases/03.8.0-jwt-primitive/03.8.0-SUMMARY.md`](../../planning/phases/03.8.0-jwt-primitive/03.8.0-SUMMARY.md) — JWT mint/verify primitive
+- [`.planning/phases/03.8.1-auth-endpoints/03.8.1-SUMMARY.md`](../../planning/phases/03.8.1-auth-endpoints/03.8.1-SUMMARY.md) — login/refresh/logout handlers + audit
+- [`.planning/phases/03.8.2-rbac-tenant/03.8.2-SUMMARY.md`](../../planning/phases/03.8.2-rbac-tenant/03.8.2-SUMMARY.md) — RBAC + tenant isolation + AUDIT-02
+- [`.planning/REQUIREMENTS.md`](../../planning/REQUIREMENTS.md) v3.8 section — 21 REQ-IDs across 6 categories
+- [`.planning/ROADMAP.md`](../../planning/ROADMAP.md) v3.8 ladder
+- [`crates/grid-engine/src/auth/`](../../crates/grid-engine/src/auth/) — auth primitives (config, roles, user_store, token_blacklist)
+- [`crates/grid-server/src/api/auth.rs`](../../crates/grid-server/src/api/auth.rs) — login/refresh/logout handlers
+- [`crates/grid-server/src/middleware/auth.rs`](../../crates/grid-server/src/middleware/auth.rs) — Full-mode middleware + `require_action_middleware`
+
+---
+
+*Version: v3.8.3 (2026-07-24) — Phase 03.8.0+03.8.1+03.8.2+03.8.3 SHIPPED, multi-user login (JWT + RBAC + Tenant) added as §11*
+*Status: Active — covers 17 grid-cli commands + web/ Phase 3.7.2 + 9 global flags + 7-step verify-3.7.2 + 6 multi-user scenarios in §11*
 *Author: Claude (claude-opus-4-8) via Claude Code CLI*
