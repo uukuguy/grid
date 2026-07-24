@@ -1,116 +1,137 @@
 ---
 type: resume-baton
-milestone: v3.7 (SHIPPED + ARCHIVED 2026-07-23)
-next_focus: v3.8 candidate scope decision
-date: 2026-07-23
+milestone: v3.8 (grid-server multi-user login — user-deferred from v3.7.4 on 2026-07-19)
+next_focus: Phase 03.8.3 — Docs + UAT walkthrough + regression sweep
+date: 2026-07-24
 author: Claude (claude-opus-4-8) via Claude Code CLI
+related: gsd-resume-work
 ---
 
 # Next-Session Handoff
 
-> Updated: 2026-07-23 end of session.
+> Updated: 2026-07-24 end of session (climb-mode closed cleanly).
 
 ## TL;DR
 
-1. **v3.7 milestone SHIPPED + ARCHIVED 2026-07-23** — 3 phases (3.7.1 grid-cli / 3.7.2 web/ / 3.7.3 EAASP 本地仿真); 3.7.4 grid-server multi-user SKIPPED per user 2026-07-19 → deferred to v3.8
-2. **Immediate next action:** User picks v3.8 candidate scope (5 options: A web-platform/ 7.5→9.0, B grid-desktop 6.5→9.0, C1 Phase 3 OPA, C2 Phase 4 A2A, C3 Phase 5 L5, C4 Phase 6 ecosystem, OR grid-server multi-user login)
-3. **4 commits unpushed** on `main` (`main...origin/main [ahead 4]`) — push decision deferred to user; v3.7 tag (`v3.7`) already pushed
+1. **v3.8 ladder: 03.8.0 ✅ / 03.8.1 ✅ / 03.8.2 ✅ SHIPPED + 3 security hotfixes shipped** (2 from the 03.8.1 endpoint commit; 1 from the 03.8.2 AUDIT-02 commit). 03.8.3 (docs + UAT + regression) is the next climb.
+2. **Immediate next action:** spawn Phase 03.8.3 (docs + walkthrough + regression). Per `feedback_no_full_tests` discipline: ASK before running the full `cargo test --workspace` if 03.8.3 changes nothing test-touching.
+3. **Optional sidequests** (only do these if the user says so or they fall inside the climb):
+   - Audit the rest of the route catalog for `requires(Action)` annotations (a Phase 03.8.2 deferred-task note in the plan).
+   - Run a live walkthrough with API keys (currently BLOCKED on missing `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`).
+4. **Push the 4 unpushed commits on `main`** (`main...origin/main [ahead 4]`) — push decision deferred to user.
 
 ## Where things stand
 
-- **Latest shipped milestone:** v3.7 实战可用性补全 (Production-Usability Closure) ✅
-- **Tests:** 175/175 PASS across milestone (Phase 3.7.1: 14+7+9 / Phase 3.7.2: 26+5 / Phase 3.7.3: 136)
-- **Commits:** 50 in v3.7 range (`3a85a06c` → `e18081af`); plus 2 close-out commits + 1 state record + 1 worklog = 54 total this milestone
-- **Archive:** `.planning/milestones/v3.7-ROADMAP.md` (20.2K), `.planning/MILESTONES.md` entry supplemented, `.planning/RETROSPECTIVE.md` created, `.planning/PROJECT.md` evolved
-- **Working tree:** clean
-- **Branch:** `main` (no phase branches per `branching_strategy: none`)
+| Phase | Status | Requirements closed | Hermetic tests |
+|-------|--------|---------------------|----------------|
+| **03.8.0** | ✅ SHIPPED | AUTH-01, AUTH-04, AUTH-05 | 9 |
+| **03.8.1** | ✅ SHIPPED (+2 security hotfixes) | AUTH-02, AUTH-03, AUDIT-01 | 7 |
+| **03.8.2** | ✅ SHIPPED (+1 security hotfix) | RBAC-01..04, SESSION-01..03, TENANT-03, AUDIT-02 (+TENANT-01/02 transitively) | 10 |
+| **03.8.3** | ⏳ NEXT | DOC-01..03 + TEST-01..06 | — |
 
-## What this session delivered
+**Total v3.8 hermetic coverage: 34/34 PASS across all 4 suites.**
+**Audit infrastructure: 39/39 grid-engine audit tests PASS.**
+**Working tree: clean (no uncommitted changes).**
 
-### Phase 3.7.1 grid-cli 实战可用性 (SHIPPED 2026-07-19)
-- `grid quickstart <scenario>` + `grid session resume` + `grid run --parallel` + error UX per D-05..D-07
-- 12 doctor checks (incl. Hooks File + Eval Bridge)
-- 14/14 hermetic scenario integration tests + 7/7 unit tests + 9/9 doctor checks
-- 8/9 REQ-AUDITs closed (88.9%)
-- S1-S5 walkthrough docs + dated `PRODUCTION_USABILITY_2026-07-19.md`
+## What this climb-mode session delivered (high level)
 
-### Phase 3.7.2 web/ dashboard 实战化 (SHIPPED 2026-07-21)
-- WS auto-reconnect + SessionControls global + memory_added toast + seq field + Live badge
-- 9 REQ-WEB items closed; UI-SPEC 7/7; auditor 8.83/10
-- 26/26 vitest + 5/5 Playwright E1-E3
-- S7 walkthrough doc + operation guides in USER_GUIDE §10
+- **03.8.0 JWT primitive** — 6 atomic commits + plan; `mint_jwt`/`validate_jwt` symmetric pair, HS256 with `MIN_JWT_SECRET_BYTES=32`, `try_from_env()` strict-by-default, JwtClaims carries tenant_id+role+jti.
+- **03.8.1 Login/Refresh/Logout + Audit** — 8 atomic commits + 2 security hotfixes; UserStore (Argon2id), TokenBlacklist (in-memory), login/refresh/logout HTTP handlers, AppState wiring, migration v14 (audit tenant_id/role columns), audit middleware reads Extension<JwtClaims>, two security hotfixes for blacklist bypass + refresh-stale-claim.
+- **03.8.2 RBAC + Tenant + AUDIT-02** — 6 atomic commits + 1 security hotfix; `TenantContext::for_multi_user`, JWT-aware RBAC middleware path, tenant-scoped `SessionStore` accessors with `TenantSessionResult` enum, AUDIT-02 cross-tenant escape hatch, and a security hotfix after the IDOR showed the prior implementation only enforced Owner when `cross_tenant=true` was set.
 
-### Phase 3.7.3 EAASP 本地仿真补全 (SHIPPED 2026-07-23, this climb session)
-- Risk classification taxonomy (`read | write_local | write_external`) in Rust + Python, backward-compatible default `read`
-- L3 `PolicyEngine.evaluate_gate()` decision matrix (risk × mode)
-- Append-only `governance_decisions` ledger (9 cols + 2 CHECK constraints + `gd_<uuid>` / `gd_<uuid>_final` PK pattern, `BEGIN IMMEDIATE` transactions)
-- L4 `governance.request` + `governance.decision` SSE events (best-effort)
-- CLI `--yes` / `--no` flags + interactive `Approve? [y/N]` prompt; exit code 4 on deny
-- Deterministic `scada_set_setpoint` mock-SCADA skill with `risk_level: write_external`
-- S8 walkthrough doc (300 lines) + dated `PRODUCTION_USABILITY_2026-07-23.md` (300+ lines) with honest `LIVE BLOCKED` label
-- 136/136 tests PASS (L3 76 + L4 events 11 + CLI 18 + mock-SCADA 19 + Rust skill-parser 12)
-- `cargo check --workspace` 0 errors, 16 pre-existing warnings
-- 8/8 REQ-EAASP-01..08 closed
-- All 10 locked decisions (D-01..D-10) honored
+## Security-review findings — all addressed
 
-## Next steps (immediate, action-level)
+| # | Severity | Subsystem | Commit | Fix |
+|---|----------|-----------|--------|-----|
+| 1 | CRITICAL | `auth` middleware blacklist bypass | `7f08ac53` | Full middleware now consults `config.token_blacklist` after `validate_jwt`; logged-out JWTs rejected on every protected endpoint |
+| 2 | HIGH | `/refresh` stale-claim | `7f08ac53` | Refresh reads role + tenant_id from UserStore (not from old JWT claims); new jti minted, old token still valid until exp per D-04 |
+| 3 | HIGH | `/audit` IDOR | `4b6a3539` | `list_audit` now derives tenant scope from `claims.tenant_id` unconditionally; new `query_for_tenant` + `count_for_tenant` enforce `tenant_id = ?` in SQL |
 
-1. **User decision: pick v3.8 candidate scope** — Options per `.planning/PROJECT.md` §Active:
-   - **grid-server multi-user** (user 2026-07-19 explicit deferral from 3.7.4) — RBAC + JWT tenant scoping + cross-user session isolation
-   - **A** web-platform/ Quality 7.5→9.0
-   - **B** grid-desktop Quality 6.5→9.0
-   - **C1** Phase 3 production OPA backend
-   - **C2** Phase 4 A2A + Event Room
-   - **C3** Phase 5 L5 Cowork UI
-   - **C4** Phase 6 ecosystem expansion
+All three have regression tests proving the fix.
 
-   Recommended priority per ADR-V2-024 Open Item #3 (grid-cli + grid-server first; both at 9.0+ already, so grid-server multi-user is the natural axis extension) — but user may prefer Quality gap closure first.
+## What landed in v3.8.2 (this session tail)
 
-2. **Optional:** Push 4 unpushed commits to `main`:
-   ```bash
-   git push origin main
-   ```
+### Code
+- **`TenantContext::for_multi_user(tenant_id, user_id, role)`** in `crates/grid-engine/src/agent/tenant.rs` (engine-side; per ADR-V2-023 P1).
+- **`require_action_middleware`** in `crates/grid-server/src/middleware/auth.rs` now has a JWT-aware path that reads `Extension<JwtClaims>`, parses role, builds `TenantContext::for_multi_user`, enforces `Role::can(action)`. Legacy `UserContext::has_permission` path preserved for AuthMode::None / ApiKey (D-08 single-user semantics).
+- **Tenant-scoped `SessionStore` accessors**: `get_session_for_tenant(...) -> TenantSessionResult { Ok | TenantMismatch | NotFound }` + `list_sessions_for_tenant(...)`. Default impls compose on the existing user-scoped methods; production deployments with explicit tenant columns should override.
+- **`AuditStorage::query_for_tenant` + `count_for_tenant`** (security hotfix): SQL `WHERE tenant_id = ?`. Un-scoped `query`/`count` retained for the Owner cross-tenant path and the AuthMode::None / ApiKey fallback.
+- **`list_audit` handler** in `crates/grid-server/src/api/audit.rs` rewritten to unconditionally derive scope from `claims.tenant_id`; the un-scoped path is reached ONLY for Owner + `?cross_tenant=true`. Every cross_tenant attempt (Owner or not) writes a SECURITY audit row.
+- **`AuthConfig.token_blacklist: Option<Arc<TokenBlacklist>>`** — added in the 03.8.1 hotfix (`7f08ac53`), wired into the AppState's `auth_config` so the Full-mode middleware consults it on every request. `Default` sets it to `None`. A `derive(Debug)` was added to `TokenBlacklist` to keep `AuthConfig: Debug`.
 
-3. **Optional:** Re-run live walkthrough with `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` to upgrade `PRODUCTION_USABILITY_*.md` from hermetic evidence to real transcripts (S1-S8 all currently show `LIVE BLOCKED` honestly per CLAUDE.md §Runtime Verification Tasks).
+### Tests
+- `crates/grid-server/tests/multi_user_rbac_tenant.rs` — 10 hermetic tests (9 phase tests + 1 hotfix regression test `audit_02_non_owner_cannot_enumerate_other_tenants_audit`). Covers RBAC-01..04 + SESSION-02/03 + TENANT-03 + the hotfix's IDOR proof.
+- 3 inline unit tests in `crates/grid-engine/src/agent/tenant.rs` (multi_user_admin / viewer / owner).
+- All 34/34 v3.8 hermetic tests PASS across `multi_user_jwt` + `test_auth_modes` + `multi_user_auth_endpoints` + `multi_user_rbac_tenant`.
+
+### Doc
+- **`docs/.../03.8.2-SUMMARY.md`** (this phase summary).
+- **`.planning/STATE.md`** points at 03.8.3 as the next phase.
+
+## What's left in the climb
+
+### Phase 03.8.3 — Docs + UAT walkthrough + regression sweep
+
+Per the original v3.8 plan in `.planning/phases/03.8.2-rbac-tenant/03.8.2-01-PLAN.md §3.8.3 deferred`, this phase ships:
+
+- `USER_GUIDE.md` §11 multi-user mode (login flow, JWT mint, refresh, logout, RBAC matrix reference) — **DOC-01**
+- Operator env-var reference: `GRID_MODE`, `GRID_JWT_SECRET`, `GRID_TOKEN_TTL_SECS`, `GRID_USERS_JSON` — **DOC-02**
+- `PRODUCTION_USABILITY_2026-07-2X.md` dated walkthrough with 5 scenarios:
+  - (1) login; (2) cross-tenant block; (3) role escalation block;
+  - (4) refresh; (5) logout — **DOC-03 + TEST-05**
+- **TEST-06**: regression sweep across full v3.7 baseline (175 tests) — ASK before running per `feedback_no_full_tests`.
+
+### Optional sidequests
+
+1. **Audit the route catalog for `requires(Action)` annotations.** Phase 03.8.2 deliberately demos `requires()` on three representative routes only (`/admin/users`, `/audit`, `/sessions/{id}`); wiring every endpoint is explicitly deferred to v3.9+ per the plan §Task 4. A future phase could add a route-catalog auditor test that fails on any unprotected mutating route.
+
+2. **Live walkthrough.** Currently `LIVE BLOCKED` on missing API keys per the v3.7 precedent. If the user provides one, swap the hermetic-only tests for real LLM transcripts.
+
+3. **Push 4 unpushed commits on `main`.** Per established v3.7 precedent, push decision is the user's; they may want to review `4b6a3539` (the recent security hotfix) before pushing.
+
+4. **Close v3.8 milestone** (Task #67 is pending). Per `gsd-complete-milestone`: archive phase directories, write a milestone-level summary, tag if release-ready. This is naturally the LAST step after 03.8.3 ships.
+
+## Reference pointers
+
+- **Canonical project status**: `.planning/STATE.md`
+- **v3.8 requirements**: `.planning/REQUIREMENTS.md` (v3.8 section)
+- **Phase plans**:
+  - `.planning/phases/03.8.0-jwt-primitive/03.8.0-01-PLAN.md` + `03.8.0-SUMMARY.md`
+  - `.planning/phases/03.8.1-auth-endpoints/03.8.1-01-PLAN.md` + `03.8.1-SUMMARY.md`
+  - `.planning/phases/03.8.2-rbac-tenant/03.8.2-01-PLAN.md` + `03.8.2-SUMMARY.md`
+- **CLAUDE.md (project root)**: `CLAUDE.md` — global rules, test discipline, lock-failure-handling policies
+- **Auto-memory**: `~/.claude/projects/-Users-sujiangwen-sandbox-LLM-speechless-ai-SGAI-grid-sandbox/memory/MEMORY.md`
+- **Project Status overview**: `docs/PROJECT_PRODUCT_OVERVIEW.md`
+- **Phase archive target (next milestone close)**: `.planning/milestones/v3.8-ROADMAP.md` (created by `gsd-complete-milestone`)
 
 ## Don't go down these paths again (ruled out)
 
-- **Full Phase 3 production OPA backend** — deferred to v3.8+; v3.7.3 wires minimum credible in-process gate only. **Reasoning:** 4-day milestone scope discipline; in-process gate demonstrates governance observability; OPA sidecar is multi-week work
-- **Multi-party approval chains** — v3.8+. **Reasoning:** v3.7.3 single-user interactive prompt is enough for credibility evaluation
-- **L3 HTTP approval endpoints** — explicitly out per D-06. **Reasoning:** CLI is the gate client for v3.7.3; L4 SSE carries the request/decision events for future L5 consumers without needing HTTP endpoints now
-- **Sandbox tier enforcement** — Phase 3 scope per EVOLUTION_PATH; ADR-V2-005 exists but sandbox tier wiring is future. **Reasoning:** orthogonal to gate logic; separate scope
-- **L1 / proto changes** — explicitly forbidden per D-07 backward compat. **Reasoning:** preserves L1 substitutability per ADR-V2-006 + `contract-v1.2.0`
+- **Full `cargo test --workspace` as a default action.** Per `feedback_no_full_tests`: targeted tests only, ASK before full runs.
+- **Adding per-tenant storage / multi-role provisioning.** v3.9+ scope per 03.8.2 plan §Out of scope.
+- **Refresh-token rotation (revoke old jti on refresh).** v3.9+ per 03.8.1 plan §Out of scope (D-04: single-token sliding expiration).
+- **OAuth2 / SSO / SAML / OIDC.** v3.9+ per 03.8.1 plan §Out of scope.
+- **Demo-ing every route's RBAC.** v3.8.2 demonstrated on 3 routes; rest deferred to v3.9+.
 
 ## Ready-to-paste commands / configs
 
 ```bash
-# v3.8 candidate scope decision + start
-/gsd-new-milestone
+# v3.8.3 bootstrap
+/gsd-discuss-phase 3.8.3
 
-# Push unpushed commits
-git push origin main
+# Or jump straight into execution per the proven v3.8 climb pattern:
+/gsd-new-milestone --phase 3.8.3
 
-# Live walkthrough (requires API keys)
+# Live walkthrough (if API keys provided)
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 cargo run --bin grid -- quickstart S1
-eaasp session run -s scada-set-setpoint -r grid-runtime "..."
 
-# Resume on next session
+# Resume on next session (recommended command)
 /gsd-resume-work
+
+# Verify the AUDIT-02 hotfix end-to-end (current session's last work)
+/bin/sh -c 'cd ... && cargo test -p grid-server --features grid-server/testing --test multi_user_rbac_tenant audit_02_non_owner_cannot_enumerate_other_tenants_audit -- --test-threads=1'
+
+# Push (decision deferred to user)
+git push origin main
 ```
-
-## Reference pointers
-
-- **v3.7 archive:** `.planning/milestones/v3.7-ROADMAP.md`
-- **MILESTONES.md entry:** `.planning/MILESTONES.md` §"v3.7 实战可用性补全"
-- **Retrospective:** `.planning/RETROSPECTIVE.md` §"Milestone: v3.7 — 实战可用性补全"
-- **PROJECT.md:** `.planning/PROJECT.md` (evolved with v3.7 → Validated, v3.8 candidate → Active)
-- **ROADMAP.md:** `.planning/ROADMAP.md` (v3.7 collapsed to one-line entry with archive link)
-- **Work log:** `docs/dev/WORK_LOG.md` (5 GSD adoption notes prepended)
-- **Per-phase artifacts:**
-  - `.planning/phases/03.7.1-grid-cli/3.7.1-{CONTEXT,DISCUSSION-LOG,01-PLAN,01-SUMMARY,02-PLAN,02-SUMMARY,03-PLAN,03-SUMMARY}.md`
-  - `.planning/phases/03.7.2-web-production/03.7.2-{CONTEXT,DISCUSSION-LOG,UI-SPEC,VERIFICATION,01-PLAN,01-SUMMARY,02-PLAN,02-SUMMARY}.md`
-  - `.planning/phases/03.7.3-eaasp-phase-0-2-5-phase-3-governance-hooks/03.7.3-{CONTEXT,DISCUSSION-LOG,01-PLAN,01-SUMMARY,02-PLAN,02-SUMMARY,VERIFICATION}.md`
-- **Implementation files:** see `git log --stat 04e4a8fb..e18081af` (50 commits in v3.7 range)
-- **Dated evidence:** `docs/status/PRODUCTION_USABILITY_2026-07-19.md` (3.7.1), `WEB_PRODUCTION_USABILITY_2026-07-20.md` (3.7.2), `PRODUCTION_USABILITY_2026-07-23.md` (3.7.3)
