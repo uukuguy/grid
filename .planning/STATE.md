@@ -29,10 +29,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.8.2 — RBAC route enforcement + TenantContext::for_multi_user + cross-tenant session isolation (next phase, not started)
+Phase: 03.8.3 — Docs + UAT walkthrough + regression sweep (next phase, not started)
 Plan: —
-Status: 03.8.0 + 03.8.1 SHIPPED. 03.8.2 is the next climb.
-Last activity: 2026-07-24 — Phase 03.8.1 SHIPPED (login/refresh/logout endpoints + audit enrichment). 6/6 v3.8.1 hermetic tests + 17/17 v3.8.0 regression + 39/39 grid-engine audit tests all PASS.
+Status: 03.8.0 + 03.8.1 + 03.8.2 SHIPPED. 03.8.3 is the next climb.
+Last activity: 2026-07-24 — Phase 03.8.2 SHIPPED (RBAC + Tenant isolation + AUDIT-02). 9/9 v3.8.2 hermetic + 33/33 full v3.8 regression + 39/39 grid-engine audit tests all PASS.
 
 | Wave | Phase | Status |
 |------|-------|--------|
