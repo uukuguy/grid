@@ -352,7 +352,7 @@ environment with `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
 The full hermetic test set is re-runnable via:
 
 ```bash
-# All v3.8 hermetic suites (34 tests across 4 files)
+# All v3.8 hermetic suites (33 tests across 4 files)
 cargo test -p grid-server --features grid-server/testing \
   --test multi_user_jwt \
   --test test_auth_modes \
@@ -373,8 +373,8 @@ Expected counts (per Phase 03.8.2 SUMMARY + extensions):
 | `multi_user_jwt` | 9 | `crates/grid-server/tests/multi_user_jwt.rs` |
 | `test_auth_modes` | 8 | `crates/grid-server/tests/test_auth_modes.rs` |
 | `multi_user_auth_endpoints` | 7 | `crates/grid-server/tests/multi_user_auth_endpoints.rs` |
-| `multi_user_rbac_tenant` | 10 | `crates/grid-server/tests/multi_user_rbac_tenant.rs` |
-| **Total v3.8 hermetic** | **34** | |
+| `multi_user_rbac_tenant` | 9 | `crates/grid-server/tests/multi_user_rbac_tenant.rs` |
+| **Total v3.8 hermetic** | **33** | (9+8+7+9; verified via `cargo test -p grid-server --features grid-server/testing --test multi_user_jwt --test test_auth_modes --test multi_user_auth_endpoints --test multi_user_rbac_tenant -- --test-threads=1` → 33 passed) |
 | `grid_engine::auth::` (unit) | 44 | `crates/grid-engine/src/auth/{config,roles,user_store,token_blacklist,middleware,api_key}.rs` |
 | `grid_engine::agent::tenant::` (unit) | 3 | `crates/grid-engine/src/agent/tenant.rs` |
 | `grid_engine::audit::` (unit) | 39 | `crates/grid-engine/src/audit/...` |
