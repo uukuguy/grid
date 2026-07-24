@@ -5,7 +5,7 @@ pub mod thread_store;
 pub mod transcript;
 
 use async_trait::async_trait;
-use grid_types::{ChatMessage, SandboxId, SessionId, UserId};
+use grid_types::{ChatMessage, SandboxId, SessionId, TenantId, UserId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -21,6 +21,18 @@ pub struct SessionSummary {
     pub session_id: String,
     pub created_at: i64,
     pub message_count: usize,
+}
+
+/// Result of a tenant-scoped session lookup.
+#[derive(Debug, Clone)]
+pub enum TenantSessionResult {
+    /// Session exists and belongs to the calling tenant + user.
+    Ok(SessionData),
+    /// Session exists but belongs to a different tenant (or different
+    /// user) — a tenant_mismatch response is appropriate at the HTTP layer.
+    TenantMismatch,
+    /// No session with this id.
+    NotFound,
 }
 
 #[async_trait]
@@ -57,6 +69,61 @@ pub trait SessionStore: Send + Sync {
     /// Default implementation falls back to list_sessions with a large limit.
     async fn count_all_sessions(&self) -> usize {
         self.list_sessions(usize::MAX, 0).await.len()
+    }
+
+    // ── v3.8.2 multi-user: tenant scoping ──────────────────────────────
+    //
+    // Default implementations compose on top of `get_session_for_user` /
+    // `list_sessions_for_user`, treating user_id as the sole ownership
+    // signal. Implementations that store an explicit `tenant_id` per
+    // session SHOULD override these to enforce the tenant boundary.
+
+    /// Look up a session by id AND assert that it belongs to the given
+    /// `(tenant_id, user_id)` pair. v3.8.2 `SESSION-01` + `TENANT-03`.
+    ///
+    /// The default impl treats user_id as the sole ownership signal —
+    /// sufficient for the current in-memory + sqlite stores which record
+    /// only `user_id`. Production deployments with real tenant scoping
+    /// should override.
+    async fn get_session_for_tenant(
+        &self,
+        session_id: &SessionId,
+        tenant_id: &TenantId,
+        user_id: &UserId,
+    ) -> TenantSessionResult {
+        match self.get_session_for_user(session_id, user_id).await {
+            Some(s) => TenantSessionResult::Ok(s),
+            None => {
+                // Check whether the session exists at all (under any tenant).
+                // If it does → tenant_mismatch; otherwise NotFound.
+                if self.get_session(session_id).await.is_some() {
+                    TenantSessionResult::TenantMismatch
+                } else {
+                    TenantSessionResult::NotFound
+                }
+            }
+        }
+    }
+
+    /// List sessions visible to a `(tenant_id, user_id)`. v3.8.2
+    /// `SESSION-02`: direct ID enumeration MUST NOT surface another
+    /// tenant's sessions.
+    ///
+    /// Default impl: filter `list_sessions` by user_id. With the current
+    /// stores that record only `user_id`, this is identical to
+    /// `list_sessions_for_user`. True multi-tenant storage will need to
+    /// override.
+    async fn list_sessions_for_tenant(
+        &self,
+        tenant_id: &TenantId,
+        user_id: &UserId,
+        limit: usize,
+        offset: usize,
+    ) -> Vec<SessionSummary> {
+        // Use _tenant_id to satisfy dead-code lints; the binding is read
+        // by overrides only.
+        let _ = tenant_id;
+        self.list_sessions_for_user(user_id, limit, offset).await
     }
 }
 
