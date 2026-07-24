@@ -1,7 +1,8 @@
 use axum::{body::Body, extract::Request, http::StatusCode, middleware::Next, response::Response};
 use grid_engine::auth::middleware::{RequiredAction, UserContext};
 use grid_engine::auth::roles::Role;
-use grid_engine::auth::{AuthConfig, AuthMode, Permission};
+use grid_engine::auth::{AuthConfig, AuthMode, JwtClaims, Permission};
+use grid_types::{TenantId, UserId};
 
 /// Maximum body size accepted while verifying an HMAC signature.
 /// Larger payloads are rejected with 413; the limit lives here so callers
@@ -203,11 +204,39 @@ pub async fn auth_middleware_with_role(
 }
 
 /// RBAC 中间件: 检查是否具有执行特定动作的权限
+///
+/// Two enforcement paths coexist (D-08: AuthMode::None/ApiKey path is
+/// preserved unchanged; only AuthMode::Full gets the new RBAC-01 path):
+///
+/// - **JWT path (AuthMode::Full)**: reads `Extension<JwtClaims>` (set by
+///   `auth_middleware_with_role`), constructs a `TenantContext::for_multi_user`,
+///   and checks `Role::can(required_action)` directly. This is the
+///   canonical v3.8.2 multi-user enforcement.
+///
+/// - **Legacy path (AuthMode::None / ApiKey)**: falls back to
+///   `UserContext::has_permission` for backward compatibility.
 pub async fn require_action_middleware(
     req: Request<Body>,
     next: Next,
     required_action: RequiredAction,
 ) -> Result<Response, StatusCode> {
+    // JWT path — preferred for AuthMode::Full.
+    if let Some(claims) = req.extensions().get::<JwtClaims>().cloned() {
+        let role = grid_engine::auth::roles::Role::parse(&claims.role)
+            .ok_or(StatusCode::FORBIDDEN)?;
+        let ctx = grid_engine::agent::TenantContext::for_multi_user(
+            TenantId::from_string(claims.tenant_id),
+            UserId::from_string(claims.sub),
+            role,
+        );
+        return if ctx.can(required_action.0) {
+            Ok(next.run(req).await)
+        } else {
+            Err(StatusCode::FORBIDDEN)
+        };
+    }
+
+    // Legacy path — preserved for AuthMode::None / ApiKey (RBAC-04 unchanged).
     let user_ctx = get_user_context(&req).ok_or(StatusCode::UNAUTHORIZED)?;
 
     let required_permission = match required_action.0 {
