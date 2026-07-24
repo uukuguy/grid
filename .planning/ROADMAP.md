@@ -17,10 +17,14 @@
 - ✅ **v3.6 Post-Activation Docs Sync** — SHIPPED 2026-07-19 (7 docs commits @ a29f626, 46/46 UAT PASS)
 - ✅ **v3.7 实战可用性补全 (Production-Usability Closure)** — SHIPPED 2026-07-23 (3 phases: grid-cli / web/ / EAASP 本地仿真; 3.7.4 grid-server multi-user deferred to v3.8). 175/175 tests PASS, 50 commits, 76 files. Full details: `.planning/milestones/v3.7-ROADMAP.md` + `.planning/MILESTONES.md`
 - 🟡 **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** — STARTED 2026-07-23 (climb); closes v3.7.4 user-deferral (RBAC + JWT tenant scoping + cross-user session isolation). 4 phases planned (3.8.0 → 3.8.3), 21 REQ-IDs in 6 categories. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.8 section.
+  - **03.8.0** ✅ SHIPPED (JWT primitive + AuthMode::Full path)
+  - **03.8.1** ✅ SHIPPED (login/refresh/logout + audit + 2 security hotfixes)
+  - **03.8.2** ✅ SHIPPED (RBAC route enforcement + TenantContext::for_multi_user + AUDIT-02 + 1 security hotfix)
+  - **03.8.3** ✅ SHIPPED 2026-07-24 (USER_GUIDE §11 + PRODUCTION_USABILITY_2026-07-24 walkthrough + regression sweep). 33/33 v3.8 hermetic tests + 44 auth unit + 3 tenant unit + 39 audit unit all PASS. Wrapper directory: `01-docs-uat-walkthrough-regression-sweep/` (roadmap parser did not handle decimal `03.8.3`; see `01-01-PLAN.md` frontmatter `wrapper_for`).
 
 ---
 
-## Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT) 🟡 STARTED 2026-07-23
+## Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT) 🟢 03.8.0–03.8.3 SHIPPED 2026-07-24 (milestone close pending — see `RESUME-NEXT-SESSION.md`)
 
 **Goal:** Take `grid-server` from `AuthMode::ApiKey` + `TenantContext::for_single_user` to a real multi-user tenancy: JWT-issued sessions carrying `tenant_id` + `role` claims, RBAC enforced at the route handler layer, cross-user session isolation. Auth surface stays as **Grid 独立产品** (per ADR-V2-024 双轴 framework — engine 接入面 uses EAASP's own auth, not Grid); types live in `grid-engine` and are shared but the JWT issuance/refresh/logout endpoints live only in `grid-server`.
 

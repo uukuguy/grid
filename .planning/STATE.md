@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.8
-milestone_name: grid-server multi-user login (Tenant + RBAC + JWT) 🟡 STARTED 2026-07-23
-status: not-started
-stopped_at: v3.8 milestone bootstrapping — REQUIREMENTS/ROADMAP pending
-last_updated: "2026-07-23T22:15:00.000Z"
-last_activity: 2026-07-23
+milestone_name: grid-server multi-user login (Tenant + RBAC + JWT) 🟢 03.8.0–03.8.3 SHIPPED 2026-07-24 (milestone close pending)
+status: phase-complete (all 4 phases shipped; milestone close deferred per user instruction)
+stopped_at: Phase 03.8.3 SHIPPED — wrapper dir 01-docs-uat-walkthrough-regression-sweep; milestone close deferred to user decision
+last_updated: "2026-07-24T08:45:00.000Z"
+last_activity: 2026-07-24
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # Project State
@@ -29,10 +29,15 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.8.3 — Docs + UAT walkthrough + regression sweep (next phase, not started)
-Plan: —
-Status: 03.8.0 + 03.8.1 + 03.8.2 SHIPPED. 03.8.3 is the next climb.
-Last activity: 2026-07-24 — Phase 03.8.2 SHIPPED (RBAC + Tenant isolation + AUDIT-02). 9/9 v3.8.2 hermetic + 33/33 full v3.8 regression + 39/39 grid-engine audit tests all PASS.
+Phase: 03.8.3 — Docs + UAT walkthrough + regression sweep ✅ SHIPPED 2026-07-24
+Plan: 01-01-PLAN.md (wrapper dir; substance = 03.8.3)
+Status: All 4 v3.8 phases (03.8.0/03.8.1/03.8.2/03.8.3) SHIPPED. **Milestone close deferred** — user instruction: stop after phase completion; do not close/archive milestone (per RESUME-NEXT-SESSION.md §Optional sidequest #4 + user instruction 2026-07-24).
+Last activity: 2026-07-24 — Phase 03.8.3 SHIPPED (USER_GUIDE §11 multi-user docs + dated PRODUCTION_USABILITY_2026-07-24 walkthrough + regression sweep). 33/33 v3.8 hermetic + 44 auth unit + 3 tenant unit + 39 audit unit all PASS.
+
+Next decision (deferred to user):
+- Push 4 unpushed commits on `main` (`main...origin/main [ahead 4]` after this phase).
+- Close v3.8 milestone via `gsd-complete-milestone` (archives phases, writes milestone summary, tags).
+- Audit rest of route catalog for `requires(Action)` annotations (v3.9+ scope per 03.8.2 plan §Task 4).
 
 | Wave | Phase | Status |
 |------|-------|--------|

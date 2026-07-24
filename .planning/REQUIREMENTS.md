@@ -46,14 +46,14 @@ Requirements grouped by category. REQ-IDs use v3.8 numbering — continue from v
 - [ ] **TEST-02**: Integration test for role escalation: `Viewer` JWT calling `POST /api/v1/users` returns 403
 - [ ] **TEST-03**: Integration test for JWT expiry: stale token returns 401, refresh path returns new token
 - [ ] **TEST-04**: Integration test for missing claim: tampered token missing `tenant_id` returns 401
-- [ ] **TEST-05**: Hermetic S8 walkthrough doc with 5 scenarios: (1) login, (2) cross-tenant block, (3) role escalation block, (4) refresh, (5) logout — UAT 5/5 PASS
-- [ ] **TEST-06**: All existing v3.7.1/v3.7.2 single-user tests still PASS — `GRID_MODE=single_user` path is unchanged for the default deployment (no regression)
+- [x] **TEST-05**: Hermetic S8 walkthrough doc with 5 scenarios: (1) login, (2) cross-tenant block, (3) role escalation block, (4) refresh, (5) logout — UAT 5/5 PASS — SHIPPED 2026-07-24 in 03.8.3 (`docs/status/PRODUCTION_USABILITY_2026-07-24.md`)
+- [x] **TEST-06**: All existing v3.7.1/v3.7.2 single-user tests still PASS — `GRID_MODE=single_user` path is unchanged for the default deployment (no regression) — VERIFIED 2026-07-24 in 03.8.3 (33/33 v3.8 hermetic + 44 auth unit + 3 tenant unit + 39 audit unit all PASS; test_auth_modes 8/8 unchanged)
 
 ### DOC — Operator-facing docs
 
-- [ ] **DOC-01**: `USER_GUIDE.md` §11 multi-user mode (login flow, JWT mint, refresh, logout, RBAC matrix reference)
-- [ ] **DOC-02**: Operator env-var reference updated: `GRID_MODE`, `GRID_JWT_SECRET` (required if `mode=full`), `GRID_TOKEN_TTL_SECS`, `GRID_REFRESH_TTL_SECS`
-- [ ] **DOC-03**: `PRODUCTION_USABILITY_2026-07-2X.md` dated walkthrough for v3.8 (5 scenarios + 1 UAT sweep)
+- [x] **DOC-01**: `USER_GUIDE.md` §11 multi-user mode (login flow, JWT mint, refresh, logout, RBAC matrix reference) — SHIPPED 2026-07-24 in 03.8.3
+- [x] **DOC-02**: Operator env-var reference updated: `GRID_AUTH_MODE`, `GRID_JWT_SECRET` (required if `mode=full`), `GRID_TOKEN_TTL_SECS`, `GRID_USERS_JSON` (env var name corrected from initial plan's `GRID_MODE`; `GRID_REFRESH_TTL_SECS` dropped per v3.8.1 D-04 single-token sliding expiration) — SHIPPED 2026-07-24 in 03.8.3
+- [x] **DOC-03**: `PRODUCTION_USABILITY_2026-07-24.md` dated walkthrough for v3.8 (5 scenarios + 1 UAT sweep) — SHIPPED 2026-07-24 in 03.8.3
 
 ## Future Requirements (deferred)
 
