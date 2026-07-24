@@ -24,9 +24,9 @@ target/
 node_modules/
 dist/
 
-outputs/
-output/
-tmp/
+/outputs/
+/output/
+/tmp/
 
 data/
 octo.db
