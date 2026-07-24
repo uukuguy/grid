@@ -1,5 +1,54 @@
 # Project Retrospective
 
+## Milestone: v3.8 — grid-server multi-user login
+
+**Shipped:** 2026-07-24
+**Phases:** 4 | **Plans:** 4
+**Requirements:** 21/21 | **Final targeted verification:** 119/119 PASS
+
+### What Was Built
+
+- HS256 JWT issuance and validation with required tenant, role, and `jti` claims plus strict Full-mode secret validation.
+- Argon2id local users and complete login / refresh / logout lifecycle with token revocation.
+- JWT-aware Role × Action enforcement, multi-user tenant context, and tenant-scoped session access.
+- Tenant-aware audit rows and an explicit Owner-only cross-tenant escape hatch that emits SECURITY records.
+- USER_GUIDE §11 and a dated five-scenario production-usability walkthrough.
+
+### What Worked
+
+- The 03.8.0 → 03.8.1 → 03.8.2 → 03.8.3 dependency ladder kept JWT, endpoints, isolation, and documentation independently reviewable.
+- Hermetic tests exposed three security defects before milestone close: blacklist bypass, stale refresh claims, and audit cross-tenant IDOR.
+- `AuthMode::None` / `ApiKey` compatibility remained guarded throughout by the existing eight auth-mode tests.
+- Chain-first security review traced actual claims and tenant filters rather than patching only endpoint behavior.
+
+### What Was Inefficient
+
+- GSD did not parse `03.8.3` as a phase and created a Phase 01 wrapper; the archive must preserve this mapping explicitly.
+- Test totals drifted between summaries as security hotfix tests were added. Future summaries should derive counts from the command output captured at the final phase gate.
+- `gsd-tools milestone complete` again produced weak accomplishments from unstructured SUMMARY files; `MILESTONES.md` required manual repair.
+- Independent `*-VERIFICATION.md` and `*-VALIDATION.md` artifacts were absent, requiring the milestone audit to aggregate SUMMARY and test evidence manually.
+
+### Patterns Established
+
+- Full-mode middleware must validate signature/claims **and then** consult revocation state before inserting request extensions.
+- Refresh must treat the current user store as authority for role and tenant rather than copying mutable authorization claims from an old JWT.
+- Tenant scope must be part of storage queries, not only a handler-level flag check.
+- Cross-tenant administrative access must be explicit, Owner-gated, and security-audited.
+
+### Key Lessons
+
+1. Security hotfix tests change authoritative totals; derive test inventories mechanically at the close gate.
+2. Representative RBAC middleware tests do not imply complete production route wiring; record route-catalog coverage as a separate requirement.
+3. A documentation phase should validate environment-variable names against loaded configuration, which caught `GRID_MODE` vs `GRID_AUTH_MODE` and the nonexistent refresh TTL variable.
+4. GSD decimal identifiers need an archive-safe naming fallback until parser support is fixed.
+
+### Cost Observations
+
+- Autonomous execution completed all four phases with targeted validation and no full workspace test.
+- The final phase gate covered 119 targeted tests; milestone audit found no critical blockers.
+
+---
+
 ## Milestone: v3.7 — 实战可用性补全 (Production-Usability Closure)
 
 **Shipped:** 2026-07-23
@@ -61,3 +110,4 @@
 | Grid Activation (A.0–A.8) | ~30 | ~80 | ~30000 | +200 | 1 day (parallel) |
 | v3.6 Docs Sync | 7 | 7 | +500 (docs) | +0 | 1 session |
 | **v3.7 Production-Usability** | **7** | **50** | **+17095** | **+175** | **4 days** |
+| **v3.8 Multi-user login** | **4** | **~30** | **auth + tenant + docs** | **119 final gate** | **2 days** |

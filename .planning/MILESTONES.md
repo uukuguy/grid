@@ -1,5 +1,27 @@
 # Milestones
 
+## v3.8 grid-server multi-user login (Shipped: 2026-07-24)
+
+**Phases completed:** 4 phases, 4 plans
+
+**Requirements:** 21/21 satisfied; milestone audit PASS (integration 10/10, UAT flows 5/5)
+
+**Tests:** 119/119 targeted PASS at final phase gate
+
+**Key accomplishments:**
+
+1. **JWT + Full-mode authentication** — HS256 JWTs with required `tenant_id`, `role`, and `jti` claims; strict 32-byte `GRID_JWT_SECRET`; missing, expired, or malformed tokens rejected safely.
+2. **Login / refresh / logout lifecycle** — Argon2id-backed local `UserStore`, refresh re-reading current role and tenant, and blacklist enforcement on every protected request.
+3. **RBAC and tenant isolation** — JWT-aware Role × Action enforcement, `TenantContext::for_multi_user`, tenant-scoped session accessors, and cross-tenant mismatch protection.
+4. **Tenant-scoped audit** — audit rows carry tenant and role; Owner-only explicit cross-tenant queries emit SECURITY events; the default-path IDOR was closed.
+5. **Operator documentation and UAT** — USER_GUIDE §11, real environment-variable reference, and a dated five-scenario production-usability walkthrough.
+
+**Security fixes:** blacklist bypass (CRITICAL), stale refresh claims (HIGH), and audit cross-tenant IDOR (HIGH), all with regression tests.
+
+**Deferred to v3.9+:** full production route-catalog `requires(Action)` wiring, persistent users/shared blacklist, refresh-token rotation, login rate limiting, and SSO/OIDC.
+
+---
+
 ## v3.7 实战可用性补全 (Production-Usability Closure) (Shipped: 2026-07-23)
 
 **Phases completed:** 3 phases (3.7.1 / 3.7.2 / 3.7.3) + 1 SKIPPED (3.7.4 deferred to v3.8), 7 plans, 18 tasks
@@ -7,6 +29,7 @@
 **Git range:** `3a85a06c` (2026-07-19) → `dbb6588c` (2026-07-23) — 50 commits, 76 files changed, 17,095 insertions, 4 days
 
 **Tests:** 175/175 PASS total across milestone
+
 - Phase 3.7.1: 14/14 hermetic scenario integration tests + 7/7 unit tests + 9/9 doctor checks
 - Phase 3.7.2: 26/26 vitest + 5/5 Playwright E1-E3 + auditor 8.83/10
 - Phase 3.7.3: 136/136 (L3 76 + L4 events 11 + CLI 18 + mock-SCADA 19 + Rust skill-parser 12)

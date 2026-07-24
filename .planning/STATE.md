@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.8
-milestone_name: grid-server multi-user login (Tenant + RBAC + JWT) 🟢 03.8.0–03.8.3 SHIPPED 2026-07-24 (milestone close pending)
-status: phase-complete (all 4 phases shipped; milestone close deferred per user instruction)
-stopped_at: Phase 03.8.3 SHIPPED — wrapper dir 01-docs-uat-walkthrough-regression-sweep; milestone close deferred to user decision
-last_updated: "2026-07-24T08:45:00.000Z"
+milestone_name: grid-server multi-user login
+status: shipped
+stopped_at: v3.8 SHIPPED and archived; ready to define the next milestone
+last_updated: "2026-07-24T10:37:55.333Z"
 last_activity: 2026-07-24
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 4
   completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -20,7 +21,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.8 — grid-server multi-user login (Tenant + RBAC + JWT). Phase numbering continues after v3.7 (last phase was 03.7.3). User-deferred from v3.7.4 on 2026-07-19, in priority per ADR-V2-024 Open Item #3.
+**Current focus:** Milestone v3.8 SHIPPED 2026-07-24. Planning the next milestone; candidates remain full route-catalog RBAC wiring, `web-platform/` 7.5→9.0, `grid-desktop` 6.5→9.0, or EAASP Phase 3–6 evolution.
 
 Canonical product-status sources:
 
@@ -29,29 +30,17 @@ Canonical product-status sources:
 
 ## Current Position
 
-Phase: 03.8.3 — Docs + UAT walkthrough + regression sweep ✅ SHIPPED 2026-07-24
-Plan: 01-01-PLAN.md (wrapper dir; substance = 03.8.3)
-Status: All 4 v3.8 phases (03.8.0/03.8.1/03.8.2/03.8.3) SHIPPED. **Milestone close deferred** — user instruction: stop after phase completion; do not close/archive milestone (per RESUME-NEXT-SESSION.md §Optional sidequest #4 + user instruction 2026-07-24).
-Last activity: 2026-07-24 — Phase 03.8.3 SHIPPED (USER_GUIDE §11 multi-user docs + dated PRODUCTION_USABILITY_2026-07-24 walkthrough + regression sweep). 33/33 v3.8 hermetic + 44 auth unit + 3 tenant unit + 39 audit unit all PASS.
+Milestone: **v3.8 grid-server multi-user login ✅ SHIPPED 2026-07-24**
+Audit: **21/21 requirements, 10/10 integrations, 5/5 UAT flows PASS**
+Archive: `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`
+Status: Ready to define the next milestone.
 
-Next decision (deferred to user):
-- Push 4 unpushed commits on `main` (`main...origin/main [ahead 4]` after this phase).
-- Close v3.8 milestone via `gsd-complete-milestone` (archives phases, writes milestone summary, tags).
-- Audit rest of route catalog for `requires(Action)` annotations (v3.9+ scope per 03.8.2 plan §Task 4).
+Next-milestone candidates:
 
-| Wave | Phase | Status |
-|------|-------|--------|
-| Wave 1: Single-User Workbench | A.0 Audit & Scoping | ✅ |
-| Wave 1 | A.1 grid-server Hardening | ✅ |
-| Wave 1 | A.2 web/ Production Polish | ✅ |
-| Wave 1 | A.3 grid-cli Final Polish | ✅ |
-| Wave 2: Cross-Cutting | A.4 Cross-Cutting Foundation | ✅ |
-| Wave 2: Multi-Tenant | A.5 grid-platform Hardening | ✅ |
-| Wave 2 | A.6 web-platform/ Production | ✅ |
-| Wave 3: Desktop + Eval | A.7 grid-desktop Feature Work | ✅ |
-| Wave 3 | A.8 grid-eval CI Enhancement | ✅ |
-
-Last activity: 2026-07-22
+- Full production route-catalog `requires(Action)` wiring and route auditor.
+- `web-platform/` Quality 7.5→9.0.
+- `grid-desktop` Quality 6.5→9.0.
+- EAASP Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem.
 
 ## Audit Findings Summary (Post-Activation Scores)
 
