@@ -6,4 +6,5 @@ pub mod rate_limit;
 
 pub use audit::{audit_middleware, AuditMiddlewareState};
 pub use auth::auth_middleware_with_role;
+pub use auth::require_action_middleware;
 pub use rate_limit::RateLimiter;
