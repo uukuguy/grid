@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-25T00:21:06.183Z",
+  "phase": null,
+  "phase_name": "v3.8 shipped; post-release fix complete",
+  "phase_dir": ".planning",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "paused",
+  "completed_tasks": [
+    {"name": "Complete v3.8 multi-user milestone", "status": "done", "commit": "0a438e7e"},
+    {"name": "Fix ignored grid-cli output module", "status": "done", "commit": "ba4e3f20"},
+    {"name": "Push main and v3.8 tag", "status": "done", "commit": "ba4e3f20"},
+    {"name": "Verify Evaluation CI on fixed main", "status": "done", "commit": "ba4e3f20"}
+  ],
+  "remaining_tasks": [
+    {"name": "Choose and start the next milestone", "status": "not_started"},
+    {"name": "Optionally rerun Release workflow after output-module fix", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {"decision": "v3.8 is shipped and archived", "rationale": "21/21 requirements, 10/10 integrations, and 5/5 UAT flows passed", "phase": "v3.8"},
+    {"decision": "Root output ignore rules are anchored", "rationale": "Generic output/ ignored crates/grid-cli/src/output and caused clean-checkout CI failure", "phase": "post-release fix"},
+    {"decision": "Do not alter the v3.8 tag after release", "rationale": "The tag is already pushed; the missing module was fixed on main in ba4e3f20", "phase": "post-release fix"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run /gsd-new-milestone to choose the next scope, or manually dispatch the Release workflow for ba4e3f20.",
+  "context_notes": "v3.8 was archived and tagged v3.8. The post-release CI failure was traced to a root .gitignore output/ rule accidentally ignoring crates/grid-cli/src/output/. The rule was changed to /output/ and /outputs/, the four source files were committed, cargo check and 575 grid-cli tests passed, and Evaluation CI run 30093483956 succeeded. Release workflow for the old v3.8 archive commit remains historically failed; no active servers or watchers are running."
+}
