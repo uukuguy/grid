@@ -3,6 +3,7 @@
 pub mod api;
 pub mod config;
 pub mod middleware;
+pub mod rbac;
 pub mod router;
 pub mod session;
 pub mod state;
