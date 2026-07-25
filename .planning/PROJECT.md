@@ -10,46 +10,52 @@
 **职责切分**(2026-04-26 socratic baseline,详见 `.planning/phases/4.1-PRE-AUDIT-NOTES.md`):
 
 | 维度 | User 专心做 | 他人主要做 |
-|------|------------|----------|
+|------|------------|------------|
 | L0 Protocol + L1 Grid 全栈 + L2/L3/L4 各引擎 | ✅ engine 层基础组件 | — |
 | 数据 + 集成横切层(客户数据 / 企业系统对接 / SSO / 第三方 API) | — | ✅ |
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT)
+## Current Milestone: v3.9 route-catalog RBAC wiring + authorization auditor
 
-**Goal:** Take `grid-server` from single-user (`AuthMode::ApiKey` with `TenantContext::for_single_user`) to a real multi-user tenancy model: JWT-issued sessions that carry tenant + role claims, RBAC enforced at the route-handler layer, and session isolation that prevents cross-user data leak. Source of scope: user deferred from v3.7.4 on 2026-07-19; ADR-V2-024 Open Item #3 (grid-cli + grid-server priority axis) natural extension.
+**Goal:** Make `grid-server` route-by-route authorization **explicitly declared and statically enforced**: every non-public business HTTP route is annotated with the `Action` it requires, every public route is on an explicit allowlist, and a CI auditor fails any route that has neither. The `Action` enum is extended (and the `Role × Action` matrix regenerated) whenever the catalog reveals an action that the current 7-Action vocabulary does not express. `AuthMode::None/ApiKey` semantics are not changed; `AuthMode::Full` runs full per-route RBAC.
+
+**Source of scope:** v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION.md §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations"). User prioritized per ADR-V2-024 Open Item #3 (grid-cli + grid-server priority axis) — extends the v3.8 RBAC investment to the rest of the ~127 still-unannotated endpoints.
 
 **Target features:**
 
-- **JWT tenant scoping** — `AuthMode::Full` route validates JWT claims (`tenant_id`, `user_id`, `role`); request context is per-tenant; invalid/missing claims → 401
-- **Multi-user session isolation** — `TenantContext::for_multi_user(tenant_id, user_id, role)`; cross-user session access (`GET /api/v1/sessions/<id>` owned by user B, called by user A) → 403
-- **RBAC route-layer enforcement** — `Role × Action` matrix already exists (`viewer`/`user`/`admin`/`owner` × 7 actions); wire enforcement through `tower` middleware so handlers can declare `requires(Permission::Write)` etc.
-- **Password / API key issuance endpoints** — login + token mint; refresh token path
-- **Per-user audit trail** — `audit_log` rows tag `user_id` and `tenant_id`; existing `audit.rs` middleware extends to stamp them when set
-- **Tests** — hermetic integration tests: 2-user concurrent session isolation, role escalation blocked, JWT expiry, missing claim 401; full UAT walkthrough documented
+- **`RouteCatalog`** source of truth at `crates/grid-server/src/rbac/catalog.rs` enumerating every business HTTP route with `(method, path, route_kind ∈ { Requires(Action), Public })`. Catalog is `pub`; both manual-decorated-router and generate-from-router patterns are acceptable.
+- **Public allowlist** — compile-time `const` next to the catalog. Default entries: `/api/health`, `/api/health/live`, `/api/v1/auth/login` (the login path is invoked before the JWT is issued). Anything not on the allowlist AND not annotated with `Requires(Action)` is a CI failure.
+- **Static CI auditor** — runs on every PR; exits 0 when the catalog is complete, exits 1 with a named-route report when any route is unannotated. Wired into `.github/workflows/ci.yml` after `cargo check --workspace` and before `cargo test`. Also exposed as `make rbac-audit`.
+- **`Action` vocabulary extension** — when the catalog surfaces a route whose semantic action is not in the existing 7-Action enum (`Read`, `CreateSession`, `RunAgent`, `ManageMcp`, `ManageSkills`, `ManageUsers`, `ManageBilling`), new variants are added (e.g. `ManageHooks`, `ManageMemories`, `ManageAudit`, `ManageConfig`, `ManageSecrets`, `ManageSandbox`, `ManageScheduler`) and `Role::can(Action)` is regenerated in `crates/grid-engine/src/auth/roles.rs`. The 7-Action baseline is a starting point, not a cap.
+- **`AuthMode::None/ApiKey` parity** — `test_auth_modes None/ApiKey` paths are bit-for-bit unchanged. Only `AuthMode::Full` requests hit the new per-route RBAC. `Owner` always succeeds; `Viewer` cannot call non-Read annotated routes; `User` extends to Read + CreateSession + RunAgent; `Admin` extends to ManageMcp / ManageSkills / ManageUsers.
 
-**Out of scope (deferred to v3.9+):**
+**Out of scope (deferred to v3.10+):**
 
-- `web-platform/` multi-tenant UI wiring (UI already at 7.5; multi-user wiring is independent and stays a separate milestone)
-- `grid-desktop` 6.5→9.0 (no scope change from v3.7)
+- `web-platform/` Quality 7.5→9.0 — separate milestone
+- `grid-desktop` Quality 6.5→9.0 — separate milestone
+- `grid-platform` route catalog audit — separate milestone (v3.9 only audits `grid-server`)
 - EAASP v2.0 Phase 3 production OPA backend — only the in-process `PolicyEngine` from 3.7.3 is in scope; OPA sidecar is a separate item
 - Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem — untouched
 - SSO (SAML/OIDC) — defer; JWT-only this milestone
+- Refresh-token rotation — v3.8.1 §Out of scope; v3.9+=scope
+- Multi-role per user — single role per user preserved from v3.8.2
 
 **See also (canonical sources):**
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
 - `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` (engine vs data/integration dual-axis; Open Item #3 = grid-cli + grid-server priority)
-- `crates/grid-engine/src/auth/roles.rs` (Role × Action matrix exists, this milestone wires enforcement)
-- `crates/grid-server/src/middleware/auth.rs` (existing 9.8K middleware — extends, does not replace)
+- `crates/grid-engine/src/auth/roles.rs` (Role × Action matrix — v3.9 extends it)
+- `crates/grid-server/src/api/mod.rs` + `router.rs` (the ~130-endpoint catalog target)
 - `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
+- `.planning/milestones/v3.8-REQUIREMENTS.md` (v3.8 deferred items map to v3.9 scope)
 
 **Key context:**
-- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
-- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; both at 9.0+ already, so this milestone pushes the priority axis to multi-user credibility.
-- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1). Auth is **Grid 独立产品** surface, but the engine-layer `AuthMode`/`Permission`/`Role` types live in `grid-engine` and are reused — no duplication.
+- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. The route catalog is Grid 独立产品 surface; the engine-layer `Role × Action` matrix in `grid-engine` is shared and must remain leg-agnostic (ADR-V2-023 P1).
+- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; this milestone continues that axis by hardening grid-server's authorization surface end-to-end.
+- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1). v3.9 extends the engine-layer `Action` enum but adds no leg-specific branches; D-09 test `test_rbac_engine_layer_is_leg_agnostic` verifies.
 
 **Previous milestones:**
+- **v3.8 grid-server multi-user login SHIPPED 2026-07-24** (4 phases: 03.8.0–03.8.3, 21 REQ-IDs, 119/119 targeted tests PASS, 3 security hotfixes)
 - **v3.7 实战可用性补全 SHIPPED 2026-07-23** (3 phases: 3.7.1 grid-cli / 3.7.2 web/ / 3.7.3 EAASP; 3.7.4 SKIPPED → v3.8)
 - **v3.6 Post-Activation Docs Sync SHIPPED 2026-07-19**
 - **Grid 独立产品 Activation SHIPPED 2026-06-17** (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
@@ -65,13 +71,6 @@
 - 双轴框架 (ADR-V2-024 §1): engine vs data/integration. Grid independent product inherits engine layer.
 - Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on.
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
-
-**Previous milestones:**
-- **v3.6 Post-Activation Docs Sync SHIPPED 2026-07-19** (7 docs commits @ a29f626, 46/46 UAT PASS)
-- **Grid 独立产品 Activation SHIPPED 2026-06-17** (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
-- v3.5 Debt Finalization ✅ SHIPPED 2026-06-16 (LEDGER 100% ✅ CLOSED, 56 rows normalized)
-- v3.4 Full INBOX Drain ✅ SHIPPED 2026-06-16 (10 phases, ~55 REQ-IDs, ~85 INBOX rows)
-- v3.3 Engine + Platform Debt Sweep ✅ SHIPPED 2026-06-07
 
 ## Core Value
 
@@ -102,12 +101,13 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 - ✓ **Grid 独立产品 Activation** (2026-06-17) —— 8/8 phases A.0–A.8 SHIPPED. Repo renamed `grid-sandbox` → `grid`. AGENTS.md / CLAUDE.md / READMEs / `docs/PROJECT_PRODUCT_OVERVIEW.md` are the maintained product-status entrypoints.
 - ✓ **v3.6 Post-Activation Docs Sync** (2026-07-19) —— 7 docs commits @ `a29f626`, 46/46 UAT PASS. SSOT = `docs/PROJECT_PRODUCT_OVERVIEW.md`; frozen snapshot = `docs/status/PRODUCT_STATUS_2026-07-17.md`. AGENTS.md canonical-facts block + CLAUDE.md relative symlink.
 - ✓ **v3.7 实战可用性补全 (Production-Usability Closure)** (2026-07-23, archived) —— 3 phases SHIPPED (3.7.4 SKIPPED, deferred to v3.8): 3.7.1 grid-cli 实战补全 (8/9 REQ-AUDITs), 3.7.2 web/ dashboard 实战化 (9 REQ-WEB), 3.7.3 EAASP 本地仿真实战补全 (8/8 REQ-EAASP). 175/175 tests PASS total across milestone. 50 commits, 76 files, 17,095 insertions. All 10 locked decisions (D-01..D-10) honored; default mode preserved; existing tests unaffected; live walkthrough BLOCKED on missing LLM API key per CLAUDE.md §Runtime Verification Tasks.
+- ✓ **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** (2026-07-24, archived) —— 4 phases SHIPPED (03.8.0–03.8.3), 21 REQ-IDs in 6 categories, 119/119 targeted tests PASS, 3 security hotfixes (CRITICAL blacklist bypass, HIGH refresh stale-claim, HIGH audit IDOR). Demonstrated `requires(Action)` on 3 representative routes; remaining ~127 endpoints deferred to v3.9 per 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests. Full archive: `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`.
 
 ### Active
 
-<!-- v3.8 next-milestone candidates + 4 EAASP platform-evolution gaps are the open scope. -->
+<!-- v3.9 next-milestone scope + 4 EAASP platform-evolution gaps are the open scope. -->
 
-- [ ] **v3.8 candidate scope (decision pending)** — Per ROADMAP.md §3.7.4 deferral: grid-server multi-user login scenario (RBAC + JWT tenant scoping + cross-user session isolation). User-prioritized axis per ADR-V2-024 Open Item #3: grid-cli + grid-server first (both at 9.0+ ✅). Other candidates: A) web-platform/ 7.5→9.0, B) grid-desktop 6.5→9.0, C1) Phase 3 OPA production backend, C2) Phase 4 A2A + Event Room, C3) Phase 5 L5 Cowork UI, C4) Phase 6 ecosystem expansion.
+- [ ] **v3.9 route-catalog RBAC wiring + authorization auditor** — Per `milestones/v3.8-REQUIREMENTS.md` "Future Requirements (deferred)" + 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests. Closes the full route-catalog `requires(Action)` wiring deferred from v3.8. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. User-prioritized axis per ADR-V2-024 Open Item #3: grid-cli + grid-server first. Details: `.planning/REQUIREMENTS.md` v3.9 section.
 - [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain (v3.7.3 wires minimum credible in-process gate; full backend deferred) / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 
 ### Out of Scope
@@ -148,7 +148,7 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
-|----------|-----------|---------|
+|----------|-----------|--------|
 | **DEFERRED_LEDGER.md 作为单 SSOT 保留(GSD 例外)** | GSD backlog 是 999.x phase 散文件,会断 D87→D148→D152 跨 phase trace。本项目 14 phase 全部用 ledger 追了 100+ D-item,这套机制成熟,不替换 | ✓ Good — sticky |
 | **WORK_LOG.md 继续 prepend-on-top(GSD 例外)** | `.planning/STATE.md` 是 current state,WORK_LOG 是时间线 history,二者并存。STATE 给 resume-work,WORK_LOG 给 archeology | ✓ Good — sticky |
 | **ADR plugin 完全独立于 GSD** | `/adr:*` 与 GSD 不耦合,15 ADR 已成 governance 底座。继续 PreToolUse `adr-guard.sh` 强制 + F1-F5 CI lint | ✓ Good — sticky |
@@ -159,6 +159,9 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 | **GSD 模型 profile = Quality** | Phase 4 决策阶段值得 Opus 跑 researcher / roadmapper;成本可接受 | ✓ Good |
 | **GSD parallel plan execution 打开** | Phase 2.5 W1∥W2 并行经验证明本项目适合 | ✓ Good |
 | **Granularity = Standard** | 5-8 phases / milestone, 3-5 plans / phase。匹配 Phase 2 / 3 历史粒度 | ✓ Good |
+| **v3.9 RouteCatalog as source of truth** (D-06) | v3.9 needs an auditor's stable target; manual-decoration vs generate-from-router both acceptable as long as catalog is `pub` and consumed by auditor + tests | ✓ Locked (v3.9 bootstrap) |
+| **v3.9 Action vocabulary is extensible** (D-04) | 7-Action baseline is a starting point; auditor surfaces semantic gaps that warrant new variants; matrix regeneration is part of the deliverable | ✓ Locked (v3.9 bootstrap) |
+| **v3.9 AuthMode None/ApiKey parity is mandatory** (D-05) | v3.9 wiring is purely additive; only `AuthMode::Full` runs the new per-route RBAC; regression guarded by `test_auth_modes` 8/8 | ✓ Locked (v3.9 bootstrap) |
 
 ## Evolution
 
@@ -179,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-07-23 — Milestone v3.7 (实战可用性补全) SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. 3/4 phases shipped (3.7.4 SKIPPED → deferred to v3.8). 175/175 tests PASS, 50 commits, 76 files changed, 17,095 insertions over 4 days (2026-07-19 → 2026-07-23). All 8 REQ-AUDIT-01..09 (3.7.1) + 9 REQ-WEB-01..09 (3.7.2) + 8 REQ-EAASP-01..08 (3.7.3) closed. Live walkthrough BLOCKED on missing LLM API key per CLAUDE.md §Runtime Verification Tasks. Milestone v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). Milestones v3.1–v3.5 ✅ CLOSED.*
+*Last updated: 2026-07-25 — v3.9 (route-catalog RBAC wiring + authorization auditor) bootstrapped. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 (实战可用性补全) ✅ SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*

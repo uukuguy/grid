@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.8
-milestone_name: grid-server multi-user login
-status: shipped
-stopped_at: v3.8 SHIPPED and archived; ready to define the next milestone
-last_updated: "2026-07-24T10:37:55.333Z"
-last_activity: 2026-07-24
+milestone: v3.9
+milestone_name: route-catalog RBAC wiring + authorization auditor
+status: bootstrapping
+stopped_at: v3.9 milestone bootstrapped (PROJECT/REQUIREMENTS/ROADMAP/STATE); ready for Phase 03.9.0 plan-phase
+last_updated: "2026-07-25T00:00:00.000Z"
+last_activity: 2026-07-25
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.8 SHIPPED 2026-07-24. Planning the next milestone; candidates remain full route-catalog RBAC wiring, `web-platform/` 7.5→9.0, `grid-desktop` 6.5→9.0, or EAASP Phase 3–6 evolution.
+**Current focus:** Milestone v3.9 (route-catalog RBAC wiring + authorization auditor) bootstrapped 2026-07-25. Planning the first phase (03.9.0 route catalog + public allowlist).
 
 Canonical product-status sources:
 
@@ -30,14 +30,12 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.8 grid-server multi-user login ✅ SHIPPED 2026-07-24**
-Audit: **21/21 requirements, 10/10 integrations, 5/5 UAT flows PASS**
-Archive: `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`
-Status: Ready to define the next milestone.
+Milestone: **v3.9 route-catalog RBAC wiring + authorization auditor 🟡 BOOTSTRAPPED 2026-07-25**
+Scope: 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories (CAT / AUD / RBAC / MODE / TEST+DOC).
+Closes: v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations").
 
-Next-milestone candidates:
+Next-milestone candidates (after v3.9 SHIPS):
 
-- Full production route-catalog `requires(Action)` wiring and route auditor.
 - `web-platform/` Quality 7.5→9.0.
 - `grid-desktop` Quality 6.5→9.0.
 - EAASP Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem.
@@ -57,7 +55,7 @@ Next-milestone candidates:
 ### Quality Improvements (Phase B — 2026-06-17)
 
 | Component | Changes | Tests Before → After |
-|-----------|---------|---------------------|
+|-----------|--------|---------------------|
 | grid-platform | quota consume, 20 new integration tests | 17 → **37** |
 | web-platform/ | Loading skeletons, toast errors, empty states, cn() utility | 0 → 0 (UI components) |
 | grid-desktop | Icon assets (PNG), 3 new IPC commands, Grid rebrand | 9 → 9 |
@@ -67,7 +65,15 @@ Next-milestone candidates:
 
 ## Completed Milestones
 
-### v3.7 Production-Usability Closure ✅ SHIPPED 2026-07-23
+### v3.8 grid-server multi-user login ✅ SHIPPED 2026-07-24
+
+- 4 phases (03.8.0 / 03.8.1 / 03.8.2 / 03.8.3), 21 REQ-IDs in 6 categories.
+- JWT primitive + AuthMode::Full path + login/refresh/logout endpoints + RBAC route enforcement + TenantContext::for_multi_user + cross-tenant isolation + tenant-scoped audit + USER_GUIDE §11 + PRODUCTION_USABILITY walkthrough + regression sweep.
+- 119/119 targeted tests PASS, 3 security hotfixes (CRITICAL blacklist bypass + HIGH refresh stale-claim + HIGH audit IDOR).
+- Demonstrated `requires(Action)` on 3 representative routes (`/admin/users`, `/audit`, `/sessions/{id}`); remaining ~127 endpoints in `crates/grid-server/src/api/mod.rs` + `router.rs` deferred to v3.9 per 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests.
+- Archive: `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`.
+
+### v3.7 实战可用性补全 ✅ SHIPPED 2026-07-23
 
 - 3 phases (3.7.1, 3.7.2, 3.7.3), 9/9 REQ-AUDITs + 8/8 REQ-EAASP closed.
 - Phase 3.7.1: grid-cli 实战可用性 (S1-S6 scenarios, 14/14 hermetic tests).
@@ -75,6 +81,11 @@ Next-milestone candidates:
 - Phase 3.7.3: EAASP governance gate (REQ-EAASP-01..08) — L3 risk-aware gate,
   L4 SSE events, CLI sync approval UX, mock-SCADA scada_set_setpoint,
   S8 walkthrough, dated evidence (136 tests PASS).
+
+### v3.6 Post-Activation Docs Sync ✅ SHIPPED 2026-07-19
+
+- 3 sub-phases (3.6.1 SSOT + snapshot, 3.6.2 AGENTS + CLAUDE + READMEs, 3.6.3 STATE + PROJECT).
+- 7 docs commits @ `a29f626`, UAT 46/46 PASS.
 
 ### v3.5 Debt Finalization ✅ SHIPPED 2026-06-16
 
@@ -110,6 +121,17 @@ Next-milestone candidates:
 - **Debt era over** (2026-06-16): v3.2–v3.5 = 4 consecutive debt sweep milestones, ~200 D-items closed. No more debt milestones — shift to product activation.
 - **Priority target**: grid-cli + grid-server first (per ADR-V2-024 Open Item #3), then platform/desktop/web.
 - **Phase 3.7.3 gate boundary** (2026-07-23): SHIPPED 2/2 plans. risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; governance request/final decisions are append-only and surfaced via L4 events; L1 and L3 HTTP approval surface remain unchanged. 8/8 REQ-EAASP closed; 131/131 targeted tests PASS (L3 76 + L4 6 + CLI 18 + mock-SCADA 19 + Rust 12). Live walkthrough BLOCKED on missing LLM API key (hermetic S8 test proves same code path).
+- **v3.9 locked decisions** (from v3.9 discussion, 2026-07-25):
+  - D-01 Cover ALL non-public business HTTP routes.
+  - D-02 Public routes on explicit allowlist (compile-time `const`).
+  - D-03 CI static auditor enforces per-route invariants.
+  - D-04 `Action` vocabulary extensible; new variants when semantic gap; `Role × Action` matrix regenerated.
+  - D-05 `AuthMode::None/ApiKey` semantics fully compatible; only `AuthMode::Full` runs per-route RBAC.
+  - D-06 `RouteCatalog` is the source of truth (`pub`); both manual-decorated-router and generate-from-router patterns acceptable.
+  - D-07 No new external crate dependency.
+  - D-08 No schema migration.
+  - D-09 Shared-core rule (ADR-V2-023 P1) preserved; engine-layer changes leg-agnostic; verified by `test_rbac_engine_layer_is_leg_agnostic`.
+  - D-10 Phase ladder 03.9.0 → 03.9.1 → 03.9.2.
 
 ### Pending Todos
 
@@ -121,15 +143,17 @@ None.
 - **EAASP v2.0 platform-evolution gaps (explicit future work)**: production OPA approval chain (Phase 3), A2A / Event Room (Phase 4), L5 Cowork UI (Phase 5), ecosystem expansion (Phase 6) — per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. Out of post-Activation scope; future milestone candidates.
 - **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
+- **v3.9 Action vocabulary growth discipline** (D-04): extension is allowed but each new variant must map to a coherent semantic; auditor surfaces gaps; "manage everything" catch-all is forbidden.
 
 ## Session Continuity
 
-Last session: 2026-07-23 (this climb session)
-Stopped at: v3.8 milestone bootstrapped (PROJECT.md + STATE.md updated). REQUIREMENTS + ROADMAP pending.
-Resume path: Pick up at REQUIREMENTS.md definition for v3.8. Bataon: `.planning/RESUME-NEXT-SESSION.md` (regenerate after ROADMAP committed).
+Last session: 2026-07-25 (this climb session)
+Stopped at: v3.9 milestone bootstrapped (PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md updated). Plan-phase for Phase 03.9.0 next.
 
 Prior sessions:
 
+- 2026-07-24: Phase 03.8.3 SHIPPED — USER_GUIDE §11 + PRODUCTION_USABILITY walkthrough + regression sweep. v3.8 milestone close pending. 119/119 targeted tests PASS.
+- 2026-07-23 (this climb session): v3.8 milestone bootstrapped (PROJECT.md + STATE.md updated). REQUIREMENTS + ROADMAP pending.
 - 2026-07-19 (this session): Phase 3.7.1 SHIPPED — 8/9 REQ-AUDITs closed, 14/14 hermetic tests PASS
 - 2026-07-19: Phase 3.7.1 context gathered (CONTEXT.md + DISCUSSION-LOG.md @ db695a29)
 - 2026-07-19: Phase 3.6 SHIPPED @ a29f626 (7 docs commits, 46/46 UAT PASS)
@@ -149,4 +173,4 @@ Prior sessions:
 
 ---
 
-*Milestone SHIPPED 2026-06-17. 8/8 activation phases complete. 5 commits in this session.*
+*Milestone v3.9 bootstrapped 2026-07-25. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*

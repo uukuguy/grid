@@ -1,9 +1,9 @@
 # Grid — Roadmap
 
-> **Latest shipped milestone:** v3.7 实战可用性补全 (Production-Usability Closure) ✅ 2026-07-23
-> **Active milestone:** v3.8 grid-server multi-user login (Tenant + RBAC + JWT) 🟡 STARTED 2026-07-23
-> **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`
-> **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.8 section.
+> **Latest shipped milestone:** v3.8 grid-server multi-user login (Tenant + RBAC + JWT) ✅ 2026-07-24
+> **Active milestone:** v3.9 route-catalog RBAC wiring + authorization auditor 🟡 STARTED 2026-07-25
+> **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`
+> **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.9 section.
 
 ## Milestones
 
@@ -16,15 +16,71 @@
 - ✅ **Grid 独立产品 Activation** — SHIPPED 2026-06-17 (8/8 phases A.0–A.8; repo renamed `grid-sandbox` → `grid`)
 - ✅ **v3.6 Post-Activation Docs Sync** — SHIPPED 2026-07-19 (7 docs commits @ a29f626, 46/46 UAT PASS)
 - ✅ **v3.7 实战可用性补全 (Production-Usability Closure)** — SHIPPED 2026-07-23 (3 phases: grid-cli / web/ / EAASP 本地仿真; 3.7.4 grid-server multi-user deferred to v3.8). 175/175 tests PASS, 50 commits, 76 files. Full details: `.planning/milestones/v3.7-ROADMAP.md` + `.planning/MILESTONES.md`
-- 🟡 **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** — STARTED 2026-07-23 (climb); closes v3.7.4 user-deferral (RBAC + JWT tenant scoping + cross-user session isolation). 4 phases planned (3.8.0 → 3.8.3), 21 REQ-IDs in 6 categories. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.8 section.
-  - **03.8.0** ✅ SHIPPED (JWT primitive + AuthMode::Full path)
-  - **03.8.1** ✅ SHIPPED (login/refresh/logout + audit + 2 security hotfixes)
-  - **03.8.2** ✅ SHIPPED (RBAC route enforcement + TenantContext::for_multi_user + AUDIT-02 + 1 security hotfix)
-  - **03.8.3** ✅ SHIPPED 2026-07-24 (USER_GUIDE §11 + PRODUCTION_USABILITY_2026-07-24 walkthrough + regression sweep). 33/33 v3.8 hermetic tests + 44 auth unit + 3 tenant unit + 39 audit unit all PASS. Wrapper directory: `01-docs-uat-walkthrough-regression-sweep/` (roadmap parser did not handle decimal `03.8.3`; see `01-01-PLAN.md` frontmatter `wrapper_for`).
+- ✅ **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** — SHIPPED 2026-07-24. 4 phases (03.8.0–03.8.3), 21 REQ-IDs in 6 categories, 119/119 targeted tests PASS, 3 security hotfixes. Demonstrated `requires(Action)` on 3 representative routes; remaining ~127 endpoints deferred to v3.9 per 03.8.2 plan §Task 4 / RESUME-NEXT-SESSION §Optional sidequests. Archive: `.planning/milestones/v3.8-ROADMAP.md` + `.planning/milestones/v3.8-REQUIREMENTS.md` + `.planning/milestones/v3.8-MILESTONE-AUDIT.md`.
+- 🟡 **v3.9 route-catalog RBAC wiring + authorization auditor** — STARTED 2026-07-25 (climb bootstrap). Closes v3.8.2's "full route catalog wiring" deferral. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.9 section.
 
 ---
 
-## Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT) 🟢 03.8.0–03.8.3 SHIPPED 2026-07-24 (milestone close pending — see `RESUME-NEXT-SESSION.md`)
+## Milestone: v3.9 route-catalog RBAC wiring + authorization auditor 🟡 STARTED 2026-07-25
+
+**Goal:** Make `grid-server` route-by-route authorization **explicitly declared and statically enforced**. Every non-public business HTTP route is annotated with the `Action` it requires; every public route is on an explicit allowlist; a CI auditor fails any route that has neither. The `Action` enum is extended and the `Role × Action` matrix regenerated whenever the catalog reveals an action the current 7-Action vocabulary does not express. `AuthMode::None/ApiKey` semantics are unchanged; `AuthMode::Full` runs full per-route RBAC.
+
+**Context (post-v3.8):** v3.8 demonstrated `requires(Action)` on 3 representative routes (`/admin/users`, `/audit`, `/sessions/{id}`) and shipped JWT + RBAC + tenant isolation. The remaining ~127 endpoints registered by `crates/grid-server/src/api/mod.rs` + `router.rs` have no `requires(...)` annotation. A new route can quietly bypass RBAC without detection. v3.9 closes that gap by making "every route has either an Action or a public marker" a CI-enforced invariant.
+
+**Locked decisions (from v3.9 discussion — non-negotiable):**
+
+- **D-01** Cover ALL non-public business HTTP routes. No protective carve-out.
+- **D-02** Public routes get an explicit allowlist (compile-time `const` next to catalog).
+- **D-03** CI static auditor enforces per-route invariants. Auditor PASS = required for merges.
+- **D-04** `Action` vocabulary is extensible. New variants when semantic gap (ManageHooks / ManageMemories / ManageAudit / ManageConfig / ManageSecrets / ManageSandbox / ManageScheduler etc.) plus regenerated `Role × Action` matrix in `crates/grid-engine/src/auth/roles.rs`.
+- **D-05** `AuthMode::None/ApiKey` semantics fully compatible — purely additive wiring; only `AuthMode::Full` runs the new per-route RBAC.
+- **D-06** RouteCatalog structure is the source of truth; both manual-decorated-router and generate-catalog-from-router patterns are acceptable; catalog is `pub`.
+- **D-07** No new external crate dependency.
+- **D-08** No schema migration.
+- **D-09** Shared-core rule (ADR-V2-023 P1) preserved — engine-layer changes leg-agnostic; verified by new test `test_rbac_engine_layer_is_leg_agnostic`.
+- **D-10** Phase ladder: 03.9.0 (catalog/allowlist) → 03.9.1 (full wiring + matrix) → 03.9.2 (CI auditor + regression).
+
+**Scope ladder (v3.7/v3.8 proven pattern — discuss → research → patterns → plan → plan-checker → execute → verify, batched into 3 phases):**
+
+| # | Phase | Goal | Requirements | Success criteria |
+|---|-------|------|--------------|------------------|
+| **03.9.0** | Route catalog + public allowlist | `RouteCatalog` data structure + `allowlist` const + `build_catalog()` consuming `build_router()`; both decorated-router and generate-from-router patterns acceptable | CAT-01, CAT-02, CAT-04 | `RouteCatalog` exists at `crates/grid-server/src/rbac/catalog.rs`, lists every `api::routes()` endpoint; allowlist covers `/api/health`, `/api/health/live`, `/api/v1/auth/login`; hermetic test asserts `api::routes().len() == catalog.len()` |
+| **03.9.1** | Full business-route wiring + Action matrix | Annotate every non-public business route with `Requires(Action)`; extend `Action` enum + regenerate `Role × Action` matrix when catalog surfaces an unmapped action; `AuthMode::None/ApiKey` paths untouched | RBAC-05, RBAC-06, RBAC-07, RBAC-08, CAT-03, MODE-01, MODE-02, MODE-03 | Every route in `api::routes()` has a `Requires(Action)`; Owner still always succeeds; Viewer cannot call non-Read; `test_auth_modes None/ApiKey` 8/8 still PASS (regression); all 8 v3.8 `test_full` cases still PASS |
+| **03.9.2** | CI auditor + regression sweep | Static auditor binary or `cargo test -p grid-server --test route_auditor`; wired into `.github/workflows/ci.yml`; `make rbac-audit` target; dated `PRODUCTION_USABILITY_2026-07-25.md` walkthrough | AUD-01, AUD-02, AUD-03, TEST-07, TEST-08, TEST-09, DOC-04, DOC-05, DOC-06 | `make rbac-audit` exits 0; auditor self-test on synthetic unplugged route exits 1 with named report; v3.7 175-test baseline ASK-before-running per `feedback_no_full_tests`; v3.8 34/34 hermetic tests still PASS |
+
+### Why this ladder
+
+- **03.9.0 (catalog)** must come first — every later phase consumes the catalog structure.
+- **03.9.1 (wiring)** — depends on 03.9.0 (catalog must exist before annotating routes); produces the green auditor PASS state.
+- **03.9.2 (auditor + regression)** — final; the auditor catches future drift; the regression sweep proves `AuthMode` parity.
+
+### Out of scope (deferred to v3.10+)
+
+- **SSO / SAML / OIDC / OAuth2** — JWT + local creds only
+- **Per-tenant Action policy override** — engine-layer Role × Action is global
+- **Per-route custom predicates beyond Role** — structure lays down for future extension without rewrite
+- **`grid-platform` route catalog audit** — separate milestone; v3.9 only audits `grid-server`
+- **Rate limiting per Role** — `RateLimiter` left untouched
+- **EAASP Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem** — untouched
+- **`web-platform/` Quality 7.5→9.0** — separate milestone
+- **`grid-desktop` Quality 6.5→9.0** — separate milestone
+- **Refresh-token rotation** — v3.8.1 §Out of scope; v3.9+=scope
+
+### Risks & guards
+
+- **R-1: Single-user / ApiKey regression** — D-05 requires bit-for-bit identical `AuthMode::None/ApiKey` behavior; existing `test_auth_modes 8/8` is the gate; verified in 03.9.1.
+- **R-2: `grid-engine` shared-core bleed** — D-09; new `Action` variants must work for engine 接入面 (EAASP) and Grid 独立产品; verified by `test_rbac_engine_layer_is_leg_agnostic`.
+- **R-3: Action vocabulary explosion** — D-04 lets us grow, but a "manage everything" catch-all is forbidden; each new Action must map to a coherent semantic. Auditor surfaces gaps in 03.9.1.
+- **R-4: Catalog drift** — D-06 makes the catalog `pub` and the auditor its only enforcement. v3.9.2's CI job catches drift on every PR.
+- **R-5: Full v3.7 baseline regression** — TEST-09 covers it but the full `cargo test --workspace` is gated behind `feedback_no_full_tests`; ASK before running per project rule.
+
+### Shared core rule (ADR-V2-023 P1, retained)
+
+Changes to `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` must work for both engine 接入面 (EAASP) and Grid 独立产品. v3.9 adds Action variants to `grid-engine::auth::roles::Action` and updates `Role::can` — these are engine-layer and must remain leg-agnostic. EAASP does not currently consume `Role::can(Action)` for HTTP routing, so extending variants is safe; D-09 test verifies.
+
+---
+
+## Milestone: v3.8 grid-server multi-user login (Tenant + RBAC + JWT) ✅ SHIPPED 2026-07-24
 
 **Goal:** Take `grid-server` from `AuthMode::ApiKey` + `TenantContext::for_single_user` to a real multi-user tenancy: JWT-issued sessions carrying `tenant_id` + `role` claims, RBAC enforced at the route handler layer, cross-user session isolation. Auth surface stays as **Grid 独立产品** (per ADR-V2-024 双轴 framework — engine 接入面 uses EAASP's own auth, not Grid); types live in `grid-engine` and are shared but the JWT issuance/refresh/logout endpoints live only in `grid-server`.
 
@@ -54,6 +110,7 @@
 - **`grid-platform` Quality 9.0 push** — already 9.0+ per v3.7 audit, no scope here
 - **EAASP Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem** — untouched
 - **OAuth2 Authorization Code / PKCE** — JWT-only this milestone
+- **Full route-catalog `requires(Action)` wiring** — `crates/grid-server/src/api/mod.rs` + `router.rs` have ~130 endpoints; v3.8.2 demonstrated on 3; remaining ~127 → v3.9
 
 ### Risks & guards
 
@@ -65,10 +122,6 @@
 ### Shared core rule (ADR-V2-023 P1, retained)
 
 Changes to `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` must work for both engine 接入面 (EAASP) and Grid 独立产品. v3.8 only ADDs to `grid-engine::auth::AuthConfig`; does not break engine-facing path.
-
----
-
-## Milestone: Grid 独立产品 Activation ✅ SHIPPED
 
 ---
 
@@ -119,7 +172,7 @@ A.1 grid-server ──┬── A.2 web/ polish
                   ├── A.4 cross-cutting foundation ──┬── A.5 grid-platform ── A.6 web-platform/
                   │                                  │
                   └── A.3 grid-cli polish             └── A.7 grid-desktop (after A.6)
-                  
+
 A.8 grid-eval — independent, can run anytime with web/ components
 ```
 
@@ -151,137 +204,10 @@ A.8 grid-eval — independent, can run anytime with web/ components
 
 ---
 
-## Milestone: v3.6 Post-Activation Docs Sync 🟡 STARTED 2026-07-18
-
-**Goal:** Align the canonical product-status narrative to the post-Activation reality so future sessions and external readers can find a single, maintained source. Carry forward the docs-sync work the prior session drafted in the `grid-eaasp-product-docs-sync-2026-07-18` working set without mixing the docs-sync flow into the GSD phase management path (no superpowers/lwm/project-state artifacts in `.planning/`).
-
-**Context:** Grid 独立产品 Activation shipped 2026-06-17 (8/8 phases A.0–A.8). On 2026-07-17 a docs sync draft was sketched in the conversation but not committed. On 2026-07-18 the user instructed to bring the docs sync into the GSD project-management system — the working set was reset to `05c6d7db` and the v3.6 phase was created in `ROADMAP.md`. This phase reconciles the post-Activation narrative and the EAASP v2 platform-evolution status (Phase 3 OPA approval chain / Phase 4 A2A / Phase 5 L5 Cowork / Phase 6 ecosystem) across the project's public, internal, and planning surfaces.
-
-**Activation targets (post-Activation):**
-
-| Surface | Current State | v3.6 Target |
-|---------|---------------|-------------|
-| `docs/PROJECT_PRODUCT_OVERVIEW.md` | Pre-Activation narrative (Activation listed as scoping) | Maintained SSOT with 5 canonical facts + Section 3 status snapshot + Section 4 future work + 16/17/21 RPC reconciliation |
-| `AGENTS.md` / `CLAUDE.md` | Pre-Activation toolchain framing | Canonical-facts block; preserved Leg A/B see-link to ADR-V2-024; CLAUDE.md symlink to AGENTS.md |
-| `README.md` / `README.zh.md` | Bilingual pre-Activation product status | Bilingual "Product status" section in front of Quick Start; same 5 facts in both languages (genuine Chinese, not literal English copy) |
-| `.planning/PROJECT.md` / `.planning/STATE.md` | Pre-Activation current phase + stale `[ ]` activation tag | Post-Activation focus; v3.5 / Activation marked shipped; EAASP platform gaps declared as future work |
-| `docs/status/PRODUCT_STATUS_<date>.md` | (none) | New immutable date-stamped audit snapshot that locks the canonical facts at the sync moment |
-
-**Shared core rule (ADR-V2-023 P1 retained under ADR-V2-024):** docs changes are documentation-only and must not touch `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` or any source code under `crates/`, `lang/`, `tools/`, `web/`, `web-platform/`, or `proto/`.
-
-### Phase 3.6.1: docs/PROJECT_PRODUCT_OVERVIEW.md SSOT + dated snapshot
-
-**Goal:** Establish the maintained product-status SSOT and a date-stamped immutable audit snapshot.
-
-- [ ] Plan 3.6.1-01: SSOT additions (Section 3 status snapshot, Section 3.1.1 EAASP phase→milestone alignment, Section 4 explicit future work) + new immutable `docs/status/PRODUCT_STATUS_2026-07-18.md` snapshot.
-- Validate: 9-token parity check across both files (`2026-06-17`, `A.8`, `7`, `6 comparison`, `contract-v1.1.0`, `contract-v1.2.0`, `模拟器级参考实现`, `A2A`, `Cowork`).
-
-### Phase 3.6.2: AGENTS.md canonical-facts block + CLAUDE.md symlink + README status sections
-
-**Goal:** Surface the canonical facts at the project's root entrypoint and the public bilingual READMEs.
-
-- [ ] Plan 3.6.2-01: AGENTS.md canonical-facts block; CLAUDE.md re-create as relative symlink to AGENTS.md (git mode 120000); English README "Product status" section; Chinese README `产品状态` section in genuine Chinese.
-- Validate: `test -L CLAUDE.md && readlink CLAUDE.md = AGENTS.md`; bilingual parity check (3 tokens in both languages + `6 comparison` in EN + `6 个对比` in ZH).
-
-### Phase 3.6.3: .planning/PROJECT.md + .planning/STATE.md sync
-
-**Goal:** Bring the GSD planning state into alignment with the post-Activation reality.
-
-- [ ] Plan 3.6.3-01: rewrite PROJECT.md current-phase block to post-Activation; mark v3.5 shipped; declare EAASP platform-evolution gaps as future work; correct the `4/7 components at 9.0+` to `5/7` (scoreboard-table vs prose mismatch in STATE.md Audit Findings Summary); update STATE.md core value to v1.2.0 current + v1.1.0 historical; add canonical-source links to SSOT and dated snapshot.
-- Validate: Task 3 planning token check (3 tokens: `2026-06-17`, `contract-v1.2.0`, `PROJECT_PRODUCT_OVERVIEW.md`).
-
-### Success Criteria
-
-1. SSOT and dated snapshot agree on the 5 canonical facts and the 4 EAASP platform gaps.
-2. `AGENTS.md` carries the canonical-facts block with the correct `docs/status/PRODUCT_STATUS_2026-07-18.md` link; `CLAUDE.md` is a relative symlink to `AGENTS.md` (mode 120000).
-3. Bilingual READMEs have matching "Product status" sections in genuine Chinese (not literal English copy).
-4. `.planning/PROJECT.md` / `.planning/STATE.md` describe post-Activation reality and reference the SSOT and dated snapshot.
-5. No superpowers, project-state, lwm, or other GSD-incompatible skill artifacts appear in `.planning/` or anywhere in the working tree (clean working tree, no untracked scratch dirs).
-
----
-
 ## Coverage Index
 
 To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps discovered.
 
 ---
 
-## Milestone: v3.7 实战可用性补全 (Production-Usability Closure) 🟡 STARTED 2026-07-19
-
-**Goal:** Close the gap between the **Activation Quality 9.0+ scores** (declared in v3.6 docs sync) and **实战可用性 (real-world usability)** declared by the user on 2026-07-19. Activation 9.0 ≠ 实战可用 — `grid-cli` / `web/` / `EAASP 本地仿真` need to be runnable end-to-end against realistic enterprise-agent scenarios before this milestone closes.
-
-**Context:** Activation milestone (8/8 phases A.0–A.8) shipped 2026-06-17 with the **Quality Scoreboard** in `.planning/STATE.md` scoring `grid-cli`/`web/`/`grid-server`/`grid-eval`/`grid-platform` at 9.0+ each. On 2026-07-19 the user clarified: these scores measure internal code health, NOT real-world usability. `grid-cli` must let one person drive an agent end-to-end; `web/` must be a usable dashboard for monitoring/tracking agents; `EAASP` local tools must be a credible simulation of an enterprise platform close enough to production. The user explicitly **deferred** `grid-server` multi-user login scenario to the next milestone — single-user grid-server work landed in Phase A.1.
-
-**Scope (priority-ordered per user direction 2026-07-19):**
-
-| Crate/Tool | Activation Score | Real-world Status | v3.7 Target |
-|------------|------------------|-------------------|-------------|
-| `crates/grid-cli/` | 9.0 ✅ | **完整独立工作** — needs end-to-end实战 verification | Run any enterprise-style agent scenario from CLI without manual stitching; verify all 16 commands work in a 真实场景 walkthrough |
-| `web/` (grid-web single-user UI) | 9.0 ✅ | **实战不可用** (per user 2026-07-19) | Dashboard for monitoring/tracking agent execution; close the Activation-9.0 ↔ 实战-不可用 gap |
-| `tools/eaasp-*/` (EAASP 本地仿真) | 5/7 audit | **接近实战企业平台** — simulator-level → credible enterprise simulation | Wire enough of L0/L1/L2/L3/L4 + Phase 3 governance gate hooks so a 真实 enterprise workflow can be exercised locally without external EAASP |
-| `crates/grid-server/` | 9.0 ✅ | **Deferred** to next milestone | Multi-user login scenario (per user 2026-07-19) → v3.8 |
-
-**Out of scope (deferred to v3.8+):**
-
-- `grid-server` multi-user login scenario — RBAC + JWT tenant scoping + cross-user session isolation. User explicitly deferred until single-user stack is 实战可用.
-- EAASP v2.0 platform-evolution gaps (Phase 3 production OPA / Phase 4 A2A / Phase 5 L5 Cowork UI / Phase 6 ecosystem) — still future work, NOT addressed by v3.7.
-- `web-platform/` (multi-tenant UI, Quality 7.5) and `grid-desktop` (Quality 6.5) — these are Activation-shipped but below 9.0+; user did NOT include them in v3.7 scope, so they stay in Activation-deferred backlog.
-
-**Shared core rule (ADR-V2-023 P1 retained under ADR-V2-024):** any change to `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge` must work for both engine 接入面 and Grid independent product. v3.7 work predominantly touches `crates/grid-cli/` + `web/` + `tools/eaasp-*/` — none are shared core, but if a change crosses that boundary it must respect the rule.
-
-**Acceptance standard — "实战可用" definition (per user 2026-07-19):**
-
-1. **grid-cli**: A non-developer can `grid` + start a realistic enterprise-style task (multi-step agent with tool use, memory, hooks) and observe meaningful output without CLI-flag tuning.
-2. **grid-web** (`web/`): A non-developer can open the dashboard, observe a running agent's progress in real time, see its tool calls, see its memory writes, and stop/resume it without code intervention.
-3. **EAASP 本地仿真**: A non-developer can `eaasp session run -s <skill> -r <runtime> "<prompt>"` against a realistic enterprise scenario and see L2 memory + L3 governance gate + L4 SSE streaming behave as a credible enterprise platform would — close enough to实战 that a customer could evaluate the platform locally before committing to deployment.
-
-### Phase 3.7.1: grid-cli 实战可用性补全
-
-**Goal:** Make `grid-cli` runnable end-to-end for realistic enterprise-agent scenarios without manual stitching.
-
-- [ ] Plan 3.7.1-01: Audit current `grid` command surface (16 commands) against 3–5 realistic enterprise scenarios (multi-step agent + tool use + memory + hooks + LLM streaming). Identify every gap between Activation-9.0 code quality and end-to-end runnability.
-- [ ] Plan 3.7.1-02: Close the gaps surfaced in 3.7.1-01. Each plan must pass: (a) the scenario runs from a clean checkout with documented env vars; (b) no manual CLI-flag tuning required; (c) output is meaningful and actionable for a non-developer observer.
-- Validate: 3 实战 scenarios PASS end-to-end without code intervention; documented in `docs/status/PRODUCTION_USABILITY_2026-XX-XX.md` walkthrough.
-
-### Phase 3.7.2: web/ 实战可用性补全 (grid-web dashboard 实战化)
-
-**Goal:** Close the gap between Activation-9.0 and 实战不可用 for `web/`. Specifically: build a dashboard that a non-developer can open, observe a running agent, see its tool calls, see its memory writes, and stop/resume it without code intervention.
-
-- [ ] Plan 3.7.2-01: Identify the specific "实战不可用" gaps in `web/` — likely candidates: WS streaming reconnect on agent crash, tool-call event ordering in UI, memory write visibility, stop/resume UX, mock fallbacks still in code paths per A.2 audit.
-- [ ] Plan 3.7.2-02: Close the gaps. End-to-end test: open `web/` against a running `grid-server` + a real agent task; verify monitor/track/stop/resume works without devtools intervention.
-- Validate: Video/walkthrough of a non-developer running an enterprise scenario through `web/` end-to-end; UAT pass with 1–2 external observers (or self-recorded walkthrough if external observers not available).
-
-### Phase 3.7.3: EAASP 本地仿真补全 (Phase 0–2.5 + Phase 3 governance hooks)
-
-**Goal:** Move `tools/eaasp-*/` from "simulator-level reference implementation" (per docs/PROJECT_PRODUCT_OVERVIEW.md) to "credible enterprise simulation close enough to实战 that a customer could evaluate locally".
-
-- [x] Plan 3.7.3-01: Audit which of the 8 EAASP evolution phases are SHIPPED (Phase 0–2.5 ✅ per canonical facts) vs deferred (Phase 3 OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem). For each deferred phase that affects 实战 credibility, identify what minimally must be wired to make the simulation believable.
-- [x] Plan 3.7.3-02: Wire the minimum credible set of deferred-phase hooks into the simulation — e.g. Phase 3 governance gate hooks so risk-classified actions actually pause for approval rather than silently pass. Don't implement the full deferred phase; only the hooks needed for credibility. **SHIPPED 2026-07-23** — 8/8 REQ-EAASP closed (Rust RiskLevel enum + L3 evaluate_gate + append-only audit + L4 SSE events + CLI --yes/--no + S8 mock-SCADA setpoint). 136/136 targeted tests PASS.
-- Validate: 1 实战 enterprise scenario (e.g. "agent writes to external system, governance gate triggers, user approves, action completes") runs end-to-end through EAASP local tools with observable governance behavior.
-
-### Phase 3.7.4: SKIPPED — grid-server multi-user deferred to v3.8
-
-Per user 2026-07-19: "grid-server 是下一步再讨论，目前先把单用户的 grid-cli/grid-web/EAASP仿真做好". This phase is intentionally left empty. v3.8 candidate scope will be defined when 3.7.1/3.7.2/3.7.3 close.
-
-### Success Criteria
-
-1. `grid-cli` runs 3 documented enterprise scenarios end-to-end without manual CLI-flag tuning.
-2. `web/` runs a real agent scenario with non-developer-observable dashboard monitor/track/stop/resume.
-3. `tools/eaasp-*/` runs a real enterprise scenario with credible governance gate behavior.
-4. No regression in v3.6 docs-sync SSOT, snapshot, AGENTS/CLAUDE/READMEs, or planning state.
-5. `grid-server` work stays untouched (deferred to v3.8).
-6. `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge` changes (if any) respect ADR-V2-023 P1 shared-core rule.
-
-### Phase 4: --milestone v3.7 --name Production-Usability Closure --description 4 phases: grid-cli / web/ / EAASP 本地仿真 实战补全; grid-server 多用户 deferred
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 3
-**Plans:** 2/2 plans complete
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 4 to break down)
-
----
-
-*Last updated: 2026-07-19 — v3.7 Production-Usability Closure added after v3.6 SHIPPED.*
+*Last updated: 2026-07-25 — v3.9 (route-catalog RBAC wiring + authorization auditor) bootstrapped. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 ✅ SHIPPED 2026-07-23. v3.6 ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17. v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
