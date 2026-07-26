@@ -59,14 +59,30 @@ fn verify_hmac_signature(sig_hex: &str, ts: &str, body: &[u8], secret: &str) -> 
     sig_hex.as_bytes().ct_eq(expected_hex.as_bytes()).into()
 }
 
+/// Returns true iff `(method, path)` is on the public allowlist and so
+/// must be reachable without credentials in every `AuthMode`.
+///
+/// The allowlist is the canonical source of truth for which routes skip
+/// authentication; it is owned by `rbac::catalog` so the static auditor
+/// (`audit_catalog`) and the runtime auth path stay in lock-step.
+pub fn is_public_route(req: &Request<Body>) -> bool {
+    let method = req.method().as_str();
+    let path = req.uri().path();
+    crate::rbac::catalog::PUBLIC_ROUTE_ALLOWLIST
+        .iter()
+        .any(|entry| entry.0 == method && entry.1 == path)
+}
+
 /// 认证中间件 - 验证 API Key 并提取角色信息
 pub async fn auth_middleware_with_role(
     req: Request<Body>,
     next: Next,
     config: &AuthConfig,
 ) -> Result<Response, StatusCode> {
-    // Health check is always public regardless of auth mode
-    if req.uri().path() == "/api/health" {
+    // Public allowlist routes are reachable without credentials in every
+    // AuthMode (CAT-02 + D-02). The allowlist is the single source of truth
+    // for "this route is public" shared with the static auditor.
+    if is_public_route(&req) {
         let mut req = req;
         req.extensions_mut().insert(UserContext::anonymous());
         return Ok(next.run(req).await);
@@ -172,7 +188,7 @@ pub async fn auth_middleware_with_role(
 
                         let (permissions, role) = match claims.role.as_str() {
                             "admin" => (vec![Permission::Admin], Some(Role::Admin)),
-                            "member" => {
+                            "user" => {
                                 (vec![Permission::Read, Permission::Write], Some(Role::User))
                             }
                             "viewer" => (vec![Permission::Read], Some(Role::Viewer)),
@@ -203,11 +219,14 @@ pub async fn auth_middleware_with_role(
     }
 }
 
-/// Resolves the catalog Action for an incoming production request.
+/// Resolves the catalog entry for an incoming production request.
 ///
-/// Axum exposes canonical matched route templates after routing, so parameterized
-/// paths use the same `{id}` representation as the static catalog.
-pub fn action_for_request(req: &Request<Body>) -> Option<grid_engine::auth::roles::Action> {
+/// Axum exposes canonical matched route templates after routing, so
+/// parameterized paths use the same `{id}` representation as the static
+/// catalog.
+pub fn catalog_entry_for_request(
+    req: &Request<Body>,
+) -> Option<crate::rbac::catalog::RouteCatalogEntry> {
     let method = req.method().as_str();
     let matched = req
         .extensions()
@@ -218,13 +237,20 @@ pub fn action_for_request(req: &Request<Body>) -> Option<grid_engine::auth::role
     crate::rbac::catalog::route_catalog()
         .iter()
         .find(|entry| entry.method == method && entry.path == matched)
-        .and_then(|entry| match entry.route_kind {
-            crate::rbac::catalog::RouteKind::Requires(action) => Some(action),
-            crate::rbac::catalog::RouteKind::Public => None,
-        })
+        .copied()
 }
 
 /// Enforces catalog RBAC after authentication and before the request handler.
+///
+/// Authorization policy for the matched route:
+/// - **Catalog `Public`** → allow unconditionally (the public allowlist is
+///   the gate for reachability; this layer does not re-check).
+/// - **Catalog `Requires(Action)`** → require the JWT role to satisfy
+///   `Role::can(action)`; otherwise 403.
+/// - **Not in the catalog** (drift) → fail closed with 403. We never
+///   silently "treat unknown as public" — the auditor catches missing
+///   entries at compile/test time, so a runtime miss indicates drift and
+///   must be rejected.
 pub async fn catalog_rbac_middleware(
     req: Request<Body>,
     next: Next,
@@ -232,12 +258,17 @@ pub async fn catalog_rbac_middleware(
     let Some(claims) = req.extensions().get::<JwtClaims>() else {
         return Ok(next.run(req).await);
     };
-    let action = action_for_request(&req).ok_or(StatusCode::FORBIDDEN)?;
-    let role = Role::parse(&claims.role).ok_or(StatusCode::FORBIDDEN)?;
-    if role.can(action) {
-        Ok(next.run(req).await)
-    } else {
-        Err(StatusCode::FORBIDDEN)
+    let entry = catalog_entry_for_request(&req).ok_or(StatusCode::FORBIDDEN)?;
+    match entry.route_kind {
+        crate::rbac::catalog::RouteKind::Public => Ok(next.run(req).await),
+        crate::rbac::catalog::RouteKind::Requires(action) => {
+            let role = Role::parse(&claims.role).ok_or(StatusCode::FORBIDDEN)?;
+            if role.can(action) {
+                Ok(next.run(req).await)
+            } else {
+                Err(StatusCode::FORBIDDEN)
+            }
+        }
     }
 }
 
