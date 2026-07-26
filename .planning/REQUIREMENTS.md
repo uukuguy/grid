@@ -154,12 +154,47 @@
 - [x] **COMPAT-02**: No shared crate (`grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`) is touched. ADR-V2-023 P1 (shared-core rule) preserved. v3.9 route-catalog RBAC (134 routes) and v3.10 spec-audit gates continue to pass.
 - [x] **DEFER-LEDGER-CLOSE-01**: `V310-OPA-01` in `docs/design/EAASP/DEFERRED_LEDGER.md` is moved from `📦 deferred_to_v3.11+` to `✅ CLOSED 2026-07-26 (v3.11.0 lift ADR-V2-034 Accepted + sidecar topology + make opa-install)`.
 
+## v3.11.1 Requirements — L3 OPA backend adapter + Rego templates
+
+**Defined:** 2026-07-26 (v3.11.0 already shipped)
+**Goal:** Land the production OPA adapter that turns `tools/eaasp-l3-governance/` from an in-process decision matrix into an OPA-calling governance layer. ADR-V2-034 §4 froze the contract; this phase implements it. The adapter sits behind a flag (`opa_enabled`) so existing in-process behavior is preserved as the dev/test path while the OPA sidecar is the production path.
+
+**REQ-IDs** use v3.11.1 numbering (`OPA-BACKEND-*`, `REGO-*`, `FAIL-CLOSED-*`, `DISABLED-*`). 9 REQ-IDs cover this phase; 03.11.2 / 03.11.3 remain future scope.
+
+### OPA-BACKEND — Production adapter
+
+- [x] **OPA-BACKEND-01**: An `OPABackend` adapter lives at `tools/eaasp-l3-governance/src/eaasp_l3_governance/opa_backend.py`. Its public surface (`OPABackend`, `OPADecision`, `OPAConfig`, `require_env`, `parse_timeout_seconds`, `normalize_base_url`) is importable from the package root. The `OPABackend.evaluate(request)` coroutine POSTs to `/{base_url}/v1/data/governance/decision` with `{"input": request}` as the JSON body and decodes the response into a frozen `OPADecision` dataclass.
+- [x] **OPA-BACKEND-02**: `OPABackend.evaluate()` returns an `OPADecision` that ALWAYS carries stable contract fields (`allow: bool`, `decision: Literal["allow", "approval", "deny"]`, `reason: str`, `obligations: list[str]`, plus `infra_unavailable: bool`, `cause: str | None`, `raw: dict[str, Any] | None`). A bare OPA top-level body (no `result` wrapper) is also accepted; the parser verifies that exactly one of `result` / top-level satisfies the shape contract.
+- [x] **OPA-BACKEND-03**: `OPABackend.from_env()` (ADR-V2-028 strict-by-default) reads `L3_OPA_URL`, `L3_OPA_TIMEOUT_SECONDS`, `L3_OPA_BUNDLE_DIR` from the environment. Missing or unparseable values raise `RuntimeError` with the env-var name in the message; there is no silent fallback to in-process.
+- [x] **OPA-BACKEND-04**: `PolicyEngine.evaluate_with_opa()` (new method on `tools/eaasp-l3-governance/src/eaasp_l3_governance/policy_engine.py`) routes through the injected `OPABackend` when `opa_enabled=True`. The in-process `evaluate_gate()` path is unchanged. OPA's 3-state decision (`allow` / `approval` / `deny`) maps into the existing 4-state audit shape (`allow` / `gate_request` / `deny`); the OPA `reason` is preserved in the rationale so the audit row is pivotable on it.
+
+### REGO — In-repo Rego bundle
+
+- [x] **REGO-01**: `tools/eaasp-l3-governance/policies/governance.rego` exists with `package governance; import rego.v1` and implements deny-always-wins (spec §15.9), risk classification (spec §6.1), and the 3-state decision contract (spec §6.9 + §6.10). The bundle cites ADR-V2-034 in its header. Sample input data lives at `tools/eaasp-l3-governance/policies/data.json`.
+- [x] **REGO-02**: The Rego bundle's response envelope matches the `OPADecision` contract: `{allow, decision, reason, obligations}`. Field names and the decision enum (`"allow"` / `"approval"` / `"deny"`) DO NOT change without bumping `OPABackend._parse_opa_response` (frozen by ADR-V2-034 §Decision item 4).
+
+### FAIL-CLOSED — Fail-closed contract
+
+- [x] **FAIL-CLOSED-01**: Five failure modes (connection-refused, timeout, non-2xx HTTP, parse error, missing/extra fields) all return an `OPADecision` with `decision="deny"`, `allow=False`, `infra_unavailable=True`, a stable `cause` identifier (`opa_connection_refused` / `opa_timeout` / `opa_non_2xx` / `opa_parse_error` / `opa_response_missing_field` / `opa_bundle_not_found`), and a rationale that includes the cause so the audit row can be filtered by cause in postmortem.
+- [x] **FAIL-CLOSED-02**: `PolicyEngine.evaluate_with_opa()` persists the fail-closed audit row (decision=`deny`) regardless of cause and emits a structured log carrying `session_id` + `hook_id` + `cause`. The request ledger is append-only — no reordering, no replacement.
+
+### DISABLED — OPA-disabled integration
+
+- [x] **DISABLED-01**: When `L3_OPA_ENABLED` is unset / falsy, the `/v1/evaluate` endpoint routes through `evaluate_gate()` (the in-process decision matrix) without instantiating an `OPABackend`. The end-to-end integration test calls the API surface and asserts `backend == "in_process"`, with a 4-test hermetic coverage that verifies validation guards and `HookNotFoundError → 404` behavior.
+
+### v3.11.1 Traceability
+
+| Phase | REQ-IDs |
+|---|---|
+| **03.11.1 L3 OPA backend adapter + Rego templates** | OPA-BACKEND-01, OPA-BACKEND-02, OPA-BACKEND-03, OPA-BACKEND-04, REGO-01, REGO-02, FAIL-CLOSED-01, FAIL-CLOSED-02, DISABLED-01 |
+| **Total** | **9 REQ-IDs / 1 phase / 4 categories** |
+
 ### v3.11.0 Traceability
 
 | Phase | REQ-IDs |
 |---|---|
 | **03.11.0 OPA sidecar infrastructure** | OPA-01, OPA-02, INSTALL-01, COMPAT-01, COMPAT-02, DEFER-LEDGER-CLOSE-01 |
-| **03.11.1 L3 OPA backend** (next) | L3 OPA adapter + Rego templates + in-process fallback + fail-closed test |
+| **03.11.1 L3 OPA backend adapter** | OPA-BACKEND-01..04, REGO-01..02, FAIL-CLOSED-01..02, DISABLED-01 |
 | **03.11.2 5-stage approval state machine** (next) | Plan → Check → Draft → Approve → Execute + governance.* SSE events + append-only ledger + deny-always-wins |
 | **03.11.3 single-point live walkthrough** (next) | `make opa-install` + `make dev-eaasp` + `threshold-calibration` skill + dated production evidence |
 - **Phase 4 A2A / Event Room** — v3.12+ scope.
@@ -203,4 +238,4 @@
 
 ---
 
-*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment bootstrapped (16 REQ-IDs / 5 categories / locked decisions D-11..D-18). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26 (20/20 REQ-IDs, 49 targeted tests PASS, archived to `.planning/milestones/v3.9-*`). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*
+*Last updated: 2026-07-26 — v3.11.1 L3 OPA backend adapter + Rego templates SHIPPED (9/9 REQ-IDs / 4 categories / 57 targeted tests PASS). v3.11.0 OPA sidecar infrastructure SHIPPED 2026-07-26 (6/6 REQ-IDs, archived to `.planning/milestones/v3.11.0-*`). v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED 2026-07-26 (16 REQ-IDs / 5 categories / locked decisions D-11..D-18). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26 (20/20 REQ-IDs, archived to `.planning/milestones/v3.9-*`). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*

@@ -142,6 +142,31 @@ Out of scope (Deferred to v3.11.1+ or later):
 - v3.11.1 — `L3 OPA backend` adapter
   (`tools/eaasp-l3-governance/src/eaasp_l3_governance/opa_backend.py`)
   with in-process fallback, Rego policy templates, fail-closed test.
+  **SHIPPED 2026-07-26 on top of v3.11.0 (`84ca0a11`).** Adapter covers:
+  - `OPABackend.evaluate()` calls `POST /v1/data/governance/decision` with
+    `{"input": request}` envelope per OPA REST v1.
+  - 5 fail-closed modes covered (connection-refused / timeout / non-2xx /
+    parse-error / missing-field). Each emit a synthesized `deny` with
+    `infra_unavailable=True` + a stable cause identifier in the
+    rationale.
+  - `PolicyEngine.evaluate_with_opa()` routes through the adapter when
+    `opa_enabled=True`, maps OPA 3-state decision (`allow` /
+    `approval` / `deny`) to the existing 4-state audit shape (`allow` /
+    `gate_request` / `deny`), preserving the OPA `reason` in the
+    rationale so the audit ledger can pivot on it.
+  - In-repo Rego policy template at
+    `tools/eaasp-l3-governance/policies/governance.rego` implements
+    deny-always-wins (spec §15.9), risk classification (spec §6.1),
+    and the 3-state decision contract (spec §6.9, §6.10). Sample data
+    at `policies/data.json`.
+  - 57 tests pass (30 OPABackend + 11 PolicyEngine OPA + 12 Rego
+    contract + 4 in-process integration). The real-OPA sidecar test
+    (`test_real_opa_sidecar_returns_truth_table`) is gated on the OPA
+    binary being installed (`make opa-install`) and verifies every
+    truth-table row end-to-end.
+  - Verified v3.9 RBAC audit (`134 routes`) and v3.10 spec-audit
+    (4 files / 37 rows) still PASS — no shared-crate changes
+    (ADR-V2-023 P1 preserved).
 - v3.11.2 — 5-stage approval state machine + governance.* SSE events
   + append-only ledger extension.
 - v3.11.3 — `make dev-eaasp` + `threshold-calibration` live walkthrough

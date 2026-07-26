@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.11
 milestone_name: EAASP Phase 3 — production OPA backend + 5-stage approval chain
 status: in_progress
-stopped_at: v3.11.0 OPA sidecar infrastructure shipped (ADR-V2-034 Accepted + opa-install); 03.11.1+ pending
-last_updated: "2026-07-26T20:30:00.000Z"
+stopped_at: v3.11.1 L3 OPA backend adapter + Rego templates shipped; 03.11.2+ pending
+last_updated: "2026-07-26T22:30:00.000Z"
 last_activity: 2026-07-26
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -30,9 +30,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.0 OPA sidecar infrastructure shipped)**
-Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 done; 03.11.1+ pending.
-Current verification: ADR-V2-034 Accepted, `make opa-install` reproducible, SHA256-verified, no Docker, no external service account.
+Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.1 L3 OPA backend adapter shipped)**
+Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 + 03.11.1 done; 03.11.2+ pending.
+Current verification: ADR-V2-034 Accepted + `make opa-install` reproducible (03.11.0); L3 OPA backend `OPABackend.evaluate()` called from `PolicyEngine.evaluate_with_opa()` when `opa_enabled=True`; Rego template `policies/governance.rego` implements deny-always-wins (spec §15.9), risk classification (spec §6.1), and 3-state decision contract (spec §6.9, §6.10); 5 fail-closed modes covered with stable cause identifiers carried in the audit rationale; 57 targeted tests PASS (30 OPABackend + 11 PolicyEngine OPA + 12 Rego contract + 4 in-process integration); v3.9 RBAC audit still PASS (134 routes); v3.10 spec-audit still PASS (4 files / 37 rows).
 Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
 Prior verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
@@ -74,7 +74,17 @@ Next-milestone candidates (after v3.10 SHIPS):
 - `.gitignore` excludes `third_party/`.
 - `V310-OPA-01` DEFERRED_LEDGER entry → ✅ CLOSED.
 - `v3.9` route-catalog RBAC and `v3.10` spec-audit gates remain unchanged. No shared-crate change. ADR-V2-023 P1 (shared-core rule) preserved.
-- 03.11.1 L3 OPA backend adapter + Rego templates + 03.11.2 5-stage approval state machine + 03.11.3 live walkthrough still pending.
+- 03.11.2 5-stage approval state machine (`V310-APPROVAL-01`) + governance.* SSE events + append-only ledger extension + 03.11.3 live walkthrough still pending.
+
+### v3.11.1 L3 OPA backend adapter + Rego templates ✅ SHIPPED 2026-07-26
+
+- Built on top of v3.11.0 (`84ca0a11`); no changes to any shared crate (ADR-V2-023 P1 preserved).
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/opa_backend.py` — `OPABackend` adapter calling `POST /v1/data/governance/decision` with `{"input": request}` envelope. Public surface: `OPABackend`, `OPADecision`, `OPAConfig`, `require_env`, `parse_timeout_seconds`, `normalize_base_url`. 5 fail-closed modes (connection-refused / timeout / non-2xx / parse-error / missing-field) emit a synthesized `deny` with `infra_unavailable=True` + a stable cause identifier.
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/policy_engine.py` — `PolicyEngine.evaluate_with_opa()` routes through the adapter when `opa_enabled=True`; in-process `evaluate_gate()` unchanged. OPA 3-state decision (`allow` / `approval` / `deny`) maps to the existing 4-state audit shape (`allow` / `gate_request` / `deny`); rationale carries the OPA `reason` or fail-closed composite.
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/api.py` — `/v1/evaluate` endpoint with `L3_OPA_ENABLED` toggle (OPA path vs in-process path). Returns `backend: "opa" | "in_process"` so operators can verify the routing decision.
+- `tools/eaasp-l3-governance/policies/governance.rego` — in-repo Rego template: deny-always-wins (spec §15.9), risk classification (spec §6.1), 3-state decision (spec §6.9, §6.10). `policies/data.json` for sample input data.
+- 57 tests PASS (30 OPABackend + 11 PolicyEngine OPA + 12 Rego contract + 4 in-process integration). Real-OPA sidecar test (`test_real_opa_sidecar_returns_truth_table`) gated on OPA binary install.
+- v3.9 RBAC audit still PASS (134 routes — unchanged). v3.10 spec-audit still PASS (4 files / 37 rows).
 
 ## Completed Milestones
 
