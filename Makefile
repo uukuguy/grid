@@ -13,7 +13,7 @@
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint \
         web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit \
-        v3.10-spec-audit
+        v3.10-spec-audit dev-eaasp dev-eaasp-stop
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -86,6 +86,13 @@ help-full:
 dev:
 	@echo "Starting backend and frontend..."
 	@$(MAKE) -j2 server web
+
+# EAASP v2.0 simulator stack; script owns process lifecycle and cleanup.
+dev-eaasp:
+	@bash scripts/dev-eaasp.sh
+
+dev-eaasp-stop:
+	@echo "Use Ctrl+C in the foreground make dev-eaasp terminal; the script cleanup trap stops every child."
 
 # 完整构建 (后端 + 前端)
 all: build web-build
