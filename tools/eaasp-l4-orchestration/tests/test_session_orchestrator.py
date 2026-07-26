@@ -433,6 +433,57 @@ async def test_create_session_with_mcp_dependencies(tmp_db_path: str) -> None:
     mcp_payload = mcp_event["payload"]
     assert set(mcp_payload["connected"]) == {"mock-scada", "eaasp-l2-memory"}
     assert mcp_payload["failed"] == []
+    assert all("EAASP_TOOL_FILTER" not in server for server in call["servers"])
+    assert all("EAASP_MCP_SERVERS" not in server for server in call["servers"])
+
+
+@respx.mock
+async def test_v3_10_mcp_config_is_payload_driven_not_env_discovery(
+    tmp_db_path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skill MCP dependencies must flow L2 -> L4 -> ConnectMCP, not via discovery env."""
+    monkeypatch.setenv("EAASP_TOOL_FILTER", "mcp:wrong-server")
+    monkeypatch.setenv("EAASP_MCP_SERVERS", "mcp:also-wrong")
+    _mock_l2_l3_basics()
+    _mock_skill_with_mcp_deps()
+    resolve_route = respx.post(f"{MCP_ORCH_BASE}/v1/mcp/resolve").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "servers": [
+                    {
+                        "name": "mock-scada",
+                        "transport": "stdio",
+                        "command": "mock-scada",
+                        "args": [],
+                    }
+                ]
+            },
+        )
+    )
+    shared_l1 = _McpTrackingL1("grid-runtime")
+
+    async with httpx.AsyncClient() as client:
+        orch = SessionOrchestrator(
+            tmp_db_path,
+            l2=L2Client(client, base_url=L2_BASE),
+            l3=L3Client(client, base_url=L3_BASE),
+            event_stream=SessionEventStream(tmp_db_path),
+            skill_registry=SkillRegistryClient(client, base_url=SKILL_REG_BASE),
+            l1_factory=lambda _rid: shared_l1,
+            mcp_resolver=McpResolver(client, base_url=MCP_ORCH_BASE),
+        )
+        await orch.create_session(
+            intent_text="calibrate",
+            skill_id="threshold-calibration",
+            runtime_pref="grid-runtime",
+        )
+
+    request = resolve_route.calls[0].request
+    assert request.content
+    assert b"mcp:mock-scada" in request.content
+    assert b"wrong-server" not in request.content
+    assert shared_l1.connect_mcp_calls[0]["servers"][0]["name"] == "mock-scada"
 
 
 @respx.mock
