@@ -98,4 +98,87 @@
 
 ---
 
-*Last updated: 2026-07-26 — v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED (20/20 REQ-IDs). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*
+## v3.10 Requirements — EAASP v2.0 platform-skeleton alignment
+
+**Defined:** 2026-07-26 (bootstrap)
+**Goal:** Align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes (MAT memory/manifest, PIPE orchestration pipes, VERIFY certifier conformance) without widening the existing `contract-v1.2.0` surface or adding new dependencies. Skeleton alignment is a precondition for the future EVOLUTION_PATH §三 Phase 3 (OPA approval chain) / Phase 4 (A2A Event Room) / Phase 5 (L5 Cowork UI) / Phase 6 (ecosystem expansion) work — it brings the reference implementations into section-by-section parity with the spec, so subsequent phase work can land without first having to re-derive the skeleton.
+
+**Context (post-v3.9):** v3.9 closed the grid-server route-catalog RBAC gap (20/20 REQ-IDs, 49 targeted tests PASS, 134-route catalog). The next bottleneck — visible across `tools/eaasp-l2-memory-engine/`, `tools/eaasp-l3-governance/`, `tools/eaasp-l4-orchestration/`, `tools/eaasp-skill-registry/`, `tools/eaasp-mcp-orchestrator/`, `tools/eaasp-certifier/` — is that the reference implementations have drifted from the canonical EAASP v2.0 spec on three independent axes: (a) memory/manifest schema (MAT), (b) orchestration pipe topology (PIPE), and (c) certifier conformance surface (VERIFY). Without section-by-section alignment, the contract-v1.2.0 certifier (`tools/eaasp-certifier`) cannot certify future spec additions, and the reference implementations cannot serve as a clean substrate for Phase 3 OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem. v3.10 produces a section-by-section alignment matrix, then lands each axis in its own phase.
+
+**REQ-IDs** use v3.10 numbering (MAT / PIPE / VERIFY / COMPAT / TRACE), 16 total, continue from v3.9 (no overlap with `CAT-*` / `AUD-*` / `RBAC-*` / `MODE-*` / `TEST-*` / `DOC-*`).
+
+### MAT — Memory & Manifest skeleton alignment
+
+- [ ] **MAT-01**: A `tools/eaasp-spec-alignment/memory_manifest.md` document maps every L2 memory + skill manifest field in the EAASP v2.0 spec (§L2 Memory Engine, §Skill Manifest) to its current implementation site in `tools/eaasp-l2-memory-engine/` and `tools/eaasp-skill-registry/`. Each mapping carries `(spec_section, impl_path, impl_symbol, status ∈ {aligned, drift, missing})`. Drift and missing entries are filed as v3.10 follow-up items in DEFERRED_LEDGER.md.
+- [ ] **MAT-02**: The 7 L2 MCP tools (`search`, `read`, `write_file`, `write_anchor`, `confirm`, `list`, `delete`) declared in the spec are confirmed against `tools/eaasp-l2-memory-engine/src/mcp.rs`. Each tool's request/response shape is reconciled to the spec by section; mismatches (param names, return shapes, pagination semantics, time-decay filter) are listed in `memory_manifest.md` and patched in-place when patch is ≤10 LOC.
+- [ ] **MAT-03**: Skill manifest fields (`name`, `version`, `entrypoints`, `required_tools`, `mcp_servers`, `permissions`) in the spec are cross-referenced against `tools/eaasp-skill-registry/src/manifest.rs`. Any field that exists in spec but is not implemented is filed as `missing` in `memory_manifest.md`; spec-only fields are NOT silently dropped (D-12: skeleton alignment is honest about gaps).
+
+### PIPE — Orchestration pipe topology alignment
+
+- [ ] **PIPE-01**: A `tools/eaasp-spec-alignment/pipe_topology.md` document maps the EAASP v2.0 spec's §L4 Orchestration pipe topology (input → context → governance → dispatch → result → audit → output, per EAASP_v2_0_EVOLUTION_PATH.md §三 3 管道 cross-reference) to its current implementation in `tools/eaasp-l4-orchestration/src/`. Each pipe stage is labeled `(spec_section, impl_path, impl_function, status ∈ {aligned, drift, missing})`.
+- [ ] **PIPE-02**: SSE event shape declared by spec (§L4 SSE Events) is compared against the `Event` enum in `tools/eaasp-l4-orchestration/src/event.rs`. Each event variant is reconciled by field; mismatches (event-name casing, payload field order, required-vs-optional) are listed in `pipe_topology.md` and patched when ≤10 LOC.
+- [ ] **PIPE-03**: L3 governance gate boundaries (risk classification input/output, decision enum, append-only log) are verified against `tools/eaasp-l3-governance/src/` per spec §L3. The 2026-07-23 v3.7.3 gate boundary (risk metadata defaults to `read`; L3 evaluates after tool resolution and before dispatch; request/final decisions append-only and surfaced via L4 events) is the baseline; v3.10 patches any spec-vs-impl drift without changing the gate semantics.
+- [ ] **PIPE-04**: L4 orchestration session lifecycle (create → run → resume → terminate) is reconciled against spec §L4 Session Lifecycle. The existing double-Terminate NO-OP semantics (ADR-V2-017 §2) is preserved verbatim; v3.10 only documents the alignment, does not change runtime behavior.
+
+### VERIFY — Certifier conformance surface alignment
+
+- [ ] **VERIFY-01**: A `tools/eaasp-spec-alignment/certifier_surface.md` document maps each EAASP v2.0 spec assertion (every `### §N.M` assertion in `EAASP-Design-Specification-v2.0.docx`) to its current certifier coverage in `tools/eaasp-certifier/src/`. Each assertion carries `(spec_section, certifier_test_path, status ∈ {certified, not_certified, partial})`. `not_certified` entries above the `contract-v1.2.0` baseline are filed as deferred (D-13: no new contract surface in v3.10).
+- [ ] **VERIFY-02**: The 21 RPC surface (17 runtime + 4 hook per `proto/eaasp/runtime/v2/`) is verified end-to-end against `tools/eaasp-certifier` — every RPC has at least one PASS-path test and one XFAIL-path test (per Phase 3 sign-off 42 PASS / 22 XFAIL × 7 runtime baseline). The post-v3.10 certifier run must reproduce this 7-runtime green state (D-14).
+- [ ] **VERIFY-03**: A `make v3.10-spec-audit` target is added to the Makefile, running `cargo run -p eaasp-certifier -- spec-audit --report tools/eaasp-spec-alignment/REPORT.md` and producing a section-by-section delta table. The target exits 0 on aligned surface, exits 1 on any `drift` / `missing` / `not_certified` entry. CI gate ordering is `cargo check → make v3.10-spec-audit → cargo test` per the v3.9 pattern (D-03 carry-over).
+
+### COMPAT — Contract + L1 substitutability guard
+
+- [ ] **COMPAT-01**: `proto/eaasp/runtime/v2/{common,runtime,hook}.proto` remain wire-compatible with `contract-v1.2.0`. No new RPC methods, no removed RPC methods, no breaking field-type changes in v3.10. Verified by `cargo test -p eaasp-certifier` PASS state pre and post each phase.
+- [ ] **COMPAT-02**: All 7 L1 runtimes (`grid-runtime` + claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) continue to pass `contract-v1.2.0` certifier after each v3.10 phase. Verified by `make v2-phase3-e2e-rust` + per-runtime `make v2-phase3-e2e` runs. L1 substitutability guard (D-14) is the gate.
+- [ ] **COMPAT-03**: Shared-core rule (ADR-V2-023 P1) preserved across any v3.10 changes — `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品. Verified by the existing `test_rbac_engine_layer_is_leg_agnostic` + a new `test_v3_10_shared_core_unchanged` that snapshots `grid-engine::auth` + `grid-types::session` public API surface pre/post v3.10.
+
+### TRACE — Spec traceability evidence
+
+- [ ] **TRACE-01**: `docs/status/PRODUCTION_USABILITY_2026-07-26.md` dated walkthrough: (1) `make v3.10-spec-audit` PASS on v3.10 baseline, (2) spec-audit FAIL demonstrably on a synthetic misalignment (drop one memory MCP tool from the catalog and re-run), (3) `make v2-phase3-e2e-rust` PASS for all 7 L1 runtimes post-v3.10, (4) `cargo check -p grid-server` PASS (v3.9 catalog regression guard). Reuses the v3.9 PRODUCTION_USABILITY_2026-07-25.md pattern.
+- [ ] **TRACE-02**: `tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md` cross-index: every EAASP v2.0 spec section (`### §N.M`) is listed with `(status, v3.10_phase, post_v3.10_owner)`. Gaps above the `contract-v1.2.0` baseline are explicitly listed as `deferred_to_v3.11+` with rationale, so the spec surface is honest about what is and isn't covered. Used as input to v3.11+ Phase 3 OPA / Phase 4 A2A / Phase 5 L5 planning.
+
+## Future Requirements (deferred — explicit v3.10+ backlog)
+
+- **Phase 3 production OPA approval chain** — pre-work blocked on v3.10 skeleton alignment; v3.11+ scope per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
+- **Phase 4 A2A / Event Room** — v3.12+ scope.
+- **Phase 5 L5 Cowork UI** — v3.13+ scope.
+- **Phase 6 ecosystem expansion** — v3.14+ scope.
+- **`web-platform/` Quality 7.5→9.0** — separate milestone (carried forward from v3.9 OOS).
+- **`grid-desktop` Quality 6.5→9.0** — separate milestone (carried forward from v3.9 OOS).
+- **`grid-platform` route catalog audit** — separate milestone; v3.10 only audits `tools/eaasp-*` and `grid-engine` shared core (carried forward from v3.9 OOS).
+
+## Out of Scope (v3.10)
+
+- **Phase 3 production OPA backend** — only the in-process `PolicyEngine` from 3.7.3 is in scope; OPA sidecar is a separate item per `docs/design/EAASP/PHASE_3_DESIGN.md`.
+- **Phase 4 A2A / Phase 5 L5 Cowork / Phase 6 ecosystem** — untouched; deferred to v3.11+.
+- **New EAASP-spec sections beyond `contract-v1.2.0`** — v3.10 surfaces the gap, does not implement it (D-13).
+- **Proto contract surface widening** — v3.10 only reconciles to existing 21 RPC surface; new RPCs are deferred (D-13).
+- **Schema migration for L2 memory / skill manifest** — v3.10 reconciles existing fields only; new fields are deferred (D-16).
+- **L1 runtime additions or substitutions** — the 7-runtime matrix is frozen for v3.10 (D-14).
+
+## Locked Decisions (from v3.10 discussion — non-negotiable)
+
+| # | Decision | Source |
+|---|----------|--------|
+| D-11 | **EAASP v2.0 platform-skeleton alignment scope.** v3.10 aligns `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes (MAT / PIPE / VERIFY), without adding new dependencies or widening the existing `contract-v1.2.0` surface. | user directive |
+| D-12 | **Three-axis skeleton mapping.** MAT (memory/manifest), PIPE (orchestration pipes), VERIFY (certifier conformance). Each axis has its own 03.10.x phase and Phase #1 deliverable proves the skeleton fits the spec (memory_manifest.md / pipe_topology.md / certifier_surface.md). | scope discipline |
+| D-13 | **Backward-compatible contract surface.** Existing `proto/eaasp/runtime/v2/` (21 RPC: 17 runtime + 4 hook) and `contract-v1.2.0` tests must remain green; no proto-breaking changes in v3.10. New spec sections are surfaced via `certifier_surface.md` as `not_certified` and deferred. | user directive |
+| D-14 | **L1 substitutability guard preserved.** All 7 L1 runtimes (`grid-runtime` + 6 comparison: claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) must continue to pass contract v1.2.0 certifier after each v3.10 phase. Verified by `make v2-phase3-e2e-rust`. | ADR-V2-023 P1 |
+| D-15 | **No new external crate dependency** (D-07 carry-over); same rule for Python (no new PyPI deps beyond existing `uv` lockfile). v3.10 uses existing `grid-types` / `grid-engine` / `eaasp-certifier` / `eaasp-l2-memory-engine` / `eaasp-l3-governance` / `eaasp-l4-orchestration` / `eaasp-skill-registry` / `eaasp-mcp-orchestrator` toolchain. | CLAUDE.md §Constraints |
+| D-16 | **No schema migration** (D-08 carry-over). v3.10 skeleton alignment is Rust + Python source + spec documentation only. No DB migration, no proto schema migration. | CLAUDE.md §Constraints |
+| D-17 | **Shared-core rule (ADR-V2-023 P1, D-09 carry-over) preserved.** Any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品. Verified by `test_v3_10_shared_core_unchanged` (new in COMPAT-03). | ADR-V2-023 P1 |
+| D-18 | **Phase ladder 03.10.0 → 03.10.1 → 03.10.2 → 03.10.3 (or merge to 3 phases if scope allows).** 03.10.0 = skeleton audit + alignment matrix (foundation; every later phase consumes the matrix); 03.10.1 = MAT axis; 03.10.2 = PIPE axis; 03.10.3 = VERIFY axis. COMPAT + TRACE run cross-axis (03.10.1 / 03.10.2 / 03.10.3 each gate on COMPAT-01..03 and emit a TRACE-01 / TRACE-02 update). | user directive |
+
+## Traceability (filled by roadmapper)
+
+| Phase | REQ-IDs |
+|-------|---------|
+| **03.10.0** Skeleton audit + alignment matrix | MAT-01, PIPE-01, VERIFY-01, TRACE-02 |
+| **03.10.1** MAT axis | MAT-02, MAT-03, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01 |
+| **03.10.2** PIPE axis | PIPE-02, PIPE-03, PIPE-04, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01 |
+| **03.10.3** VERIFY axis | PIPE-01 (final wiring), VERIFY-02, VERIFY-03, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01, TRACE-02 (final) |
+| **Total** | **16 REQ-IDs / 4 phases / 5 categories** |
+
+---
+
+*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment bootstrapped (16 REQ-IDs / 5 categories / locked decisions D-11..D-18). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26 (20/20 REQ-IDs, 49 targeted tests PASS, archived to `.planning/milestones/v3.9-*`). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*

@@ -2,8 +2,9 @@
 
 > **Latest shipped milestone:** v3.8 grid-server multi-user login (Tenant + RBAC + JWT) ✅ 2026-07-24
 > **Latest shipped milestone:** v3.9 route-catalog RBAC wiring + authorization auditor ✅ 2026-07-26
-> **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`
-> **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.9 section.
+> **Active milestone:** v3.10 EAASP v2.0 platform-skeleton alignment — bootstrapping 2026-07-26
+> **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`, `milestones/v3.9-ROADMAP.md`
+> **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.10 section.
 
 ## Milestones
 
@@ -18,6 +19,70 @@
 - ✅ **v3.7 实战可用性补全 (Production-Usability Closure)** — SHIPPED 2026-07-23 (3 phases: grid-cli / web/ / EAASP 本地仿真; 3.7.4 grid-server multi-user deferred to v3.8). 175/175 tests PASS, 50 commits, 76 files. Full details: `.planning/milestones/v3.7-ROADMAP.md` + `.planning/MILESTONES.md`
 - ✅ **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** — SHIPPED 2026-07-24. 4 phases (03.8.0–03.8.3), 21 REQ-IDs in 6 categories, 119/119 targeted tests PASS, 3 security hotfixes. Demonstrated `requires(Action)` on 3 representative routes; remaining ~127 endpoints deferred to v3.9 per 03.8.2 plan §Task 4 / RESUME-NEXT-SESSION §Optional sidequests. Archive: `.planning/milestones/v3.8-ROADMAP.md` + `.planning/milestones/v3.8-REQUIREMENTS.md` + `.planning/milestones/v3.8-MILESTONE-AUDIT.md`.
 - ✅ **v3.9 route-catalog RBAC wiring + authorization auditor** — SHIPPED 2026-07-26 (climb bootstrap). Closes v3.8.2's "full route catalog wiring" deferral. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.9 section.
+- 🟡 **v3.10 EAASP v2.0 platform-skeleton alignment** — BOOTSTRAPPING 2026-07-26. 4 phases planned (03.10.0 → 03.10.3), 16 REQ-IDs in 5 categories (MAT/PIPE/VERIFY/COMPAT/TRACE). Locked decisions D-11..D-18. Awaits plan-phase. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.10 section.
+
+---
+
+## Milestone: v3.10 EAASP v2.0 platform-skeleton alignment 🟡 BOOTSTRAPPING 2026-07-26
+
+**Goal:** Align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes — **MAT** (memory/manifest), **PIPE** (orchestration pipes), **VERIFY** (certifier conformance) — without widening the existing `contract-v1.2.0` surface or adding new dependencies. Skeleton alignment is a precondition for the future EVOLUTION_PATH §三 Phase 3 (OPA approval chain) / Phase 4 (A2A Event Room) / Phase 5 (L5 Cowork UI) / Phase 6 (ecosystem expansion) work.
+
+**Context (post-v3.9):** v3.9 SHIPPED the grid-server route-catalog RBAC gap closure (20/20 REQ-IDs, 49 targeted tests PASS, 134-route catalog). The next bottleneck — visible across `tools/eaasp-l2-memory-engine/`, `tools/eaasp-l3-governance/`, `tools/eaasp-l4-orchestration/`, `tools/eaasp-skill-registry/`, `tools/eaasp-mcp-orchestrator/`, `tools/eaasp-certifier/` — is that the reference implementations have drifted from the canonical EAASP v2.0 spec on three independent axes. Without section-by-section alignment, the `contract-v1.2.0` certifier cannot certify future spec additions, and the reference implementations cannot serve as a clean substrate for Phase 3 OPA / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem. v3.10 produces a section-by-section alignment matrix, then lands each axis in its own phase.
+
+**Locked decisions (from v3.10 discussion — non-negotiable):**
+
+- **D-11** v3.10 aligns `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract along three axes (MAT / PIPE / VERIFY), without adding new dependencies or widening the existing `contract-v1.2.0` surface.
+- **D-12** Three-axis skeleton mapping: MAT (memory/manifest), PIPE (orchestration pipes), VERIFY (certifier conformance). Each axis has its own 03.10.x phase; Phase #1 deliverable proves the skeleton fits the spec (`memory_manifest.md` / `pipe_topology.md` / `certifier_surface.md`).
+- **D-13** Backward-compatible contract surface: existing `proto/eaasp/runtime/v2/` (21 RPC: 17 runtime + 4 hook) and `contract-v1.2.0` tests must remain green; no proto-breaking changes in v3.10. New spec sections are surfaced via `certifier_surface.md` as `not_certified` and deferred.
+- **D-14** L1 substitutability guard preserved: all 7 L1 runtimes (`grid-runtime` + 6 comparison: claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) must continue to pass `contract-v1.2.0` certifier after each v3.10 phase. Verified by `make v2-phase3-e2e-rust`.
+- **D-15** No new external crate dependency (D-07 carry-over); same rule for Python (no new PyPI deps beyond existing `uv` lockfile).
+- **D-16** No schema migration (D-08 carry-over); v3.10 skeleton alignment is Rust + Python source + spec documentation only.
+- **D-17** Shared-core rule (ADR-V2-023 P1, D-09 carry-over) preserved: any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品. Verified by `test_v3_10_shared_core_unchanged` (new, COMPAT-03).
+- **D-18** Phase ladder 03.10.0 (skeleton audit + alignment matrix) → 03.10.1 (MAT axis) → 03.10.2 (PIPE axis) → 03.10.3 (VERIFY axis). COMPAT + TRACE run cross-axis.
+
+**Scope ladder (v3.7/v3.8/v3.9 proven pattern — discuss → research → patterns → plan → plan-checker → execute → verify, batched into 4 phases):**
+
+| # | Phase | Goal | Requirements | Success criteria |
+|---|-------|------|--------------|------------------|
+| **03.10.0** | Skeleton audit + alignment matrix | Produce `tools/eaasp-spec-alignment/{memory_manifest.md, pipe_topology.md, certifier_surface.md, ALIGNMENT_MATRIX.md}`; section-by-section delta against `EAASP-Design-Specification-v2.0.docx`; lock the matrix before any code changes | MAT-01, PIPE-01, VERIFY-01, TRACE-02 | All three alignment docs committed at `tools/eaasp-spec-alignment/`; `ALIGNMENT_MATRIX.md` lists every `### §N.M` section with `(status, v3.10_phase, post_v3.10_owner)`; `cargo check --workspace` PASS (no code changes yet) |
+| **03.10.1** | MAT axis | Reconcile L2 memory 7 MCP tools + skill manifest fields against `tools/eaasp-l2-memory-engine/src/mcp.rs` + `tools/eaasp-skill-registry/src/manifest.rs`; in-place patches ≤10 LOC; larger drifts filed as `missing` in DEFERRED_LEDGER.md | MAT-02, MAT-03, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01 | All 7 L2 MCP tool shapes reconcile to spec by section; skill manifest fields reconciled; `cargo test -p eaasp-certifier` PASS; `make v2-phase3-e2e-rust` PASS for all 7 L1 runtimes; `test_v3_10_shared_core_unchanged` PASS; `docs/status/PRODUCTION_USABILITY_2026-07-26.md` MAT-walkthrough section |
+| **03.10.2** | PIPE axis | Reconcile L4 orchestration pipe topology + SSE event shape + L3 governance gate boundaries + session lifecycle against `tools/eaasp-l4-orchestration/src/` + `tools/eaasp-l3-governance/src/`; preserve v3.7.3 gate semantics + ADR-V2-017 §2 double-Terminate NO-OP | PIPE-02, PIPE-03, PIPE-04, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01 | Pipe topology reconciled per EAASP_v2_0_EVOLUTION_PATH.md §三 3 管道; SSE `Event` enum reconciled by field; L3 gate semantics preserved verbatim; `cargo test -p eaasp-l3-governance -p eaasp-l4-orchestration` PASS; `make v2-phase3-e2e-rust` PASS; PIPE-walkthrough section |
+| **03.10.3** | VERIFY axis | Final wiring of PIPE-01 (pipe topology mapping consumed by PIPE-02); ship `make v3.10-spec-audit` Makefile target + `eaasp-certifier --spec-audit --report ...` subcommand; CI gate ordering `cargo check → make v3.10-spec-audit → cargo test` | PIPE-01 (final), VERIFY-02, VERIFY-03, COMPAT-01, COMPAT-02, COMPAT-03, TRACE-01, TRACE-02 (final) | `make v3.10-spec-audit` exits 0 on aligned surface; exits 1 on synthetic misalignment (drop one memory MCP tool from catalog and re-run); every RPC has ≥1 PASS + ≥1 XFAIL certifier path; `ALIGNMENT_MATRIX.md` final version with `deferred_to_v3.11+` rationale for gaps above `contract-v1.2.0` baseline; complete `PRODUCTION_USABILITY_2026-07-26.md` |
+
+### Why this ladder
+
+- **03.10.0 (foundation)** must come first — every later phase consumes the alignment matrix; without it, MAT/PIPE/VERIFY patches would lack a target.
+- **03.10.1 (MAT)** — depends on 03.10.0 (memory_manifest.md must exist before reconciliation); L2 memory + skill manifest is the lowest-risk axis and unblocks Phase 3 OPA + Phase 6 ecosystem.
+- **03.10.2 (PIPE)** — depends on 03.10.1 (PIPE patches use the same audit-by-≤10-LOC pattern from MAT); orchestration pipe topology is the highest-risk axis but cannot ship until MAT axis is stable.
+- **03.10.3 (VERIFY)** — final; ships the spec-audit Makefile target + final `ALIGNMENT_MATRIX.md`; the auditor catches future drift per D-13 contract surface guarantee.
+
+### Out of scope (deferred to v3.11+)
+
+- **Phase 3 production OPA backend** — pre-work blocked on v3.10 skeleton alignment; v3.11+ scope per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. Per D-13, v3.10 surfaces the gap; it does not implement it.
+- **Phase 4 A2A / Event Room** — v3.12+ scope
+- **Phase 5 L5 Cowork UI** — v3.13+ scope
+- **Phase 6 ecosystem expansion** — v3.14+ scope
+- **`web-platform/` Quality 7.5→9.0** — separate milestone (carried forward from v3.9 OOS)
+- **`grid-desktop` Quality 6.5→9.0** — separate milestone (carried forward from v3.9 OOS)
+- **`grid-platform` route catalog audit** — separate milestone; v3.10 only audits `tools/eaasp-*` and `grid-engine` shared core (carried forward from v3.9 OOS)
+- **Multi-role per user / SSO / refresh-token rotation / per-tenant Action policy override** — out of v3.10
+- **L1 runtime additions or substitutions** — the 7-runtime matrix is frozen for v3.10 (D-14)
+- **Proto contract surface widening** — v3.10 reconciles to existing 21 RPC only (D-13)
+- **Schema migration for L2 memory or skill manifest** — v3.10 reconciles existing fields only (D-16)
+
+### Risks & guards
+
+- **R-1: Spec drift (the core v3.10 risk)** — D-11 references the spec by section; without section-level mapping, alignment becomes assertion-by-assertion guessing. Guard: 03.10.0 MUST produce `ALIGNMENT_MATRIX.md` listing every `### §N.M` section before any code change. Drift in the spec itself is acknowledged (`EAASP-Design-Specification-v2.0.docx` is dated 2026 and continues to evolve) — v3.10 alignment is point-in-time; the certifier + spec-audit target (03.10.3) catches future drift.
+- **R-2: `contract-v1.2.0` regression** — D-13 + D-14 require the existing 21 RPC contract + 7 L1 runtime certifier to remain green. Guard: COMPAT-01 (proto wire-compat) + COMPAT-02 (`make v2-phase3-e2e-rust`) verified in 03.10.1 / 03.10.2 / 03.10.3 gates.
+- **R-3: `grid-engine` shared-core bleed** — D-17; any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic. Guard: `test_v3_10_shared_core_unchanged` (new, COMPAT-03) snapshots public API surface pre/post v3.10.
+- **R-4: Spec-vs-impl drift explosion** — D-12 requires honest gap reporting; spec-only fields are surfaced as `missing` not silently dropped. Guard: DEFERRED_LEDGER.md entries for every `drift` / `missing` / `not_certified` row above the `contract-v1.2.0` baseline.
+- **R-5: Certifier scope creep** — D-13 forbids proto-widening in v3.10; the certifier surface is frozen at 21 RPC. Guard: VERIFY-02 verifies end-to-end against the existing 21 RPC surface; new spec sections beyond the 21 are deferred.
+- **R-6: In-place patch discipline** — the audit-by-≤10-LOC pattern (MAT-02, PIPE-02) caps v3.10 risk per change; larger drifts are filed as `missing` for v3.11+. Guard: explicit 10-LOC cap in MAT-02 / PIPE-02 wording; drift count tracked in `ALIGNMENT_MATRIX.md`.
+- **R-7: Phase 3–6 timeline pressure** — v3.11+ (Phase 3 OPA) may slip if v3.10's alignment matrix surfaces unexpected drift. Guard: 03.10.0 alignment matrix output is the input to v3.11 planning; if alignment reveals >30% drift, v3.10 will be split into v3.10a (audit-only) + v3.10b (patches) per Phase Split discipline.
+
+### Shared core rule (ADR-V2-023 P1, retained)
+
+Changes to `grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge` must work for both engine 接入面 (EAASP) and Grid 独立产品. v3.10 is engine-axis work; any change to shared crates must be verified by `test_v3_10_shared_core_unchanged` (COMPAT-03) and must not introduce leg-specific branches. Per D-17, this rule is non-negotiable.
 
 ---
 
@@ -201,6 +266,13 @@ A.8 grid-eval — independent, can run anytime with web/ components
 | A.6 web-platform/ Production | 1/1 | ✅ Complete | P2 |
 | A.7 grid-desktop Feature Work | 1/1 | ✅ Complete | P3 |
 | A.8 grid-eval CI Enhancement | 1/1 | ✅ Complete | P3 |
+| **03.9.0** Route catalog + public allowlist | 1/1 | ✅ Complete | v3.9 P1 |
+| **03.9.1** Full business-route wiring + Action matrix | 1/1 | ✅ Complete | v3.9 P1 |
+| **03.9.2** CI auditor + regression sweep | 1/1 | ✅ Complete | v3.9 P1 |
+| **03.10.0** Skeleton audit + alignment matrix | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
+| **03.10.1** MAT axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
+| **03.10.2** PIPE axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
+| **03.10.3** VERIFY axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
 
 ---
 
@@ -210,4 +282,4 @@ To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps disc
 
 ---
 
-*Last updated: 2026-07-26 — v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED; 3/3 phases and 20/20 REQ-IDs complete. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 ✅ SHIPPED 2026-07-23. v3.6 ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17. v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
+*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment BOOTSTRAPPING (16 REQ-IDs / 5 categories / locked decisions D-11..D-18 / 4-phase ladder 03.10.0–03.10.3); plan-phase pending. v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED 2026-07-26 (3 phases, 20/20 REQ-IDs, 49 targeted tests PASS), archived to `.planning/milestones/v3.9-*`. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 ✅ SHIPPED 2026-07-23. v3.6 ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17. v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*

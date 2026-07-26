@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.9
-milestone_name: route-catalog RBAC wiring + authorization auditor
-status: shipped
-stopped_at: v3.9 SHIPPED; 03.9.0-03.9.2 complete
-last_updated: "2026-07-26T00:00:00.000Z"
+milestone: v3.10
+milestone_name: EAASP v2.0 platform-skeleton alignment
+status: bootstrapping
+stopped_at: v3.10 bootstrapping; v3.9 SHIPPED 2026-07-26 (03.9.0-03.9.2 complete)
+last_updated: "2026-07-26T14:40:00.000Z"
 last_activity: 2026-07-26
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,21 +21,22 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26. All 3 phases and 20/20 REQ-IDs complete.
+**Current focus:** Milestone v3.10 (EAASP v2.0 platform-skeleton alignment) bootstrapping 2026-07-26. v3.9 SHIPPED 2026-07-26 (3 phases, 20/20 REQ-IDs closed).
 
 Canonical product-status sources:
 
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
-- `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
+- `docs/status/PRODUCT_STATUS_2026-07-17.md` (dated audit snapshot)
 
 ## Current Position
 
-Milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
-Scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
-Verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
-Closes: v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations").
+Milestone: **v3.10 EAASP v2.0 platform-skeleton alignment — bootstrapping 2026-07-26**
+Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
+Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
+Prior verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
+Prior close: v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations").
 
-Next-milestone candidates (after v3.9 SHIPS):
+Next-milestone candidates (after v3.10 SHIPS):
 
 - `web-platform/` Quality 7.5→9.0.
 - `grid-desktop` Quality 6.5→9.0.
@@ -65,6 +66,17 @@ Next-milestone candidates (after v3.9 SHIPS):
 *5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
 ## Completed Milestones
+
+### v3.9 grid-server route-catalog RBAC ✅ SHIPPED 2026-07-26
+
+- 3 phases (03.9.0 / 03.9.1 / 03.9.2), 20/20 REQ-IDs closed.
+- Canonical 134-entry HTTP route catalog + exact 3-route public allowlist (D-01/D-02).
+- `AuthMode::Full` per-route catalog RBAC via canonical Axum `MatchedPath`; `AuthMode::None/ApiKey` semantics fully preserved (D-05).
+- Shared `Action` registry expanded from 7 → 20 variants, parser + `Role::can` matrix synchronized (D-04).
+- Owner-only boundaries preserved: `ManageUsers`/`ManageConfig` stay Owner-only (D-04).
+- Standalone `route-auditor` binary + `make rbac-audit` + CI gate ordering `cargo check → rbac-audit → cargo test` (D-03).
+- Post-ship fixes (security review): unified public-bypass with `PUBLIC_ROUTE_ALLOWLIST` for `/api/health`, `/api/health/live`, `/api/v1/auth/login`; corrected JWT `user` role mapping; `catalog_rbac_middleware` now distinguishes Public / Requires(action) / not-in-catalog; route-chain regression test added.
+- 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
 
 ### v3.8 grid-server multi-user login ✅ SHIPPED 2026-07-24
 
@@ -109,17 +121,6 @@ Next-milestone candidates (after v3.9 SHIPS):
 
 | Milestone | Status | Key Output |
 |-----------|--------|------------|
-### v3.9 grid-server route-catalog RBAC ✅ SHIPPED 2026-07-26
-
-- 3 phases (03.9.0 / 03.9.1 / 03.9.2), 20/20 REQ-IDs closed.
-- Canonical 134-entry HTTP route catalog + exact 3-route public allowlist (D-01/D-02).
-- `AuthMode::Full` per-route catalog RBAC via canonical Axum `MatchedPath`; `AuthMode::None/ApiKey` semantics fully preserved (D-05).
-- Shared `Action` registry expanded from 7 → 20 variants, parser + `Role::can` matrix synchronized (D-04).
-- Owner-only boundaries preserved: `ManageUsers`/`ManageConfig` stay Owner-only (D-04).
-- Standalone `route-auditor` binary + `make rbac-audit` + CI gate ordering `cargo check → rbac-audit → cargo test` (D-03).
-- Post-ship fixes (security review): unified public-bypass with `PUBLIC_ROUTE_ALLOWLIST` for `/api/health`, `/api/health/live`, `/api/v1/auth/login`; corrected JWT `user` role mapping; `catalog_rbac_middleware` now distinguishes Public / Requires(action) / not-in-catalog; route-chain regression test added.
-- 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
-
 | v3.3 Engine + Platform Debt Sweep | ✅ 2026-06-07 | Phase 7.3 L3 RBAC 8/8 REQ-IDs |
 | v3.2 Tech-Debt Triage | ✅ 2026-05-26 | 93 D-rows triaged → v3.3-INBOX.md seeded |
 | v3.1 Engine Hardening | ✅ 2026-05-22 | 6 phases, 23 REQ-IDs, 6 ADRs |
@@ -144,6 +145,15 @@ Next-milestone candidates (after v3.9 SHIPS):
   - D-08 No schema migration.
   - D-09 Shared-core rule (ADR-V2-023 P1) preserved; engine-layer changes leg-agnostic; verified by `test_rbac_engine_layer_is_leg_agnostic`.
   - D-10 Phase ladder 03.9.0 → 03.9.1 → 03.9.2.
+- **v3.10 locked decisions** (from v3.10 discussion, 2026-07-26 — bootstrap pending plan-phase):
+  - D-11 EAASP v2.0 platform-skeleton alignment scope: align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) without adding new dependencies.
+  - D-12 Three-axis skeleton mapping: (1) MAT (memory/manifest), (2) PIPE (orchestration pipes), (3) VERIFY (certifier conformance). Each axis has its own 03.10.x phase and Phase #1 deliverable proves the skeleton fits the spec.
+  - D-13 Backward-compatible contract surface: existing `proto/eaasp/runtime/v2/` (21 RPC: 17 runtime + 4 hook) and `contract-v1.2.0` tests must remain green; no proto-breaking changes in v3.10.
+  - D-14 L1 substitutability guard preserved: all 7 L1 runtimes (`grid-runtime` + 6 comparison: claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) must continue to pass contract v1.2.0 certifier after each v3.10 phase.
+  - D-15 No new external crate dependency (D-07 carry-over); same rule for Python (no new PyPI deps beyond existing `uv` lockfile).
+  - D-16 No schema migration (D-08 carry-over); skeleton alignment is Rust + Python source + proto commentary only.
+  - D-17 Shared-core rule (ADR-V2-023 P1, D-09 carry-over) preserved: any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品.
+  - D-18 Phase ladder 03.10.0 (skeleton audit + alignment matrix) → 03.10.1 (MAT axis) → 03.10.2 (PIPE axis) → 03.10.3 (VERIFY axis). Optionally merged into 3 phases if scope allows per scope review at plan-phase.
 
 ### Pending Todos
 
@@ -156,14 +166,17 @@ None.
 - **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
 - **v3.9 Action vocabulary growth discipline** (D-04): extension is allowed but each new variant must map to a coherent semantic; auditor surfaces gaps; "manage everything" catch-all is forbidden.
+- **v3.10 spec drift risk**: the canonical EAASP v2.0 spec is `EAASP-Design-Specification-v2.0.docx` (~4373 KB). Skeleton alignment must reference this spec by section number (D-11); otherwise drift between `tools/eaasp-*` and the spec will reappear. v3.10 audit phase (03.10.0) MUST produce a section-by-section delta before any code changes.
+- **v3.10 certifier gap**: existing `tools/eaasp-certifier` exercises `contract-v1.2.0` (17 runtime + 4 hook RPC). Skeleton alignment MUST not silently widen the certifier surface; new spec sections without contract backing must be tracked as deferred (D-13 + D-14).
 
 ## Session Continuity
 
-Last session: 2026-07-26 (autonomous v3.9 climb)
-Stopped at: v3.9 SHIPPED — 03.9.0 catalog, 03.9.1 full RBAC, 03.9.2 CI auditor all complete; targeted gates 51 PASS.
+Last session: 2026-07-26 (autonomous v3.10 bootstrap — planning files updated; v3.10 awaits plan-phase)
+Stopped at: v3.10 bootstrapping — STATE/PROJECT/REQUIREMENTS/ROADMAP updated to mark v3.10 as the active milestone; v3.9 SHIPPED 2026-07-26 (03.9.0–03.9.2 complete, 49 targeted tests PASS).
 
 Prior sessions:
 
+- 2026-07-26 (autonomous v3.9 climb): v3.9 SHIPPED — 03.9.0 catalog, 03.9.1 full RBAC, 03.9.2 CI auditor all complete; targeted gates 51 PASS.
 - 2026-07-24: Phase 03.8.3 SHIPPED — USER_GUIDE §11 + PRODUCTION_USABILITY walkthrough + regression sweep. v3.8 milestone close pending. 119/119 targeted tests PASS.
 - 2026-07-23 (this climb session): v3.8 milestone bootstrapped (PROJECT.md + STATE.md updated). REQUIREMENTS + ROADMAP pending.
 - 2026-07-19 (this session): Phase 3.7.1 SHIPPED — 8/9 REQ-AUDITs closed, 14/14 hermetic tests PASS
@@ -185,4 +198,4 @@ Prior sessions:
 
 ---
 
-*Milestone v3.9 bootstrapped 2026-07-25. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*
+*Milestone v3.10 bootstrapped 2026-07-26. v3.9 SHIPPED 2026-07-26. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*
