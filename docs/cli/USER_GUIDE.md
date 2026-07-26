@@ -1079,9 +1079,29 @@ grid --version
 git -C $(grid root show --output json | jq -r '.grid_cli_path') rev-parse HEAD
 ```
 
+
 ---
 
-## 9. 附录: 数据模型与路径约定
+## 12. 路由授权目录审计
+
+`grid-server` 将每个 HTTP method/path 声明为 `Public` 或 `Requires(Action)`。本地提交前运行：
+
+```bash
+make rbac-audit
+```
+
+成功时输出 `RBAC route audit PASS` 和目录条目数；失败时逐行列出重复路由、未在公开白名单中的 `Public` 路由、缺失的白名单条目，或任何没有角色可执行的 Action，并以非零状态退出。
+
+新增路由时：
+
+1. 在现有 Axum router 中注册 handler。
+2. 在 `crates/grid-server/src/rbac/catalog.rs` 增加完全限定 method/path，并选择 `Public` 或最小权限 `Requires(Action)`。
+3. 只有 `/api/health`、`/api/health/live`、`/api/v1/auth/login` 可以公开；新增公开面必须同步安全评审和 `PUBLIC_ROUTE_ALLOWLIST`。
+4. 如果现有 Action 无法表达语义，在 `grid-engine/src/auth/roles.rs` 同步增加 enum、`Action::parse` 和 `Role::can` 策略，并更新矩阵测试。
+5. 运行 `make rbac-audit`、`cargo test -p grid-server --test route_auditor --test route_rbac_enforcement`。
+
+运行语义：`AuthMode::None` 与 `AuthMode::ApiKey` 不携带 JWT claims，保持原行为；`AuthMode::Full` 根据匹配到的 canonical route template 执行完整 Role × Action 检查。目录缺失时 Full mode 默认拒绝。
+
 
 ### 9.1 GridRoot 解析顺序
 
