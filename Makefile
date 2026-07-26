@@ -12,7 +12,8 @@
         clean-all clean-web config-gen fmt-check help-full release \
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint \
-        web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit
+        web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit \
+        v3.10-spec-audit
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -120,6 +121,11 @@ check:
 # Static authorization catalog audit (v3.9)
 rbac-audit:
 	cargo run -p grid-server --bin route-auditor
+
+# EAASP v2.0 platform-skeleton alignment audit (v3.10)
+v3.10-spec-audit:
+	cargo run -p eaasp-certifier -- spec-audit \
+		--report tools/eaasp-spec-alignment/REPORT.md
 
 autofix:
 	cargo fix --workspace --allow-dirty --allow-staged

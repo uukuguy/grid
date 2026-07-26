@@ -35,6 +35,15 @@ enum Commands {
         #[arg(short, long)]
         prompt: String,
     },
+    /// Run the EAASP v2.0 platform-skeleton documentation audit.
+    SpecAudit {
+        /// Directory containing the alignment matrix and axis documents.
+        #[arg(long, default_value = "tools/eaasp-spec-alignment")]
+        root: std::path::PathBuf,
+        /// Markdown report output path.
+        #[arg(long)]
+        report: std::path::PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -82,6 +91,18 @@ async fn main() -> anyhow::Result<()> {
             ];
             let record = eaasp_certifier::blindbox::execute_blindbox(&runtimes, &prompt).await?;
             println!("{}", serde_json::to_string_pretty(&record)?);
+        }
+        Commands::SpecAudit { root, report } => {
+            let audit = eaasp_certifier::spec_audit::audit_alignment(&root);
+            let markdown = audit.to_markdown();
+            if let Some(parent) = report.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(&report, &markdown)?;
+            print!("{markdown}");
+            if !audit.passed() {
+                std::process::exit(1);
+            }
         }
     }
 
