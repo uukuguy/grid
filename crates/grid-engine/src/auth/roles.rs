@@ -76,7 +76,7 @@ impl Action {
     }
 }
 
-/// 用户角色 - 扩展为 5 级角色
+/// 用户角色 - 共 4 级角色 (Viewer / User / Admin / Owner)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
