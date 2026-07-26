@@ -84,6 +84,45 @@ async def require_access_scope(
         )
     return x_session_scope
 
+# v3.11.1 security review [Issue 1 / HIGH]: in-process principal store
+# that binds ``session_id`` -> ``{access_scope, tenant_id, principal}``
+# at /v1/sessions/{id}/validate time, and that ``/v1/evaluate`` uses
+# to verify (a) the session exists, (b) the caller's scope matches
+# the session's scope, and (c) the resolved hook's ``access_scope``
+# matches the caller's scope (with wildcard + admin carve-outs).
+#
+# Production replaces this with the EAASP L2 session DB; the contract
+# shape is the same — this is the v3.11.1 anchor.
+_SESSION_PRINCIPALS: dict[str, dict[str, str]] = {}
+
+
+async def register_session_principal(
+    session_id: str,
+    *,
+    access_scope: str,
+    tenant_id: str,
+    principal: str,
+) -> dict[str, str]:
+    """Bind a session_id to a verified principal + scope at validate time.
+
+    Returns the stored principal dict. Idempotent: re-registering the
+    same session_id overwrites the prior binding (the validate endpoint
+    is the only path that produces valid bindings).
+    """
+    bound = {
+        "session_id": session_id,
+        "access_scope": access_scope,
+        "tenant_id": tenant_id,
+        "principal": principal,
+    }
+    _SESSION_PRINCIPALS[session_id] = bound
+    return bound
+
+
+async def lookup_session_principal(session_id: str) -> dict[str, str] | None:
+    """Return the principal bound at validate time, or None if missing."""
+    return _SESSION_PRINCIPALS.get(session_id)
+
 
 def create_app(db_path: str) -> FastAPI:
     # Build MCP server for SSE transport (D-04/D-06 — dual-transport)
@@ -257,6 +296,18 @@ def create_app(db_path: str) -> FastAPI:
         body: SessionValidateRequest,
         caller_scope: str = Depends(require_access_scope),
     ) -> dict[str, Any]:
+        # Security review Issue 1: bind session_id to a verified principal
+        # BEFORE any hook resolution so /v1/evaluate cannot accept a
+        # free-form session_id from an unauthenticated caller. The
+        # principal's scope = caller_scope; tenant_id derives from the
+        # X-Session-Scope header (or '*' wildcard); principal defaults to
+        # "caller". Production replaces this with an L2 join.
+        await register_session_principal(
+            session_id,
+            access_scope=caller_scope,
+            tenant_id=str(body.agent_id) if body.agent_id else "default",
+            principal="caller",
+        )
         latest = await policy.latest_version()
         if latest is None:
             raise HTTPException(
@@ -332,8 +383,12 @@ def create_app(db_path: str) -> FastAPI:
         - ``policy.opa_enabled is False`` → ``PolicyEngine.evaluate_gate()``
           (in-process path; dev / CI / unit-test path).
 
-        The response shape is identical in both modes so the L4 SSE
-        consumer and the audit ledger stay wire-compatible.
+        Security [Issue 1 / HIGH]: the request MUST be backed by an
+        authenticated session (registered via /v1/sessions/{id}/validate),
+        the resolved hook's ``access_scope`` MUST equal ``caller_scope``
+        (or the caller is wildcard / admin), and ``session_id`` is
+        carried as an authenticated session_id rather than a free-form
+        string. Cross-scope mismatches → 403.
         """
         # Defense-in-depth: validate risk_level at the API surface even
         # though evaluate_with_opa/evaluate_gate also validate it. This
@@ -346,9 +401,86 @@ def create_app(db_path: str) -> FastAPI:
                 detail={"error": "validation_error", "message": str(exc)},
             ) from exc
 
-        # Switch: OPA if available, else in-process. The flag is read at
-        # request time so a runtime reconfiguration (L3_OPA_ENABLED flip +
-        # restart) is the only way to switch — no per-request surprise.
+        # ── Step 1: bind session_id to an authenticated principal ────────
+        principal = await lookup_session_principal(body.session_id)
+        if principal is None:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "forbidden",
+                    "message": "session_id is not authenticated; call "
+                                "/v1/sessions/{id}/validate first",
+                },
+            )
+        if principal["access_scope"] != caller_scope and caller_scope != "*":
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "forbidden",
+                    "message": "caller scope does not match authenticated "
+                                "session scope",
+                },
+            )
+
+        # ── Step 2: resolve hook by (session_id, hook_id) and enforce scope
+        latest = await policy.latest_version()
+        if latest is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "not_found",
+                    "message": "no managed-settings version has been "
+                                "deployed yet",
+                },
+            )
+        resolved_hook: dict[str, Any] | None = None
+        for hook in latest.payload.get("hooks", []):
+            if not hook_matches(hook, body.agent_id, body.skill_id):
+                continue
+            if hook.get("hook_id") != body.hook_id:
+                continue
+            resolved_hook = hook
+            break
+        if resolved_hook is None:
+            # Either hook_id is unknown OR it doesn't match the agent/skill
+            # binding — both surface as "not found" to avoid leaking which
+            # hooks exist.
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "not_found",
+                    "message": f"hook {body.hook_id!r} is not bound to this "
+                                f"session (agent_id/skill_id/hook_id mismatch)",
+                },
+            )
+
+        # ── Step 3: enforce hook.access_scope == caller_scope (with carve-outs)
+        hook_scope = resolved_hook.get("access_scope")
+        if (
+            hook_scope is not None
+            and caller_scope != "*"
+            and caller_scope != "admin"
+            and hook_scope != caller_scope
+        ):
+            logger.warning(
+                "RBAC rejected on /v1/evaluate",
+                hook_id=body.hook_id,
+                session_id=body.session_id,
+                caller_scope=caller_scope,
+                required_scope=hook_scope,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "forbidden",
+                    "message": (
+                        f"hook requires scope {hook_scope!r}; caller has "
+                        f"{caller_scope!r}"
+                    ),
+                },
+            )
+
+        # ── Step 4: route to OPA or in-process, passing principal forward
         if policy.opa_enabled:
             decision = await policy.evaluate_with_opa(
                 session_id=body.session_id,
@@ -358,6 +490,9 @@ def create_app(db_path: str) -> FastAPI:
                 action_preview=body.action_preview,
                 agent_id=body.agent_id,
                 skill_id=body.skill_id,
+                principal_scope=caller_scope,
+                principal_id=principal["principal"],
+                tenant_id=principal["tenant_id"],
             )
             backend_kind = "opa"
         else:

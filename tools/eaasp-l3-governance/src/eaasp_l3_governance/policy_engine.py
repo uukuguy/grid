@@ -432,6 +432,9 @@ class PolicyEngine:
         *,
         agent_id: str | None = None,
         skill_id: str | None = None,
+        principal_scope: str | None = None,
+        principal_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> GateDecision:
         """Evaluate via OPA and persist the (possibly synthesized) decision.
 
@@ -492,6 +495,14 @@ class PolicyEngine:
             "mode": effective_mode,
             "agent_id": agent_id,
             "skill_id": skill_id,
+            # Security [Issue 1]: principal binding travels into the OPA
+            # audit payload so Rego can pivot on it. The authenticated
+            # scope is what enforces (a) hook matching and (b) audit
+            # traceability — non-HTTP callers must also pass these
+            # kwargs explicitly.
+            "principal_scope": principal_scope,
+            "principal_id": principal_id,
+            "tenant_id": tenant_id,
         }
         opa_result = await self._opa_backend.evaluate(opa_request)
 
@@ -523,13 +534,26 @@ class PolicyEngine:
 
 
 def _map_opa_to_gate(opa_result: OPADecision, mode: str) -> tuple[str, str]:
-    """Map a normalized OPA decision to a ``GateDecision`` (decision, rationale)."""
+    """Map a normalized OPA decision to a ``GateDecision`` (decision, rationale).
+
+    Authorization gate (security review Issue 2): the runtime MUST NOT
+    proceed unless **both** ``opa_result.allow is True`` AND
+    ``opa_result.decision == DECISION_ALLOW``. Single-channel truth (only
+    ``decision=='allow'`` OR only ``allow=True``) is treated as a fail-closed
+    deny; ``infra_unavailable=True`` is preserved upstream so the audit row
+    carries the correct cause. This is defense-in-depth on top of the
+    bidirectional invariant in ``_parse_opa_response``.
+    """
     if opa_result.infra_unavailable:
         # Fail-closed: surface the OPA cause in the rationale so the audit
         # ledger can be filtered by cause in postmortem. decision must be
         # 'deny' per deny-always-wins (spec §15.9).
         return DECISION_DENY, opa_result.reason
-    if opa_result.decision == DECISION_ALLOW:
+    # Belt-and-suspenders: the bidirectional invariant in
+    # ``_parse_opa_response`` already guarantees ``decision=='allow'`` iff
+    # ``allow is True``, but we re-check here so a future widening of the
+    # invariant cannot silently bypass the gate. Any mismatch is fail-closed.
+    if opa_result.decision == DECISION_ALLOW and opa_result.allow is True:
         return DECISION_ALLOW, opa_result.reason or f"opa:allow ({mode})"
     if opa_result.decision == DECISION_APPROVAL:
         # OPA emits a 3-state decision (allow / approval / deny). The L3

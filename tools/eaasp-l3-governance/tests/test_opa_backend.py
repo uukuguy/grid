@@ -36,12 +36,15 @@ from eaasp_l3_governance.opa_backend import (
     DECISION_ALLOW,
     DECISION_APPROVAL,
     DECISION_DENY,
+    DEFAULT_OPA_ALLOWED_HOSTS,
     OPABackend,
     OPAConfig,
     OPADecision,
     normalize_base_url,
     parse_timeout_seconds,
     require_env,
+    sanitized_origin,
+    validate_opa_url,
 )
 
 
@@ -332,12 +335,14 @@ async def test_fail_closed_invalid_decision_value() -> None:
 
 
 async def test_fail_closed_allow_true_with_non_allow_decision() -> None:
-    """Cross-field invariant: allow=True REQUIRE decision='allow' (gate/sentinel coupling).
+    """Cross-field invariant: allow=True ⇔ decision='allow' (forward direction).
 
     OPA returning allow=True with decision="deny" is treated as a
-    malformed response — fail-closed. The reverse (allow=False,
-    decision=approval|deny) is legitimate: "approval" is the
-    needs-human-review state and "deny" is the outright block.
+    malformed response — fail-closed with infra_unavailable=true so the
+    PolicyEngine sees it as a deniable infrastructure outcome.
+    Security review [Issue 2 / HIGH]: this is one half of the
+    bidirectional invariant — see also ``test_fail_closed_allow_false_with_allow_decision``
+    for the reverse direction.
     """
     async def handler(req: httpx.Request) -> httpx.Response:
         return _ok_response(
@@ -356,6 +361,40 @@ async def test_fail_closed_allow_true_with_non_allow_decision() -> None:
     assert result.infra_unavailable is True
     assert result.cause == CAUSE_MISSING_FIELD
     assert "invariant" in result.reason
+    assert "allow=True" in result.reason
+    await backend.aclose()
+
+
+async def test_fail_closed_allow_false_with_allow_decision() -> None:
+    """Security review [Issue 2 / HIGH] regression: allow=False ⇔ decision='allow'.
+
+    OPA returning allow=False with decision='allow' is the symmetric
+    half of the bidirectional invariant. Previously this slipped
+    through silently — the agent thought it had been authorized
+    (decision='allow') but the gate was closed (allow=False). Now it
+    is fail-closed with infra_unavailable=true so the PolicyEngine's
+    authorize gate (``decision=='allow' AND allow is True``) sees a
+    deniable infrastructure outcome.
+    """
+    async def handler(req: httpx.Request) -> httpx.Response:
+        return _ok_response(
+            {
+                "result": {
+                    "allow": False,
+                    "decision": "allow",
+                    "reason": "symmetric invariant violation: allow=False but decision='allow'",
+                    "obligations": [],
+                }
+            }
+        )
+
+    backend = _make_backend(handler)
+    result = await backend.evaluate({"tool_name": "x"})
+    # Bidirectional check fires: fail-closed with the missing-field cause.
+    assert result.infra_unavailable is True
+    assert result.cause == CAUSE_MISSING_FIELD
+    assert "invariant" in result.reason
+    assert "allow=False" in result.reason
     await backend.aclose()
 
 
@@ -539,3 +578,85 @@ async def test_evaluate_payload_includes_risk_level_and_mode() -> None:
     assert inner["mode"] == "shadow"
     assert inner["agent_id"] == "agent_42"
     assert inner["skill_id"] == "skill_42"
+
+
+
+# ─── Security [Issue 3 / MEDIUM] — URL guard + sanitized origin ─────────────
+
+
+def test_validate_opa_url_accepts_loopback() -> None:
+    """The default loopback allowlist accepts both 127.0.0.1 and localhost.
+
+    Both forms are the canonical sidecar reach path per ADR-V2-034.
+    """
+    assert validate_opa_url("http://127.0.0.1:18181") == "http://127.0.0.1:18181"
+    assert validate_opa_url("http://localhost:18181") == "http://localhost:18181"
+    assert validate_opa_url("http://localhost:18181/") == "http://localhost:18181"
+    assert validate_opa_url("https://127.0.0.1:18181") == "https://127.0.0.1:18181"
+
+
+def test_validate_opa_url_rejects_userinfo() -> None:
+    """Userinfo (user:pass@host) MUST be rejected — credentials in URLs
+    are commonly exfiltrated to logs."""
+    with pytest.raises(RuntimeError, match="userinfo"):
+        validate_opa_url("http://admin:secret@127.0.0.1:18181")
+
+
+def test_validate_opa_url_rejects_query_string() -> None:
+    """Query string MUST be rejected — OPA REST v1 takes the path in the
+    URL, not the query."""
+    with pytest.raises(RuntimeError, match="query"):
+        validate_opa_url("http://127.0.0.1:18181?token=abc")
+
+
+def test_validate_opa_url_rejects_fragment() -> None:
+    """Fragment MUST be rejected — fragments are client-side and
+    commonly carry tokens."""
+    with pytest.raises(RuntimeError, match="fragment"):
+        validate_opa_url("http://127.0.0.1:18181#token")
+
+
+def test_validate_opa_url_rejects_disallowed_scheme() -> None:
+    """Only http/https are accepted; file:// / ftp:// etc. are blocked."""
+    for bad in ("file:///etc/passwd", "ftp://127.0.0.1", "javascript:alert(1)"):
+        with pytest.raises(RuntimeError, match="scheme"):
+            validate_opa_url(bad)
+
+
+def test_validate_opa_url_rejects_disallowed_host() -> None:
+    """Default loopback allowlist blocks arbitrary hosts."""
+    with pytest.raises(RuntimeError, match="allowed-host"):
+        validate_opa_url("http://example.com:18181")
+    with pytest.raises(RuntimeError, match="allowed-host"):
+        validate_opa_url("http://192.168.1.1:18181")
+
+
+def test_validate_opa_url_accepts_extended_allowlist() -> None:
+    """Operators can extend the allowlist via the ``allowed_hosts`` kwarg
+    (L3_OPA_ALLOWED_HOSTS env var in production)."""
+    extended = frozenset({"127.0.0.1", "localhost", "opa.internal.example.com"})
+    assert validate_opa_url(
+        "http://opa.internal.example.com:18181", allowed_hosts=extended
+    ) == "http://opa.internal.example.com:18181"
+    # Default still rejects the extended host.
+    with pytest.raises(RuntimeError, match="allowed-host"):
+        validate_opa_url("http://opa.internal.example.com:18181")
+
+
+def test_default_allowed_hosts_is_loopback_only() -> None:
+    """The default allowlist is exactly the loopback set per ADR-V2-034."""
+    assert DEFAULT_OPA_ALLOWED_HOSTS == frozenset({"127.0.0.1", "localhost"})
+
+
+def test_sanitized_origin_drops_userinfo_query_fragment() -> None:
+    """The sanitized-origin helper is the safe way to log the URL."""
+    assert sanitized_origin("http://127.0.0.1:18181") == "http://127.0.0.1:18181"
+    assert sanitized_origin("http://localhost:18181") == "http://localhost:18181"
+    # Even if a credentials-bearing URL slipped through ``validate_opa_url``,
+    # ``sanitized_origin`` still drops userinfo / query / fragment.
+    assert (
+        sanitized_origin("http://admin:secret@127.0.0.1:18181?token=abc#frag")
+        == "http://127.0.0.1:18181"
+    )
+    # Unparseable input → safe placeholder, never the raw input.
+    assert sanitized_origin(":::not a url") == "<unparseable>"

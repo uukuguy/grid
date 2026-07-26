@@ -53,7 +53,19 @@ async def test_opa_disabled_in_process_evaluate_via_api(app: AsyncClient) -> Non
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
 
-    # ── 3. Run an in-process gate evaluation through /v1/evaluate ──────
+    # ── 3. Register both sessions via /v1/sessions/{id}/validate ───────
+    # Security review [Issue 1 / HIGH]: /v1/evaluate no longer accepts
+    # free-form session_id — the principal-binding guard requires the
+    # session to have been registered at validate time.
+    for sess in ("sess_disabled", "sess_disabled_read"):
+        validate_resp = await app.post(
+            f"/v1/sessions/{sess}/validate",
+            json={"agent_id": "*"},
+            headers={"X-Session-Scope": "*"},
+        )
+        assert validate_resp.status_code == 200, validate_resp.text
+
+    # ── 4. Run an in-process gate evaluation through /v1/evaluate ──────
     # The API's switch reads policy.opa_enabled; with no L3_OPA_ENABLED
     # env var it is False and evaluate_gate() is used. The response
     # carries backend="in_process" so callers can detect the routing.
@@ -75,7 +87,7 @@ async def test_opa_disabled_in_process_evaluate_via_api(app: AsyncClient) -> Non
     assert body["backend"] == "in_process"
     assert body["decision_id"].startswith("gd_")
 
-    # ── 4. Read risk_level → allow (auto-allowed) ──────────────────────
+    # ── 5. Read risk_level → allow (auto-allowed) ──────────────────────
     r = await app.post(
         "/v1/evaluate",
         headers={"X-Session-Scope": "*"},
@@ -139,18 +151,23 @@ async def test_opa_disabled_validation_guards_at_api_surface(
 
 async def test_opa_disabled_unknown_hook_404(app: AsyncClient) -> None:
     """Calling /v1/evaluate for a hook that has no managed-settings row
-    surfaces as 422 (HookNotFoundError → our global handler maps it
-    to a 404; verify the API does not crash with a 500)."""
+    surfaces as 404 (HookNotFoundError → our global handler maps it
+    to a clean 404)."""
     r = await app.put(
         "/v1/policies/managed-hooks",
         json={"hooks": [{"hook_id": "h_real", "phase": "PreToolUse", "mode": "enforce"}]},
     )
     assert r.status_code == 200
 
-    # HookNotFoundError is raised in policy_engine.evaluate_gate; the
-    # global exception handler maps unknown exceptions to 500. We accept
-    # either 404 (clean mapping) or 500 (defense-in-depth, no crash).
-    # What we MUST NOT see is a 200.
+    # Register the session so the principal-binding step does not short-circuit
+    # with 403 before the hook resolution runs (security review Issue 1).
+    validate_resp = await app.post(
+        "/v1/sessions/sess_unk/validate",
+        json={},
+        headers={"X-Session-Scope": "*"},
+    )
+    assert validate_resp.status_code == 200
+
     r = await app.post(
         "/v1/evaluate",
         headers={"X-Session-Scope": "*"},
@@ -162,7 +179,8 @@ async def test_opa_disabled_unknown_hook_404(app: AsyncClient) -> None:
             "action_preview": "x",
         },
     )
-    assert r.status_code in (404, 500)
+    # HookNotFoundError → 404 via the global exception handler.
+    assert r.status_code == 404
 
 
 async def test_opa_disabled_missing_scope_header_403(app: AsyncClient) -> None:
@@ -189,3 +207,217 @@ async def test_opa_disabled_missing_scope_header_403(app: AsyncClient) -> None:
     )
     assert r.status_code == 403
     assert "X-Session-Scope" in r.text
+
+
+
+# ─── Security [Issue 1 / HIGH] — cross-scope denial at /v1/evaluate ─────────
+
+
+async def test_evaluate_rejects_unauthenticated_session_id(app):  # type: ignore[no-untyped-def]
+    """session_id must have been registered via /v1/sessions/{id}/validate.
+
+    Free-form session_id is no longer accepted by /v1/evaluate. This
+    closes the bypass where a non-HTTP caller could mint a session_id
+    and get a governance decision without going through validate.
+    """
+    body = {
+        "session_id": "sess_unbound",
+        "hook_id": "h_eval",
+        "tool_name": "x",
+        "risk_level": "read",
+        "action_preview": "x",
+    }
+    resp = await app.post(
+        "/v1/evaluate",
+        json=body,
+        headers={"X-Session-Scope": "tenant_a"},
+    )
+    assert resp.status_code == 403
+    detail = resp.json()["detail"]
+    assert detail["error"] == "forbidden"
+    assert "not authenticated" in detail["message"]
+
+
+async def test_evaluate_rejects_cross_scope_session(app):  # type: ignore[no-untyped-def]
+    """A session bound at scope A cannot be evaluated by a caller with scope B.
+
+    Setup: validate registers the session at scope A; the caller
+    invokes /v1/evaluate at scope B. The mismatch must deny the
+    request (403). This is the cross-tenant isolation guard.
+    """
+    # Step 1: bind sess_cross to scope=tenant_a via validate.
+    deploy_resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={"hooks": [{"hook_id": "h_cs", "phase": "PreToolUse", "mode": "shadow"}]},
+    )
+    assert deploy_resp.status_code == 200
+
+    validate_resp = await app.post(
+        "/v1/sessions/sess_cross/validate",
+        json={"agent_id": "agent_a"},
+        headers={"X-Session-Scope": "tenant_a"},
+    )
+    assert validate_resp.status_code == 200
+
+    # Step 2: a caller with scope=tenant_b tries to evaluate the same
+    # session_id; must be 403.
+    body = {
+        "session_id": "sess_cross",
+        "hook_id": "h_cs",
+        "tool_name": "x",
+        "risk_level": "read",
+        "action_preview": "x",
+    }
+    resp = await app.post(
+        "/v1/evaluate",
+        json=body,
+        headers={"X-Session-Scope": "tenant_b"},
+    )
+    assert resp.status_code == 403
+    detail = resp.json()["detail"]
+    assert detail["error"] == "forbidden"
+    assert "caller scope" in detail["message"]
+
+
+async def test_evaluate_rejects_hook_access_scope_mismatch(app):  # type: ignore[no-untyped-def]
+    """When a hook declares ``access_scope=tenant_a`` and the caller's
+    scope is ``tenant_b``, the request is 403'd even though the
+    session_id is valid.
+
+    This is the per-hook scope rule mirroring what /v1/sessions/.../validate
+    already enforces (cross-scope hook filtering).
+    """
+    deploy_resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={
+            "hooks": [
+                {
+                    "hook_id": "h_scoped",
+                    "phase": "PreToolUse",
+                    "mode": "shadow",
+                    "access_scope": "tenant_a",
+                }
+            ]
+        },
+    )
+    assert deploy_resp.status_code == 200
+
+    validate_resp = await app.post(
+        "/v1/sessions/sess_scoped/validate",
+        json={"agent_id": "agent_a"},
+        headers={"X-Session-Scope": "tenant_a"},
+    )
+    assert validate_resp.status_code == 200
+
+    # The session is bound to tenant_a, but we forge a request with
+    # the same session_id and a different scope header. Two distinct
+    # failure modes apply here:
+    #  - If the caller lies about their scope (``X-Session-Scope: tenant_b``
+    #    on a session that was validated under tenant_a), the principal
+    #    scope check fires FIRST ("caller scope does not match
+    #    authenticated session scope") with status 403.
+    body = {
+        "session_id": "sess_scoped",
+        "hook_id": "h_scoped",
+        "tool_name": "x",
+        "risk_level": "read",
+        "action_preview": "x",
+    }
+    resp = await app.post(
+        "/v1/evaluate",
+        json=body,
+        headers={"X-Session-Scope": "tenant_b"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_evaluate_wildcard_scope_bypasses_hook_scope_check(app):  # type: ignore[no-untyped-def]
+    """``X-Session-Scope: *`` (admin / wildcard) bypasses the per-hook
+    ``access_scope`` check. This matches the same wildcard carve-out
+    that ``/v1/sessions/{id}/validate`` applies for scope=*.
+    """
+    deploy_resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={
+            "hooks": [
+                {
+                    "hook_id": "h_locked",
+                    "phase": "PreToolUse",
+                    "mode": "shadow",
+                    "access_scope": "tenant_a",
+                }
+            ]
+        },
+    )
+    assert deploy_resp.status_code == 200
+
+    # First bind the session via validate (admin must use * scope there too).
+    validate_resp = await app.post(
+        "/v1/sessions/sess_locked/validate",
+        json={},
+        headers={"X-Session-Scope": "*"},
+    )
+    assert validate_resp.status_code == 200
+
+    # Now evaluate as wildcard — the hook's per-hook access_scope is
+    # silently bypassed because the caller is wildcard.
+    body = {
+        "session_id": "sess_locked",
+        "hook_id": "h_locked",
+        "tool_name": "x",
+        "risk_level": "read",
+        "action_preview": "x",
+    }
+    resp = await app.post(
+        "/v1/evaluate",
+        json=body,
+        headers={"X-Session-Scope": "*"},
+    )
+    # In-process gate: read risk → 200, allow decision.
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["decision"] == "allow"
+
+
+async def test_evaluate_admin_scope_bypasses_hook_scope_check(app):  # type: ignore[no-untyped-def]
+    """``X-Session-Scope: admin`` also bypasses the per-hook scope check.
+
+    This is the explicit admin carve-out — operators with the admin
+    role need to evaluate hooks regardless of the hook's declared
+    ``access_scope`` so that incident-response flows can drill in.
+    """
+    deploy_resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={
+            "hooks": [
+                {
+                    "hook_id": "h_admin",
+                    "phase": "PreToolUse",
+                    "mode": "shadow",
+                    "access_scope": "tenant_a",
+                }
+            ]
+        },
+    )
+    assert deploy_resp.status_code == 200
+
+    validate_resp = await app.post(
+        "/v1/sessions/sess_admin/validate",
+        json={},
+        headers={"X-Session-Scope": "admin"},
+    )
+    assert validate_resp.status_code == 200
+
+    body = {
+        "session_id": "sess_admin",
+        "hook_id": "h_admin",
+        "tool_name": "x",
+        "risk_level": "read",
+        "action_preview": "x",
+    }
+    resp = await app.post(
+        "/v1/evaluate",
+        json=body,
+        headers={"X-Session-Scope": "admin"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["decision"] == "allow"
