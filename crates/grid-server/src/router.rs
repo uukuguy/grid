@@ -11,7 +11,9 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::api;
-use crate::middleware::{audit_middleware, AuditMiddlewareState, RateLimiter};
+use crate::middleware::{
+    audit_middleware, catalog_rbac_middleware, AuditMiddlewareState, RateLimiter,
+};
 use crate::state::AppState;
 use crate::ws::ws_handler_with_path;
 
@@ -282,6 +284,9 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // Desired execution order: rate_limit → auth → audit
         // So we add them in reverse: audit first, rate_limit last.
         //
+        // Catalog RBAC runs after authentication (LIFO) and before handlers.
+        // It is a no-op for None/ApiKey because those modes carry no JwtClaims.
+        .layer(axum::middleware::from_fn(catalog_rbac_middleware))
         // Audit middleware - logs all requests (runs AFTER auth, so UserContext is available)
         .layer(axum::middleware::from_fn_with_state(
             audit_state,

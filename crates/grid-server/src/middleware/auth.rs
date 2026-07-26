@@ -203,6 +203,44 @@ pub async fn auth_middleware_with_role(
     }
 }
 
+/// Resolves the catalog Action for an incoming production request.
+///
+/// Axum exposes canonical matched route templates after routing, so parameterized
+/// paths use the same `{id}` representation as the static catalog.
+pub fn action_for_request(req: &Request<Body>) -> Option<grid_engine::auth::roles::Action> {
+    let method = req.method().as_str();
+    let matched = req
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map(axum::extract::MatchedPath::as_str)
+        .unwrap_or_else(|| req.uri().path());
+
+    crate::rbac::catalog::route_catalog()
+        .iter()
+        .find(|entry| entry.method == method && entry.path == matched)
+        .and_then(|entry| match entry.route_kind {
+            crate::rbac::catalog::RouteKind::Requires(action) => Some(action),
+            crate::rbac::catalog::RouteKind::Public => None,
+        })
+}
+
+/// Enforces catalog RBAC after authentication and before the request handler.
+pub async fn catalog_rbac_middleware(
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let Some(claims) = req.extensions().get::<JwtClaims>() else {
+        return Ok(next.run(req).await);
+    };
+    let action = action_for_request(&req).ok_or(StatusCode::FORBIDDEN)?;
+    let role = Role::parse(&claims.role).ok_or(StatusCode::FORBIDDEN)?;
+    if role.can(action) {
+        Ok(next.run(req).await)
+    } else {
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
 /// RBAC 中间件: 检查是否具有执行特定动作的权限
 ///
 /// Two enforcement paths coexist (D-08: AuthMode::None/ApiKey path is
@@ -240,21 +278,30 @@ pub async fn require_action_middleware(
     let user_ctx = get_user_context(&req).ok_or(StatusCode::UNAUTHORIZED)?;
 
     let required_permission = match required_action.0 {
-        grid_engine::auth::roles::Action::Read => Some(Permission::Read),
-        grid_engine::auth::roles::Action::CreateSession => Some(Permission::Write),
-        grid_engine::auth::roles::Action::RunAgent => Some(Permission::Write),
-        grid_engine::auth::roles::Action::ManageMcp => Some(Permission::Admin),
-        grid_engine::auth::roles::Action::ManageSkills => Some(Permission::Admin),
-        grid_engine::auth::roles::Action::ManageUsers => Some(Permission::Admin),
-        grid_engine::auth::roles::Action::ManageConfig => Some(Permission::Admin),
+        grid_engine::auth::roles::Action::Read => Permission::Read,
+        grid_engine::auth::roles::Action::CreateSession
+        | grid_engine::auth::roles::Action::RunAgent => Permission::Write,
+        grid_engine::auth::roles::Action::ManageMcp
+        | grid_engine::auth::roles::Action::ManageSkills
+        | grid_engine::auth::roles::Action::ManageUsers
+        | grid_engine::auth::roles::Action::ManageConfig
+        | grid_engine::auth::roles::Action::ManageAudit
+        | grid_engine::auth::roles::Action::ManageHooks
+        | grid_engine::auth::roles::Action::ManageMemories
+        | grid_engine::auth::roles::Action::ManageProviders
+        | grid_engine::auth::roles::Action::ManageSecrets
+        | grid_engine::auth::roles::Action::ManageSandbox
+        | grid_engine::auth::roles::Action::ManageScheduler
+        | grid_engine::auth::roles::Action::ManageSecurity
+        | grid_engine::auth::roles::Action::ManageCollaboration
+        | grid_engine::auth::roles::Action::ManageKnowledgeGraph
+        | grid_engine::auth::roles::Action::ManageEval
+        | grid_engine::auth::roles::Action::ManageMetering
+        | grid_engine::auth::roles::Action::ManageAgents => Permission::Admin,
     };
 
-    if let Some(permission) = required_permission {
-        if user_ctx.has_permission(&permission) {
-            Ok(next.run(req).await)
-        } else {
-            Err(StatusCode::FORBIDDEN)
-        }
+    if user_ctx.has_permission(&required_permission) {
+        Ok(next.run(req).await)
     } else {
         Err(StatusCode::FORBIDDEN)
     }
