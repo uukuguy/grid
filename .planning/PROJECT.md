@@ -72,7 +72,7 @@
 - Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on.
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
-## Current Milestone: v3.10 EAASP v2.0 platform-skeleton alignment (bootstrapping 2026-07-26)
+## Current Milestone: v3.10 EAASP v2.0 platform-skeleton alignment (SHIPPED 2026-07-26)
 
 **Goal:** Align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes — **MAT** (memory/manifest), **PIPE** (orchestration pipes), **VERIFY** (certifier conformance) — without widening the existing `contract-v1.2.0` surface or adding new dependencies. Skeleton alignment is a precondition for the future EVOLUTION_PATH §三 Phase 3 (OPA approval chain) / Phase 4 (A2A Event Room) / Phase 5 (L5 Cowork UI) / Phase 6 (ecosystem expansion) work.
 
@@ -154,7 +154,7 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 
 <!-- v3.10 next-milestone scope + 4 EAASP platform-evolution gaps are the open scope. -->
 
-- [ ] **v3.10 EAASP v2.0 platform-skeleton alignment** — Aligns `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract along three axes (MAT memory/manifest / PIPE orchestration pipes / VERIFY certifier conformance). 4 phases planned (03.10.0 → 03.10.3), 16 REQ-IDs in 5 categories. Backward-compatible with `contract-v1.2.0` (D-13); L1 substitutability guard preserved (D-14); no new dependencies (D-15); no schema migration (D-16); shared-core rule preserved (D-17). Details: `.planning/REQUIREMENTS.md` v3.10 section.
+- [x] **v3.10 EAASP v2.0 platform-skeleton alignment** — SHIPPED 2026-07-26. Four phases complete, 16/16 REQ-IDs closed, 174 targeted tests PASS. Alignment matrix + deterministic spec audit + ordered CI gate delivered; live real-skill walkthrough awaits an LLM API key.
 - [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain (v3.7.3 wires minimum credible in-process gate; full backend deferred — pre-work blocked on v3.10 skeleton alignment per D-13) / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 
 ### Out of Scope

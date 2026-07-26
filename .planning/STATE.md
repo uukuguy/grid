@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.10
 milestone_name: EAASP v2.0 platform-skeleton alignment
-status: bootstrapping
-stopped_at: v3.10 bootstrapping; v3.9 SHIPPED 2026-07-26 (03.9.0-03.9.2 complete)
+status: shipped
+stopped_at: v3.10 SHIPPED; 4 phases complete, 16/16 REQ-IDs closed
 last_updated: "2026-07-26T14:40:00.000Z"
 last_activity: 2026-07-26
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.10 (EAASP v2.0 platform-skeleton alignment) bootstrapping 2026-07-26. v3.9 SHIPPED 2026-07-26 (3 phases, 20/20 REQ-IDs closed).
+**Current focus:** Milestone v3.10 (EAASP v2.0 platform-skeleton alignment) SHIPPED 2026-07-26. Four phases complete, 16/16 REQ-IDs closed, 174 targeted tests PASS; live real-skill walkthrough awaits an LLM API key.
 
 Canonical product-status sources:
 
@@ -30,7 +30,7 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.10 EAASP v2.0 platform-skeleton alignment — bootstrapping 2026-07-26**
+Milestone: **v3.10 EAASP v2.0 platform-skeleton alignment — SHIPPED 2026-07-26**
 Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
 Prior verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
@@ -171,8 +171,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-26 (autonomous v3.10 bootstrap — planning files updated; v3.10 awaits plan-phase)
-Stopped at: v3.10 bootstrapping — STATE/PROJECT/REQUIREMENTS/ROADMAP updated to mark v3.10 as the active milestone; v3.9 SHIPPED 2026-07-26 (03.9.0–03.9.2 complete, 49 targeted tests PASS).
+Last session: 2026-07-26 (autonomous v3.10 execution — 03.10.0 through 03.10.3 complete)
+Stopped at: v3.10 SHIPPED — 16/16 REQ-IDs closed; spec audit + RBAC + targeted regressions PASS; live real-skill walkthrough blocked on absent LLM API key.
 
 Prior sessions:
 
@@ -198,4 +198,4 @@ Prior sessions:
 
 ---
 
-*Milestone v3.10 bootstrapped 2026-07-26. v3.9 SHIPPED 2026-07-26. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*
+*Milestone v3.10 SHIPPED 2026-07-26. v3.9 SHIPPED 2026-07-26. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*

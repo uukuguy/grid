@@ -2,7 +2,7 @@
 
 > **Latest shipped milestone:** v3.8 grid-server multi-user login (Tenant + RBAC + JWT) ✅ 2026-07-24
 > **Latest shipped milestone:** v3.9 route-catalog RBAC wiring + authorization auditor ✅ 2026-07-26
-> **Active milestone:** v3.10 EAASP v2.0 platform-skeleton alignment — bootstrapping 2026-07-26
+> **Latest shipped milestone:** v3.10 EAASP v2.0 platform-skeleton alignment ✅ 2026-07-26
 > **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`, `milestones/v3.9-ROADMAP.md`
 > **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.10 section.
 
@@ -19,11 +19,11 @@
 - ✅ **v3.7 实战可用性补全 (Production-Usability Closure)** — SHIPPED 2026-07-23 (3 phases: grid-cli / web/ / EAASP 本地仿真; 3.7.4 grid-server multi-user deferred to v3.8). 175/175 tests PASS, 50 commits, 76 files. Full details: `.planning/milestones/v3.7-ROADMAP.md` + `.planning/MILESTONES.md`
 - ✅ **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** — SHIPPED 2026-07-24. 4 phases (03.8.0–03.8.3), 21 REQ-IDs in 6 categories, 119/119 targeted tests PASS, 3 security hotfixes. Demonstrated `requires(Action)` on 3 representative routes; remaining ~127 endpoints deferred to v3.9 per 03.8.2 plan §Task 4 / RESUME-NEXT-SESSION §Optional sidequests. Archive: `.planning/milestones/v3.8-ROADMAP.md` + `.planning/milestones/v3.8-REQUIREMENTS.md` + `.planning/milestones/v3.8-MILESTONE-AUDIT.md`.
 - ✅ **v3.9 route-catalog RBAC wiring + authorization auditor** — SHIPPED 2026-07-26 (climb bootstrap). Closes v3.8.2's "full route catalog wiring" deferral. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.9 section.
-- 🟡 **v3.10 EAASP v2.0 platform-skeleton alignment** — BOOTSTRAPPING 2026-07-26. 4 phases planned (03.10.0 → 03.10.3), 16 REQ-IDs in 5 categories (MAT/PIPE/VERIFY/COMPAT/TRACE). Locked decisions D-11..D-18. Awaits plan-phase. Details: `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.10 section.
+- ✅ **v3.10 EAASP v2.0 platform-skeleton alignment** — SHIPPED 2026-07-26. Four phases (03.10.0–03.10.3), 16/16 REQ-IDs, 174 targeted tests PASS. Five-layer/three-pipeline/four-card matrix, deterministic spec auditor, payload-driven MCP guard, ordered CI gate. Live real-skill walkthrough awaits LLM credentials.
 
 ---
 
-## Milestone: v3.10 EAASP v2.0 platform-skeleton alignment 🟡 BOOTSTRAPPING 2026-07-26
+## Milestone: v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26
 
 **Goal:** Align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes — **MAT** (memory/manifest), **PIPE** (orchestration pipes), **VERIFY** (certifier conformance) — without widening the existing `contract-v1.2.0` surface or adding new dependencies. Skeleton alignment is a precondition for the future EVOLUTION_PATH §三 Phase 3 (OPA approval chain) / Phase 4 (A2A Event Room) / Phase 5 (L5 Cowork UI) / Phase 6 (ecosystem expansion) work.
 
@@ -269,10 +269,10 @@ A.8 grid-eval — independent, can run anytime with web/ components
 | **03.9.0** Route catalog + public allowlist | 1/1 | ✅ Complete | v3.9 P1 |
 | **03.9.1** Full business-route wiring + Action matrix | 1/1 | ✅ Complete | v3.9 P1 |
 | **03.9.2** CI auditor + regression sweep | 1/1 | ✅ Complete | v3.9 P1 |
-| **03.10.0** Skeleton audit + alignment matrix | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
-| **03.10.1** MAT axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
-| **03.10.2** PIPE axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
-| **03.10.3** VERIFY axis | 0/0 | 🟡 Bootstrapping | v3.10 P1 |
+| **03.10.0** Skeleton audit + alignment matrix | 1/1 | ✅ Complete | v3.10 |
+| **03.10.1** MAT axis | 1/1 | ✅ Complete | v3.10 |
+| **03.10.2** PIPE axis | 1/1 | ✅ Complete | v3.10 |
+| **03.10.3** VERIFY axis | 1/1 | ✅ Complete | v3.10 |
 
 ---
 
@@ -282,4 +282,4 @@ To be populated after Phase A.0 audit — REQ-IDs will map to specific gaps disc
 
 ---
 
-*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment BOOTSTRAPPING (16 REQ-IDs / 5 categories / locked decisions D-11..D-18 / 4-phase ladder 03.10.0–03.10.3); plan-phase pending. v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED 2026-07-26 (3 phases, 20/20 REQ-IDs, 49 targeted tests PASS), archived to `.planning/milestones/v3.9-*`. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 ✅ SHIPPED 2026-07-23. v3.6 ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17. v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
+*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED (16/16 REQ-IDs, 4/4 phases, 174 targeted tests PASS; live real-skill walkthrough awaits LLM credentials). v3.9 SHIPPED 2026-07-26; v3.8 SHIPPED 2026-07-24; v3.7 SHIPPED 2026-07-23.*
