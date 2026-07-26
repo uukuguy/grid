@@ -16,7 +16,7 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Current Milestone: v3.9 route-catalog RBAC wiring + authorization auditor
+## Latest Shipped Milestone: v3.9 route-catalog RBAC wiring + authorization auditor
 
 **Goal:** Make `grid-server` route-by-route authorization **explicitly declared and statically enforced**: every non-public business HTTP route is annotated with the `Action` it requires, every public route is on an explicit allowlist, and a CI auditor fails any route that has neither. The `Action` enum is extended (and the `Role × Action` matrix regenerated) whenever the catalog reveals an action that the current 7-Action vocabulary does not express. `AuthMode::None/ApiKey` semantics are not changed; `AuthMode::Full` runs full per-route RBAC.
 
@@ -107,7 +107,7 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 
 <!-- v3.9 next-milestone scope + 4 EAASP platform-evolution gaps are the open scope. -->
 
-- [ ] **v3.9 route-catalog RBAC wiring + authorization auditor** — Per `milestones/v3.8-REQUIREMENTS.md` "Future Requirements (deferred)" + 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests. Closes the full route-catalog `requires(Action)` wiring deferred from v3.8. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. User-prioritized axis per ADR-V2-024 Open Item #3: grid-cli + grid-server first. Details: `.planning/REQUIREMENTS.md` v3.9 section.
+- [x] **v3.9 route-catalog RBAC wiring + authorization auditor** — Per `milestones/v3.8-REQUIREMENTS.md` "Future Requirements (deferred)" + 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests. Closes the full route-catalog `requires(Action)` wiring deferred from v3.8. 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories. User-prioritized axis per ADR-V2-024 Open Item #3: grid-cli + grid-server first. Details: `.planning/REQUIREMENTS.md` v3.9 section.
 - [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain (v3.7.3 wires minimum credible in-process gate; full backend deferred) / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 
 ### Out of Scope
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-07-25 — v3.9 (route-catalog RBAC wiring + authorization auditor) bootstrapped. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 (实战可用性补全) ✅ SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
+*Last updated: 2026-07-26 — v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED (3 phases, 20/20 REQ-IDs, 51 targeted tests PASS). v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 (实战可用性补全) ✅ SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*

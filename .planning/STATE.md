@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: route-catalog RBAC wiring + authorization auditor
-status: bootstrapping
-stopped_at: v3.9 milestone bootstrapped (PROJECT/REQUIREMENTS/ROADMAP/STATE); ready for Phase 03.9.0 plan-phase
-last_updated: "2026-07-25T00:00:00.000Z"
-last_activity: 2026-07-25
+status: shipped
+stopped_at: v3.9 SHIPPED; 03.9.0-03.9.2 complete
+last_updated: "2026-07-26T00:00:00.000Z"
+last_activity: 2026-07-26
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.9 (route-catalog RBAC wiring + authorization auditor) bootstrapped 2026-07-25. Planning the first phase (03.9.0 route catalog + public allowlist).
+**Current focus:** Milestone v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26. All 3 phases and 20/20 REQ-IDs complete.
 
 Canonical product-status sources:
 
@@ -30,7 +30,7 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.9 route-catalog RBAC wiring + authorization auditor 🟡 BOOTSTRAPPED 2026-07-25**
+Milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Scope: 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories (CAT / AUD / RBAC / MODE / TEST+DOC).
 Closes: v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations").
 
@@ -147,8 +147,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-25 (this climb session)
-Stopped at: v3.9 milestone bootstrapped (PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md updated). Plan-phase for Phase 03.9.0 next.
+Last session: 2026-07-26 (autonomous v3.9 climb)
+Stopped at: v3.9 SHIPPED — 03.9.0 catalog, 03.9.1 full RBAC, 03.9.2 CI auditor all complete; targeted gates 51 PASS.
 
 Prior sessions:
 
