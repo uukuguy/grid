@@ -110,8 +110,8 @@
 ### MAT — Memory & Manifest skeleton alignment
 
 - [x] **MAT-01**: A `tools/eaasp-spec-alignment/memory_manifest.md` document maps every L2 memory + skill manifest field in the EAASP v2.0 spec (§L2 Memory Engine, §Skill Manifest) to its current implementation site in `tools/eaasp-l2-memory-engine/` and `tools/eaasp-skill-registry/`. Each mapping carries `(spec_section, impl_path, impl_symbol, status ∈ {aligned, drift, missing})`. Drift and missing entries are filed as v3.10 follow-up items in DEFERRED_LEDGER.md.
-- [ ] **MAT-02**: The 7 L2 MCP tools (`search`, `read`, `write_file`, `write_anchor`, `confirm`, `list`, `delete`) declared in the spec are confirmed against `tools/eaasp-l2-memory-engine/src/mcp.rs`. Each tool's request/response shape is reconciled to the spec by section; mismatches (param names, return shapes, pagination semantics, time-decay filter) are listed in `memory_manifest.md` and patched in-place when patch is ≤10 LOC.
-- [ ] **MAT-03**: Skill manifest fields (`name`, `version`, `entrypoints`, `required_tools`, `mcp_servers`, `permissions`) in the spec are cross-referenced against `tools/eaasp-skill-registry/src/manifest.rs`. Any field that exists in spec but is not implemented is filed as `missing` in `memory_manifest.md`; spec-only fields are NOT silently dropped (D-12: skeleton alignment is honest about gaps).
+- [x] **MAT-02**: The 7 L2 MCP tools (`search`, `read`, `write_file`, `write_anchor`, `confirm`, `list`, `delete`) declared in the spec are confirmed against `tools/eaasp-l2-memory-engine/src/mcp.rs`. Each tool's request/response shape is reconciled to the spec by section; mismatches (param names, return shapes, pagination semantics, time-decay filter) are listed in `memory_manifest.md` and patched in-place when patch is ≤10 LOC.
+- [x] **MAT-03**: Skill manifest fields (`name`, `version`, `entrypoints`, `required_tools`, `mcp_servers`, `permissions`) in the spec are cross-referenced against `tools/eaasp-skill-registry/src/manifest.rs`. Any field that exists in spec but is not implemented is filed as `missing` in `memory_manifest.md`; spec-only fields are NOT silently dropped (D-12: skeleton alignment is honest about gaps).
 
 ### PIPE — Orchestration pipe topology alignment
 
@@ -128,9 +128,9 @@
 
 ### COMPAT — Contract + L1 substitutability guard
 
-- [ ] **COMPAT-01**: `proto/eaasp/runtime/v2/{common,runtime,hook}.proto` remain wire-compatible with `contract-v1.2.0`. No new RPC methods, no removed RPC methods, no breaking field-type changes in v3.10. Verified by `cargo test -p eaasp-certifier` PASS state pre and post each phase.
-- [ ] **COMPAT-02**: All 7 L1 runtimes (`grid-runtime` + claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) continue to pass `contract-v1.2.0` certifier after each v3.10 phase. Verified by `make v2-phase3-e2e-rust` + per-runtime `make v2-phase3-e2e` runs. L1 substitutability guard (D-14) is the gate.
-- [ ] **COMPAT-03**: Shared-core rule (ADR-V2-023 P1) preserved across any v3.10 changes — `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品. Verified by the existing `test_rbac_engine_layer_is_leg_agnostic` + a new `test_v3_10_shared_core_unchanged` that snapshots `grid-engine::auth` + `grid-types::session` public API surface pre/post v3.10.
+- [x] **COMPAT-01**: `proto/eaasp/runtime/v2/{common,runtime,hook}.proto` remain wire-compatible with `contract-v1.2.0`. No new RPC methods, no removed RPC methods, no breaking field-type changes in v3.10. Verified by `cargo test -p eaasp-certifier` PASS state pre and post each phase.
+- [x] **COMPAT-02**: All 7 L1 runtimes (`grid-runtime` + claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) continue to pass `contract-v1.2.0` certifier after each v3.10 phase. Verified by `make v2-phase3-e2e-rust` + per-runtime `make v2-phase3-e2e` runs. L1 substitutability guard (D-14) is the gate.
+- [x] **COMPAT-03**: Shared-core rule (ADR-V2-023 P1) preserved across any v3.10 changes — `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品. Verified by the existing `test_rbac_engine_layer_is_leg_agnostic` + a new `test_v3_10_shared_core_unchanged` that snapshots `grid-engine::auth` + `grid-types::session` public API surface pre/post v3.10.
 
 ### TRACE — Spec traceability evidence
 
