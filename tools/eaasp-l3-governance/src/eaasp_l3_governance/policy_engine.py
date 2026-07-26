@@ -33,9 +33,19 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from loguru import logger
+
 from .audit import AuditStore
 from .db import connect
 from .managed_settings import ManagedSettings, ensure_mode, ensure_risk_level
+from .opa_backend import (
+    DECISION_ALLOW,
+    DECISION_APPROVAL,
+    DECISION_DENY,
+    INFRA_UNAVAILABLE,
+    OPABackend,
+    OPADecision,
+)
 
 
 class DeployResult(BaseModel):
@@ -96,11 +106,21 @@ def _new_gate_id() -> str:
 
 
 class PolicyEngine:
-    def __init__(self, db_path: str, audit_store: AuditStore | None = None) -> None:
+    def __init__(
+        self,
+        db_path: str,
+        audit_store: AuditStore | None = None,
+        opa_backend: OPABackend | None = None,
+    ) -> None:
         self.db_path = db_path
         # Optional injection for callers that want gate decisions persisted
         # in the same DB; defaults to a fresh AuditStore on the same path.
         self._audit = audit_store if audit_store is not None else AuditStore(db_path)
+        # Optional OPA backend. When set, evaluate_with_opa() is available;
+        # evaluate_gate() still uses the in-process matrix (dev/test path).
+        # The API layer is the switch: it reads opa_enabled() and routes
+        # to evaluate_with_opa() vs evaluate_gate() per ADR-V2-034 §Decision.
+        self._opa_backend = opa_backend
 
     @property
     def audit(self) -> AuditStore:
@@ -386,6 +406,144 @@ class PolicyEngine:
             decision=decision,
             rationale=rationale,
         )
+
+    # ─── v3.11.1 — OPA backend path (production) ──────────────────────────
+
+    @property
+    def opa_enabled(self) -> bool:
+        """True iff an OPA backend has been injected into this engine.
+
+        The API layer reads this flag to decide whether to route a gate
+        decision through OPA (production) or through the in-process
+        matrix (dev/test). Per ADR-V2-034 the deployment is opt-in:
+        ``OPABackend.from_env()`` is the only path that constructs a
+        backend, and the API only injects one when ``L3_OPA_ENABLED`` is
+        truthy AND the env vars are present.
+        """
+        return self._opa_backend is not None
+
+    async def evaluate_with_opa(
+        self,
+        session_id: str,
+        hook_id: str,
+        tool_name: str,
+        risk_level: str,
+        action_preview: str,
+        *,
+        agent_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> GateDecision:
+        """Evaluate via OPA and persist the (possibly synthesized) decision.
+
+        Same input contract as :meth:`evaluate_gate`. The OPA backend
+        returns a normalized ``OPADecision``; the PolicyEngine converts
+        it into the existing ``GateDecision`` shape (so the audit ledger
+        and the L4 SSE consumers stay wire-compatible) and writes the
+        audit row carrying ``infra_unavailable=True`` on fail-closed.
+
+        The mapping is intentionally narrow:
+          - OPA ``allow``     -> ``allow``
+          - OPA ``approval``  -> ``approval`` (alias for ``gate_request``)
+          - OPA ``deny``      -> ``deny``
+
+        The rationale for the audit row is the OPA ``reason`` string
+        (or the fail-closed composite) so operators can pivot on it.
+        """
+        if self._opa_backend is None:
+            raise RuntimeError(
+                "OPA backend not configured; construct PolicyEngine with "
+                "an OPABackend instance, or use evaluate_gate() for the "
+                "in-process fallback path (ADR-V2-034 §Decision)."
+            )
+
+        # ── 1. Input validation (same surface as evaluate_gate) ───────────
+        if not session_id:
+            raise ValueError("session_id must be a non-empty string")
+        if not hook_id:
+            raise ValueError("hook_id must be a non-empty string")
+        if not tool_name:
+            raise ValueError("tool_name must be a non-empty string")
+        if not action_preview:
+            raise ValueError("action_preview must be a non-empty string")
+        validated_risk = ensure_risk_level(risk_level)
+
+        # ── 2. Resolve mode (override > declared) ─────────────────────────
+        latest = await self.latest_version()
+        if latest is None:
+            raise HookNotFoundError(hook_id)
+        hook_payload = None
+        for hook in latest.payload.get("hooks", []):
+            if isinstance(hook, dict) and hook.get("hook_id") == hook_id:
+                hook_payload = hook
+                break
+        if hook_payload is None:
+            raise HookNotFoundError(hook_id)
+        declared_mode = hook_payload.get("mode", "enforce")
+        override = await self.get_mode_override(hook_id)
+        effective_mode = override.mode if override is not None else declared_mode
+
+        # ── 3. OPA evaluation ──────────────────────────────────────────────
+        opa_request = {
+            "session_id": session_id,
+            "hook_id": hook_id,
+            "tool_name": tool_name,
+            "risk_level": validated_risk,
+            "action_preview": action_preview,
+            "mode": effective_mode,
+            "agent_id": agent_id,
+            "skill_id": skill_id,
+        }
+        opa_result = await self._opa_backend.evaluate(opa_request)
+
+        # ── 4. Map OPA -> GateDecision + audit row ─────────────────────────
+        decision_id = _new_gate_id()
+        decision, rationale = _map_opa_to_gate(opa_result, effective_mode)
+        await self._audit.record_governance_decision(
+            decision_id=decision_id,
+            session_id=session_id,
+            hook_id=hook_id,
+            tool_name=tool_name,
+            risk_level=validated_risk,
+            decision=decision,
+            approver=None,
+            rationale=rationale,
+        )
+        if opa_result.infra_unavailable:
+            logger.warning(
+                "L3 governance OPA fail-closed",
+                session_id=session_id,
+                hook_id=hook_id,
+                cause=opa_result.cause,
+            )
+        return GateDecision(
+            decision_id=decision_id,
+            decision=decision,
+            rationale=rationale,
+        )
+
+
+def _map_opa_to_gate(opa_result: OPADecision, mode: str) -> tuple[str, str]:
+    """Map a normalized OPA decision to a ``GateDecision`` (decision, rationale)."""
+    if opa_result.infra_unavailable:
+        # Fail-closed: surface the OPA cause in the rationale so the audit
+        # ledger can be filtered by cause in postmortem. decision must be
+        # 'deny' per deny-always-wins (spec §15.9).
+        return DECISION_DENY, opa_result.reason
+    if opa_result.decision == DECISION_ALLOW:
+        return DECISION_ALLOW, opa_result.reason or f"opa:allow ({mode})"
+    if opa_result.decision == DECISION_APPROVAL:
+        # OPA emits a 3-state decision (allow / approval / deny). The L3
+        # audit ledger is a 4-state value (allow / approve / deny /
+        # gate_request) constrained by the DB CHECK. We map OPA's
+        # 'approval' to the existing 'gate_request' so the audit row
+        # stays within the DB constraint; the rationale carries the OPA
+        # reason so the audit trail makes the original intent clear.
+        return "gate_request", opa_result.reason or "opa:approval required"
+    if opa_result.decision == DECISION_DENY:
+        return DECISION_DENY, opa_result.reason or "opa:deny"
+    # Defensive — _parse_opa_response already validates this, but keep
+    # the guard so a future OPA backend cannot silently widen the enum.
+    return DECISION_DENY, f"opa:unknown decision {opa_result.decision!r}"
 
 
 def _load_mode_summary(raw: str | None) -> dict[str, int]:

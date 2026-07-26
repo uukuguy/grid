@@ -1,0 +1,39 @@
+{
+  "_meta": {
+    "owner": "EAASP L3 governance",
+    "version": "v3.11.1",
+    "schema": "v1",
+    "spec_refs": [
+      "EAASP-Design-Specification-v2.0 §6.1 (risk classification)",
+      "EAASP-Design-Specification-v2.0 §6.9-6.10 (three-state decision)",
+      "EAASP-Design-Specification-v2.0 §15.9 (deny-always-wins)",
+      "ADR-V2-034 (sidecar OPA topology)"
+    ],
+    "_comment": "Sample data consumed by the governance.rego policy via `data.governance.deny_list.tools` and `data.governance.deny_list.patterns`. The Rego bundle picks these up automatically; this is the v3.11.1 default deny-list shipped with the EAASP L3 governance. Operators can override the values at deploy time (via the L3 `PUT /v1/policies/managed-hooks` flow) but the schema below is the source of truth for what the policy package expects."
+  },
+  "governance": {
+    "deny_list": {
+      "tools": [
+        "rm_rf",
+        "format_disk",
+        "drop_table",
+        "shutdown_host",
+        "kill_all_sessions"
+      ],
+      "patterns": [
+        "rm -rf /",
+        "DROP TABLE"
+      ]
+    },
+    "auto_allow": {
+      "_comment": "Tools that are auto-allowed regardless of risk_level. Empty by default — the policy relies on `is_read()` + shadow mode for the auto-allow path. Operators can populate this for trusted read-only tools (e.g. `scada_read_snapshot`) but the default v3.11.1 policy treats all non-read tools as approval-required in enforce mode.",
+      "tools": []
+    },
+    "obligations_by_risk": {
+      "_comment": "Per-risk obligation defaults. The v3.11.1 policy adds `notify:admin` on every approval decision; this map lets the operator override (e.g. add `redact:pii` for write_local) without touching the Rego code.",
+      "read": [],
+      "write_local": ["redact:pii"],
+      "write_external": ["notify:admin", "audit:external"]
+    }
+  }
+}

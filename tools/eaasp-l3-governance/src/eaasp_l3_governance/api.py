@@ -31,8 +31,9 @@ from mcp.server.sse import SseServerTransport
 
 from .audit import AuditStore, TelemetryEventIn
 from .db import init_db
-from .managed_settings import ManagedSettings, ensure_mode, hook_matches
-from .policy_engine import HookNotFoundError, PolicyEngine
+from .managed_settings import ManagedSettings, ensure_mode, ensure_risk_level, hook_matches
+from .opa_backend import OPABackend
+from .policy_engine import GateDecision, HookNotFoundError, PolicyEngine
 from eaasp_common.errors import sanitize_errors
 from .mcp_server import build_server as build_mcp_server
 
@@ -45,6 +46,20 @@ class SessionValidateRequest(BaseModel):
     agent_id: str | None = None
     skill_id: str | None = None
     runtime_tier: str | None = None
+
+
+# v3.11.1 — Risk-aware gate evaluation request (OPA-backed in production,
+# in-process in dev/test per ADR-V2-034). The API is the SWITCH: it reads
+# ``opa_enabled`` on the engine and routes to evaluate_with_opa() or
+# evaluate_gate() accordingly.
+class EvaluateRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    hook_id: str = Field(..., min_length=1)
+    tool_name: str = Field(..., min_length=1)
+    risk_level: str = Field(..., min_length=1)  # validated by ensure_risk_level
+    action_preview: str = Field(..., min_length=1)
+    agent_id: str | None = None
+    skill_id: str | None = None
 
 
 # D23 / L3-01 — valid loguru levels
@@ -107,6 +122,11 @@ def create_app(db_path: str) -> FastAPI:
         )
         await init_db(db_path)
         yield
+        # v3.11.1 — close the OPA client if we own one. Built AFTER
+        # ``yield`` so it runs on FastAPI shutdown; the backend is
+        # already constructed by the time we get here.
+        if opa_backend is not None:
+            await opa_backend.aclose()
 
     app = FastAPI(
         title="EAASP L3 Governance",
@@ -123,6 +143,26 @@ def create_app(db_path: str) -> FastAPI:
 
     policy = PolicyEngine(db_path)
     audit = AuditStore(db_path)
+
+    # v3.11.1 — OPA backend construction (ADR-V2-034 §Decision).
+    # The backend is constructed ONLY when the operator opted in via
+    # ``L3_OPA_ENABLED=1`` (truthy). Missing/invalid env vars in that
+    # case surface as a startup RuntimeError (per ADR-V2-028); a
+    # developer / CI environment without OPA simply leaves
+    # L3_OPA_ENABLED unset and gets the in-process path.
+    opa_backend: OPABackend | None = None
+    if os.environ.get("L3_OPA_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+        opa_backend = OPABackend.from_env()
+        # Wire the backend into the existing PolicyEngine. We use
+        # ``object.__setattr__`` on the private slot because
+        # ``_opa_backend`` is intentionally a private impl detail; the
+        # public surface is ``opa_enabled`` (read-only property).
+        object.__setattr__(policy, "_opa_backend", opa_backend)
+        logger.info(
+            "L3 OPA backend enabled",
+            base_url=opa_backend.config.base_url,
+            bundle_dir=opa_backend.config.bundle_dir,
+        )
 
     # ─── Health ───────────────────────────────────────────────────────────
     @app.get("/health")
@@ -277,7 +317,87 @@ def create_app(db_path: str) -> FastAPI:
             "runtime_tier": body.runtime_tier,
         }
 
+    # ─── v3.11.1 — Risk-aware gate evaluation (OPA switch per ADR-V2-034) ───
+    @app.post("/v1/evaluate")
+    async def evaluate(
+        body: EvaluateRequest,
+        caller_scope: str = Depends(require_access_scope),
+    ) -> dict[str, Any]:
+        """Evaluate a governance gate decision.
+
+        Routing (per ADR-V2-034 §Decision):
+
+        - ``policy.opa_enabled is True``  → ``PolicyEngine.evaluate_with_opa()``
+          (production path; OPA produces the decision).
+        - ``policy.opa_enabled is False`` → ``PolicyEngine.evaluate_gate()``
+          (in-process path; dev / CI / unit-test path).
+
+        The response shape is identical in both modes so the L4 SSE
+        consumer and the audit ledger stay wire-compatible.
+        """
+        # Defense-in-depth: validate risk_level at the API surface even
+        # though evaluate_with_opa/evaluate_gate also validate it. This
+        # gives a clean 422 instead of leaking ValueError as 500.
+        try:
+            ensure_risk_level(body.risk_level)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "validation_error", "message": str(exc)},
+            ) from exc
+
+        # Switch: OPA if available, else in-process. The flag is read at
+        # request time so a runtime reconfiguration (L3_OPA_ENABLED flip +
+        # restart) is the only way to switch — no per-request surprise.
+        if policy.opa_enabled:
+            decision = await policy.evaluate_with_opa(
+                session_id=body.session_id,
+                hook_id=body.hook_id,
+                tool_name=body.tool_name,
+                risk_level=body.risk_level,
+                action_preview=body.action_preview,
+                agent_id=body.agent_id,
+                skill_id=body.skill_id,
+            )
+            backend_kind = "opa"
+        else:
+            decision = await policy.evaluate_gate(
+                session_id=body.session_id,
+                hook_id=body.hook_id,
+                tool_name=body.tool_name,
+                risk_level=body.risk_level,
+                action_preview=body.action_preview,
+            )
+            backend_kind = "in_process"
+
+        logger.debug(
+            "L3 gate evaluated",
+            session_id=body.session_id,
+            hook_id=body.hook_id,
+            decision=decision.decision,
+            backend=backend_kind,
+        )
+        return {
+            "decision_id": decision.decision_id,
+            "decision": decision.decision,
+            "rationale": decision.rationale,
+            "backend": backend_kind,
+        }
+
     # ─── D22 / L3-02 — global exception handlers (defense-in-depth) ──────
+    @app.exception_handler(HookNotFoundError)
+    async def hook_not_found_handler(request, exc: HookNotFoundError) -> JSONResponse:
+        """Map ``HookNotFoundError`` raised from evaluate paths to a 404.
+
+        Without this, the generic Exception handler returns 500. The
+        /v1/evaluate endpoint can hit this for any hook_id that the
+        caller has not yet deployed (or has typos in).
+        """
+        return JSONResponse(
+            status_code=404,
+            content={"error": "not_found", "message": str(exc)},
+        )
+
     @app.exception_handler(ValidationError)
     async def validation_exception_handler(
         request, exc: ValidationError
