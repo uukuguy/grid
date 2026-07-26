@@ -11,4 +11,5 @@
 - 启动 v3.10 EAASP v2.0 平台骨架对齐 milestone。
 - v3.10 milestone bootstrap 已 fast-forward 集成到 main [b0d4502e]。
 - v3.10 EAASP v2.0 平台骨架对齐已 SHIPPED，main 推进到 179a15a1，tag v3.10 已建立；174 targeted tests PASS。
+- v3.11.1 security review 3 issues fixed (Issue 1 /v1/evaluate session binding; Issue 2 bidirectional allow↔decision invariant; Issue 3 URL guard + sanitized origin) — [6338d376]。
 - v3.11.1 L3 OPA backend adapter + Rego templates 已 SHIPPED (OPABackend.evaluate + 5 fail-closed modes; 57/57 tests PASS; ADR-V2-023 P1 unchanged) — [2acbf62a] + ADR/STATE/REQUIREMENTS sync [4fe41955]。
