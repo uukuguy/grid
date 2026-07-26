@@ -31,7 +31,8 @@ Canonical product-status sources:
 ## Current Position
 
 Milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
-Scope: 3 phases planned (03.9.0 → 03.9.2), 20 REQ-IDs in 5 categories (CAT / AUD / RBAC / MODE / TEST+DOC).
+Scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
+Verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
 Closes: v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations").
 
 Next-milestone candidates (after v3.9 SHIPS):
@@ -108,6 +109,17 @@ Next-milestone candidates (after v3.9 SHIPS):
 
 | Milestone | Status | Key Output |
 |-----------|--------|------------|
+### v3.9 grid-server route-catalog RBAC ✅ SHIPPED 2026-07-26
+
+- 3 phases (03.9.0 / 03.9.1 / 03.9.2), 20/20 REQ-IDs closed.
+- Canonical 134-entry HTTP route catalog + exact 3-route public allowlist (D-01/D-02).
+- `AuthMode::Full` per-route catalog RBAC via canonical Axum `MatchedPath`; `AuthMode::None/ApiKey` semantics fully preserved (D-05).
+- Shared `Action` registry expanded from 7 → 20 variants, parser + `Role::can` matrix synchronized (D-04).
+- Owner-only boundaries preserved: `ManageUsers`/`ManageConfig` stay Owner-only (D-04).
+- Standalone `route-auditor` binary + `make rbac-audit` + CI gate ordering `cargo check → rbac-audit → cargo test` (D-03).
+- Post-ship fixes (security review): unified public-bypass with `PUBLIC_ROUTE_ALLOWLIST` for `/api/health`, `/api/health/live`, `/api/v1/auth/login`; corrected JWT `user` role mapping; `catalog_rbac_middleware` now distinguishes Public / Requires(action) / not-in-catalog; route-chain regression test added.
+- 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
+
 | v3.3 Engine + Platform Debt Sweep | ✅ 2026-06-07 | Phase 7.3 L3 RBAC 8/8 REQ-IDs |
 | v3.2 Tech-Debt Triage | ✅ 2026-05-26 | 93 D-rows triaged → v3.3-INBOX.md seeded |
 | v3.1 Engine Hardening | ✅ 2026-05-22 | 6 phases, 23 REQ-IDs, 6 ADRs |
