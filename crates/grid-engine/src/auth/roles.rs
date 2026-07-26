@@ -20,6 +20,32 @@ pub enum Action {
     ManageUsers,
     /// 管理配置
     ManageConfig,
+    /// 管理审计记录
+    ManageAudit,
+    /// 管理 Hooks
+    ManageHooks,
+    /// 管理记忆
+    ManageMemories,
+    /// 管理模型提供商
+    ManageProviders,
+    /// 管理密钥
+    ManageSecrets,
+    /// 管理沙箱
+    ManageSandbox,
+    /// 管理调度任务
+    ManageScheduler,
+    /// 管理安全策略
+    ManageSecurity,
+    /// 管理协作状态
+    ManageCollaboration,
+    /// 管理知识图谱
+    ManageKnowledgeGraph,
+    /// 管理评测会话
+    ManageEval,
+    /// 管理计量数据
+    ManageMetering,
+    /// 管理 Agent 生命周期
+    ManageAgents,
 }
 
 impl Action {
@@ -32,6 +58,19 @@ impl Action {
             "manage_skills" => Some(Action::ManageSkills),
             "manage_users" => Some(Action::ManageUsers),
             "manage_config" => Some(Action::ManageConfig),
+            "manage_audit" => Some(Action::ManageAudit),
+            "manage_hooks" => Some(Action::ManageHooks),
+            "manage_memories" => Some(Action::ManageMemories),
+            "manage_providers" => Some(Action::ManageProviders),
+            "manage_secrets" => Some(Action::ManageSecrets),
+            "manage_sandbox" => Some(Action::ManageSandbox),
+            "manage_scheduler" => Some(Action::ManageScheduler),
+            "manage_security" => Some(Action::ManageSecurity),
+            "manage_collaboration" => Some(Action::ManageCollaboration),
+            "manage_knowledge_graph" => Some(Action::ManageKnowledgeGraph),
+            "manage_eval" => Some(Action::ManageEval),
+            "manage_metering" => Some(Action::ManageMetering),
+            "manage_agents" => Some(Action::ManageAgents),
             _ => None,
         }
     }
@@ -76,12 +115,29 @@ impl Role {
             (Role::User, Action::CreateSession) => true,
             (Role::User, Action::RunAgent) => true,
 
-            // Admin: 除了用户的权限外，还可以管理 MCP 和 Skills
+            // Admin: 用户权限 + 业务域管理（全局配置仍仅 Owner）
             (Role::Admin, Action::Read) => true,
             (Role::Admin, Action::CreateSession) => true,
             (Role::Admin, Action::RunAgent) => true,
-            (Role::Admin, Action::ManageMcp) => true,
-            (Role::Admin, Action::ManageSkills) => true,
+            (
+                Role::Admin,
+                Action::ManageMcp
+                | Action::ManageSkills
+                | Action::ManageUsers
+                | Action::ManageAudit
+                | Action::ManageHooks
+                | Action::ManageMemories
+                | Action::ManageProviders
+                | Action::ManageSecrets
+                | Action::ManageSandbox
+                | Action::ManageScheduler
+                | Action::ManageSecurity
+                | Action::ManageCollaboration
+                | Action::ManageKnowledgeGraph
+                | Action::ManageEval
+                | Action::ManageMetering
+                | Action::ManageAgents,
+            ) => true,
 
             // Owner: 拥有所有权限
             (Role::Owner, _) => true,
@@ -187,10 +243,8 @@ mod tests {
         // Admin 可以管理 Skills
         assert!(admin.can(Action::ManageSkills));
 
-        // Admin 不能管理用户
-        assert!(!admin.can(Action::ManageUsers));
-
-        // Admin 不能管理配置
+        // Admin 可以管理用户和业务域，但不能修改全局配置
+        assert!(admin.can(Action::ManageUsers));
         assert!(!admin.can(Action::ManageConfig));
     }
 
