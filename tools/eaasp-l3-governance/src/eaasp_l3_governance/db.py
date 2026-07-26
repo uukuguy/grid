@@ -57,6 +57,11 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_received_at
 -- REQ-EAASP-02 (Phase 3.7.3): append-only governance decision ledger.
 -- Captures both the initial gate_request and the final approve/deny decision
 -- as separate rows (different decision_id values) — see audit §6.3.
+-- v3.11.2: the optional ``stage`` column carries the 5-stage approval
+-- chain stage name (plan/check/draft/approve/execute). Default NULL
+-- preserves v3.11.0 / v3.11.1 rows; the column is always present in
+-- fresh schemas so the audit query does not need a column-presence
+-- probe.
 CREATE TABLE IF NOT EXISTS governance_decisions (
     decision_id TEXT PRIMARY KEY,
     session_id  TEXT NOT NULL,
@@ -66,11 +71,14 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     decision    TEXT NOT NULL CHECK(decision IN ('allow','approve','deny','gate_request')),
     approver    TEXT,
     rationale   TEXT NOT NULL,
+    stage       TEXT,
     ts          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_session_ts
     ON governance_decisions(session_id, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_stage
+    ON governance_decisions(stage) WHERE stage IS NOT NULL;
 """
 
 
@@ -88,6 +96,20 @@ async def init_db(path: str) -> None:
         if "tiebreaker" not in columns:
             await db.execute(
                 "ALTER TABLE telemetry_events ADD COLUMN tiebreaker INTEGER NOT NULL DEFAULT 0"
+            )
+            await db.commit()
+
+    # v3.11.2 — add stage column to the governance decision ledger
+    # (idempotent via PRAGMA table_info probe). Old v3.11.0 / v3.11.1
+    # databases get a NULL default for the column; the AuditStore
+    # SELECT queries select NULL as Python None.
+    async with aiosqlite.connect(path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("PRAGMA table_info(governance_decisions)")
+        columns = [row[1] async for row in cur]
+        if "stage" not in columns:
+            await db.execute(
+                "ALTER TABLE governance_decisions ADD COLUMN stage TEXT"
             )
             await db.commit()
 

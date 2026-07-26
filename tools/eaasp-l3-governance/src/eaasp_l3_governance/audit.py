@@ -50,6 +50,8 @@ class TelemetryEventOut(BaseModel):
 
 # REQ-EAASP-02 (Phase 3.7.3): row shape for `governance_decisions` table.
 # Mirrors the DDL column order in `db.py`.
+# v3.11.2: ``stage`` is added to the row shape (default None for
+# backwards compatibility with v3.11.0 / v3.11.1 rows).
 class GovernanceDecisionOut(BaseModel):
     decision_id: str
     session_id: str
@@ -59,6 +61,7 @@ class GovernanceDecisionOut(BaseModel):
     decision: str
     approver: str | None
     rationale: str
+    stage: str | None = None
     ts: str
 
 
@@ -240,6 +243,7 @@ class AuditStore:
         decision: str,
         approver: str | None,
         rationale: str,
+        stage: str | None = None,
     ) -> GovernanceDecisionOut:
         """Append-only insert into ``governance_decisions``.
 
@@ -249,6 +253,12 @@ class AuditStore:
         - BEGIN IMMEDIATE + rollback-on-error + close-on-finally.
         - Returns the persisted row as ``GovernanceDecisionOut``.
         - Never updates/replaces an existing row — that is a different decision_id.
+
+        v3.11.2:
+        - ``stage`` is an optional column carrying the 5-stage approval
+          chain stage name (``plan`` / ``check`` / ``draft`` / ``approve``
+          / ``execute``). Default ``None`` keeps backwards compatibility
+          with v3.11.0 / v3.11.1 rows that predate the column.
         """
         # Input validation — every identifier must be non-empty.
         if not decision_id:
@@ -283,8 +293,8 @@ class AuditStore:
                     """
                     INSERT INTO governance_decisions
                         (decision_id, session_id, hook_id, tool_name,
-                         risk_level, decision, approver, rationale)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                         risk_level, decision, approver, rationale, stage)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         decision_id,
@@ -295,12 +305,13 @@ class AuditStore:
                         decision,
                         approver,
                         rationale,
+                        stage,
                     ),
                 )
                 cur = await db.execute(
                     """
                     SELECT decision_id, session_id, hook_id, tool_name,
-                           risk_level, decision, approver, rationale, ts
+                           risk_level, decision, approver, rationale, stage, ts
                     FROM governance_decisions WHERE decision_id = ?
                     """,
                     (decision_id,),
@@ -325,7 +336,7 @@ class AuditStore:
             cur = await db.execute(
                 """
                 SELECT decision_id, session_id, hook_id, tool_name,
-                       risk_level, decision, approver, rationale, ts
+                       risk_level, decision, approver, rationale, stage, ts
                 FROM governance_decisions WHERE decision_id = ?
                 """,
                 (decision_id,),
@@ -355,7 +366,7 @@ class AuditStore:
 
         sql = f"""
             SELECT decision_id, session_id, hook_id, tool_name,
-                   risk_level, decision, approver, rationale, ts
+                   risk_level, decision, approver, rationale, stage, ts
             FROM governance_decisions
             {where_clause}
             ORDER BY ts DESC, decision_id DESC
@@ -397,6 +408,7 @@ def _row_to_governance(row: Any) -> GovernanceDecisionOut:
         decision=row["decision"],
         approver=row["approver"],
         rationale=row["rationale"],
+        stage=row["stage"],
         ts=row["ts"],
     )
 

@@ -10,6 +10,11 @@ REQ-EAASP-04 (Phase 3.7.3): governance helpers emit ``governance.request``
 and ``governance.decision`` events through the same session event stream.
 Event append is best-effort — failure logs and returns ``None`` so the
 authoritative gate decision and audit ledger remain unaffected.
+
+v3.11.2: 5-stage approval chain helpers emit ``governance.approval.<stage>``
+events for the Plan → Check → Draft → Approve → Execute chain (spec
+§6.9–6.10). The same payload shape is used for every stage so SSE
+consumers can dispatch on the event-type suffix.
 """
 
 from __future__ import annotations
@@ -24,6 +29,15 @@ from .db import connect
 
 _VALID_GOVERNANCE_DECISIONS: set[str] = {"allow", "approve", "deny", "gate_request"}
 _VALID_RISK_LEVELS: set[str] = {"read", "write_local", "write_external"}
+
+# v3.11.2 — 5-stage approval chain event types + stage allowlist.
+# The state machine emits these through the session event stream so
+# SSE consumers can subscribe to the chain independently of the
+# pre-existing `governance.request` / `governance.decision` events.
+_APPROVAL_STAGES: tuple[str, ...] = ("plan", "check", "draft", "approve", "execute")
+_GOVERNANCE_APPROVAL_EVENT_TYPES: frozenset[str] = frozenset(
+    f"governance.approval.{stage}" for stage in _APPROVAL_STAGES
+)
 
 
 class SessionEventStream:
@@ -237,6 +251,184 @@ class SessionEventStream:
                 exc,
             )
             return None
+
+    # ─── v3.11.2 — 5-stage approval chain helpers (REQ-EAASP-05) ───────────
+    async def emit_governance_approval(
+        self,
+        session_id: str,
+        stage: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        """Append a generic ``governance.approval.<stage>`` event.
+
+        The state machine in ``tools/eaasp-l3-governance`` calls this
+        helper for each of the 5 stages (plan / check / draft / approve
+        / execute). The payload shape is identical across all 5 stages
+        so SSE consumers can dispatch on the event-type suffix.
+
+        Returns the new ``seq`` on success, or ``None`` if the append
+        failed (best-effort per audit §7.1).
+        """
+        if stage not in _APPROVAL_STAGES:
+            raise ValueError(
+                f"stage must be one of {_APPROVAL_STAGES!r}, got {stage!r}"
+            )
+        event_type = f"governance.approval.{stage}"
+        # ``evidence_refs`` is normalized to a list of strings so the
+        # payload JSON is deterministic for downstream consumers.
+        normalized_refs = [str(ref) for ref in evidence_refs]
+        payload = {
+            "stage": stage,
+            "decision_id": decision_id,
+            "request_id": request_id,
+            "hook_id": hook_id,
+            "decision": decision,
+            "reason": reason,
+            "caller_principal": caller_principal,
+            "evidence_refs": normalized_refs,
+            "ts": ts,
+        }
+        return await self._safe_append(session_id, event_type, payload)
+
+    # ─── Stage-specific thin wrappers (one per stage) ──────────────────────
+    # The 5 wrappers below exist so the L3 state machine can dispatch
+    # to the right helper without building the event-type string itself.
+    # Each forwards to ``emit_governance_approval`` with the matching
+    # ``stage`` argument. The semantic distinction (e.g. ``approve`` is
+    # the human-in-the-loop pause stage) lives in the L3 state machine,
+    # not in the SSE event contract.
+
+    async def emit_governance_approval_plan(
+        self,
+        session_id: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        return await self.emit_governance_approval(
+            session_id=session_id,
+            stage="plan",
+            decision_id=decision_id,
+            request_id=request_id,
+            hook_id=hook_id,
+            decision=decision,
+            reason=reason,
+            caller_principal=caller_principal,
+            evidence_refs=evidence_refs,
+            ts=ts,
+        )
+
+    async def emit_governance_approval_check(
+        self,
+        session_id: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        return await self.emit_governance_approval(
+            session_id=session_id,
+            stage="check",
+            decision_id=decision_id,
+            request_id=request_id,
+            hook_id=hook_id,
+            decision=decision,
+            reason=reason,
+            caller_principal=caller_principal,
+            evidence_refs=evidence_refs,
+            ts=ts,
+        )
+
+    async def emit_governance_approval_draft(
+        self,
+        session_id: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        return await self.emit_governance_approval(
+            session_id=session_id,
+            stage="draft",
+            decision_id=decision_id,
+            request_id=request_id,
+            hook_id=hook_id,
+            decision=decision,
+            reason=reason,
+            caller_principal=caller_principal,
+            evidence_refs=evidence_refs,
+            ts=ts,
+        )
+
+    async def emit_governance_approval_approve(
+        self,
+        session_id: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        return await self.emit_governance_approval(
+            session_id=session_id,
+            stage="approve",
+            decision_id=decision_id,
+            request_id=request_id,
+            hook_id=hook_id,
+            decision=decision,
+            reason=reason,
+            caller_principal=caller_principal,
+            evidence_refs=evidence_refs,
+            ts=ts,
+        )
+
+    async def emit_governance_approval_execute(
+        self,
+        session_id: str,
+        decision_id: str,
+        request_id: str,
+        hook_id: str,
+        decision: str,
+        reason: str,
+        caller_principal: str,
+        evidence_refs: list[str],
+        ts: str,
+    ) -> int | None:
+        return await self.emit_governance_approval(
+            session_id=session_id,
+            stage="execute",
+            decision_id=decision_id,
+            request_id=request_id,
+            hook_id=hook_id,
+            decision=decision,
+            reason=reason,
+            caller_principal=caller_principal,
+            evidence_refs=evidence_refs,
+            ts=ts,
+        )
 
 
 def _clamp_limit(value: int | None, *, default: int, maximum: int) -> int:

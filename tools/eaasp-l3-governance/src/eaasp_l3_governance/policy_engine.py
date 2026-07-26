@@ -21,6 +21,14 @@ Contract 5 (Risk Gate — Phase 3.7.3 / REQ-EAASP-03):
   (``gate_request``). Every result is appended to the
   ``governance_decisions`` ledger so the audit trail is complete.
 
+v3.11.2 (5-stage approval chain): ``evaluate_with_opa_and_run_chain()``
+extends the OPA path with the 5-stage Plan → Check → Draft → Approve →
+Execute state machine. The state machine is OPT-IN: it only runs when
+OPA returns ``approval`` (``gate_request`` in the audit ledger). The
+return value extends the existing ``GateDecision`` with the chain
+result so the API layer can serialize both the OPA decision and the
+chain's final state without splitting the wire contract.
+
 All write operations are wrapped in ``BEGIN IMMEDIATE`` transactions per
 reviewer note C1 (L2 S3.T2 lesson).
 """
@@ -35,6 +43,19 @@ from pydantic import BaseModel
 
 from loguru import logger
 
+from .approval_state_machine import (
+    APPROVAL_STAGE_APPROVE,
+    APPROVAL_STAGE_CHECK,
+    APPROVAL_STAGE_DRAFT,
+    APPROVAL_STAGE_EXECUTE,
+    APPROVAL_STAGE_PLAN,
+    ApprovalChainResult,
+    ApprovalStagePolicy,
+    ApprovalStateMachine,
+    DECISION_ALLOW,
+    DECISION_APPROVE,
+    DECISION_DENY,
+)
 from .audit import AuditStore
 from .db import connect
 from .managed_settings import ManagedSettings, ensure_mode, ensure_risk_level
