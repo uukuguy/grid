@@ -123,8 +123,8 @@
 ### VERIFY — Certifier conformance surface alignment
 
 - [x] **VERIFY-01**: A `tools/eaasp-spec-alignment/certifier_surface.md` document maps each EAASP v2.0 spec assertion (every `### §N.M` assertion in `EAASP-Design-Specification-v2.0.docx`) to its current certifier coverage in `tools/eaasp-certifier/src/`. Each assertion carries `(spec_section, certifier_test_path, status ∈ {certified, not_certified, partial})`. `not_certified` entries above the `contract-v1.2.0` baseline are filed as deferred (D-13: no new contract surface in v3.10).
-- [ ] **VERIFY-02**: The 21 RPC surface (17 runtime + 4 hook per `proto/eaasp/runtime/v2/`) is verified end-to-end against `tools/eaasp-certifier` — every RPC has at least one PASS-path test and one XFAIL-path test (per Phase 3 sign-off 42 PASS / 22 XFAIL × 7 runtime baseline). The post-v3.10 certifier run must reproduce this 7-runtime green state (D-14).
-- [ ] **VERIFY-03**: A `make v3.10-spec-audit` target is added to the Makefile, running `cargo run -p eaasp-certifier -- spec-audit --report tools/eaasp-spec-alignment/REPORT.md` and producing a section-by-section delta table. The target exits 0 on aligned surface, exits 1 on any `drift` / `missing` / `not_certified` entry. CI gate ordering is `cargo check → make v3.10-spec-audit → cargo test` per the v3.9 pattern (D-03 carry-over).
+- [x] **VERIFY-02**: The 21 RPC surface (17 runtime + 4 hook per `proto/eaasp/runtime/v2/`) is verified end-to-end against `tools/eaasp-certifier` — every RPC has at least one PASS-path test and one XFAIL-path test (per Phase 3 sign-off 42 PASS / 22 XFAIL × 7 runtime baseline). The post-v3.10 certifier run must reproduce this 7-runtime green state (D-14).
+- [x] **VERIFY-03**: A `make v3.10-spec-audit` target is added to the Makefile, running `cargo run -p eaasp-certifier -- spec-audit --report tools/eaasp-spec-alignment/REPORT.md` and producing a section-by-section delta table. The target exits 0 on aligned surface, exits 1 on any `drift` / `missing` / `not_certified` entry. CI gate ordering is `cargo check → make v3.10-spec-audit → cargo test` per the v3.9 pattern (D-03 carry-over).
 
 ### COMPAT — Contract + L1 substitutability guard
 
@@ -134,7 +134,7 @@
 
 ### TRACE — Spec traceability evidence
 
-- [ ] **TRACE-01**: `docs/status/PRODUCTION_USABILITY_2026-07-26.md` dated walkthrough: (1) `make v3.10-spec-audit` PASS on v3.10 baseline, (2) spec-audit FAIL demonstrably on a synthetic misalignment (drop one memory MCP tool from the catalog and re-run), (3) `make v2-phase3-e2e-rust` PASS for all 7 L1 runtimes post-v3.10, (4) `cargo check -p grid-server` PASS (v3.9 catalog regression guard). Reuses the v3.9 PRODUCTION_USABILITY_2026-07-25.md pattern.
+- [x] **TRACE-01**: `docs/status/PRODUCTION_USABILITY_2026-07-26.md` dated walkthrough: (1) `make v3.10-spec-audit` PASS on v3.10 baseline, (2) spec-audit FAIL demonstrably on a synthetic misalignment (drop one memory MCP tool from the catalog and re-run), (3) `make v2-phase3-e2e-rust` PASS for all 7 L1 runtimes post-v3.10, (4) `cargo check -p grid-server` PASS (v3.9 catalog regression guard). Reuses the v3.9 PRODUCTION_USABILITY_2026-07-25.md pattern.
 - [x] **TRACE-02**: `tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md` cross-index: every EAASP v2.0 spec section (`### §N.M`) is listed with `(status, v3.10_phase, post_v3.10_owner)`. Gaps above the `contract-v1.2.0` baseline are explicitly listed as `deferred_to_v3.11+` with rationale, so the spec surface is honest about what is and isn't covered. Used as input to v3.11+ Phase 3 OPA / Phase 4 A2A / Phase 5 L5 planning.
 
 ## Future Requirements (deferred — explicit v3.10+ backlog)
