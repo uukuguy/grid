@@ -10,7 +10,11 @@ fn cat_01_catalog_is_complete_and_unique() {
         .collect();
 
     assert_eq!(unique.len(), catalog.len(), "duplicate method/path entries");
-    assert!(catalog.len() >= 120, "catalog unexpectedly small: {}", catalog.len());
+    assert!(
+        catalog.len() >= 120,
+        "catalog unexpectedly small: {}",
+        catalog.len()
+    );
 
     for expected in [
         ("GET", "/api/health"),

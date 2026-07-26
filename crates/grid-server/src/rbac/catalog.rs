@@ -21,11 +21,19 @@ pub struct RouteCatalogEntry {
 
 impl RouteCatalogEntry {
     const fn public(method: &'static str, path: &'static str) -> Self {
-        Self { method, path, route_kind: RouteKind::Public }
+        Self {
+            method,
+            path,
+            route_kind: RouteKind::Public,
+        }
     }
 
     const fn requires(method: &'static str, path: &'static str, action: Action) -> Self {
-        Self { method, path, route_kind: RouteKind::Requires(action) }
+        Self {
+            method,
+            path,
+            route_kind: RouteKind::Requires(action),
+        }
     }
 }
 
@@ -138,7 +146,11 @@ pub static ROUTE_CATALOG: &[RouteCatalogEntry] = &[
     route!(Read, "GET", "/api/v1/collaboration/events"),
     route!(Read, "GET", "/api/v1/collaboration/proposals"),
     route!(RunAgent, "POST", "/api/v1/collaboration/proposals"),
-    route!(RunAgent, "POST", "/api/v1/collaboration/proposals/{id}/vote"),
+    route!(
+        RunAgent,
+        "POST",
+        "/api/v1/collaboration/proposals/{id}/vote"
+    ),
     route!(Read, "GET", "/api/v1/collaboration/shared-state"),
     route!(Read, "GET", "/api/v1/sync/status"),
     route!(RunAgent, "POST", "/api/v1/sync/pull"),
@@ -150,7 +162,11 @@ pub static ROUTE_CATALOG: &[RouteCatalogEntry] = &[
     route!(RunAgent, "POST", "/api/v1/knowledge-graph/entities"),
     route!(Read, "GET", "/api/v1/knowledge-graph/entities/{id}"),
     route!(RunAgent, "DELETE", "/api/v1/knowledge-graph/entities/{id}"),
-    route!(Read, "GET", "/api/v1/knowledge-graph/entities/{id}/relations"),
+    route!(
+        Read,
+        "GET",
+        "/api/v1/knowledge-graph/entities/{id}/relations"
+    ),
     route!(RunAgent, "POST", "/api/v1/knowledge-graph/relations"),
     route!(Read, "GET", "/api/v1/knowledge-graph/stats"),
     route!(Read, "GET", "/api/v1/knowledge-graph/traverse"),
