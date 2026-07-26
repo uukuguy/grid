@@ -1,13 +1,48 @@
-"""MCP tool dispatcher tests — 6 tools happy path + error codes."""
+"""MCP tool dispatcher tests — seven-tool contract, happy paths, and errors."""
 
 from __future__ import annotations
 
 import pytest
 
-from eaasp_l2_memory_engine.mcp_tools import McpToolDispatcher, ToolError
+from eaasp_l2_memory_engine.mcp_tools import (
+    MCP_TOOL_MANIFEST,
+    McpToolDispatcher,
+    ToolError,
+)
 
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_v3_10_memory_tool_manifest_is_exact() -> None:
+    assert [tool.name for tool in MCP_TOOL_MANIFEST] == [
+        "memory_search",
+        "memory_read",
+        "memory_write_anchor",
+        "memory_write_file",
+        "memory_list",
+        "memory_archive",
+        "memory_confirm",
+    ]
+
+
+async def test_v3_10_manifest_schemas_match_dispatch_contract() -> None:
+    by_name = {tool.name: tool.input_schema for tool in MCP_TOOL_MANIFEST}
+    assert by_name["memory_search"]["required"] == ["query"]
+    assert by_name["memory_read"]["required"] == ["memory_id"]
+    assert by_name["memory_write_anchor"]["required"] == [
+        "event_id",
+        "session_id",
+        "type",
+    ]
+    assert by_name["memory_write_file"]["required"] == [
+        "scope",
+        "category",
+        "content",
+    ]
+    assert by_name["memory_list"]["properties"]["offset"]["minimum"] == 0
+    assert by_name["memory_archive"]["required"] == ["memory_id"]
+    assert by_name["memory_confirm"]["required"] == ["memory_id"]
 
 
 async def test_write_anchor_tool(dispatcher: McpToolDispatcher) -> None:
@@ -71,6 +106,17 @@ async def test_archive_tool(dispatcher: McpToolDispatcher) -> None:
         "memory_archive", {"memory_id": written["memory_id"]}
     )
     assert out["status"] == "archived"
+
+
+async def test_confirm_tool(dispatcher: McpToolDispatcher) -> None:
+    written = await dispatcher.invoke(
+        "memory_write_file",
+        {"scope": "s", "category": "c", "content": "x"},
+    )
+    out = await dispatcher.invoke(
+        "memory_confirm", {"memory_id": written["memory_id"]}
+    )
+    assert out["status"] == "confirmed"
 
 
 async def test_unknown_tool_raises(dispatcher: McpToolDispatcher) -> None:
