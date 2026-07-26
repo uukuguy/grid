@@ -19,5 +19,7 @@ jobs:
         run: cargo check --workspace
       - name: Audit route authorization catalog
         run: make rbac-audit
+      - name: Audit EAASP v2.0 platform skeleton
+        run: make v3.10-spec-audit
       - name: Test workspace
         run: cargo test --workspace
