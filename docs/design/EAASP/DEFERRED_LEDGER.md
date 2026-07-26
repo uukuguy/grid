@@ -68,6 +68,19 @@
 
 **P0+P1+P2+P3 合计 12 项（扣除非 D 编号的 S1.T6/T7）**
 
+### v3.10 平台骨架对齐新增（2026-07-26）
+
+| ID | 标题 | 状态 / 去向 | 证据 |
+|----|------|-------------|------|
+| **V310-OPA-01** | L3 production OPA/Rego backend + atomic bundle deployment | 📦 deferred_to_v3.11+ / Phase 3 | Spec §6.1/§18.3；`tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md` |
+| **V310-APPROVAL-01** | Plan → Check → Draft → Approve → Execute 五阶段审批链 + deterministic verifier | 📦 deferred_to_v3.11+ / Phase 3 | Spec §6.9-6.10；当前仅 risk decision + request/final decision |
+| **V310-A2A-01** | A2A Router、Event Room、多 Session per Event | 📦 deferred_to_v3.12+ / Phase 4 | Spec §5.3/§14/§17；当前 L4 单 session 骨架 |
+| **V310-COWORK-01** | L5 Cowork Event Room + Event/Evidence/Action/Approval 四卡 UI | 📦 deferred_to_v3.13+ / Phase 5 | Spec §4；当前 CLI/SSE 仅为 MVP 可执行界面 |
+| **V310-ECOSYSTEM-01** | Ontology、Marketplace/生态、完整 Skill promotion/ACL/analytics | 📦 deferred_to_v3.14+ / Phase 6 | Spec §7.5-7.8；当前 L2 模拟器级资产服务 |
+| **V310-SANDBOX-01** | gVisor / Firecracker/Kata tier 与 org-unit policy placement | 📦 long-term / L1 infrastructure | Spec §9.4/§18.5；当前 native/Docker/Wasm adapters |
+| **V310-SESSION-01** | Event stream crash recovery、retention/cold archive、reversible compaction orchestration | 📦 deferred_to_v3.12+ / Phase 4 | Spec §17.2-17.5；当前 append-only SQLite event stream |
+| **V310-MAT-01** | Skill 通用 entrypoints/mcp_servers/permissions typed schema 与 Memory event/team sharing + optimistic locking | 📦 deferred_to_v3.14+ / Phase 6/L2 | Spec §7；v3.10 禁止 schema migration |
+
 ### 最近完成（2026-04-14）
 
 | ID | 标题 | 证据 |
@@ -272,6 +285,7 @@
 
 | 日期 | ID | 变更 | 证据 |
 |------|-----|------|------|
+| 2026-07-26 | V310-OPA-01, V310-APPROVAL-01, V310-A2A-01, V310-COWORK-01, V310-ECOSYSTEM-01, V310-SANDBOX-01, V310-SESSION-01, V310-MAT-01 | **新增** 📦 platform-evolution gaps | v3.10 DOCX section-by-section audit；`tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md`；按 Phase 3-6 / L1 infra 分配 owner |
 | 2026-04-14 | D3, D5, D6, D37 | active → 🤔 revisit-after-S2 | 需 S2 context engineering 决策后判断 |
 | 2026-04-14 | D8, D9, D34, D38, D41, D46, D62, D63, D64 | active → 🔴 phase3-gated | 依赖 Phase 3 身份/租户模型 |
 | 2026-04-14 | D21, D25, D32, D36, D56, D73, D75, D76, D77, D79, D80 | active → 📦 long-term | Phase 4/5/6 路线 |
