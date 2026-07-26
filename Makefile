@@ -12,7 +12,7 @@
         clean-all clean-web config-gen fmt-check help-full release \
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint \
-        web-dev web-test web-e2e web-clean quickstart-s7 web-install
+        web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -116,6 +116,10 @@ config-gen:
 # 编译检查 (最快, 不生成二进制)
 check:
 	cargo check --workspace
+
+# Static authorization catalog audit (v3.9)
+rbac-audit:
+	cargo run -p grid-server --bin route-auditor
 
 autofix:
 	cargo fix --workspace --allow-dirty --allow-staged
