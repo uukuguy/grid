@@ -13,7 +13,7 @@
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint \
         web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit \
-        v3.10-spec-audit dev-eaasp dev-eaasp-stop
+        v3.10-spec-audit opa-install opa-clean dev-eaasp dev-eaasp-stop
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -133,6 +133,16 @@ rbac-audit:
 v3.10-spec-audit:
 	cargo run -p eaasp-certifier -- spec-audit \
 		--report tools/eaasp-spec-alignment/REPORT.md
+
+# Download official OPA binary to third_party/opac/opa (v3.11.0).
+# Required for L3 production OPA/Rego sidecar (ADR-V2-034); no Docker.
+# Network access required only at install time.
+opa-install:
+	bash scripts/eaasp-install-opa.sh
+
+# Remove OPA binary downloaded by opa-install.
+opa-clean:
+	rm -f third_party/opac/opa
 
 autofix:
 	cargo fix --workspace --allow-dirty --allow-staged

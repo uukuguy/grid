@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.10
-milestone_name: EAASP v2.0 platform-skeleton alignment
-status: shipped
-stopped_at: v3.10 SHIPPED; 4 phases complete, 16/16 REQ-IDs closed
-last_updated: "2026-07-26T14:40:00.000Z"
+milestone: v3.11
+milestone_name: EAASP Phase 3 — production OPA backend + 5-stage approval chain
+status: in_progress
+stopped_at: v3.11.0 OPA sidecar infrastructure shipped (ADR-V2-034 Accepted + opa-install); 03.11.1+ pending
+last_updated: "2026-07-26T20:30:00.000Z"
 last_activity: 2026-07-26
 progress:
   total_phases: 4
-  completed_phases: 4
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 4
-  percent: 100
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -30,7 +30,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.10 EAASP v2.0 platform-skeleton alignment — SHIPPED 2026-07-26**
+Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.0 OPA sidecar infrastructure shipped)**
+Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 done; 03.11.1+ pending.
+Current verification: ADR-V2-034 Accepted, `make opa-install` reproducible, SHA256-verified, no Docker, no external service account.
 Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
 Prior verification: 49 targeted tests PASS, `cargo check -p grid-server` PASS, `make rbac-audit` PASS with 134 routes.
@@ -64,6 +66,15 @@ Next-milestone candidates (after v3.10 SHIPS):
 | grid-eval | CI concurrency group, test summary reporting | existing |
 
 *5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
+
+### v3.11.0 OPA sidecar infrastructure ✅ SHIPPED 2026-07-26
+
+- ADR-V2-034 Accepted — L3 governance runs OPA as a sidecar on `127.0.0.1:18181`; in-repo Rego templates + atomic user bundles; fail-closed on OPA error.
+- `make opa-install` downloads official OPA binary, SHA256-verified against `sha256sums.txt`, installs to `third_party/opac/opa`. No Docker. `make opa-clean` removes the binary.
+- `.gitignore` excludes `third_party/`.
+- `V310-OPA-01` DEFERRED_LEDGER entry → ✅ CLOSED.
+- `v3.9` route-catalog RBAC and `v3.10` spec-audit gates remain unchanged. No shared-crate change. ADR-V2-023 P1 (shared-core rule) preserved.
+- 03.11.1 L3 OPA backend adapter + Rego templates + 03.11.2 5-stage approval state machine + 03.11.3 live walkthrough still pending.
 
 ## Completed Milestones
 

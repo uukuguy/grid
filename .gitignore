@@ -53,6 +53,9 @@ eval_output/
 # Codegraph local DB (large binary, regenerable from source)
 .codegraph/
 
+# Third-party binaries downloaded at install time (e.g. OPA sidecar via scripts/eaasp-install-opa.sh)
+third_party/
+
 # Root-level temp tests only (crates/*/tests/ are real integration tests, must be committed).
 # Exception: tests/contract/ is the EAASP v2.0 cross-runtime contract suite
 # (Phase 2.5 S0, ADR-V2-017). Listing excluded subpaths individually so that

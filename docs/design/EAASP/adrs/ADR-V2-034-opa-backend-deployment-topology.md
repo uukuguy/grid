@@ -1,0 +1,148 @@
+---
+adr_id: ADR-V2-034
+title: EAASP L3 production OPA/Rego sidecar deployment topology
+status: Accepted
+date: 2026-07-26
+phase: 3
+deciders: Jiangwen Su + Claude
+related:
+  - ADR-V2-005 (Tool Sandbox Container — closed by ADR-V2-005 itself; not OPA-related)
+  - ADR-V2-028 (Strict-by-default Config Validation)
+  - ADR-V2-023 P1 (Shared-core rule)
+  - EVOLUTION_PATH §三 Phase 3
+  - PHASE_3_DESIGN.md
+  - v2.0 spec §2.4 (master boundary) + §15.9 (deny-always-wins)
+  - V310-OPA-01 (DEFERRED_LEDGER, 2026-05-24 baseline)
+---
+
+# ADR-V2-034 — EAASP L3 Production OPA/Rego Sidecar Deployment Topology
+
+## Context
+
+v3.10 platform-skeleton alignment audit recorded `V310-OPA-01` (L3 production
+OPA/Rego backend) as a long-term Deferred item. The current L3 governance
+component (`tools/eaasp-l3-governance/`) ships only an in-process
+`PolicyEngine.evaluate_gate()` decision matrix with risk classification,
+allow/approval/deny outcomes, and an append-only request/final decision
+ledger. The decision backend is not yet a production-grade OPA service.
+
+Two candidate deployment topologies were on the table:
+
+- **sidecar OPA** — each L3 governance process ships with a local OPA
+  process on `127.0.0.1:18181`; bundles are in-repo (`policies/*.rego`) plus
+  atomic user bundles; failure mode is fail-closed (deny + audit
+  `infra_unavailable=true`).
+- **shared cluster OPA** — a separately deployed OPA cluster serves
+  multiple L3 governance instances; bundles are distributed through a
+  central bundle service; failure mode is the same fail-closed contract
+  but adds network/CAP-dependency for every decision call.
+
+A v3.11.0 prior attempt (`402b1ed3` from a v3.9-baseline worktree) was
+aborted: the worktree was rooted at `1b42a14a` rather than the v3.10
+SHIPPED `179a15a1`, which would have made the eventual fast-forward
+delete the entire v3.10 platform-skeleton alignment work. The decision
+recorded here re-establishes v3.11.0 on a v3.10 baseline.
+
+## Decision
+
+EAASP L3 governance ships with **sidecar OPA**, one process per L3
+governance instance, on `127.0.0.1:18181`. Bundles are in-repo
+`tools/eaasp-l3-governance/policies/*.rego` plus atomic user bundles
+delivered through the existing skill/policy deploy pipeline.
+
+Operational requirements:
+
+1. **Topology** — Sidecar per L3 process. No shared cluster OPA in this
+   milestone. Rationale: lower deployment complexity, no cluster-level
+   bundle distribution, no shared cluster capacity planning, and
+   horizontal scaling is per-L3 rather than per-OPA-cluster.
+2. **Bundle source** — In-repo Rego templates under
+   `tools/eaasp-l3-governance/policies/*.rego` plus atomic user bundles
+   (per-skill / per-policy) committed alongside the EAASP code.
+3. **Bundle delivery** — Reuse the existing skill / policy deploy
+   pipeline (L3 `PUT /v1/policies/managed-hooks` and the skill lifecycle
+   in `eaasp-skill-registry`). No new deployment surface.
+4. **Failure mode (fail-closed)** — If the OPA sidecar is unreachable,
+   times out, returns a transport error, or returns an unparseable
+   result, L3 governance MUST:
+   - return `deny` for the affected decision;
+   - emit an audit row with `infra_unavailable=true` and the failure
+     reason (timeout, connection-refused, parse-error, etc.);
+   - keep the request ledger intact (append-only; no reordering).
+5. **Runtime acquisition** — `make opa-install` downloads the official
+   OPA release binary, verifies SHA256 against the official
+   `sha256sums.txt`, and installs to `third_party/opac/opa`. No Docker,
+   no external service account. The directory `third_party/` is
+   gitignored; the binary is regenerated on demand.
+6. **Strict-by-default configuration** — All OPA env vars (`L3_OPA_URL`,
+   `L3_OPA_BUNDLE_DIR`, etc.) are explicit. No fallback, no default
+   discovery. Per ADR-V2-028, startup fails closed when any required OPA
+   env var is missing.
+7. **Shared-core rule (ADR-V2-023 P1)** — The sidecar is a deployment
+   topology change in `tools/eaasp-l3-governance/` and the OPA installer
+   script. It does NOT touch any shared crate (`grid-engine`,
+   `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`).
+   Engine-side L1 runtimes remain L3-OPA-agnostic.
+
+## Consequences
+
+Positive:
+
+- L3 decision semantics are now produced by a real, auditable Rego
+  policy engine, not by an in-process Rust-style matrix. The v2.0 §2.4
+  master-boundary principle (platform provides governance; runtime
+  provides execution) is reinforced.
+- Bundles are reviewable as code. Rego policy changes ride through the
+  same PR review process as EAASP source.
+- Fail-closed default is consistent with `deny-always-wins` and with
+  the risk classification already enforced by the in-process matrix.
+- Sidecar acquisition is reproducible (`make opa-install`); no runtime
+  surprises from a cluster OPA version drift.
+
+Negative:
+
+- L3 governance startup is now coupled to a successful OPA install.
+  CI must run `make opa-install` (or `make opa-install` + a health
+  check) before integration tests that exercise the governance gate.
+- Policy hot-reload across an OPA sidecar fleet is per-instance. A
+  shared cluster would give one-shot fleet-wide bundle update. This
+  trade-off is acceptable in the current scope; the L3 audit row
+  timestamps provide a deployment-history view.
+- The `third_party/opac/opa` binary is not versioned in the repository.
+  The first OPA install requires network access; CI cache is
+  recommended for reproducibility.
+
+Out of scope (Deferred to v3.11.1+ or later):
+
+- `V310-APPROVAL-01` — 5-stage approval chain state machine
+  (Plan → Check → Draft → Approve → Execute) and the corresponding
+  governance.* SSE event contracts. Sidecar OPA makes it possible to
+  add the state machine cleanly; that work is a separate ADR/phase.
+- `V310-A2A-01` — A2A Router, Event Room, multi-session coordination.
+- `V310-COWORK-01` — L5 Cowork UI.
+- `V310-ECOSYSTEM-01` — Marketplace, multi-tenant, SDK.
+
+## Verification
+
+- `make opa-install` downloads OPA, verifies SHA256, installs to
+  `third_party/opac/opa`, and prints `opa version`.
+- `make opa-clean` removes the binary.
+- `bash -n scripts/eaasp-install-opa.sh` passes.
+- `make -n opa-install opa-clean` prints the expected targets.
+- `cargo check -p eaasp-l3-governance` continues to pass without OPA
+  installed (in-process fallback; v3.11.1+ will add OPA-required CI).
+- `make v3.10-spec-audit` continues to pass (no shared-crate change).
+
+## Implementation status
+
+- v3.11.0 (this ADR + `make opa-install` + `.gitignore` + Makefile
+  targets) — completed and shipped at `1bee9eb0` (worktree-anchored
+  attempt) and re-established directly on `main` after a clean
+  fast-forward. ADR-V2-034 is now Accepted.
+- v3.11.1 — `L3 OPA backend` adapter
+  (`tools/eaasp-l3-governance/src/eaasp_l3_governance/opa_backend.py`)
+  with in-process fallback, Rego policy templates, fail-closed test.
+- v3.11.2 — 5-stage approval state machine + governance.* SSE events
+  + append-only ledger extension.
+- v3.11.3 — `make dev-eaasp` + `threshold-calibration` live walkthrough
+  with SSE event stream + OPA traffic + audit-chain evidence.

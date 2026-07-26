@@ -72,7 +72,7 @@
 
 | ID | 标题 | 状态 / 去向 | 证据 |
 |----|------|-------------|------|
-| **V310-OPA-01** | L3 production OPA/Rego backend + atomic bundle deployment | 📦 deferred_to_v3.11+ / Phase 3 | Spec §6.1/§18.3；`tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md` |
+| **V310-OPA-01** | L3 production OPA/Rego backend + atomic bundle deployment | ✅ CLOSED 2026-07-26 (v3.11.0 lift ADR-V2-034 Accepted + sidecar topology + `make opa-install`) | `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md`; `scripts/eaasp-install-opa.sh`; `Makefile` `opa-install`/`opa-clean` |
 | **V310-APPROVAL-01** | Plan → Check → Draft → Approve → Execute 五阶段审批链 + deterministic verifier | 📦 deferred_to_v3.11+ / Phase 3 | Spec §6.9-6.10；当前仅 risk decision + request/final decision |
 | **V310-A2A-01** | A2A Router、Event Room、多 Session per Event | 📦 deferred_to_v3.12+ / Phase 4 | Spec §5.3/§14/§17；当前 L4 单 session 骨架 |
 | **V310-COWORK-01** | L5 Cowork Event Room + Event/Evidence/Action/Approval 四卡 UI | 📦 deferred_to_v3.13+ / Phase 5 | Spec §4；当前 CLI/SSE 仅为 MVP 可执行界面 |

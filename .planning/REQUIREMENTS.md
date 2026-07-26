@@ -140,6 +140,28 @@
 ## Future Requirements (deferred — explicit v3.10+ backlog)
 
 - **Phase 3 production OPA approval chain** — pre-work blocked on v3.10 skeleton alignment; v3.11+ scope per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
+
+## v3.11.0 Requirements — EAASP Phase 3 OPA sidecar infrastructure (D-19..D-22 locked)
+
+**Context (post-v3.10):** v3.10 SHIPPED the EAASP v2.0 platform-skeleton alignment matrix. The V310-OPA-01 deferred entry (L3 production OPA/Rego backend) is the first concrete v3.11 deliverable. ADR-V2-034 (sidecar OPA on `127.0.0.1:18181`, in-repo Rego templates + atomic user bundles, fail-closed on OPA error) is now Accepted and is the deployment-topology anchor for the rest of v3.11.
+
+**REQ-IDs** use v3.11 numbering (OPA-*, INSTALL-*, COMPAT-*). 5 REQ-IDs cover 03.11.0; 03.11.1..03.11.3 are scheduled in follow-up phases.
+
+- [x] **OPA-01**: A `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md` ADR is committed and `status: Accepted` in its YAML frontmatter; documents the sidecar topology, in-repo Rego templates, atomic user bundles, fail-closed failure mode, and references `EVOLUTION_PATH §三 Phase 3` and `v2.0 spec §2.4 + §15.9`.
+- [x] **OPA-02**: A `scripts/eaasp-install-opa.sh` script downloads the official Open Policy Agent release binary for the host OS/arch, SHA256-verifies it against the official `sha256sums.txt`, and installs it to `third_party/opac/opa`. Fails closed on checksum mismatch, unsupported OS/arch, or GitHub API failure.
+- [x] **INSTALL-01**: A `make opa-install` Makefile target invokes `scripts/eaasp-install-opa.sh`; a `make opa-clean` target removes the installed binary. Both are listed in `.PHONY`.
+- [x] **COMPAT-01**: `third_party/` is added to `.gitignore` so the downloaded binary is never committed.
+- [x] **COMPAT-02**: No shared crate (`grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`) is touched. ADR-V2-023 P1 (shared-core rule) preserved. v3.9 route-catalog RBAC (134 routes) and v3.10 spec-audit gates continue to pass.
+- [x] **DEFER-LEDGER-CLOSE-01**: `V310-OPA-01` in `docs/design/EAASP/DEFERRED_LEDGER.md` is moved from `📦 deferred_to_v3.11+` to `✅ CLOSED 2026-07-26 (v3.11.0 lift ADR-V2-034 Accepted + sidecar topology + make opa-install)`.
+
+### v3.11.0 Traceability
+
+| Phase | REQ-IDs |
+|---|---|
+| **03.11.0 OPA sidecar infrastructure** | OPA-01, OPA-02, INSTALL-01, COMPAT-01, COMPAT-02, DEFER-LEDGER-CLOSE-01 |
+| **03.11.1 L3 OPA backend** (next) | L3 OPA adapter + Rego templates + in-process fallback + fail-closed test |
+| **03.11.2 5-stage approval state machine** (next) | Plan → Check → Draft → Approve → Execute + governance.* SSE events + append-only ledger + deny-always-wins |
+| **03.11.3 single-point live walkthrough** (next) | `make opa-install` + `make dev-eaasp` + `threshold-calibration` skill + dated production evidence |
 - **Phase 4 A2A / Event Room** — v3.12+ scope.
 - **Phase 5 L5 Cowork UI** — v3.13+ scope.
 - **Phase 6 ecosystem expansion** — v3.14+ scope.
