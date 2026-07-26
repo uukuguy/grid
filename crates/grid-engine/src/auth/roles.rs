@@ -123,7 +123,6 @@ impl Role {
                 Role::Admin,
                 Action::ManageMcp
                 | Action::ManageSkills
-                | Action::ManageUsers
                 | Action::ManageAudit
                 | Action::ManageHooks
                 | Action::ManageMemories
@@ -243,8 +242,8 @@ mod tests {
         // Admin 可以管理 Skills
         assert!(admin.can(Action::ManageSkills));
 
-        // Admin 可以管理用户和业务域，但不能修改全局配置
-        assert!(admin.can(Action::ManageUsers));
+        // Admin 不能管理用户或修改全局配置
+        assert!(!admin.can(Action::ManageUsers));
         assert!(!admin.can(Action::ManageConfig));
     }
 

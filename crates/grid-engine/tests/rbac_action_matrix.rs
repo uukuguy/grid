@@ -46,7 +46,6 @@ fn rbac_07_role_matrix_is_coherent_and_leg_agnostic() {
     for action in [
         Action::ManageMcp,
         Action::ManageSkills,
-        Action::ManageUsers,
         Action::ManageAudit,
         Action::ManageHooks,
         Action::ManageMemories,
@@ -63,5 +62,6 @@ fn rbac_07_role_matrix_is_coherent_and_leg_agnostic() {
     ] {
         assert!(Role::Admin.can(action), "admin denied {action:?}");
     }
+    assert!(!Role::Admin.can(Action::ManageUsers));
     assert!(!Role::Admin.can(Action::ManageConfig));
 }
