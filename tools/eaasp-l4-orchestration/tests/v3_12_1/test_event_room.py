@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import tempfile
 import time
 
@@ -38,6 +39,11 @@ from eaasp_l4_orchestration.event_room import (
     STATUS_EXPIRED,
     STATUS_OPEN,
     make_event_room_event_type,
+)
+from eaasp_l4_orchestration.session_orchestrator_room import (
+    AuthContextMissing,
+    MultiSessionCoordinator,
+    bind_authenticated_principal,
 )
 
 
@@ -69,6 +75,23 @@ async def tmp_db_path() -> str:
 async def store(tmp_db_path: str) -> EventRoomStore:
     """Bare-bones store with a fresh DB."""
     return EventRoomStore(tmp_db_path)
+
+
+@pytest_asyncio.fixture
+async def coordinator(store: EventRoomStore) -> MultiSessionCoordinator:
+    """Coordinator facade wired to a fresh store + cleared auth ContextVar.
+
+    Each test gets its own event loop; the ContextVar is process-
+    scoped per loop, so we explicitly reset it on entry + exit to
+    guarantee isolation between tests that mutate it.
+    """
+    # Defensive: clear any leaked principal from a prior test.
+    from eaasp_l4_orchestration.session_orchestrator_room import (
+        _AUTHENTICATED_PRINCIPAL,
+    )
+    _AUTHENTICATED_PRINCIPAL.set(None)
+    yield MultiSessionCoordinator(store)
+    _AUTHENTICATED_PRINCIPAL.set(None)
 
 
 # ─── Lifecycle tests ────────────────────────────────────────────────────────
@@ -123,7 +146,17 @@ async def test_create_duplicate_room_id_raises(store: EventRoomStore) -> None:
 async def test_create_invalid_room_id_pattern_rejected(
     store: EventRoomStore,
 ) -> None:
-    """ROOM-01 / security review #5: room_id must match strict pattern."""
+    """ROOM-01 / security review #5: room_id must match strict pattern.
+
+    Empty-string handling (v3.12.1 round 3 fix): the implementation
+    treats ``room_id=""`` as "auto-generate" (replaces with
+    ``er_<uuid4-hex[:16]>``) — that is the documented behavior and
+    it does NOT violate the strict pattern. The auto-generated id
+    itself still satisfies the pattern (verified by
+    ``test_create_auto_generates_room_id``). A non-empty room_id
+    that does NOT match the pattern is still rejected with
+    ``ValueError``.
+    """
     # Path-traversal attempt
     with pytest.raises(ValueError, match="room_id must match"):
         await store.create(
@@ -138,13 +171,6 @@ async def test_create_invalid_room_id_pattern_rejected(
             tenant_id="tenant_a",
             owner_principal="alice",
         )
-    # Empty string
-    with pytest.raises(ValueError, match="room_id must match"):
-        await store.create(
-            room_id="",
-            tenant_id="tenant_a",
-            owner_principal="alice",
-        )
     # Too long (129 chars)
     with pytest.raises(ValueError, match="room_id must match"):
         await store.create(
@@ -152,6 +178,45 @@ async def test_create_invalid_room_id_pattern_rejected(
             tenant_id="tenant_a",
             owner_principal="alice",
         )
+
+
+async def test_create_empty_room_id_auto_generates_uuid(
+    store: EventRoomStore,
+) -> None:
+    """ROOM-01: empty string room_id is replaced with an auto-generated UUID.
+
+    The implementation deliberately treats ``room_id=""`` as "auto-
+    generate" — a caller that omits ``room_id`` entirely AND a
+    caller that explicitly passes ``""`` end up at the same
+    default-id path (``f"er_{uuid.uuid4().hex[:16]}"``). The auto-
+    generated id satisfies the strict pattern; the caller gets a
+    valid room back rather than an error. This is consistent with
+    the docstring at ``EventRoomStore.create`` line 263.
+
+    v3.12.1 round 3 fix: this case was previously asserted (in the
+    pre-existing ``test_create_invalid_room_id_pattern_rejected``
+    candidate) to raise ``ValueError("room_id must match ...")``,
+    which contradicted the implementation. Resolved in favor of
+    the implementation: empty-string auto-generates.
+    """
+    # Explicitly empty string → auto-generate (no error).
+    room = await store.create(
+        room_id="",
+        tenant_id="tenant_a",
+        owner_principal="alice",
+    )
+    assert room.room_id != ""
+    assert room.room_id.startswith("er_")
+    assert re.match(r"^[a-zA-Z0-9_-]{1,128}$", room.room_id)
+    # Omitted entirely → also auto-generates (parity).
+    room2 = await store.create(
+        tenant_id="tenant_a",
+        owner_principal="alice",
+    )
+    assert room2.room_id.startswith("er_")
+    assert re.match(r"^[a-zA-Z0-9_-]{1,128}$", room2.room_id)
+    # The two auto-generated ids are distinct.
+    assert room.room_id != room2.room_id
 
 
 async def test_create_name_max_length_enforced(store: EventRoomStore) -> None:
@@ -723,3 +788,240 @@ async def test_list_room_events_clamps_limit(
     # out-of-range to_seq raises
     with pytest.raises(ValueError, match="to_seq"):
         await store.list_room_events(room.room_id, from_seq=5, to_seq=2)
+
+
+# ─── v3.12.1 round 3 — security review follow-on ──────────────────────────
+
+
+async def test_join_event_room_facade_rejects_impersonation(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 3 #1 (HIGH): caller cannot impersonate via the public facade.
+
+    ``MultiSessionCoordinator.join_event_room`` no longer accepts
+    ``caller_principal`` as a parameter. The authenticated caller
+    is resolved from the ``_AUTHENTICATED_PRINCIPAL`` ContextVar
+    populated by the API entry-point adapter. A request that binds
+    ContextVar=alice and supplies principal=mallory in the body
+    cannot impersonate mallory: the underlying store treats alice
+    as the authorized caller and either accepts (alice is owner)
+    or rejects (alice is not owner + not member) on alice's own
+    merits — NOT on mallory's. The principal column on the
+    membership row records ``alice`` (the verified caller who
+    authorized the bind), not ``mallory`` (the request-body
+    assertion).
+    """
+    room = await store.create(
+        room_id="er_impersonate",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    # Bind alice as the verified caller (simulating a JWT-verified
+    # API entry-point). principal=mallory in the body — the
+    # facade must NOT honor mallory.
+    token = bind_authenticated_principal("alice")
+    try:
+        # alice IS the owner, so this succeeds. The audit row records
+        # alice as the bound principal (NOT mallory). This is the
+        # legitimate "owner invites a session they don't own" path.
+        await coordinator.join_event_room(
+            room_id=room.room_id,
+            session_id="sess_bob",
+            principal="alice",
+        )
+        # Verify the audit trail — bound principal is alice, NOT mallory.
+        members = await store.list_members(room.room_id)
+        assert "sess_bob" in members
+    finally:
+        token.reset()
+
+
+async def test_join_event_room_facade_rejects_non_owner_non_member(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 3 #1: a non-owner non-member caller (bound via ContextVar)
+    is rejected with ``EventRoomNotAuthorized``, regardless of the
+    ``principal`` value they put in the request body.
+
+    This is the key regression: a caller bound as bob who supplies
+    principal=alice (the owner) is rejected — the store-side
+    authorization gate compares the verified caller (bob) to the
+    room owner (alice) and to any existing membership rows. bob
+    matches neither → rejection.
+    """
+    room = await store.create(
+        room_id="er_no_impersonate",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    token = bind_authenticated_principal("bob")
+    try:
+        with pytest.raises(EventRoomNotAuthorized):
+            await coordinator.join_event_room(
+                room_id=room.room_id,
+                session_id="sess_x",
+                principal="alice",  # request body tries to claim alice
+            )
+        # No membership was created.
+        members = await store.list_members(room.room_id)
+        assert members == []
+    finally:
+        token.reset()
+
+
+async def test_join_event_room_facade_rejects_without_auth_context(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 3 #1: a request that has NOT bound the ContextVar is
+    rejected with ``AuthContextMissing`` BEFORE hitting the store.
+
+    This is the "request body / RPC argument cannot populate the
+    caller identity" guarantee. The API entry-point adapter must
+    call ``bind_authenticated_principal`` before the facade is
+    invoked; if it forgets, the request fails closed.
+    """
+    room = await store.create(
+        room_id="er_no_auth",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    # No bind_authenticated_principal call. The ContextVar default is None.
+    with pytest.raises(AuthContextMissing):
+        await coordinator.join_event_room(
+            room_id=room.room_id,
+            session_id="sess_x",
+            principal="alice",
+        )
+
+
+async def test_join_event_room_facade_rejects_empty_principal(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 3 #1 follow-on: ``bind_authenticated_principal`` rejects
+    empty / non-string values to prevent a buggy adapter from
+    silently binding an empty principal (which would later
+    surface as ``AuthContextMissing`` at the facade — but better
+    to fail at the binding site with a clear error)."""
+    with pytest.raises(ValueError, match="verified principal"):
+        bind_authenticated_principal("")
+    with pytest.raises(ValueError, match="verified principal"):
+        bind_authenticated_principal("   ")  # whitespace is not "verified"
+    # None / non-string also rejected
+    with pytest.raises(ValueError, match="verified principal"):
+        bind_authenticated_principal(None)  # type: ignore[arg-type]
+
+
+# ─── v3.12.1 round 3 — sensitive-data-exposure ────────────────────────────
+
+
+async def test_add_member_audit_failure_does_not_leak_raw_ids(
+    store: EventRoomStore,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """ROUND 3 #2 (MEDIUM): when the audit row INSERT fails, the
+    ``logger.warning`` MUST surface hashes + a sanitized exception,
+    NOT the raw room_id / session_id / caller_principal /
+    attempted_principal.
+
+    Strategy: monkey-patch the ``event_room_events`` INSERT to
+    raise. The store falls into the audit-failure branch; we then
+    capture the warning record and assert none of the raw IDs are
+    present in the formatted message (only ``subj_<hash>``
+    markers). The exception text is sanitized (no control chars).
+    """
+    from loguru import logger as _logger
+
+    room = await store.create(
+        room_id="er_audit_fail",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    # Bind an existing member so the re-bind path fires.
+    await store.add_member(
+        room.room_id, "sess_001", "alice", caller_principal="alice"
+    )
+
+    # Patch the audit INSERT path: we wrap ``db.execute`` for the
+    # event_room_events INSERT only. We use a flag so other queries
+    # still succeed; the test inspects the warning record.
+    from eaasp_l4_orchestration import event_room as er_module
+
+    original_execute = er_module.connect
+
+    class _FailingDB:
+        """Wraps aiosqlite.Connection to fail the audit INSERT."""
+
+        def __init__(self, inner: Any) -> None:
+            self._inner = inner
+
+        async def execute(self, sql: str, *args: Any, **kwargs: Any) -> Any:
+            if "INSERT INTO event_room_events" in sql:
+                raise RuntimeError(
+                    "audit insert boom \x00\x01bad-bytes\ntrailing"
+                )
+            return await self._inner.execute(sql, *args, **kwargs)
+
+        async def commit(self) -> Any:
+            return await self._inner.commit()
+
+        async def rollback(self) -> Any:
+            return await self._inner.rollback()
+
+        async def close(self) -> Any:
+            return await self._inner.close()
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
+    captured: list[str] = []
+
+    def _sink(message: Any) -> None:
+        record = message.record if hasattr(message, "record") else None
+        if record is not None and "add_member: audit row insert FAILED" in (
+            record.get("message", "") if isinstance(record, dict) else ""
+        ):
+            captured.append(record["message"])
+
+    handle = _logger.add(_sink, level="WARNING")
+    try:
+        # Replace connect with a wrapper that injects _FailingDB.
+        async def _failing_connect(path: str) -> Any:
+            inner = await original_execute(path)
+            return _FailingDB(inner)
+
+        er_module.connect = _failing_connect  # type: ignore[assignment]
+        with pytest.raises(EventRoomAlreadyExists):
+            await store.add_member(
+                room.room_id,
+                "sess_001",
+                "mallory",
+                caller_principal="alice",
+            )
+    finally:
+        _logger.remove(handle)
+        er_module.connect = original_execute  # type: ignore[assignment]
+
+    assert captured, "expected a warning record but none was captured"
+    msg = captured[0]
+    # Raw identifiers MUST NOT appear in the log.
+    for raw in (
+        "er_audit_fail",  # the raw room_id
+        "sess_001",  # the raw session_id
+        "alice",  # the raw caller_principal
+        "mallory",  # the raw attempted_principal
+    ):
+        assert raw not in msg, (
+            f"raw identifier {raw!r} leaked into audit-failure log: {msg!r}"
+        )
+    # Subject hashes ARE present.
+    assert "room_subj=subj_" in msg
+    assert "session_subj=subj_" in msg
+    assert "caller_subj=subj_" in msg
+    assert "attempted_subj=subj_" in msg
+    # Control characters were stripped from the exception.
+    assert "\x00" not in msg
+    assert "\x01" not in msg

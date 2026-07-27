@@ -89,6 +89,7 @@ NEVER inverts the authoritative audit ledger (L3
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -99,6 +100,53 @@ from typing import Any
 from loguru import logger
 
 from .db import connect
+
+# v3.12.1 — security review round 3 (sensitive-data-exposure):
+# raw principal strings MUST NOT appear in operator logs. Logs are
+# out-of-band from the access-controlled audit ledger; surfacing raw
+# subjects there leaks PII / account identifiers to anyone with log
+# access. The audit ledger (L3 ``governance_decisions`` + L4
+# ``session_events`` + this module's ``event_room_events``) retains
+# the raw values, gated by the same RBAC as the rest of the audit
+# surface. Operator logs see a stable, non-reversible subject hash
+# derived from a module-level salt — the same input always maps to
+# the same hash (so log correlation still works) but the hash is
+# NOT reversible to the raw principal.
+_SUBJECT_HASH_SALT = b"eaasp-l4-orchestration.v3_12_1.subject_hash_salt"
+_SUBJECT_HASH_LEN = 12  # 48 bits — enough to avoid collisions inside one process
+
+
+def _safe_subject_id(raw: str | None) -> str:
+    """Return a stable non-reversible identifier for ``raw``.
+
+    - Empty / None → ``"anon"``.
+    - Otherwise → ``"subj_" + sha256(raw + salt)[:_SUBJECT_HASH_LEN]``.
+      The salt is a module constant (per-process; the audit ledger
+      still holds the raw values for legitimate lookup).
+    - Never raises; never returns the raw value.
+    """
+    if not raw:
+        return "anon"
+    h = hashlib.sha256(_SUBJECT_HASH_SALT + raw.encode("utf-8")).hexdigest()
+    return f"subj_{h[:_SUBJECT_HASH_LEN]}"
+
+
+def _safe_exc_repr(exc: BaseException, *, limit: int = 200) -> str:
+    """Return a sanitized, length-bounded repr of ``exc``.
+
+    Strips control characters and bounds length so a malformed
+    SQLite error message cannot bloat logs / leak binary content.
+    The exception TYPE and message fragment are preserved; only
+    raw bytes / control chars are removed.
+    """
+    raw = repr(exc)
+    # Strip ASCII control chars (keep \t / \n for readability).
+    sanitized = "".join(
+        ch for ch in raw if ch == "\t" or ch == "\n" or (ord(ch) >= 0x20 and ord(ch) != 0x7F)
+    )
+    if len(sanitized) > limit:
+        sanitized = sanitized[: limit - 3] + "..."
+    return sanitized
 
 # Room status enum (mirrors the CHECK constraint on the table).
 STATUS_OPEN = "open"
@@ -622,19 +670,32 @@ class EventRoomStore:
                         # ``except: pass`` swallowed audit
                         # failures silently, making the audit
                         # data unreliable.
+                        #
+                        # v3.12.1 — security review round 3
+                        # (sensitive-data-exposure): raw room_id /
+                        # session_id / principals MUST NOT appear
+                        # in operator logs. Log stable, non-
+                        # reversible subject hashes via
+                        # ``_safe_subject_id``; the raw values
+                        # remain available in the access-
+                        # controlled ``event_room_events`` audit
+                        # row (when the INSERT succeeds) and in
+                        # the L3 ``governance_decisions`` ledger.
+                        # The exception text is sanitized via
+                        # ``_safe_exc_repr`` to strip control
+                        # characters and bound the length.
                         await db.rollback()
                         logger.warning(
                             "add_member: audit row insert FAILED "
-                            "(room_id={}, session_id={}, "
-                            "caller_principal={!r}, "
-                            "attempted_principal={!r}): {} — "
-                            "caller must treat the re-bind "
+                            "(room_subj={}, session_subj={}, "
+                            "caller_subj={}, attempted_subj={}): "
+                            "{} — caller must treat the re-bind "
                             "as if it also failed",
-                            room_id,
-                            session_id,
-                            caller_principal,
-                            principal,
-                            exc,
+                            _safe_subject_id(room_id),
+                            _safe_subject_id(session_id),
+                            _safe_subject_id(caller_principal),
+                            _safe_subject_id(principal),
+                            _safe_exc_repr(exc),
                         )
                         raise EventRoomAlreadyExists(
                             room_id,

@@ -50,6 +50,7 @@ audit ledger (L3 ``governance_decisions`` + L4
 
 from __future__ import annotations
 
+import contextvars
 import json
 import time
 from typing import Any
@@ -75,16 +76,83 @@ class SessionNotInRoom(MultiSessionCoordinatorError):
     """Raised when ``leave_event_room`` is called on a non-member session."""
 
 
+class AuthContextMissing(MultiSessionCoordinatorError):
+    """Raised when a coordinator method requires the authenticated caller
+    principal but no auth context has been bound to the current request.
+
+    v3.12.1 — security review round 3 (HIGH authorization):
+    the coordinator facade MUST NOT accept the caller identity as a
+    free method parameter. The verified principal is resolved from
+    ``_AUTHENTICATED_PRINCIPAL`` (a ``ContextVar`` populated by the
+    API entry-point adapter from a verified JWT / session /
+    AuthContext). A request that fails to set the ContextVar — or
+    that sets it to an empty value — is treated as unauthenticated
+    and rejected. This closes the horizontal-privilege-escalation
+    vector where any caller could pass ``caller_principal=B`` while
+    asserting ``principal=A`` in the request body.
+    """
+
+
+# v3.12.1 — security review round 3: the authenticated caller
+# principal is propagated via a ``ContextVar`` populated by the API
+# entry-point adapter (FastAPI dependency → verified JWT → set
+# ``_AUTHENTICATED_PRINCIPAL.set(...)`` BEFORE invoking the
+# coordinator). The coordinator facade reads it here; the store
+# accepts it as a kwarg to keep the internal seam testable, but no
+# external code path can supply it (the facade enforces the
+# ContextVar source). Default is ``None`` — every coordinator
+# method that requires the authenticated principal checks the
+# ContextVar explicitly and raises ``AuthContextMissing`` if it
+# is unset.
+_AUTHENTICATED_PRINCIPAL: contextvars.ContextVar[str | None] = (
+    contextvars.ContextVar(
+        "eaasp_l4_authenticated_principal",
+        default=None,
+    )
+)
+
+
 class MultiSessionCoordinator:
     """Multi-session coordination facade over ``EventRoomStore``.
 
     The coordinator owns one ``EventRoomStore`` instance for the
     lifetime of the FastAPI app. Tests construct one directly
-    with a ``tmp_db_path``.
+    with a ``tmp_db_path`` and wrap their test body in
+    ``bind_authenticated_principal(...)`` to simulate a verified
+    request context.
+
+    v3.12.1 — security review round 3 (HIGH authorization):
+    the authenticated caller principal is NEVER accepted as a
+    method parameter. It is resolved inside the facade from
+    ``_AUTHENTICATED_PRINCIPAL`` (a ContextVar populated by the
+    API entry-point adapter from a verified JWT). No request
+    body, RPC argument, event payload, or model-generated value
+    can populate it. A request that has not bound the ContextVar
+    is rejected with ``AuthContextMissing``.
     """
 
     def __init__(self, room_store: EventRoomStore) -> None:
         self.room_store = room_store
+
+    @staticmethod
+    def _require_authenticated_principal() -> str:
+        """Return the verified caller principal from the ContextVar.
+
+        Raises ``AuthContextMissing`` if the ContextVar has not been
+        bound by the API entry-point adapter. This is the ONLY
+        code path that resolves the caller identity; every public
+        method on the facade that requires it routes through here.
+        """
+        principal = _AUTHENTICATED_PRINCIPAL.get()
+        if not principal:
+            raise AuthContextMissing(
+                "no authenticated principal bound to the current "
+                "request context; the API entry-point adapter must "
+                "call bind_authenticated_principal(verified) BEFORE "
+                "invoking coordinator methods that require the "
+                "caller identity (audit §REQ-ROOM-05)"
+            )
+        return principal
 
     # ─── Join / leave ────────────────────────────────────────────────────
 
@@ -94,32 +162,32 @@ class MultiSessionCoordinator:
         room_id: str,
         session_id: str,
         principal: str,
-        caller_principal: str,
     ) -> bool:
         """Bind ``session_id`` to ``room_id``.
 
         Returns ``True`` if a new row was inserted, ``False`` if the
         (room_id, session_id) pair was already present.
 
-        v3.12.1 — security review round 2 #1 (CRITICAL):
-        ``caller_principal`` is REQUIRED and is sourced from the
-        authenticated caller (NOT a free parameter). The underlying
-        store enforces the caller-side authorization gate:
-        caller_principal must match the room owner OR an existing
-        member's principal. A non-member non-owner caller is
-        rejected with ``EventRoomNotAuthorized``.
+        v3.12.1 — security review round 3 (HIGH authorization):
+        the authenticated caller principal is resolved from
+        ``_AUTHENTICATED_PRINCIPAL`` (a ContextVar set by the API
+        entry-point adapter from a verified JWT / session /
+        AuthContext). It is NOT accepted as a method parameter;
+        a request body / RPC argument / event payload / model-
+        generated value cannot populate it. The underlying store
+        enforces the caller-side authorization gate: caller must
+        match the room owner OR an existing member's principal.
+        A non-member non-owner caller is rejected with
+        ``EventRoomNotAuthorized``.
 
-        Raises ``EventRoomError`` subclasses for room-level
-        failures (room not found, room not open, room not
-        authorized, re-bind conflict).
+        Raises ``AuthContextMissing`` if no principal is bound to
+        the current request context. Raises ``EventRoomError``
+        subclasses for room-level failures (room not found, room
+        not open, room not authorized, re-bind conflict).
         """
         if not principal:
             raise ValueError("principal must be a non-empty string")
-        if not caller_principal:
-            raise ValueError(
-                "caller_principal must be a non-empty string "
-                "(sourced from auth context, NOT a free parameter)"
-            )
+        caller_principal = self._require_authenticated_principal()
         return await self.room_store.add_member(
             room_id,
             session_id,
@@ -455,5 +523,51 @@ __all__ = [
     "MultiSessionCoordinator",
     "MultiSessionCoordinatorError",
     "SessionNotInRoom",
+    "AuthContextMissing",
+    "bind_authenticated_principal",
     "EVENT_ROOM_EVENT_TYPE_PREFIX",
 ]
+
+
+class _AuthContextToken:
+    """Opaque token returned by ``bind_authenticated_principal``.
+
+    Holds the ``Token`` from ``ContextVar.set`` so the caller can
+    ``reset()`` it after the request completes (FastAPI dependency
+    pattern: yield-set / yield-reset).
+    """
+
+    def __init__(self, token: contextvars.Token) -> None:
+        self._token = token
+
+    def reset(self) -> None:
+        """Restore the ContextVar to its prior value."""
+        _AUTHENTICATED_PRINCIPAL.reset(self._token)
+
+
+def bind_authenticated_principal(verified: str) -> _AuthContextToken:
+    """Bind the verified caller principal to the current request context.
+
+    The API entry-point adapter (FastAPI dependency or equivalent)
+    MUST call this with the principal extracted from a verified JWT
+    / session / AuthContext BEFORE invoking any coordinator method
+    that requires the authenticated caller. Tests call it inside
+    an ``async with`` block to simulate a verified request.
+
+    Args:
+        verified: the verified principal string (NOT a raw request
+            body field). The caller is responsible for extracting
+            it from a verified token; this function does NOT
+            validate the value — it only records it for the
+            coordinator to consume. Empty / whitespace-only /
+            None values are rejected with ``ValueError`` to
+            prevent a buggy adapter from silently binding an
+            empty principal.
+    """
+    if not isinstance(verified, str) or not verified.strip():
+        raise ValueError(
+            "verified principal must be a non-empty string extracted "
+            "from a verified JWT / session / AuthContext"
+        )
+    token = _AUTHENTICATED_PRINCIPAL.set(verified)
+    return _AuthContextToken(token)
