@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.12
 milestone_name: EAASP Phase 4 — A2A Router + Event Room + multi-session 协调
-status: bootstrapping
-stopped_at: v3.12 milestone bootstrap (this commit). v3.11 SHIPPED 2026-07-27 (4 phases, 29/29 REQ-IDs, 11 categories). v3.12 plans 03.12.0 / 03.12.1 / 03.12.2 / 03.12.3 not yet executed.
-last_updated: "2026-07-27T13:00:00.000Z"
+status: in_progress
+stopped_at: 03.12.0 SHIPPED 2026-07-27 (audit.py CHECK constraint patch + DECISION_AWAIT_HUMAN + idempotent ALTER TABLE migration; V311-AUDIT-01 ✅ CLOSED). v3.11 SHIPPED 2026-07-27 (4 phases, 29/29 REQ-IDs, 11 categories). v3.12 plans 03.12.1 / 03.12.2 / 03.12.3 pending.
+last_updated: "2026-07-27T14:30:00.000Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 25
   prior_milestones:
     v3.11_completed_phases: 4
     v3.11_completed_plans: 4
@@ -34,9 +34,10 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 BOOTSTRAPPING (4-phase ladder 03.12.0 → 03.12.3, 13–16 REQ-IDs / 5 categories, locked decisions D-23..D-29)**
-Scope: 4 phases (03.12.0 schema + audit constraint patch → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough). 03.12.0 is the gating phase; SCHEMA-01..03 MUST ship before any 03.12.1 / 03.12.2 implementation work begins.
-Bootstrap deliverables (this commit): `.planning/PROJECT.md` (Latest Shipped Milestone + v3.12 Current Milestone + D-23..D-29 in Key Decisions) / `.planning/REQUIREMENTS.md` (v3.11.3 + v3.12 sections, 5 categories: SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) / `.planning/ROADMAP.md` (v3.11 SHIPPED + v3.12 active milestone block) / `.planning/STATE.md` (frontmatter `milestone=v3.12 status=bootstrapping`) / `docs/design/EAASP/DEFERRED_LEDGER.md` (V310-A2A-01 + V310-SESSION-01 still deferred_to_v3.12+, V311-AUDIT-01 NEW entry lifted by 03.12.0).
+Milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS (4-phase ladder 03.12.0 ✅ SHIPPED → 03.12.1 → 03.12.2 → 03.12.3; 25% complete, 1/4 phases)**
+Scope: 4 phases (03.12.0 schema + audit constraint patch ✅ → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough). 03.12.0 is the gating phase; SCHEMA-01..03 SHIPPED 2026-07-27 + V311-AUDIT-01 ✅ CLOSED; 03.12.1 / 03.12.2 / 03.12.3 unblocked.
+03.12.0 deliverables (SHIPPED 2026-07-27): `audit.py` `DECISION_ALLOWLIST` widens to include `await_human`; `db.py` `migrate_decision_await_human` idempotent ALTER TABLE migration (v3.11.0 / v3.11.1 / v3.11.2 legacy DBs preserved); `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN`; 14 new targeted tests PASS in `test_audit_decision_await_human.py` + `test_audit_await_human_migration.py`; `docs/design/EAASP/DEFERRED_LEDGER.md` V311-AUDIT-01 → ✅ CLOSED.
+Bootstrap deliverables (milestone bootstrap, 2026-07-27): `.planning/PROJECT.md` (Latest Shipped Milestone + v3.12 Current Milestone + D-23..D-29 in Key Decisions) / `.planning/REQUIREMENTS.md` (v3.11.3 + v3.12 sections, 5 categories: SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) / `.planning/ROADMAP.md` (v3.11 SHIPPED + v3.12 active milestone block) / `.planning/STATE.md` (frontmatter `milestone=v3.12 status=in_progress progress.percent=25`).
 Prior milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27**
 Prior scope: 4 phases complete (03.11.0 → 03.11.3), 29/29 REQ-IDs in 11 categories (OPA + INSTALL + OPA-BACKEND + REGO + FAIL-CLOSED + DISABLED + STAGE + SSE + AUDIT + DENY + LIVE).
 Prior verification: 57 + targeted regression tests PASS; real OPA sidecar v0.68.0 on `127.0.0.1:18181`; 5 SSE events in canonical order (seq 26–30, single request_id); 18 rows in L3 `governance_decisions` ledger across 3 chain runs; `make rbac-audit` PASS (134 routes); `make v3.10-spec-audit` PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
@@ -110,9 +111,9 @@ Next-milestone candidates (after v3.12 SHIPS):
 - v3.9 RBAC audit still PASS (134 routes — unchanged). v3.10 spec-audit still PASS (4 files / 37 rows). ADR-V2-023 P1 shared-core rule preserved (no shared-crate change). `docs/status/JOURNAL.md` untouched per task directive.
 - **Known finding (deferred to v3.12.0 per D-23):** `audit.py`'s CHECK constraint on `governance_decisions.decision` does not include `await_human`; the 5-stage state machine emits `await_human` at the Approve stage. Documented in `PRODUCTION_USABILITY_2026-07-27.md` §7. Filed as `V311-AUDIT-01` in `DEFERRED_LEDGER.md`.
 
-### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 BOOTSTRAPPING 2026-07-27
+### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS 2026-07-27
 
-- 4 phases planned (03.12.0 schema + audit constraint patch → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough).
+- 4 phases planned (03.12.0 schema + audit constraint patch ✅ SHIPPED 2026-07-27 → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough).
 - 13–16 REQ-IDs across 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) + TRACE cross-axis.
 - Locked decisions D-23..D-29 (see PROJECT.md §Key Decisions):
   - **D-23** `audit.py` CHECK constraint patch is mandatory phase 0; no 03.12.1 / 03.12.2 / 03.12.3 work before 03.12.0 ships.
@@ -122,7 +123,17 @@ Next-milestone candidates (after v3.12 SHIPS):
   - **D-27** v3.12 stays in `tools/eaasp-*/` simulator-level implementations; no new repo / no new service port.
   - **D-28** v3.9 route-catalog RBAC + v3.10 spec-audit + ADR-V2-023 P1 + ADR-V2-034 OPA sidecar all continue to PASS.
   - **D-29** 探索策略 = Explore + Grep (no `.codegraph/` in this repo).
-- Closes: `V310-A2A-01` + `V310-SESSION-01` (both at 03.12.3) + `V311-AUDIT-01` (at 03.12.0).
+
+#### 03.12.0 audit.py CHECK constraint patch ✅ SHIPPED 2026-07-27
+
+- Built on top of v3.11.3 (`ba99b851`); no changes to any shared crate (ADR-V2-023 P1 preserved).
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/audit.py` — `DECISION_ALLOWLIST` widens to `{allow, approve, deny, gate_request, await_human}`; `record_governance_decision` validation mirrors the DB CHECK allowlist.
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/db.py` — inline `SCHEMA` CHECK widened for fresh DBs; new `migrate_decision_await_human` idempotent `ALTER TABLE` migration for v3.11.x legacy DBs (probes `sqlite_master`, rebuilds table under `BEGIN IMMEDIATE`, preserves all rows including the v3.11.2 `stage` column); `init_db` invokes the migration.
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` — paused Approve stage writes a dedicated `approve_pause` ledger row carrying `DECISION_AWAIT_HUMAN` (in addition to the upstream `approve` policy verdict row); append-only invariant preserved via distinct `decision_id` suffix.
+- `tools/eaasp-l3-governance/tests/test_audit_decision_await_human.py` + `test_audit_await_human_migration.py` — 14 new targeted tests cover SCHEMA-01..03 / MIGRATION-01..02 / AWAIT-HUMAN-01..02.
+- 132 → 143 targeted tests PASS (+1 skipped, OPA-backend tests excluded — need OPA binary).
+- `V311-AUDIT-01` ✅ CLOSED (DEFERRED_LEDGER.md). 03.12.1 / 03.12.2 / 03.12.3 unblocked.
+- v3.9 RBAC audit still PASS (134 routes — unchanged). v3.10 spec-audit still PASS (4 files / 37 rows). ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
 
 ## Completed Milestones
 

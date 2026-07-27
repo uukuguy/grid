@@ -242,3 +242,51 @@ Out of scope (Deferred to v3.11.1+ or later):
     PASS (4 files / 37 rows). Shared-core preserved (ADR-V2-023 P1):
     no changes under `crates/grid-engine`, `grid-runtime`, `grid-types`,
     `grid-sandbox`, `grid-hook-bridge`.
+
+<!-- v3.12.0 implementation status -->
+- v3.12.0 — 03.12.0 audit.py CHECK constraint patch + DECISION_AWAIT_HUMAN
+  SHIPPED 2026-07-27 (`V311-AUDIT-01` ✅ CLOSED; gates 03.12.1 / 03.12.2
+  / 03.12.3 implementation work per D-23):
+  - L3 — `tools/eaasp-l3-governance/src/eaasp_l3_governance/audit.py`
+    exposes `DECISION_ALLOWLIST` constant widened to
+    `{allow, approve, deny, gate_request, await_human}`. The in-process
+    enum validation in `record_governance_decision` mirrors the DB
+    CHECK allowlist so callers see a clean `ValueError` (not an
+    `aiosqlite.IntegrityError`) on every code path. Before v3.12.0
+    the 5-stage state machine's `DECISION_AWAIT_HUMAN` sentinel was
+    silently swallowed at the paused Approve stage — the paused
+    audit evidence never reached the ledger.
+  - L3 — `tools/eaasp-l3-governance/src/eaasp_l3_governance/db.py`
+    adds `migrate_decision_await_human(path)` idempotent migration.
+    Probes the current CHECK clause via `sqlite_master`; if it
+    already contains `await_human` the call is a NO-OP. Otherwise,
+    renames the legacy table, recreates it with the widened
+    CHECK (5-value allowlist), copies every row across (projecting
+    only the columns the legacy row carries so v3.11.0 / v3.11.1
+    rows land with `stage = NULL`), and drops the legacy table. All
+    operations wrapped in `BEGIN IMMEDIATE` per audit §C1.
+    `init_db` invokes the migration so legacy DBs upgrade cleanly.
+    Indexes on `governance_decisions` are created in
+    `_create_governance_decisions_indexes` (after the v3.11.2
+    conditional `stage` column add) so pre-v3.11.2 DBs without
+    the `stage` column don't fail with `no such column: stage`.
+  - L3 — `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py`
+    routes the paused Approve stage's `DECISION_AWAIT_HUMAN` sentinel
+    through `_append_audit_row` with a dedicated `approve_pause`
+    stage suffix (distinct `decision_id` PK). Append-only invariant
+    preserved; in-memory `records` list mirrors the ledger.
+  - Tests — `tools/eaasp-l3-governance/tests/test_audit_decision_await_human.py`
+    + `test_audit_await_human_migration.py` (14 new tests). Covers
+    the `DECISION_ALLOWLIST` widening, idempotent migration on
+    hand-constructed v3.11.0 / v3.11.2 legacy schemas, row
+    preservation through the migration, and the 5-stage state
+    machine writing the `await_human` audit row at the paused
+    Approve stage (no silent swallowing) plus the resume-time
+    allow/deny rows.
+  - 132 → 143 targeted tests PASS (+1 skipped, OPA-backend tests
+    excluded — require OPA binary).
+  - v3.9 RBAC catalog unchanged (134 routes); v3.10 spec-audit
+    still PASS (4 files / 37 rows); OPA sidecar topology unchanged.
+    Shared-core preserved (ADR-V2-023 P1): no changes under
+    `crates/grid-engine`, `grid-runtime`, `grid-types`,
+    `grid-sandbox`, `grid-hook-bridge`.

@@ -314,9 +314,19 @@
 
 ### SCHEMA — `audit.py` CHECK constraint patch
 
-- [ ] **SCHEMA-01**: `audit.py`'s CHECK constraint on `governance_decisions.decision` is extended to include `await_human` alongside the existing `{allow, approve, deny, gate_request}`. The constraint is implemented as a SQLite `CHECK` clause on the column (or a TRIGGER-based equivalent) and is verified to be in effect for both fresh and migrated DBs.
-- [ ] **SCHEMA-02**: Idempotent `ALTER TABLE` migration on `governance_decisions` drops the old CHECK constraint and adds the new one with `await_human` (matching the existing v3.11.2 `stage` column migration pattern at the same `audit.py` module). Existing DBs upgrade cleanly without losing history; fresh DBs (CREATE TABLE) carry the new constraint inline.
-- [ ] **SCHEMA-03**: `audit.py`'s in-process enum validation (line 282) is updated to accept `await_human` and the `DECISION_AWAIT_HUMAN` sentinel constant. The Python `Decision` enum / Literal type (or its equivalent) gains the `await_human` variant. Backwards-compatible: `await_human` rows coexist with `allow` / `approve` / `deny` / `gate_request` rows in the same `governance_decisions` table.
+- [x] **SCHEMA-01**: `audit.py`'s CHECK constraint on `governance_decisions.decision` is extended to include `await_human` alongside the existing `{allow, approve, deny, gate_request}`. The constraint is implemented as a SQLite `CHECK` clause on the column (or a TRIGGER-based equivalent) and is verified to be in effect for both fresh and migrated DBs.
+- [x] **SCHEMA-02**: Idempotent `ALTER TABLE` migration on `governance_decisions` drops the old CHECK constraint and adds the new one with `await_human` (matching the existing v3.11.2 `stage` column migration pattern at the same `audit.py` module). Existing DBs upgrade cleanly without losing history; fresh DBs (CREATE TABLE) carry the new constraint inline.
+- [x] **SCHEMA-03**: `audit.py`'s in-process enum validation (line 282) is updated to accept `await_human` and the `DECISION_AWAIT_HUMAN` sentinel constant. The Python `Decision` enum / Literal type (or its equivalent) gains the `await_human` variant. Backwards-compatible: `await_human` rows coexist with `allow` / `approve` / `deny` / `gate_request` rows in the same `governance_decisions` table.
+
+### MIGRATION — `audit.py` CHECK constraint migration coverage
+
+- [x] **MIGRATION-01**: `db.migrate_decision_await_human(path)` is idempotent. Hand-constructing a v3.11.x ledger (4-value CHECK allowlist, no `await_human`), running the migration widens the allowlist to include `await_human`; calling the migration a second time is a NO-OP. Fresh schemas (v3.12.0+ CREATE TABLE) carry the widened allowlist inline and the migration is a NO-OP.
+- [x] **MIGRATION-02**: The migration preserves all pre-existing rows (allow / approve / deny / gate_request) verbatim. v3.11.2 / v3.11.3 rows with a populated `stage` column also survive — the migration's `INSERT INTO new (col1, col2, ...) SELECT col1, col2, ... FROM legacy` projects only the columns the legacy row carries; pre-v3.11.2 rows land with `stage = NULL`.
+
+### AWAIT-HUMAN — `DECISION_AWAIT_HUMAN` ledger evidence
+
+- [x] **AWAIT-HUMAN-01**: `audit.DECISION_ALLOWLIST` exposes `await_human` alongside `allow`, `approve`, `deny`, `gate_request`. `AuditStore.record_governance_decision` accepts `decision="await_human"` and the row persists to the ledger (no `aiosqlite.IntegrityError`, no `ValueError`).
+- [x] **AWAIT-HUMAN-02**: The 5-stage state machine's paused Approve stage routes `DECISION_AWAIT_HUMAN` through the full `record_governance_decision` flow. The ledger carries a dedicated `approve_pause` row carrying `decision="await_human"` (in addition to the upstream `approve` policy verdict row). After the human signs off, the resume path writes the human verdict (`allow` / `deny`) as a follow-on row. Before v3.12.0 the row was silently swallowed (audit.py rejected `await_human` with `ValueError`); v3.12.0 fixes this end-to-end.
 
 ### EVENT-ROOM — Multi-session Event Room substrate
 
@@ -388,7 +398,7 @@
 
 | Phase | REQ-IDs |
 |-------|---------|
-| **03.12.0 Schema + audit constraint patch** | SCHEMA-01, SCHEMA-02, SCHEMA-03, COMPAT-01, COMPAT-02, COMPAT-03, COMPAT-04, TRACE-02 |
+| **03.12.0 Schema + audit constraint patch ✅ SHIPPED 2026-07-27** | SCHEMA-01 ✅, SCHEMA-02 ✅, SCHEMA-03 ✅, MIGRATION-01 ✅, MIGRATION-02 ✅, AWAIT-HUMAN-01 ✅, AWAIT-HUMAN-02 ✅, COMPAT-01..04 (verified preserved), TRACE-02 |
 | **03.12.1 Event Room + multi-session** | EVENT-ROOM-01, EVENT-ROOM-02, EVENT-ROOM-03, SESSION-01, SESSION-03, COMPAT-01, COMPAT-02, COMPAT-03, COMPAT-04, TRACE-01 |
 | **03.12.2 A2A Router** | A2A-01, A2A-02, A2A-03, A2A-04, SESSION-02, SESSION-03, COMPAT-01, COMPAT-02, COMPAT-03, COMPAT-04, TRACE-01 |
 | **03.12.3 single-point live walkthrough** | LIVE-01 (v3.12-context), LIVE-02 (v3.12-context), LIVE-03 (v3.12-context), LIVE-04 (v3.12-context), TRACE-01 (final), TRACE-02 (final) |
