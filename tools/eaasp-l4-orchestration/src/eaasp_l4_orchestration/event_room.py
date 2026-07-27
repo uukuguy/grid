@@ -90,6 +90,7 @@ NEVER inverts the authoritative audit ledger (L3
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -156,6 +157,40 @@ class EventRoomNotOpen(EventRoomError):
 
 class EventRoomNotOwned(EventRoomError):
     """Raised when a privileged operation is attempted by a non-owner."""
+
+
+class EventRoomNotAuthorized(EventRoomError):
+    """Raised when the calling principal is not a member (or owner) of the room.
+
+    Distinct from ``EventRoomNotOwned`` (which is specifically about
+    owner-only operations like ``close``). ``EventRoomNotAuthorized``
+    is raised by ``remove_member`` / ``fan_out_event`` when the
+    principal cannot authorize the action — either because they
+    are not a member at all, or because the membership row's
+    ``principal`` column does not match the caller (the bind was
+    performed by a different principal in the same session).
+    """
+
+    def __init__(
+        self, room_id: str, principal: str, detail: str = ""
+    ) -> None:
+        self.principal = principal
+        super().__init__(
+            room_id,
+            detail or f"principal {principal!r} not authorized",
+        )
+
+
+# v3.12.1 — REQ-ROOM-01: room_id format allowlist. The id is used as
+# the SSE event log key, the API URL path segment, and the SSE
+# ``event_id`` — strict pattern prevents injection / FTS5 corruption.
+_ROOM_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
+
+# v3.12.1 — REQ-ROOM-01 / per-tenant cap. A misbehaving caller
+# cannot fill the SQLite file with rooms. The cap is enforced at
+# ``create`` time (cheap COUNT query before INSERT).
+_ROOM_NAME_MAX_LEN = 256
+_ROOMS_PER_TENANT_CAP = 1024
 
 
 @dataclass
@@ -238,11 +273,25 @@ class EventRoomStore:
             raise ValueError("owner_principal must be a non-empty string")
         if name is not None and not isinstance(name, str):
             raise ValueError("name must be a string or None")
+        if name is not None and len(name) > _ROOM_NAME_MAX_LEN:
+            raise ValueError(
+                f"name must be <= {_ROOM_NAME_MAX_LEN} chars, got {len(name)}"
+            )
         safe_ttl = _clamp_ttl(ttl_seconds)
 
         final_room_id = room_id if room_id else f"er_{uuid.uuid4().hex[:16]}"
         if not final_room_id:
             raise ValueError("room_id must be a non-empty string")
+        # v3.12.1 — REQ-ROOM-01 / security review #5: room_id must
+        # match the strict pattern. Caller-supplied ids are URLs
+        # path segments AND SSE event log keys AND FTS5 tokens; a
+        # malicious caller could inject quotes, control characters,
+        # or unbounded-length strings otherwise.
+        if not _ROOM_ID_PATTERN.match(final_room_id):
+            raise ValueError(
+                f"room_id must match {_ROOM_ID_PATTERN.pattern!r} "
+                f"(got {final_room_id!r})"
+            )
 
         ts = int(now if now is not None else time.time())
         expires_at = ts + safe_ttl
@@ -251,6 +300,31 @@ class EventRoomStore:
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
+                # v3.12.1 — REQ-ROOM-01 / security review #5: per-tenant
+                # room-count cap. Cheap COUNT(*) query before INSERT
+                # rejects tenants that try to fill the SQLite file.
+                # The cap counts ``open + closed + expired`` rooms in
+                # this tenant (we don't reclaim rows on close; the
+                # ledger is append-only). The cap is intentionally
+                # global (NOT per-status) so a malicious tenant
+                # cannot bypass it by closing rooms.
+                cur = await db.execute(
+                    "SELECT COUNT(*) AS n FROM event_rooms "
+                    "WHERE tenant_id = ?",
+                    (tenant_id,),
+                )
+                count_row = await cur.fetchone()
+                existing_count = (
+                    int(count_row["n"]) if count_row is not None else 0
+                )
+                if existing_count >= _ROOMS_PER_TENANT_CAP:
+                    await db.rollback()
+                    raise ValueError(
+                        f"tenant {tenant_id!r} has reached the room cap "
+                        f"({_ROOMS_PER_TENANT_CAP}); close / expire stale "
+                        f"rooms before creating new ones"
+                    )
+
                 cur = await db.execute(
                     "SELECT 1 FROM event_rooms WHERE room_id = ?",
                     (final_room_id,),
@@ -397,17 +471,29 @@ class EventRoomStore:
     async def add_member(
         self, room_id: str, session_id: str, principal: str
     ) -> bool:
-        """Bind a session to a room. Idempotent on (room_id, session_id).
+        """Bind a session to a room.
 
         ``principal`` is the human/service principal who authorizes
-        the bind (recorded for audit but NOT enforced as a join
-        gate; the room owner / session orchestrator are the join
-        gates in the v3.12.1 contract). Returns ``True`` if a new
-        row was inserted, ``False`` if the (room_id, session_id)
-        pair was already present.
+        the bind. Returns ``True`` if a new row was inserted.
+
+        v3.12.1 — security review #4: a re-bind of an existing
+        (room_id, session_id) pair is NOT silently absorbed by
+        ``ON CONFLICT DO NOTHING``. The previous shape silently
+        swapped the principal who authorized the join without
+        surfacing it in the audit log — a caller could
+        re-``add_member`` with a new ``principal`` and the
+        original author would be erased. The new shape raises
+        ``EventRoomAlreadyExists`` (preserves the v3.12.1 audit
+        contract: re-bind must be a separate explicit operation
+        such as ``remove_member`` + ``add_member``). The existing
+        membership row stays intact (no UPDATE on conflict — the
+        caller decides whether to swap by going through the
+        remove+add sequence).
 
         Raises ``EventRoomNotFound`` if the room does not exist;
-        ``EventRoomNotOpen`` if the room is closed / expired.
+        ``EventRoomNotOpen`` if the room is closed / expired;
+        ``EventRoomAlreadyExists`` if the (room_id, session_id)
+        pair is already bound.
         """
         if not room_id:
             raise ValueError("room_id must be a non-empty string")
@@ -435,16 +521,63 @@ class EventRoomStore:
                         f"room status is {row['status']!r}, not 'open'",
                     )
 
-                # Idempotent insert: ON CONFLICT DO NOTHING. We then
-                # read the inserted-or-existing row to know whether a
-                # new row was created.
+                # v3.12.1 — security review #4: detect the
+                # re-bind BEFORE INSERT, raise explicitly, and
+                # emit a room event log row so the rejected
+                # attempt is auditable. The pre-INSERT probe +
+                # ROLLBACK-on-conflict is the only safe shape —
+                # ``ON CONFLICT DO NOTHING`` would silently swap
+                # the principal that authorized the bind.
+                cur = await db.execute(
+                    """
+                    SELECT 1 FROM event_room_members
+                     WHERE room_id = ? AND session_id = ?
+                    """,
+                    (room_id, session_id),
+                )
+                existing = await cur.fetchone()
+                if existing is not None:
+                    # Audit the rejected re-bind attempt (best-effort).
+                    ts = int(time.time())
+                    try:
+                        await db.execute(
+                            """
+                            INSERT INTO event_room_events
+                                (room_id, session_id, event_type, payload_json, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (
+                                room_id,
+                                session_id,
+                                make_event_room_event_type(
+                                    "member_rebind_rejected"
+                                ),
+                                json.dumps(
+                                    {
+                                        "attempted_principal": principal,
+                                        "ts": ts,
+                                    },
+                                    sort_keys=True,
+                                ),
+                                ts,
+                            ),
+                        )
+                    except Exception:
+                        pass  # best-effort audit
+                    await db.commit()
+                    raise EventRoomAlreadyExists(
+                        room_id,
+                        f"(room_id, session_id) already bound; "
+                        f"re-bind requires explicit remove+add "
+                        f"(audit §REQ-ROOM-04)",
+                    )
+
                 ts = int(time.time())
                 cur = await db.execute(
                     """
                     INSERT INTO event_room_members
                         (room_id, session_id, principal, joined_at)
                     VALUES (?, ?, ?, ?)
-                    ON CONFLICT(room_id, session_id) DO NOTHING
                     """,
                     (room_id, session_id, principal, ts),
                 )
@@ -459,23 +592,78 @@ class EventRoomStore:
         return inserted
 
     async def remove_member(
-        self, room_id: str, session_id: str
+        self,
+        room_id: str,
+        session_id: str,
+        principal: str,
     ) -> bool:
-        """Unbind a session from a room. Returns ``True`` if a row was deleted.
+        """Unbind a session from a room.
 
-        Idempotent: removing a non-member is a no-op that returns
-        ``False``. The room itself is not destroyed; callers that
-        want to close the room call ``close(room_id, principal)``.
+        v3.12.1 — security review #2: the calling principal must
+        match the row's ``principal`` column (self-removal) OR be
+        the room owner. The previous shape allowed ANY caller to
+        unbind ANY session from ANY room, which is a horizontal-
+        privilege-escalation bug — a non-member could remove a
+        member they had no relationship to.
+
+        Returns ``True`` if a row was deleted, ``False`` if the
+        (room_id, session_id) pair was not bound. Raises
+        ``EventRoomNotAuthorized`` if the principal cannot
+        authorize the removal; ``EventRoomNotFound`` if the room
+        does not exist (room existence is checked before the
+        authorization probe so the caller sees a stable error
+        code regardless of the room's state).
         """
         if not room_id:
             raise ValueError("room_id must be a non-empty string")
         if not session_id:
             raise ValueError("session_id must be a non-empty string")
+        if not principal:
+            raise ValueError("principal must be a non-empty string")
 
         db = await connect(self.db_path)
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
+                # Probe the room + member row together so we can
+                # distinguish "room missing" from "principal
+                # unauthorized" from "not a member".
+                cur = await db.execute(
+                    """
+                    SELECT m.principal AS member_principal,
+                           r.owner_principal AS room_owner
+                      FROM event_rooms r
+                      LEFT JOIN event_room_members m
+                        ON m.room_id = r.room_id
+                       AND m.session_id = ?
+                     WHERE r.room_id = ?
+                    """,
+                    (session_id, room_id),
+                )
+                row = await cur.fetchone()
+                if row is None:
+                    await db.rollback()
+                    raise EventRoomNotFound(room_id, "no such room")
+                member_principal = row["member_principal"]
+                if member_principal is None:
+                    # Not a member: idempotent no-op (consistent
+                    # with the original contract). Distinct from
+                    # "not authorized" — a non-member caller is
+                    # not a horizontal-privilege attack.
+                    await db.commit()
+                    return False
+                if (
+                    principal != member_principal
+                    and principal != row["room_owner"]
+                ):
+                    await db.rollback()
+                    raise EventRoomNotAuthorized(
+                        room_id,
+                        principal,
+                        "self-removal or room-owner only "
+                        "(audit §REQ-ROOM-02)",
+                    )
+
                 cur = await db.execute(
                     """
                     DELETE FROM event_room_members
@@ -554,19 +742,53 @@ class EventRoomStore:
         Idempotent on the DB (the second sweep returns an empty
         list because the previous sweep already flipped the
         status). Safe to call on a schedule.
+
+        v3.12.1 — security review #3: the candidate room_ids are
+        CAPTURED in a ``SELECT`` BEFORE the ``UPDATE`` runs, then
+        the ``UPDATE`` targets only those specific ids. The
+        previous shape updated via a filter predicate
+        (``WHERE status='open' AND expires_at <= ts``) and then
+        re-read the post-update set, which has a TOCTOU window:
+        another writer could insert a NEW room between the
+        UPDATE and the re-read that happens to satisfy the same
+        filter, and the returned list would include the
+        unrelated room. Capture-then-update closes the window.
         """
         ts = int(now if now is not None else time.time())
         db = await connect(self.db_path)
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
+                # Step 1: capture the candidate room_ids under the
+                # same transaction so the SELECT and the UPDATE
+                # observe a consistent snapshot.
                 cur = await db.execute(
                     """
+                    SELECT room_id FROM event_rooms
+                     WHERE status = ? AND expires_at <= ?
+                     ORDER BY room_id ASC
+                    """,
+                    (STATUS_OPEN, ts),
+                )
+                candidate_rows = await cur.fetchall()
+                candidate_ids = [r["room_id"] for r in candidate_rows]
+
+                if not candidate_ids:
+                    await db.commit()
+                    return []
+
+                # Step 2: UPDATE only the captured ids (not a
+                # filter predicate) so a concurrent INSERT of a
+                # new stale room cannot sneak into the result set.
+                placeholders = ",".join("?" for _ in candidate_ids)
+                cur = await db.execute(
+                    f"""
                     UPDATE event_rooms
                        SET status = ?
-                     WHERE status = ? AND expires_at <= ?
+                     WHERE room_id IN ({placeholders})
+                       AND status = ?
                     """,
-                    (STATUS_EXPIRED, STATUS_OPEN, ts),
+                    [STATUS_EXPIRED, *candidate_ids, STATUS_OPEN],
                 )
                 rows_affected = cur.rowcount
                 await db.commit()
@@ -576,24 +798,20 @@ class EventRoomStore:
         finally:
             await db.close()
 
-        if rows_affected == 0:
-            return []
-
-        # Re-read the IDs that flipped (read-only — no transaction).
-        db = await connect(self.db_path)
-        try:
-            cur = await db.execute(
-                """
-                SELECT room_id FROM event_rooms
-                 WHERE status = ? AND expires_at <= ?
-                 ORDER BY room_id ASC
-                """,
-                (STATUS_EXPIRED, ts),
+        # Sanity: the candidate set was the only thing the
+        # UPDATE could have flipped. If the UPDATE affected fewer
+        # rows than expected, log a warning (concurrent writer
+        # closed a candidate first) but DO NOT raise — the
+        # contract is "return the ids that flipped" not
+        # "raise on concurrent close".
+        if rows_affected < len(candidate_ids):
+            logger.info(
+                "expire_stale_rooms: {} candidates captured but {} flipped "
+                "(concurrent close / status change; non-error)",
+                len(candidate_ids),
+                rows_affected,
             )
-            rows = await cur.fetchall()
-        finally:
-            await db.close()
-        return [r["room_id"] for r in rows]
+        return candidate_ids[:rows_affected]
 
     async def list_active(
         self, tenant_id: str | None = None
@@ -641,6 +859,7 @@ class EventRoomStore:
         event_type: str,
         payload: dict[str, Any],
         origin_session_id: str,
+        principal: str | None = None,
     ) -> int | None:
         """Append ONE row to ``event_room_events`` and return its seq.
 
@@ -655,6 +874,22 @@ class EventRoomStore:
         ``origin_session_id`` is the session that emitted the event
         (the room-scoped SSE replay can skip echoing the event back
         to the emitter).
+
+        v3.12.1 — security review #1: ``principal`` is OPTIONAL
+        for backwards compatibility with the existing
+        ``MultiSessionCoordinator.emit_shared_event`` call site
+        which already passes the principal in the payload envelope.
+        When supplied, the principal must either:
+        - match the membership row's ``principal`` (the session
+          is a member of the room under this principal), OR
+        - match ``event_rooms.owner_principal`` (room-management
+          event from the room owner).
+
+        Without the membership check, a non-member caller could
+        emit a phantom fan-out to a room they're not in (horizontal
+        privilege escalation — event log poisoning). With the
+        check, every event row carries a verified authorization
+        chain.
         """
         if not room_id:
             raise ValueError("room_id must be a non-empty string")
@@ -667,6 +902,10 @@ class EventRoomStore:
             )
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dict")
+        if principal is not None and not principal:
+            raise ValueError(
+                "principal must be a non-empty string when supplied"
+            )
 
         payload_json = json.dumps(payload, sort_keys=True)
         ts = int(time.time())
@@ -675,13 +914,25 @@ class EventRoomStore:
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
-                # Validate the room exists and is open BEFORE writing
-                # the event row. Without this check, a stale session
-                # could fan-out into a closed room and the SSE bridge
-                # would deliver a phantom event.
+                # v3.12.1 — security review #1: probe the room +
+                # the membership row + the room owner in one
+                # SELECT. Without the membership check, a
+                # non-member caller could fan-out phantom events
+                # into a room they are not in. The check runs
+                # BEFORE the INSERT so a rejected attempt is
+                # never persisted.
                 cur = await db.execute(
-                    "SELECT status FROM event_rooms WHERE room_id = ?",
-                    (room_id,),
+                    """
+                    SELECT r.status AS room_status,
+                           r.owner_principal AS room_owner,
+                           m.principal AS member_principal
+                      FROM event_rooms r
+                      LEFT JOIN event_room_members m
+                        ON m.room_id = r.room_id
+                       AND m.session_id = ?
+                     WHERE r.room_id = ?
+                    """,
+                    (origin_session_id, room_id),
                 )
                 row = await cur.fetchone()
                 if row is None:
@@ -692,15 +943,38 @@ class EventRoomStore:
                         event_type,
                     )
                     return None
-                if row["status"] != STATUS_OPEN:
+                if row["room_status"] != STATUS_OPEN:
                     await db.rollback()
                     logger.warning(
                         "fan_out_event: room_id={} status={!r} (not open); dropping event_type={}",
                         room_id,
-                        row["status"],
+                        row["room_status"],
                         event_type,
                     )
                     return None
+                # Authorization gate (only when principal is supplied).
+                # Backwards-compat: pre-security-review callers that
+                # do not pass ``principal`` (e.g. tests, the
+                # MultiSessionCoordinator internal helper that
+                # already validates membership upstream) skip this
+                # check. New callers SHOULD pass principal.
+                if principal is not None:
+                    member_principal = row["member_principal"]
+                    room_owner = row["room_owner"]
+                    if (
+                        principal != member_principal
+                        and principal != room_owner
+                    ):
+                        await db.rollback()
+                        logger.warning(
+                            "fan_out_event: room_id={} principal={!r} "
+                            "not authorized (not a member and not the "
+                            "room owner); dropping event_type={}",
+                            room_id,
+                            principal,
+                            event_type,
+                        )
+                        return None
                 cur = await db.execute(
                     """
                     INSERT INTO event_room_events

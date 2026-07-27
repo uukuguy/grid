@@ -79,6 +79,7 @@ class SessionOrchestrator:
         mcp_resolver: McpResolver | None = None,
         event_engine: EventEngine | None = None,
         event_interceptor: EventInterceptor | None = None,
+        room_coordinator: Any | None = None,
     ) -> None:
         self.db_path = db_path
         self.l2 = l2
@@ -93,6 +94,15 @@ class SessionOrchestrator:
         # Phase 1 Event Engine — optional, None degrades to Phase 0.5 behavior.
         self.event_engine = event_engine
         self.event_interceptor = event_interceptor or EventInterceptor()
+        # v3.12.1 — Multi-Session Coordinator (Event Room + multi-session
+        # coordination). Optional; when None, ``close_session`` skips the
+        # auto-leave path and the session remains a member of any rooms it
+        # joined (no orphans; the room fan-out path is just disabled).
+        # The type is intentionally ``Any`` to avoid a circular import
+        # (``session_orchestrator_room.py`` already imports ``event_room``
+        # and would import ``session_orchestrator`` for the type — we
+        # invert the dependency at the API layer).
+        self.room_coordinator = room_coordinator
         # Active L1 clients keyed by session_id.
         self._l1_clients: dict[str, L1RuntimeClient] = {}
         # L4 session_id → L1 session_id mapping (L1 may generate its own).
@@ -694,11 +704,32 @@ class SessionOrchestrator:
             finally:
                 await l1.close()
 
+        # v3.12.1 — REQ-COORD-01: auto-leave every Event Room the
+        # session is currently a member of. Best-effort per audit
+        # §7.1: a leave failure NEVER inverts the close decision
+        # (which is the authoritative L4 session_events ledger
+        # entry below). The coordinator's ``auto_leave_event_rooms``
+        # itself is idempotent on (room_id, session_id) so a retry
+        # from a flaky caller is safe.
+        left_rooms: list[str] = []
+        if self.room_coordinator is not None:
+            try:
+                left_rooms = await self.room_coordinator.auto_leave_event_rooms(
+                    session_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "close_session: auto_leave_event_rooms failed "
+                    "(session_id={}): {}",
+                    session_id,
+                    exc,
+                )
+
         await self._update_status(session_id, "closed")
         await self.event_stream.append(
             session_id,
             "SESSION_CLOSED",
-            {"previous_status": current},
+            {"previous_status": current, "left_rooms": left_rooms},
         )
 
         # Phase 1: Interceptor emits POST_SESSION_END event via Event Engine.
@@ -706,7 +737,11 @@ class SessionOrchestrator:
             end_event = self.event_interceptor.create_session_end(session_id)
             await self.event_engine.ingest(end_event)
 
-        return {"session_id": session_id, "status": "closed"}
+        return {
+            "session_id": session_id,
+            "status": "closed",
+            "left_rooms": left_rooms,
+        }
 
     # ─── List sessions (D41) ──────────────────────────────────────────────
     async def list_sessions(
