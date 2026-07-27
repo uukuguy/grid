@@ -16,45 +16,45 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Latest Shipped Milestone: v3.9 route-catalog RBAC wiring + authorization auditor
+## Latest Shipped Milestone: v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ 2026-07-27
 
-**Goal:** Make `grid-server` route-by-route authorization **explicitly declared and statically enforced**: every non-public business HTTP route is annotated with the `Action` it requires, every public route is on an explicit allowlist, and a CI auditor fails any route that has neither. The `Action` enum is extended (and the `Role × Action` matrix regenerated) whenever the catalog reveals an action that the current 7-Action vocabulary does not express. `AuthMode::None/ApiKey` semantics are not changed; `AuthMode::Full` runs full per-route RBAC.
+**Goal:** Stand up the production L3 OPA/Rego sidecar (ADR-V2-034) on top of the v3.7.3 in-process gate, wire the L3 OPA backend adapter with the in-repo Rego bundle, install the 5-stage approval state machine (Plan → Check → Draft → Approve → Execute, with deny-always-wins + human-in-the-loop pause at the Approve stage), and capture a single-point live walkthrough against a real OPA sidecar on `127.0.0.1:18181`.
 
-**Source of scope:** v3.8.2 plan §Task 4 explicit deferral ("the rest of the endpoints stay un-scoped for v3.8.2 ... full-catalog coverage is v3.9+") + RESUME-NEXT-SESSION.md §Optional sidequests ("Audit the route catalog for `requires(Action)` annotations"). User prioritized per ADR-V2-024 Open Item #3 (grid-cli + grid-server priority axis) — extends the v3.8 RBAC investment to the rest of the ~127 still-unannotated endpoints.
+**Source of scope:** v3.10 platform-skeleton alignment (16/16 REQ-IDs, 174 tests) + V310-OPA-01 + V310-APPROVAL-01 in `docs/design/EAASP/DEFERRED_LEDGER.md` + EVOLUTION_PATH §三 Phase 3 (production OPA approval chain). The v3.11.3 single-point live walkthrough surfaced a real architectural finding: `audit.py`'s CHECK constraint on `governance_decisions.decision` does not yet include `await_human` (the sentinel value emitted by the 5-stage state machine at the Approve stage). Filed as a v3.12 candidate item.
 
-**Target features:**
+**Target features (v3.11.0 / 03.11.1 / 03.11.2 / 03.11.3 — 4 phases, 29 REQ-IDs total):**
 
-- **`RouteCatalog`** source of truth at `crates/grid-server/src/rbac/catalog.rs` enumerating every business HTTP route with `(method, path, route_kind ∈ { Requires(Action), Public })`. Catalog is `pub`; both manual-decorated-router and generate-from-router patterns are acceptable.
-- **Public allowlist** — compile-time `const` next to the catalog. Default entries: `/api/health`, `/api/health/live`, `/api/v1/auth/login` (the login path is invoked before the JWT is issued). Anything not on the allowlist AND not annotated with `Requires(Action)` is a CI failure.
-- **Static CI auditor** — runs on every PR; exits 0 when the catalog is complete, exits 1 with a named-route report when any route is unannotated. Wired into `.github/workflows/ci.yml` after `cargo check --workspace` and before `cargo test`. Also exposed as `make rbac-audit`.
-- **`Action` vocabulary extension** — when the catalog surfaces a route whose semantic action is not in the existing 7-Action enum (`Read`, `CreateSession`, `RunAgent`, `ManageMcp`, `ManageSkills`, `ManageUsers`, `ManageBilling`), new variants are added (e.g. `ManageHooks`, `ManageMemories`, `ManageAudit`, `ManageConfig`, `ManageSecrets`, `ManageSandbox`, `ManageScheduler`) and `Role::can(Action)` is regenerated in `crates/grid-engine/src/auth/roles.rs`. The 7-Action baseline is a starting point, not a cap.
-- **`AuthMode::None/ApiKey` parity** — `test_auth_modes None/ApiKey` paths are bit-for-bit unchanged. Only `AuthMode::Full` requests hit the new per-route RBAC. `Owner` always succeeds; `Viewer` cannot call non-Read annotated routes; `User` extends to Read + CreateSession + RunAgent; `Admin` extends to ManageMcp / ManageSkills / ManageUsers.
+- **03.11.0 OPA sidecar infrastructure** — ADR-V2-034 Accepted (sidecar on `127.0.0.1:18181`, in-repo Rego templates + atomic user bundles, fail-closed on OPA error). `scripts/eaasp-install-opa.sh` installs the OPA binary to `third_party/opac/opa` with SHA256 verification; `make opa-install` / `make opa-clean` Makefile targets. `third_party/` in `.gitignore`. No shared-crate change. `V310-OPA-01` CLOSED.
+- **03.11.1 L3 OPA backend adapter + Rego templates** — `OPABackend` adapter at `tools/eaasp-l3-governance/src/eaasp_l3_governance/opa_backend.py` posting `{"input": request}` to `/v1/data/governance/decision`. 5 fail-closed modes (connection-refused / timeout / non-2xx / parse-error / missing-field) return synthesized `deny` with `infra_unavailable=True` + stable cause identifier. `PolicyEngine.evaluate_with_opa()` routes through the adapter when `opa_enabled=True`. In-repo Rego template at `policies/governance.rego` implements deny-always-wins (§15.9), risk classification (§6.1), 3-state decision (§6.9, §6.10). 57 targeted tests PASS (30 OPABackend + 11 PolicyEngine OPA + 12 Rego contract + 4 in-process integration).
+- **03.11.2 5-stage approval state machine** — `ApprovalStateMachine` (Plan → Check → Draft → Approve → Execute) with `STAGE_ORDER` tuple. `record_governance_decision(..., stage=...)` extension. 5 `SessionEventStream.emit_governance_approval_<stage>(...)` SSE events. `governance_decisions.stage` column added via idempotent `ALTER TABLE` migration. Deny short-circuits remaining stages. `V310-APPROVAL-01` CLOSED.
+- **03.11.3 single-point live walkthrough** — `docs/status/PRODUCTION_USABILITY_2026-07-27.md` + `docs/status/PRODUCTION_USABILITY_LOGS_2026-07-27/` capture: 7 EAASP services up via `.grid/dev-eaasp-live.sh`, 5 SSE events in canonical order (seq 26–30, single request_id), 5 OPA roundtrips, 18 rows in L3 ledger across 3 chain runs, 3-state OPA decision end-to-end. v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 all preserved.
 
-**Out of scope (deferred to v3.10+):**
+**Out of scope (deferred to v3.12+):**
 
-- `web-platform/` Quality 7.5→9.0 — separate milestone
-- `grid-desktop` Quality 6.5→9.0 — separate milestone
-- `grid-platform` route catalog audit — separate milestone (v3.9 only audits `grid-server`)
-- EAASP v2.0 Phase 3 production OPA backend — only the in-process `PolicyEngine` from 3.7.3 is in scope; OPA sidecar is a separate item
-- Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem — untouched
-- SSO (SAML/OIDC) — defer; JWT-only this milestone
-- Refresh-token rotation — v3.8.1 §Out of scope; v3.9+=scope
-- Multi-role per user — single role per user preserved from v3.8.2
+- **Phase 4 A2A / Event Room** — V310-A2A-01 / V310-SESSION-01; v3.12 scope.
+- **Phase 5 L5 Cowork UI** — V310-COWORK-01; v3.13+ scope.
+- **Phase 6 ecosystem expansion** — V310-ECOSYSTEM-01 / V310-MAT-01; v3.14+ scope.
+- **L1 infrastructure tier changes (gVisor / Firecracker / Kata)** — V310-SANDBOX-01; long-term.
+- `audit.py` CHECK constraint widening to include `await_human` — surfaced by v3.11.3 walkthrough §7; v3.12.0 SCOPE (D-23).
+- `web-platform/` Quality 7.5→9.0 / `grid-desktop` Quality 6.5→9.0 / `grid-platform` route catalog audit — separate milestones (carried forward).
 
 **See also (canonical sources):**
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
-- `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` (engine vs data/integration dual-axis; Open Item #3 = grid-cli + grid-server priority)
-- `crates/grid-engine/src/auth/roles.rs` (Role × Action matrix — v3.9 extends it)
-- `crates/grid-server/src/api/mod.rs` + `router.rs` (the ~130-endpoint catalog target)
-- `docs/status/PROJECT_STATUS_2026-07-17.md` (dated audit snapshot)
-- `.planning/milestones/v3.8-REQUIREMENTS.md` (v3.8 deferred items map to v3.9 scope)
+- `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md` §三 (Phase 3 SHIPPED; Phase 4 next)
+- `docs/design/EAASP/DEFERRED_LEDGER.md` (V310-OPA-01 / V310-APPROVAL-01 CLOSED; V310-A2A-01 / V310-SESSION-01 active for v3.12)
+- `docs/status/PRODUCTION_USABILITY_2026-07-27.md` (v3.11.3 dated walkthrough; §7 audit.py CHECK constraint finding)
+- `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md` (OPA sidecar ADR)
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` (the source of `DECISION_AWAIT_HUMAN`)
+- `.planning/REQUIREMENTS.md` v3.11 sections (29 REQ-IDs)
 
 **Key context:**
-- 双轴框架 (ADR-V2-024 §1): engine vs data/integration. The route catalog is Grid 独立产品 surface; the engine-layer `Role × Action` matrix in `grid-engine` is shared and must remain leg-agnostic (ADR-V2-023 P1).
-- Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; this milestone continues that axis by hardening grid-server's authorization surface end-to-end.
-- All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1). v3.9 extends the engine-layer `Action` enum but adds no leg-specific branches; D-09 test `test_rbac_engine_layer_is_leg_agnostic` verifies.
+- **双轴框架 (ADR-V2-024 §1)**: engine vs data/integration. v3.11 is engine 接入面 axis (L3/L4 EAASP reference implementations); Grid 独立产品 inherits the resulting clean contract surface.
+- **Priority axis (ADR-V2-024 Open Item #3)**: grid-cli + grid-server first. v3.11 deliberately pivots to engine-side L3 OPA + 5-stage approval; grid-server / grid-platform / grid-desktop are dormant this milestone.
+- **Shared core rule (ADR-V2-023 P1) preserved**: v3.11.0 explicitly verified COMPAT-02 (no shared crate touched); v3.11.1 / 03.11.2 changes are constrained to `tools/eaasp-l3-governance/` + `tools/eaasp-l4-orchestration/`. No leg-specific branches introduced.
 
 **Previous milestones:**
+- **v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED 2026-07-26** (4 phases: 03.10.0–03.10.3, 16/16 REQ-IDs, 174 targeted tests PASS)
+- **v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED 2026-07-26** (3 phases: 03.9.0–03.9.2, 20 REQ-IDs, 49 targeted tests PASS)
 - **v3.8 grid-server multi-user login SHIPPED 2026-07-24** (4 phases: 03.8.0–03.8.3, 21 REQ-IDs, 119/119 targeted tests PASS, 3 security hotfixes)
 - **v3.7 实战可用性补全 SHIPPED 2026-07-23** (3 phases: 3.7.1 grid-cli / 3.7.2 web/ / 3.7.3 EAASP; 3.7.4 SKIPPED → v3.8)
 - **v3.6 Post-Activation Docs Sync SHIPPED 2026-07-19**
@@ -72,51 +72,61 @@
 - Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on.
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
-## Current Milestone: v3.10 EAASP v2.0 platform-skeleton alignment (SHIPPED 2026-07-26)
+## Current Milestone: v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 (bootstrapping)
 
-**Goal:** Align `tools/eaasp-*` reference implementations with the canonical EAASP v2.0 platform contract (`docs/design/EAASP/EAASP-Design-Specification-v2.0.docx`) along three axes — **MAT** (memory/manifest), **PIPE** (orchestration pipes), **VERIFY** (certifier conformance) — without widening the existing `contract-v1.2.0` surface or adding new dependencies. Skeleton alignment is a precondition for the future EVOLUTION_PATH §三 Phase 3 (OPA approval chain) / Phase 4 (A2A Event Room) / Phase 5 (L5 Cowork UI) / Phase 6 (ecosystem expansion) work.
+**Goal:** Begin EAASP v2.0 EVOLUTION_PATH §三 Phase 4 by delivering the **A2A Router** (agent-to-agent coordination across multiple sessions) and **Event Room** (multi-session event coordination that V310-A2A-01 deferred from v3.10 and V310-SESSION-01 deferred from v3.10 require). The milestone also closes a real bug surfaced during the v3.11 single-point live walkthrough: `audit.py`'s CHECK constraint on `governance_decisions.decision` does not include the `await_human` sentinel value emitted by the 5-stage approval state machine at the Approve stage; therefore `await_human` rows cannot be persisted to the L3 audit ledger until the constraint is widened. v3.12.0 patches the schema first (idempotent `ALTER TABLE` migration per D-26); v3.12.1 lands the Event Room + multi-session coordination; v3.12.2 lands the A2A Router; v3.12.3 is a single-point live walkthrough that demonstrates the whole Phase 4 surface.
 
-**Source of scope:** Post-v3.9 audit (20/20 REQ-IDs SHIPPED, 49 targeted tests PASS, 134-route catalog) + EVOLUTION_PATH §三 8-Phase roadmap (Phase 0–2.5 SHIPPED, Phase 3–6 ⏸ pending). The bottleneck surfaced across `tools/eaasp-l2-memory-engine/`, `tools/eaasp-l3-governance/`, `tools/eaasp-l4-orchestration/`, `tools/eaasp-skill-registry/`, `tools/eaasp-mcp-orchestrator/`, `tools/eaasp-certifier/` is that reference implementations have drifted from the canonical EAASP v2.0 spec on three independent axes. v3.10 produces a section-by-section alignment matrix, then lands each axis in its own phase.
+**Source of scope:** v3.11.3 live walkthrough report (`docs/status/PRODUCTION_USABILITY_2026-07-27.md` §7) surfaced the `audit.py` CHECK constraint gap as a known finding (currently filed in v3.11.3 deferred-items for v3.12 review). V310-A2A-01 + V310-SESSION-01 in `docs/design/EAASP/DEFERRED_LEDGER.md` are the deferred Phase 4 items (`📦 deferred_to_v3.12+ / Phase 4`). v3.12 is the 4-phase ladder recommended by v3.10's EVOLUTION_PATH-aligned sequencing: v3.10 (alignment) → v3.11 (Phase 3 OPA + 5-stage) → v3.12 (Phase 4 A2A + Event Room + multi-session).
+
+**Why 4 phases (and the order that puts schema first):**
+
+- **03.12.0 (Schema + audit constraint patch)** MUST ship before 03.12.1 / 03.12.2 — the `await_human` rows that the 5-stage state machine emits at the Approve stage must not be silently dropped by the CHECK constraint. Without 03.12.0, the live walkthrough in 03.12.3 cannot reproduce the paused-state audit evidence end-to-end.
+- **03.12.1 (Event Room + multi-session)** — depends on 03.12.0 (rows may carry `await_human` + `stage`); establishes the Event Room namespace that the A2A Router dispatches into.
+- **03.12.2 (A2A Router)** — depends on 03.12.1 (Event Room as dispatch target); wires the same v3.7.3 governance gate + v3.11.2 5-stage approval chain into the A2A dispatch path.
+- **03.12.3 (single-point live walkthrough)** — final; reproduce the awaited-state audit evidence end-to-end against real OPA sidecar + Event Room + A2A Router.
 
 **Target features:**
 
-- **`tools/eaasp-spec-alignment/`** new documentation tree under `tools/`, holding `memory_manifest.md` (MAT axis), `pipe_topology.md` (PIPE axis), `certifier_surface.md` (VERIFY axis), `ALIGNMENT_MATRIX.md` (cross-index). Each spec section is mapped `(spec_section, impl_path, impl_symbol, status ∈ {aligned, drift, missing})`.
-- **MAT axis** — reconcile L2 memory 7 MCP tools (`search`, `read`, `write_file`, `write_anchor`, `confirm`, `list`, `delete`) and skill manifest fields (`name`, `version`, `entrypoints`, `required_tools`, `mcp_servers`, `permissions`) against `tools/eaasp-l2-memory-engine/src/mcp.rs` and `tools/eaasp-skill-registry/src/manifest.rs`. In-place patches ≤10 LOC; larger drifts filed as `missing` in DEFERRED_LEDGER.md.
-- **PIPE axis** — reconcile L4 orchestration pipe topology (input → context → governance → dispatch → result → audit → output, per EAASP_v2_0_EVOLUTION_PATH.md §三 3 管道), SSE event shape, L3 governance gate boundaries (preserving v3.7.3 gate semantics), and session lifecycle (preserving ADR-V2-017 §2 double-Terminate NO-OP) against `tools/eaasp-l4-orchestration/src/` and `tools/eaasp-l3-governance/src/`.
-- **VERIFY axis** — `make v3.10-spec-audit` target running `cargo run -p eaasp-certifier -- spec-audit --report tools/eaasp-spec-alignment/REPORT.md`; CI gate ordering `cargo check → make v3.10-spec-audit → cargo test` (v3.9 pattern carry-over, D-03).
-- **Contract + L1 substitutability guards** — `proto/eaasp/runtime/v2/` (21 RPC: 17 runtime + 4 hook) and `contract-v1.2.0` remain wire-compatible; all 7 L1 runtimes (`grid-runtime` + claude-code / goose / nanobot / pydantic-ai / claw-code / ccb; `hermes` frozen per ADR-V2-017) continue to pass certifier. Verified by `make v2-phase3-e2e-rust`.
+- **Schema + audit constraint patch** — extend `audit.py` so `governance_decisions.decision` CHECK constraint accepts `await_human` (alongside the existing `allow` / `approve` / `deny` / `gate_request`). Idempotent `ALTER TABLE` migration so existing DBs upgrade cleanly. Backfill considerations: no live rows to migrate (awaits_human rows are emitted by the in-process harness only, not persisted to L3 yet). The `reason` field carries the `DECISION_AWAIT_HUMAN` sentinel when the state machine pauses at the Approve stage.
+- **Event Room** — multi-session coordination workspace mirroring EAASP v2.0 spec §5.3 / §14 (per `EAASP_v2_0_EVOLUTION_PATH.md` §三 Phase 4 scope). An Event Room is a logical namespace that spans multiple sessions and binds their events together; this is the substrate for A2A.
+- **multi-session coordination** — the engine-layer orchestration that fans events across sessions in the same Event Room, with the L4 SSE stream carrying the fan-out. Preserve v3.11.2's existing per-session SSE contract; add a new `governance.session.cross` event family for cross-session visibility.
+- **A2A Router** — agent-to-agent routing service that dispatches an outbound turn from one session to another (or to a tenant-shared router) per spec §17. Closely aligned with v3.7.3's governance gate semantics + v3.11.2's 5-stage approval state machine (`Plan → Check → Draft → Approve → Execute`); the A2A dispatch path runs through the same gate.
+- **single-point live walkthrough** — confirm the audit.py CHECK constraint patch holds under live OPA sidecar, the Event Room fans events across sessions, and the A2A Router dispatches across sessions; capture dated evidence at `docs/status/PRODUCTION_USABILITY_2026-07-28.md`.
 
-**Out of scope (deferred to v3.11+):**
+**Out of scope (deferred to v3.13+):**
 
-- **EAASP Phase 3 production OPA backend** — pre-work blocked on v3.10 skeleton alignment; v3.11+ scope per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`
-- **Phase 4 A2A / Event Room** — v3.12+ scope
-- **Phase 5 L5 Cowork UI** — v3.13+ scope
-- **Phase 6 ecosystem expansion** — v3.14+ scope
-- `web-platform/` Quality 7.5→9.0 — separate milestone (carried forward from v3.9 OOS)
-- `grid-desktop` Quality 6.5→9.0 — separate milestone (carried forward from v3.9 OOS)
-- `grid-platform` route catalog audit — separate milestone; v3.10 only audits `tools/eaasp-*` and `grid-engine` shared core (carried forward from v3.9 OOS)
-- Multi-role per user / SSO / refresh-token rotation / per-tenant Action policy override — out of v3.10
+- **Phase 5 L5 Cowork UI** — v3.13+ scope (per EVOLUTION_PATH §三 Phase 5).
+- **Phase 6 ecosystem expansion** — v3.14+ scope (per V310-ECOSYSTEM-01 / V310-MAT-01).
+- **L1 infrastructure tier changes (gVisor / Firecracker / Kata)** — long-term (V310-SANDBOX-01).
+- **NATS JetStream backend for EventStream** — long-term (D75).
+- **`web-platform/` Quality 7.5→9.0** — separate milestone (carried forward).
+- **`grid-desktop` Quality 6.5→9.0** — separate milestone (carried forward).
+- **`grid-platform` route catalog audit** — separate milestone (carried forward).
+- **Multi-role per user / SSO / refresh-token rotation / per-tenant Action policy override** — out of v3.12.
+- **Schema migration beyond the audit CHECK constraint** — out of v3.12 (D-26 carry-over: the constraint extension is the only schema change; new tables / columns are deferred).
 
 **See also (canonical sources):**
+
 - `docs/PROJECT_PRODUCT_OVERVIEW.md` (maintained SSOT)
-- `docs/design/EAASP/EAASP-Design-Specification-v2.0.docx` (canonical EAASP v2.0 spec of record; ~4373 KB)
-- `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md` (long-term cross-phase decision registry; §三 8-Phase roadmap)
-- `docs/design/EAASP/DEFERRED_LEDGER.md` (cross-phase D-item SSOT)
-- `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` (engine vs data/integration dual-axis; Open Item #3 = grid-cli + grid-server priority)
-- `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` (crate-level dual-axis boundary)
-- `tools/eaasp-certifier/` (existing v1.2.0 contract certifier; v3.10 adds `--spec-audit` subcommand)
-- `proto/eaasp/runtime/v2/{common,runtime,hook}.proto` (21 RPC surface — frozen for v3.10, D-13)
-- `.planning/REQUIREMENTS.md` v3.10 section (16 REQ-IDs, locked decisions D-11..D-18)
+- `docs/design/EAASP/EAASP-Design-Specification-v2.0.docx` (canonical EAASP v2.0 spec of record; §5.3 / §14 / §17 are the Phase 4 sections)
+- `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md` §三 (long-term cross-phase decision registry; Phase 4 scope)
+- `docs/design/EAASP/DEFERRED_LEDGER.md` (cross-phase D-item SSOT; V310-A2A-01 / V310-SESSION-01 / V311-AUDIT-01)
+- `docs/design/EAASP/PHASE_3_DESIGN.md` (Phase 3 design — adjacency for Phase 4; spec §6.9 / §6.10)
+- `docs/status/PRODUCTION_USABILITY_2026-07-27.md` §7 (v3.11.3 audited finding that motivates `audit.py` CHECK constraint patch)
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/audit.py` (target file for SCHEMA-01..03)
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` (the source of `DECISION_AWAIT_HUMAN`; v3.11.2)
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_stream.py` (the SSE event surface; v3.7.3 + v3.11.2)
+- `.planning/REQUIREMENTS.md` v3.12 section (13–16 REQ-IDs, locked decisions D-23..D-29)
 
 **Key context:**
-- **双轴框架 (ADR-V2-024 §1)**: engine vs data/integration. The skeleton alignment work is **engine 接入面** axis (EAASP reference implementations + L1 substitutability guard); Grid 独立产品 inherits the resulting clean contract surface.
-- **Priority axis (ADR-V2-024 Open Item #3)**: grid-cli + grid-server first. v3.10 deliberately pivots to engine-side hardening to unblock Phase 3–6; grid-server / grid-platform / grid-desktop are dormant this milestone.
-- **Shared core rule (ADR-V2-023 P1) preserved (D-17)**: any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic; verified by `test_v3_10_shared_core_unchanged` (new, COMPAT-03).
 
-**Previous milestone:**
-- **v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED 2026-07-26** (3 phases: 03.9.0–03.9.2, 20 REQ-IDs, 49 targeted tests PASS)
+- **mvp-calibration skill + `make dev-eaasp` minimum bar** (D-25): the Phase 0.5 MVP human-executable floor (threshold-calibration + make dev-eaasp) is still the executable baseline; v3.12 adds a new A2A coordination walkthrough scenario on top of that floor.
+- **idempotent migration pattern** (D-26): the `audit.py` CHECK constraint extension MUST use `ALTER TABLE` (matching the existing v3.11.2 `stage` column migration pattern); existing DBs upgrade cleanly without losing history. No destructive schema work.
+- **no new repo / no new service port** (D-27): v3.12 stays in `tools/eaasp-*/` simulator-level implementations; no new service ports opened; the existing 7 EAASP services (skill-registry, L2, L3, mock-scada, MCP orchestrator, grid-runtime, L4) on `.grid/dev-eaasp-live.sh` launch topology are reused.
+- **安全边界回归 guard** (D-28): v3.9 route-catalog RBAC (134 routes / `make rbac-audit`) + v3.10 spec-audit (4 files / 37 rows / `make v3.10-spec-audit`) + ADR-V2-023 P1 shared-core rule + ADR-V2-034 OPA sidecar ALL continue to PASS through every v3.12 phase. No shared-crate change is anticipated, but if any change is required it must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品.
+- **探索策略** (D-29): Explore + Grep (no `.codegraph/` in this repo).
 
-**Locked decisions (from v3.10 discussion — non-negotiable):** see `.planning/REQUIREMENTS.md` v3.10 section D-11..D-18 (8 decisions: scope, three-axis mapping, contract compatibility, L1 guard, no new deps, no schema migration, shared-core rule, phase ladder).
+**Locked decisions (from v3.12 discussion — non-negotiable):** see `.planning/REQUIREMENTS.md` v3.12 section D-23..D-29.
 
 ## Core Value
 
@@ -125,7 +135,7 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 
 ### Validated
 
-<!-- Existing capabilities — proven by Phase 2 → 4a delivery. -->
+<!-- Existing capabilities — proven by Phase 2 → v3.11 delivery. -->
 
 - ✓ **Phase 4.0 Bootstrap & Cleanup**(2026-04-27) —— GSD 治理底座 REVIEW_POLICY.md 落地 + Phase 4a 遗留 4 项 doc-cleanup(CLEANUP-01..04)归零 + GOVERNANCE-01 dry-run pass。Validated in Phase 4.0(commit `c12f425`),verifier 7/7 must-haves PASS,GSD plumbing tracer-bullet(discuss → research → patterns → plan → plan-checker → execute → verifier)全链路一次过。
 - ✓ **L1 RuntimeService 16-method gRPC contract** —— `proto/eaasp/runtime/v2/runtime.proto` 冻结,7 runtime × contract-v1.1 通过(`make v2-phase3-e2e` 112/112 PASS)
@@ -149,13 +159,15 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 - ✓ **v3.7 实战可用性补全 (Production-Usability Closure)** (2026-07-23, archived) —— 3 phases SHIPPED (3.7.4 SKIPPED, deferred to v3.8): 3.7.1 grid-cli 实战补全 (8/9 REQ-AUDITs), 3.7.2 web/ dashboard 实战化 (9 REQ-WEB), 3.7.3 EAASP 本地仿真实战补全 (8/8 REQ-EAASP). 175/175 tests PASS total across milestone. 50 commits, 76 files, 17,095 insertions. All 10 locked decisions (D-01..D-10) honored; default mode preserved; existing tests unaffected; live walkthrough BLOCKED on missing LLM API key per CLAUDE.md §Runtime Verification Tasks.
 - ✓ **v3.8 grid-server multi-user login (Tenant + RBAC + JWT)** (2026-07-24, archived) —— 4 phases SHIPPED (03.8.0–03.8.3), 21 REQ-IDs in 6 categories, 119/119 targeted tests PASS, 3 security hotfixes (CRITICAL blacklist bypass, HIGH refresh stale-claim, HIGH audit IDOR). Demonstrated `requires(Action)` on 3 representative routes; remaining ~127 endpoints deferred to v3.9 per 03.8.2 plan §Task 4 + RESUME-NEXT-SESSION §Optional sidequests. Full archive: `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`.
 - ✓ **v3.9 route-catalog RBAC wiring + authorization auditor** (2026-07-26, archived) —— 3 phases SHIPPED (03.9.0–03.9.2), 20 REQ-IDs in 5 categories (CAT / AUD / RBAC / MODE / TEST+DOC). 49/49 targeted tests PASS, 134-entry route catalog, 20-variant `Action` enum + regenerated `Role × Action` matrix (D-04), `make rbac-audit` + CI gate ordering `cargo check → rbac-audit → cargo test` (D-03), 3 post-ship security fixes (PUBLIC_ROUTE_ALLOWLIST unification / JWT `user` role mapping / catalog_rbac_middleware Public/Requires/distinguish). `AuthMode::None/ApiKey` semantics bit-for-bit unchanged (D-05). Archive: `.planning/milestones/v3.9-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`.
+- ✓ **v3.10 EAASP v2.0 platform-skeleton alignment** (2026-07-26, archived) —— 4 phases SHIPPED (03.10.0–03.10.3), 16/16 REQ-IDs in 5 categories (MAT / PIPE / VERIFY / COMPAT / TRACE), 174 targeted tests PASS. Section-by-section alignment matrix + deterministic spec audit + ordered CI gate delivered. Live real-skill walkthrough awaits LLM credentials per `docs/status/PRODUCTION_USABILITY_2026-07-26.md`.
+- ✓ **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain** (2026-07-27, archived) —— 4 phases SHIPPED (03.11.0 / 03.11.1 / 03.11.2 / 03.11.3), 29 REQ-IDs in 5 categories (OPA / INSTALL / OPA-BACKEND / REGO / FAIL-CLOSED / DISABLED / STAGE / SSE / AUDIT / DENY / LIVE; 6 + 9 + 14 + LIVE-01..04). Real OPA sidecar v0.68.0 on `127.0.0.1:18181`; 5-stage approval state machine with deny-always-wins + human-in-the-loop pause at Approve stage; 5 SSE events in canonical order; 18 rows in L3 governance_decisions across 3 chain runs. `V310-OPA-01` + `V310-APPROVAL-01` CLOSED. Live walkthrough captured at `docs/status/PRODUCTION_USABILITY_2026-07-27.md` + `docs/status/PRODUCTION_USABILITY_LOGS_2026-07-27/`. v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 all preserved.
 
 ### Active
 
-<!-- v3.10 next-milestone scope + 4 EAASP platform-evolution gaps are the open scope. -->
+<!-- v3.12 next-milestone scope is the open scope. v3.11 surface-complete base. -->
 
-- [x] **v3.10 EAASP v2.0 platform-skeleton alignment** — SHIPPED 2026-07-26. Four phases complete, 16/16 REQ-IDs closed, 174 targeted tests PASS. Alignment matrix + deterministic spec audit + ordered CI gate delivered; live real-skill walkthrough awaits an LLM API key.
-- [ ] **EAASP v2.0 platform-evolution gaps (4 items, future milestones)**: Phase 3 production OPA approval chain (v3.7.3 wires minimum credible in-process gate; full backend deferred — pre-work blocked on v3.10 skeleton alignment per D-13) / Phase 4 A2A + Event Room / Phase 5 L5 Cowork UI / Phase 6 ecosystem expansion. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
+- [ ] **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调** — bootstrapping (this commit). 4 phases planned (03.12.0 schema + audit constraint patch → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough). 13–16 REQ-IDs across 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT). Closes V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 (audit.py CHECK constraint gap surfaced by v3.11.3 walkthrough §7).
+- [ ] **EAASP v2.0 platform-evolution gaps (carry forward, future milestones)**: Phase 5 L5 Cowork UI (V310-COWORK-01) / Phase 6 ecosystem expansion (V310-ECOSYSTEM-01 / V310-MAT-01) / L1 infrastructure tier changes (V310-SANDBOX-01). Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 
 ### Out of Scope
 
@@ -167,7 +179,8 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 - **EAASP 与 Grid 立即分仓** —— per `.planning/phases/4.1-PRE-AUDIT-NOTES.md` §A.1 同仓孵化,分仓时点由 Phase 4.1 audit 决定;现阶段不动
 - **超出当前 baseline 的 Grid Platform / Server / Desktop / Web 增量功能开发** —— per `.planning/phases/4.1-PRE-AUDIT-NOTES.md` §C.3 #3,Grid 产品化路径优先级待 audit 决定;在此之前任何 PR 触碰这几个 crate 需 reviewer justification(checklist 由 CLEANUP-03 落地)
 - **替换现有 Plan 流水到 `docs/plans/2026-*-plan.md` 单文件结构** —— GSD 用 `.planning/phases/<phase>/PLAN.md` 多目录结构,各管各的
-- **v3.10 out-of-scope items** (`.planning/REQUIREMENTS.md` v3.10 §Out of Scope): Phase 3 OPA backend / Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem / proto contract widening / schema migration for L2 memory or skill manifest / L1 runtime additions or substitutions — all deferred to v3.11+ or later
+- **v3.11 out-of-scope items** (`.planning/REQUIREMENTS.md` v3.11 §Out of Scope): Phase 4 A2A / Phase 5 L5 / Phase 6 ecosystem / proto contract widening / L1 runtime additions or substitutions — all deferred to v3.12+ or later
+- **v3.12 out-of-scope items** (`.planning/REQUIREMENTS.md` v3.12 §Out of Scope, D-26 / D-27): Phase 5 L5 / Phase 6 ecosystem / L1 infrastructure tier changes / NATS JetStream backend / new service ports / new tables or columns beyond the audit CHECK constraint extension — all deferred to v3.13+ or later
 
 ## Context
 
@@ -179,7 +192,7 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 
 **技术栈成熟度**:13 Rust crate(~178K LOC)+ 5 Python lang/runtime + 9 EAASP tools(~29K LOC)+ 226 test files。Cargo workspace 严格依赖纪律(`[workspace.dependencies]` 40+ pin),Python 全 `uv` 管理,Pyright `pyrightconfig.json` 9 per-env executionEnvironments,proto codegen 走 `scripts/gen_runtime_proto.py` 单 SoT。`unsafe` 全工程零块。
 
-**治理底座**:15 ADR(`docs/design/EAASP/adrs/ADR-V2-001..V2-023`),F1-F5 lint 由 ADR governance plugin 强制(`/adr:audit` + `.github/workflows/adr-audit.yml`)。Deferred 账本 `docs/design/EAASP/DEFERRED_LEDGER.md` 是跨 phase 单 SSOT,**保留作 GSD 例外**(GSD 自身的 backlog 不取代它)。
+**治理底座**:17 ADR(`docs/design/EAASP/adrs/ADR-V2-001..V2-034`),F1-F5 lint 由 ADR governance plugin 强制(`/adr:audit` + `.github/workflows/adr-audit.yml`)。Deferred 账本 `docs/design/EAASP/DEFERRED_LEDGER.md` 是跨 phase 单 SSOT,**保留作 GSD 例外**(GSD 自身的 backlog 不取代它)。
 
 ## Constraints
 
@@ -218,6 +231,17 @@ Grid 必须是 EAASP 平台 L2–L4 通过 16-method gRPC contract 调用的 sub
 | **v3.10 No schema migration** (D-16) | D-08 carry-over; v3.10 skeleton alignment is Rust + Python source + spec documentation only; no DB migration, no proto schema migration | ✓ Locked (v3.10 bootstrap) |
 | **v3.10 Shared-core rule (ADR-V2-023 P1) preserved** (D-17) | D-09 carry-over; any change to `grid-types`/`grid-engine`/`grid-sandbox`/`grid-hook-bridge` must remain leg-agnostic; verified by `test_v3_10_shared_core_unchanged` (new, COMPAT-03) | ✓ Locked (v3.10 bootstrap) |
 | **v3.10 Phase ladder 03.10.0 → 03.10.1 → 03.10.2 → 03.10.3** (D-18) | 03.10.0 = skeleton audit + alignment matrix (foundation; every later phase consumes the matrix); 03.10.1 = MAT axis; 03.10.2 = PIPE axis; 03.10.3 = VERIFY axis; COMPAT + TRACE run cross-axis | ✓ Locked (v3.10 bootstrap) |
+| **v3.11 OPA sidecar deployment topology** (D-19) | ADR-V2-034 — sidecar OPA on `127.0.0.1:18181`, in-repo Rego templates + atomic user bundles, fail-closed on OPA error; `make opa-install` downloads official OPA binary with SHA256 verify; `third_party/` in `.gitignore` | ✓ Locked (v3.11.0 bootstrap) |
+| **v3.11 No shared-crate change** (D-20) | v3.11.0 / 03.11.1 / 03.11.2 / 03.11.3 must NOT touch `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge`; ADR-V2-023 P1 (shared-core rule) preserved; COMPAT-02 verified at every phase | ✓ Locked (v3.11.0 bootstrap) |
+| **v3.11 Backward-compatible contract surface** (D-21) | `proto/eaasp/runtime/v2/` 21 RPC + `contract-v1.2.0` tests remain green; no proto-breaking changes; new spec sections deferred to v3.12+ (D-13 carry-over) | ✓ Locked (v3.11.0 bootstrap) |
+| **v3.11 Phase ladder 03.11.0 → 03.11.1 → 03.11.2 → 03.11.3** (D-22) | 03.11.0 = sidecar + ADR; 03.11.1 = L3 OPA backend + Rego; 03.11.2 = 5-stage approval state machine; 03.11.3 = single-point live walkthrough | ✓ Locked (v3.11.0 bootstrap) |
+| **v3.12 audit.py CHECK constraint patch is mandatory phase 0** (D-23) | v3.11.3 live walkthrough §7 surfaced that `audit.py`'s CHECK constraint on `governance_decisions.decision` does not include `await_human`; the 5-stage state machine emits `await_human` at the Approve stage; without this fix, 03.12.1 / 03.12.2 / 03.12.3 cannot reproduce paused-state audit evidence. v3.12.0 MUST patch the schema first; no implementation work in 03.12.1 / 03.12.2 may proceed before 03.12.0 ships | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 scope = EAASP Phase 4** (D-24) | v3.12 delivers A2A Router + Event Room + multi-session coordination per EAASP_v2_0_EVOLUTION_PATH.md §三 Phase 4 scope (spec §5.3 / §14 / §17). Closes V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01. v3.13+ = Phase 5 L5 / Phase 6 ecosystem (V310-COWORK-01 / V310-ECOSYSTEM-01 / V310-MAT-01) | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 MVP executable baseline + new A2A coordination scenario** (D-25) | Phase 0.5 MVP human-executable floor (`threshold-calibration` skill + `make dev-eaasp`) remains the minimum bar; v3.12 adds a new A2A coordination walkthrough scenario on top of that floor (request A's approve stage pauses; event room fans out; another session's A2A dispatch resumes the chain) | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 audit.py CHECK constraint extension uses idempotent migration** (D-26) | The `audit.py` CHECK constraint extension MUST use `ALTER TABLE` (matching the existing v3.11.2 `stage` column migration pattern); existing DBs upgrade cleanly without losing history. No destructive schema work. No new tables / no new columns beyond the CHECK constraint extension | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 stays in `tools/eaasp-*/` simulator-level implementations** (D-27) | v3.12 does not open a new repo / does not open a new service port; uses the existing 7 EAASP services (skill-registry / L2 / L3 / mock-scada / MCP orchestrator / grid-runtime / L4) on `.grid/dev-eaasp-live.sh` launch topology. Event Room + A2A Router live in `tools/eaasp-l4-orchestration/` (per v3.7.3 L4 ownership pattern) | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 安全边界 + shared-core rule + rbac-audit + v3.10-spec-audit + OPA sidecar all continue to PASS** (D-28) | v3.9 route-catalog RBAC (134 routes / `make rbac-audit`) + v3.10 spec-audit (4 files / 37 rows / `make v3.10-spec-audit`) + ADR-V2-023 P1 shared-core rule + ADR-V2-034 OPA sidecar ALL continue to PASS through every v3.12 phase. No shared-crate change is anticipated, but if any change is required it must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品 | ✓ Locked (v3.12 bootstrap) |
+| **v3.12 探索策略** (D-29) | Explore + Grep (本仓无 `.codegraph/`, no MCP codegraph tool available). Codebase pattern reads gate by CLAUDE.md "Level 1+ single-pass reads" rule | ✓ Locked (v3.12 bootstrap) |
 
 ## Evolution
 
@@ -238,4 +262,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-07-26 — v3.10 EAASP v2.0 platform-skeleton alignment bootstrapped (16 REQ-IDs / 5 categories / locked decisions D-11..D-18 / 4-phase ladder). v3.9 route-catalog RBAC wiring + authorization auditor SHIPPED 2026-07-26 (3 phases, 20/20 REQ-IDs, 49 targeted tests PASS), archived to `.planning/milestones/v3.9-*`. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 (实战可用性补全) ✅ SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
+*Last updated: 2026-07-27 — v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 bootstrapped (4-phase ladder 03.12.0 → 03.12.3, 13–16 REQ-IDs / 5 categories, locked decisions D-23..D-29). v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain SHIPPED 2026-07-27 (29/29 REQ-IDs, 4 phases, archived). v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED 2026-07-26 (16 REQ-IDs, 4 phases, archived). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26, archived to `.planning/milestones/v3.9-*`. v3.8 (grid-server multi-user login) ✅ SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md`. v3.7 (实战可用性补全) ✅ SHIPPED 2026-07-23, archived to `.planning/milestones/v3.7-ROADMAP.md`. v3.6 (Post-Activation Docs Sync) ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17 (8/8 phases A.0–A.8). v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*

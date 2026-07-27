@@ -3,7 +3,7 @@
 > **Single Source of Truth** — 本文件是所有 Deferred 项的唯一权威登记处。
 > 新增 / 关闭 / 迁移 D 编号都必须同步更新本文件，并在 commit message 引用 `Dxx`。
 
-**最后更新**: 2026-05-24 (Phase 6.0 Plan 01 close — NEW-X4 ✅ CLOSED via parametrize rename `runtime_name` → `expected_runtime` @ `e27e300` + CI run 26356947711; ZERO ScopeMismatch across all 7 completed jobs). Prior: 2026-05-23 (Phase 5.5 post-push CI scan — add NEW-X4 P2 pre-existing chunk_type fixture-scope failure to v3.2+ inbox; NOT a Phase 5.5 regression — Phase 3 Contract Matrix has been RED since 2026-05-04 across all pushes). Prior: 2026-05-22 (Plan 02 Task 02.05 milestone close cascade 5-row sweep — 4 closed + 2 P3 deferred; closed count 42 → 46; ADR-V2-029 + V2-032 Accepted)
+**最后更新**: 2026-07-27 (v3.12 milestone bootstrap — V310-A2A-01 / V310-SESSION-01 owner 标记为 03.12.1+03.12.2+03.12.3; V311-AUDIT-01 新增,owner 标记为 03.12.0 lift SCHEMA-01..03 → ✅ CLOSED). Prior: 2026-05-24 (Phase 6.0 Plan 01 close — NEW-X4 ✅ CLOSED via parametrize rename `runtime_name` → `expected_runtime` @ `e27e300` + CI run 26356947711; ZERO ScopeMismatch across all 7 completed jobs). Prior: 2026-05-23 (Phase 5.5 post-push CI scan — add NEW-X4 P2 pre-existing chunk_type fixture-scope failure to v3.2+ inbox; NOT a Phase 5.5 regression — Phase 3 Contract Matrix has been RED since 2026-05-04 across all pushes). Prior: 2026-05-22 (Plan 02 Task 02.05 milestone close cascade 5-row sweep — 4 closed + 2 P3 deferred; closed count 42 → 46; ADR-V2-029 + V2-032 Accepted)
 **维护规则**: 每次 end-phase 或 Deferred 状态变更时更新 [状态变更日志](#状态变更日志) 并同步 [全局活跃清单](#全局活跃清单-eaasp-v20)。
 
 ---
@@ -74,12 +74,13 @@
 |----|------|-------------|------|
 | **V310-OPA-01** | L3 production OPA/Rego backend + atomic bundle deployment | ✅ CLOSED 2026-07-26 (v3.11.0 lift ADR-V2-034 Accepted + sidecar topology + `make opa-install`) | `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md`; `scripts/eaasp-install-opa.sh`; `Makefile` `opa-install`/`opa-clean` |
 | **V310-APPROVAL-01** | Plan → Check → Draft → Approve → Execute 五阶段审批链 + deterministic verifier | ✅ CLOSED 2026-07-27 (v3.11.2 5-stage state machine + governance.approval.* SSE events + append-only ledger extension) | `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py`；`tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_stream.py` (`emit_governance_approval_<stage>`)；`tools/eaasp-l3-governance/tests/test_approval_state_machine.py`；`tools/eaasp-l4-orchestration/tests/test_governance_sse.py` |
-| **V310-A2A-01** | A2A Router、Event Room、多 Session per Event | 📦 deferred_to_v3.12+ / Phase 4 | Spec §5.3/§14/§17；当前 L4 单 session 骨架 |
+| **V310-A2A-01** | A2A Router、Event Room、多 Session per Event | 📦 deferred_to_v3.12+ / 03.12.2 (A2A Router) + 03.12.1 (Event Room) + 03.12.3 (live walkthrough closes) | Spec §5.3/§14/§17；当前 L4 单 session 骨架 |
 | **V310-COWORK-01** | L5 Cowork Event Room + Event/Evidence/Action/Approval 四卡 UI | 📦 deferred_to_v3.13+ / Phase 5 | Spec §4；当前 CLI/SSE 仅为 MVP 可执行界面 |
 | **V310-ECOSYSTEM-01** | Ontology、Marketplace/生态、完整 Skill promotion/ACL/analytics | 📦 deferred_to_v3.14+ / Phase 6 | Spec §7.5-7.8；当前 L2 模拟器级资产服务 |
 | **V310-SANDBOX-01** | gVisor / Firecracker/Kata tier 与 org-unit policy placement | 📦 long-term / L1 infrastructure | Spec §9.4/§18.5；当前 native/Docker/Wasm adapters |
-| **V310-SESSION-01** | Event stream crash recovery、retention/cold archive、reversible compaction orchestration | 📦 deferred_to_v3.12+ / Phase 4 | Spec §17.2-17.5；当前 append-only SQLite event stream |
+| **V310-SESSION-01** | Event stream crash recovery、retention/cold archive、reversible compaction orchestration | 📦 deferred_to_v3.12+ / 03.12.1 (Event Room + multi-session) + 03.12.3 (live walkthrough closes) | Spec §17.2-17.5；当前 append-only SQLite event stream |
 | **V310-MAT-01** | Skill 通用 entrypoints/mcp_servers/permissions typed schema 与 Memory event/team sharing + optimistic locking | 📦 deferred_to_v3.14+ / Phase 6/L2 | Spec §7；v3.10 禁止 schema migration |
+| **V311-AUDIT-01** | `audit.py` CHECK constraint on `governance_decisions.decision` does not include `await_human`; the 5-stage state machine emits `await_human` at the Approve stage; until v3.12.0 patches the schema, paused-state audit evidence cannot be reproduced end-to-end | 📦 deferred_to_v3.12+ / 03.12.0 (lift SCHEMA-01..03 → ✅ CLOSED) | v3.11.3 live walkthrough `docs/status/PRODUCTION_USABILITY_2026-07-27.md` §7; `tools/eaasp-l3-governance/src/eaasp_l3_governance/audit.py:282` enum allowlist `{allow, approve, deny, gate_request}`; `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` `DECISION_AWAIT_HUMAN` sentinel |
 
 ### 最近完成（2026-04-14）
 
@@ -285,6 +286,8 @@
 
 | 日期 | ID | 变更 | 证据 |
 |------|-----|------|------|
+| 2026-07-27 | V310-A2A-01, V310-SESSION-01 | owner 更新 → 03.12.1 + 03.12.2 + 03.12.3 | v3.12 milestone bootstrap — 4-phase ladder 03.12.0 (schema + audit constraint patch) → 03.12.1 (Event Room + multi-session) → 03.12.2 (A2A Router) → 03.12.3 (single-point live walkthrough); A2A / Session 收口明确 |
+| 2026-07-27 | V311-AUDIT-01 | **新增** 📦 platform-evolution gap | v3.11.3 single-point live walkthrough §7 surfaced `audit.py` CHECK constraint gap on `await_human`; v3.12.0 lift via SCHEMA-01..03 (idempotent `ALTER TABLE` migration) |
 | 2026-07-26 | V310-OPA-01, V310-APPROVAL-01, V310-A2A-01, V310-COWORK-01, V310-ECOSYSTEM-01, V310-SANDBOX-01, V310-SESSION-01, V310-MAT-01 | **新增** 📦 platform-evolution gaps | v3.10 DOCX section-by-section audit；`tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md`；按 Phase 3-6 / L1 infra 分配 owner |
 | 2026-04-14 | D3, D5, D6, D37 | active → 🤔 revisit-after-S2 | 需 S2 context engineering 决策后判断 |
 | 2026-04-14 | D8, D9, D34, D38, D41, D46, D62, D63, D64 | active → 🔴 phase3-gated | 依赖 Phase 3 身份/租户模型 |
