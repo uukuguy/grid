@@ -17,6 +17,17 @@ from pydantic import BaseModel, Field
 
 from .db import connect
 
+# v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03: ``await_human`` sentinel is the
+# 5-stage state machine's pause-on-Approve marker (v3.11.2 §6.9 / §6.10).
+# The CHECK constraint on ``governance_decisions.decision`` is widened to
+# include it via an idempotent ``ALTER TABLE`` migration in ``db.py``
+# (``migrate_decision_await_human``); this in-process enum must mirror
+# the DB allowlist so callers see a clean ``ValueError`` (not an
+# ``aiosqlite.IntegrityError``) on every code path.
+DECISION_ALLOWLIST = frozenset(
+    {"allow", "approve", "deny", "gate_request", "await_human"}
+)
+
 
 class TelemetryEventIn(BaseModel):
     """Incoming event envelope.
@@ -259,6 +270,14 @@ class AuditStore:
           chain stage name (``plan`` / ``check`` / ``draft`` / ``approve``
           / ``execute``). Default ``None`` keeps backwards compatibility
           with v3.11.0 / v3.11.1 rows that predate the column.
+
+        v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03:
+        - ``decision`` now accepts ``await_human`` (the 5-stage state
+          machine's pause-on-Approve sentinel). See ``DECISION_ALLOWLIST``
+          and the idempotent ``db.migrate_decision_await_human`` migration.
+          In-process validation mirrors the DB CHECK allowlist so callers
+          see a clean ``ValueError`` (not an ``aiosqlite.IntegrityError``)
+          on every code path.
         """
         # Input validation — every identifier must be non-empty.
         if not decision_id:
@@ -279,9 +298,9 @@ class AuditStore:
                 f"risk_level must be 'read', 'write_local', or 'write_external', "
                 f"got {risk_level!r}"
             )
-        if decision not in {"allow", "approve", "deny", "gate_request"}:
+        if decision not in DECISION_ALLOWLIST:
             raise ValueError(
-                f"decision must be 'allow', 'approve', 'deny', or 'gate_request', "
+                f"decision must be one of {sorted(DECISION_ALLOWLIST)}, "
                 f"got {decision!r}"
             )
 

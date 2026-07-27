@@ -62,13 +62,18 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_received_at
 -- preserves v3.11.0 / v3.11.1 rows; the column is always present in
 -- fresh schemas so the audit query does not need a column-presence
 -- probe.
+-- v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03: the ``decision`` CHECK
+-- allowlist now includes ``await_human`` (the 5-stage state machine's
+-- pause-on-Approve sentinel). Fresh schemas carry the widened
+-- constraint inline; existing v3.11.x DBs are upgraded via the
+-- idempotent ``migrate_decision_await_human`` migration below.
 CREATE TABLE IF NOT EXISTS governance_decisions (
     decision_id TEXT PRIMARY KEY,
     session_id  TEXT NOT NULL,
     hook_id     TEXT NOT NULL,
     tool_name   TEXT NOT NULL,
     risk_level  TEXT NOT NULL CHECK(risk_level IN ('read','write_local','write_external')),
-    decision    TEXT NOT NULL CHECK(decision IN ('allow','approve','deny','gate_request')),
+    decision    TEXT NOT NULL CHECK(decision IN ('allow','approve','deny','gate_request','await_human')),
     approver    TEXT,
     rationale   TEXT NOT NULL,
     stage       TEXT,
@@ -112,6 +117,119 @@ async def init_db(path: str) -> None:
                 "ALTER TABLE governance_decisions ADD COLUMN stage TEXT"
             )
             await db.commit()
+
+    # v3.12.0 — V311-AUDIT-01 / SCHEMA-02 — widen the CHECK constraint on
+    # ``governance_decisions.decision`` to include ``await_human``
+    # (idempotent: detects a pre-migration CHECK that lacks the sentinel
+    # and rebuilds the table; no-op on fresh schemas that already include
+    # it inline). The migration preserves all existing rows.
+    await migrate_decision_await_human(path)
+
+
+async def migrate_decision_await_human(path: str) -> bool:
+    """Idempotently widen the CHECK constraint on governance_decisions.decision.
+
+    v3.12.0 — V311-AUDIT-01 / SCHEMA-02:
+
+    - Fresh schemas (v3.12.0+ CREATE TABLE) carry the widened allowlist
+      inline (see ``SCHEMA``); this function is a NO-OP for those.
+    - v3.11.x databases carry the legacy 4-value CHECK
+      (``allow, approve, deny, gate_request``). The 5-stage state
+      machine emits ``await_human`` at the Approve stage pause; without
+      this migration, ``record_governance_decision`` would fail with an
+      ``aiosqlite.IntegrityError`` on the paused chain and the human
+      verdict would never reach the audit ledger.
+
+    Migration strategy: SQLite does not support ``ALTER TABLE ... DROP
+    CONSTRAINT`` or ``ALTER TABLE ... ALTER COLUMN``, so we:
+
+    1. Probe the current CHECK clause via ``sqlite_master``.
+    2. If it already contains ``await_human``, return ``False`` (NO-OP).
+    3. Otherwise, rename the old table to ``governance_decisions__legacy_v3_11``,
+       create the new table with the widened allowlist, copy every row
+       across (column-for-column), and drop the legacy table. Existing
+       rows keep their original ``decision`` values (they are all in
+       the 4-value legacy set, which is a subset of the widened one).
+
+    Returns ``True`` if a migration ran, ``False`` if the DB was already
+    up-to-date. Idempotent: calling twice in a row converges (the second
+    call finds ``await_human`` already in the CHECK clause and returns
+    ``False``).
+    """
+    async with aiosqlite.connect(path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='governance_decisions'"
+        )
+        row = await cur.fetchone()
+        if row is None:
+            # Fresh DB without the table — init_db() will create it with
+            # the widened allowlist inline. Nothing to migrate.
+            return False
+        existing_sql = row["sql"] or ""
+        # The CHECK allowlist is the token list after ``CHECK(decision IN (``.
+        if "await_human" in existing_sql:
+            return False  # already migrated
+
+        # Run the table-rebuild inside BEGIN IMMEDIATE so concurrent
+        # writers (per C1 convention) serialize. Same atomicity shape
+        # as the v3.11.2 ``stage`` column add — although SQLite's
+        # rename+create+copy+drop is intrinsically transactional in
+        # autocommit mode, BEGIN IMMEDIATE matches the project-wide
+        # write-path convention (audit §C1).
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            await db.execute(
+                "ALTER TABLE governance_decisions "
+                "RENAME TO governance_decisions__legacy_v3_11"
+            )
+            # Recreate with the widened CHECK. Identical to the inline
+            # ``SCHEMA`` definition above — kept inline here so the
+            # migration is self-contained.
+            await db.execute(
+                """
+                CREATE TABLE governance_decisions (
+                    decision_id TEXT PRIMARY KEY,
+                    session_id  TEXT NOT NULL,
+                    hook_id     TEXT NOT NULL,
+                    tool_name   TEXT NOT NULL,
+                    risk_level  TEXT NOT NULL CHECK(risk_level IN ('read','write_local','write_external')),
+                    decision    TEXT NOT NULL CHECK(decision IN ('allow','approve','deny','gate_request','await_human')),
+                    approver    TEXT,
+                    rationale   TEXT NOT NULL,
+                    stage       TEXT,
+                    ts          TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+                """
+            )
+            # Copy every row across. Column-list is identical between
+            # old and new schemas (the CHECK is a constraint, not a
+            # column), so ``SELECT *`` is safe.
+            await db.execute(
+                "INSERT INTO governance_decisions "
+                "SELECT * FROM governance_decisions__legacy_v3_11"
+            )
+            await db.execute(
+                "DROP TABLE governance_decisions__legacy_v3_11"
+            )
+            # Rebuild the dependent indexes (the CREATE TABLE didn't
+            # recreate them — only the column-level constraints carried
+            # over). Match the inline ``SCHEMA`` definitions.
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_governance_decisions_session_ts "
+                "ON governance_decisions(session_id, ts DESC)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_governance_decisions_stage "
+                "ON governance_decisions(stage) WHERE stage IS NOT NULL"
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
+    return True
 
 
 async def connect(path: str) -> aiosqlite.Connection:

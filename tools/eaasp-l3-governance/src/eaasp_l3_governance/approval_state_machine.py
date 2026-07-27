@@ -299,11 +299,35 @@ class ApprovalStateMachine:
                 )
 
             # Approve stage specifically yields await_human on pause.
+            # v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03: the persisted
+            # ledger row at the pause carries ``DECISION_AWAIT_HUMAN``
+            # (not ``approve``) so the audit evidence matches the
+            # human-in-the-loop pause semantics. The earlier shape
+            # (decision="approve" on the paused row) conflated two
+            # distinct outcomes in the same column. ``audit.py``'s
+            # ``DECISION_ALLOWLIST`` now accepts ``await_human`` via
+            # ``db.migrate_decision_await_human``.
+            #
+            # Append-only invariant: the ledger is keyed by
+            # ``decision_id = {request_id}_{stage}`` (PK). The pause row
+            # is therefore written via ``_append_audit_row`` directly
+            # with a distinct suffix (``_approve_pause``) so the chain
+            # remains append-only. ``records`` then carries both the
+            # upstream ``approve`` decision (the policy's verdict)
+            # and the pause row (the machine's paused-state outcome)
+            # — distinct events on the same Approve stage.
             if (
                 stage == APPROVAL_STAGE_APPROVE
                 and policy.awaits_human
                 and policy.decision != DECISION_DENY
             ):
+                pause_record = await self._append_audit_row(
+                    stage="approve_pause",
+                    decision=DECISION_AWAIT_HUMAN,
+                    reason=policy.reason,
+                    evidence_refs=list(policy.evidence_refs),
+                )
+                self.records.append(pause_record)
                 self.paused = True
                 self.paused_at_stage = stage
                 return self._finalize(

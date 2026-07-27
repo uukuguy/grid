@@ -129,6 +129,12 @@ async def _stage_records_for(
     ]
 
     order = {stage: i for i, stage in enumerate(STAGE_ORDER)}
+    # v3.12.0 — V311-AUDIT-01: the paused Approve stage emits a
+    # follow-on ``approve_pause`` row carrying DECISION_AWAIT_HUMAN.
+    # It sits between the upstream ``approve`` row and any
+    # resume-time rows (``execute`` / ``await_human``). Treat it as
+    # ``approve + 1`` for sorting purposes.
+    order["approve_pause"] = order["approve"] + 1
     # Place rows with stage=None at the end (backwards-compat / migration).
     out.sort(key=lambda r: (order.get(r.stage, 999), r.decision_id))
     return out
@@ -290,7 +296,15 @@ async def test_deny_in_middle_stage_short_circuits_remaining_stages(
 async def test_approve_stage_can_pause_then_resume_with_human_allow(
     db_path: str,
 ) -> None:
-    """Approve stage with awaits_human=True pauses; resume(allow) runs execute."""
+    """Approve stage with awaits_human=True pauses; resume(allow) runs execute.
+
+    v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03: the paused Approve stage
+    emits a second row with ``decision="await_human"`` (the
+    ``approve_pause`` stage) so the audit ledger preserves the
+    paused-state evidence. The earlier ``approve`` decision row is the
+    policy verdict; the ``approve_pause`` row is the machine's
+    paused-state outcome — both are append-only ledger entries.
+    """
     sink = _RecordingSink()
     audit_store = AuditStore(db_path)
 
@@ -320,8 +334,16 @@ async def test_approve_stage_can_pause_then_resume_with_human_allow(
     assert machine.paused is True
     assert result.paused_at_stage == "approve"
     assert result.final_decision == "await_human"
-    assert result.stages_completed == 4
+    # v3.12.0 — 4 stages + approve_pause row = 5 in-memory records.
+    assert result.stages_completed == 5
     assert len(sink.events) == 4
+
+    # The approve_pause row carries DECISION_AWAIT_HUMAN. Before
+    # v3.12.0 this row was silently dropped (audit.py CHECK
+    # constraint rejected it). Now it lands in the ledger.
+    pause_records = [r for r in result.records if r.stage == "approve_pause"]
+    assert len(pause_records) == 1
+    assert pause_records[0].decision == "await_human"
 
     # Human signs off → resume runs the execute stage and emits the
     # 5th event.
@@ -331,17 +353,18 @@ async def test_approve_stage_can_pause_then_resume_with_human_allow(
         evidence_refs=["ticket-123"],
     )
     assert final.final_decision == "approve"
-    # 4 stages + await_human row + execute row = 6 ledger entries.
-    assert final.stages_completed == 6
+    # 5 prior rows + await_human row + execute row = 7 ledger entries.
+    assert final.stages_completed == 7
     assert len(sink.events) == 5
     assert sink.events[-1][0] == "governance.approval.execute"
 
     rows = await _stage_records_for(audit_store, result.decision_id)
     # Rows share the same datetime('now') timestamp; sorted by canonical
-    # stage order. The two resume-time rows are ``await_human`` (human
-    # verdict record) and ``execute`` (final step).
+    # stage order. The approve_pause row (DECISION_AWAIT_HUMAN) sits
+    # between the approve row and the resume-time rows.
     assert [r.stage for r in rows] == [
-        "plan", "check", "draft", "approve", "execute", "await_human",
+        "plan", "check", "draft", "approve", "approve_pause",
+        "execute", "await_human",
     ]
 
 
@@ -376,14 +399,16 @@ async def test_approve_pause_then_human_deny_terminates(
         human_reason="human: cli --no",
     )
     assert final.final_decision == "deny"
-    assert final.stages_completed == 5  # 4 stages + await_human row
+    # v3.12.0 — 4 stages + approve_pause row + await_human row = 6
+    # ledger entries (no execute stage after human deny).
+    assert final.stages_completed == 6
     assert len(sink.events) == 4  # no execute event after human deny
 
     rows = await _stage_records_for(
         audit_store, machine.request_id
     )
     assert [r.stage for r in rows] == [
-        "plan", "check", "draft", "approve", "await_human",
+        "plan", "check", "draft", "approve", "approve_pause", "await_human",
     ]
     assert rows[-1].decision == "deny"
 
