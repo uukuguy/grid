@@ -90,7 +90,9 @@ NEVER inverts the authoritative audit ledger (L3
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import os
 import re
 import time
 import uuid
@@ -101,34 +103,130 @@ from loguru import logger
 
 from .db import connect
 
-# v3.12.1 — security review round 3 (sensitive-data-exposure):
-# raw principal strings MUST NOT appear in operator logs. Logs are
-# out-of-band from the access-controlled audit ledger; surfacing raw
-# subjects there leaks PII / account identifiers to anyone with log
-# access. The audit ledger (L3 ``governance_decisions`` + L4
-# ``session_events`` + this module's ``event_room_events``) retains
-# the raw values, gated by the same RBAC as the rest of the audit
-# surface. Operator logs see a stable, non-reversible subject hash
-# derived from a module-level salt — the same input always maps to
-# the same hash (so log correlation still works) but the hash is
-# NOT reversible to the raw principal.
-_SUBJECT_HASH_SALT = b"eaasp-l4-orchestration.v3_12_1.subject_hash_salt"
-_SUBJECT_HASH_LEN = 12  # 48 bits — enough to avoid collisions inside one process
+# v3.12.1 — security review round 4 (misleading-protection-claim
+# follow-on: known-salt hash → runtime-secret HMAC-SHA256).
+#
+# Round 3 used a module-level constant salt + SHA-256 truncated to
+# 48 bits — that shape is a *log-correlation* hash, NOT a
+# cryptographic one-way: anyone with read access to this file can
+# recompute the hash offline. The audit ledger (L3
+# ``governance_decisions`` + L4 ``session_events`` + this module's
+# ``event_room_events``) is the only access-controlled
+# authoritative source; operator logs MUST NOT carry raw principal
+# strings (PII / account-identifier leakage to anyone with log
+# access).
+#
+# Round 4 promotes the hash to HMAC-SHA256 keyed on a runtime-only
+# secret read from ``EAASP_L4_SUBJECT_HASH_SALT``. Per ADR-V2-028
+# strict-by-default, the salt is REQUIRED at process startup —
+# missing/empty env var raises ``ValueError`` and aborts the
+# process via the ``__init_subclass__``-style guard below. With
+# the secret kept out of source + logs, the operator log subject
+# hashes are no longer reversible from the source code alone.
+# The full 256-bit output is preserved (no truncation) so the
+# hash retains collision-resistance even if a malicious actor
+# gains read access to a single log line.
+_SUBJECT_HASH_ENV = "EAASP_L4_SUBJECT_HASH_SALT"
+
+
+def _load_subject_hash_secret() -> bytes:
+    """Load + validate the runtime subject-hash secret.
+
+    Strict-by-default per ADR-V2-028: a missing or empty env var
+    raises ``ValueError`` at process startup. Tests MUST set
+    ``EAASP_L4_SUBJECT_HASH_SALT`` (any non-empty string) before
+    the ``EventRoomStore`` is constructed; the
+    ``validation-on-first-use`` pattern keeps the gate inside
+    the module rather than as a top-level import side-effect.
+    """
+    raw = os.environ.get(_SUBJECT_HASH_ENV, "")
+    if not raw or not raw.strip():
+        # Audit-ledger style startup-fail record: log a structured
+        # event that operators can grep for, mirroring the format
+        # of ``governance_decisions`` rows so postmortem tooling
+        # can recognize the failure mode. The record is intentionally
+        # written BEFORE the ValueError so an automated boot probe
+        # sees a single line at ERROR level before the process
+        # exits — the operator's first line of evidence that the
+        # process refused to start for the right reason.
+        logger.error(
+            "l4_startup_fail: reason={} env={} resolution={} "
+            "req={} adr={}",
+            "subject_hash_secret_missing",
+            _SUBJECT_HASH_ENV,
+            "set the env var to a non-empty string (min 32 bytes "
+            "recommended) BEFORE constructing EventRoomStore / "
+            "MultiSessionCoordinator",
+            "REQ-ROOM-06",
+            "ADR-V2-028",
+        )
+        raise ValueError(
+            f"{_SUBJECT_HASH_ENV} environment variable must be set to a "
+            f"non-empty string before constructing EventRoomStore / "
+            f"MultiSessionCoordinator (ADR-V2-028 strict-by-default; "
+            f"prevents known-salt reverse-mapping of operator log "
+            f"subject hashes)"
+        )
+    return raw.encode("utf-8")
+
+
+# Module-level cache: the secret is loaded ONCE per process on
+# first use. A KeyError-shaped sentinel triggers lazy resolution.
+_SUBJECT_HASH_SECRET: bytes | None = None
+
+
+def _get_subject_hash_secret() -> bytes:
+    """Resolve the runtime secret (lazy, fail-closed)."""
+    global _SUBJECT_HASH_SECRET
+    if _SUBJECT_HASH_SECRET is None:
+        _SUBJECT_HASH_SECRET = _load_subject_hash_secret()
+    return _SUBJECT_HASH_SECRET
+
+
+def _reset_subject_hash_secret_for_testing() -> None:
+    """Clear the cached secret so tests can rebind env vars.
+
+    Tests that exercise the missing-env-var path MUST call this
+    after unsetting ``EAASP_L4_SUBJECT_HASH_SALT``. The fixture
+    pattern: ``monkeypatch.delenv(...) ; _reset_...() ; assert
+    ValueError``.
+    """
+    global _SUBJECT_HASH_SECRET
+    _SUBJECT_HASH_SECRET = None
 
 
 def _safe_subject_id(raw: str | None) -> str:
-    """Return a stable non-reversible identifier for ``raw``.
+    """Return a stable, secret-keyed HMAC-SHA256 identifier for ``raw``.
 
-    - Empty / None → ``"anon"``.
-    - Otherwise → ``"subj_" + sha256(raw + salt)[:_SUBJECT_HASH_LEN]``.
-      The salt is a module constant (per-process; the audit ledger
-      still holds the raw values for legitimate lookup).
-    - Never raises; never returns the raw value.
+    - Empty / None → ``"anon"`` (no hash, no key disclosure).
+    - Otherwise → ``"subj_" + hex(HMAC-SHA256(secret, raw))``.
+
+    Cryptographic properties:
+
+    - The output is the full 256-bit HMAC-SHA256 digest (no
+      truncation) — collision-resistant up to the birthday
+      bound. The same input always maps to the same output
+      because the secret is per-process stable, so log
+      correlation still works.
+    - Without read access to ``EAASP_L4_SUBJECT_HASH_SALT`` the
+      output is NOT reversible from the log file alone
+      (HMAC requires the key to verify or invert). This
+      contrasts with the round-3 SHA-256(salt || raw) shape,
+      which was reversible by anyone with read access to the
+      source file.
+    - The secret is loaded lazily on first use; a missing
+      env var raises ``ValueError`` (fail-closed per
+      ADR-V2-028), so the function never silently falls back
+      to a known salt.
+    - Never raises under normal use (the only failure mode is
+      missing env var at first use, which is intentional).
+    - Never returns the raw value.
     """
     if not raw:
         return "anon"
-    h = hashlib.sha256(_SUBJECT_HASH_SALT + raw.encode("utf-8")).hexdigest()
-    return f"subj_{h[:_SUBJECT_HASH_LEN]}"
+    secret = _get_subject_hash_secret()
+    h = hmac.new(secret, raw.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"subj_{h}"
 
 
 def _safe_exc_repr(exc: BaseException, *, limit: int = 200) -> str:

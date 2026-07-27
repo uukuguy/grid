@@ -50,6 +50,41 @@ from eaasp_l4_orchestration.session_orchestrator_room import (
 pytestmark = pytest.mark.asyncio
 
 
+# ─── Round 4 — env-var fixture (HMAC-SHA256 subject hash) ─────────────────
+
+
+_TEST_SALT_VALUE = "round4-test-salt-32-bytes-min-aaaaaa"
+
+
+@pytest.fixture(autouse=True)
+def _l4_subject_hash_salt_env(monkeypatch: pytest.MonkeyPatch):
+    """Set ``EAASP_L4_SUBJECT_HASH_SALT`` for every test (autouse).
+
+    The round-4 fix promotes the subject-hash secret from a
+    module constant to a runtime env-var per ADR-V2-028
+    strict-by-default. Tests that exercise the salted log path
+    MUST set the env var; this fixture guarantees that without
+    each test having to remember it.
+
+    Tests that intentionally probe the fail-closed path (a
+    subset of the new round-4 regression tests) ``delenv`` the
+    variable inside the test body; the autouse teardown
+    re-installs it after the test so subsequent tests are not
+    affected.
+    """
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", _TEST_SALT_VALUE)
+    # Round 4: the cached secret is process-scoped, so tests
+    # that touch it must invalidate the cache before / after
+    # mutating the env var. The autouse fixture handles both
+    # directions so tests do not have to think about it.
+    from eaasp_l4_orchestration.event_room import (
+        _reset_subject_hash_secret_for_testing,
+    )
+    _reset_subject_hash_secret_for_testing()
+    yield
+    _reset_subject_hash_secret_for_testing()
+
+
 # ─── Fixtures ───────────────────────────────────────────────────────────────
 
 
@@ -1025,3 +1060,462 @@ async def test_add_member_audit_failure_does_not_leak_raw_ids(
     # Control characters were stripped from the exception.
     assert "\x00" not in msg
     assert "\x01" not in msg
+
+
+# ─── v3.12.1 round 4 — sibling-path parity (HIGH) + HMAC-SHA256 (MEDIUM) ─
+
+
+async def test_leave_event_room_facade_rejects_impersonation(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 (HIGH — sibling-path parity):
+    ``leave_event_room`` no longer accepts ``principal`` as a free
+    method parameter. The verified caller is resolved from the
+    ``_AUTHENTICATED_PRINCIPAL`` ``ContextVar``. A request that
+    binds ContextVar=mallory (a verified caller who is neither
+    the row's bound principal nor the room owner) is rejected
+    with ``EventRoomNotAuthorized`` — the store-side authorization
+    gate compares the verified caller (mallory) against the row's
+    bound principal (alice) and the room owner (bob); mallory
+    matches neither. The facade surface here is the NEW signature
+    (``room_id``, ``session_id`` only — no principal kwarg).
+
+    Setup: bob owns the room; alice is a bound member.
+    Verified caller mallory is unrelated — must be rejected.
+    Previously, a caller could supply ``principal=bob`` in the
+    request body and the store would honor bob's owner privilege;
+    round 4 makes the principal source-of-truth the ContextVar,
+    so mallory's caller cannot impersonate bob.
+    """
+    room = await store.create(
+        room_id="er_leave_impersonate",
+        tenant_id="t1",
+        owner_principal="bob",
+    )
+    # alice binds her session first (via raw store, sidestepping facade).
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="bob"
+    )
+    # Verified caller is mallory. Facade call uses the NEW signature
+    # (no principal kwarg). The previous round-3 shape that
+    # accepted ``principal=bob`` as a kwarg would have succeeded
+    # (bob is the owner). Round 4 makes that impossible.
+    token = bind_authenticated_principal("mallory")
+    try:
+        with pytest.raises(EventRoomNotAuthorized):
+            await coordinator.leave_event_room(
+                room_id=room.room_id,
+                session_id="sess_alice",
+            )
+        # The membership is preserved.
+        members = await store.list_members(room.room_id)
+        assert members == ["sess_alice"]
+    finally:
+        token.reset()
+
+
+async def test_leave_event_room_facade_owner_can_still_remove(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 follow-on: ``leave_event_room`` still honors
+    the owner-removes-any-session path when the verified caller
+    IS the owner. The fix removes the impersonation vector; it
+    does NOT regress the legitimate owner-removes path.
+    """
+    room = await store.create(
+        room_id="er_leave_owner",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_bob", "bob", caller_principal="alice"
+    )
+    token = bind_authenticated_principal("alice")
+    try:
+        removed = await coordinator.leave_event_room(
+            room_id=room.room_id,
+            session_id="sess_bob",
+        )
+        assert removed is True
+        members = await store.list_members(room.room_id)
+        assert members == []
+    finally:
+        token.reset()
+
+
+async def test_leave_event_room_facade_rejects_without_auth_context(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1: ``leave_event_room`` rejects requests that have
+    NOT bound the ContextVar with ``AuthContextMissing``. This is
+    the "no free-parameter short-circuit" guarantee — the
+    signature no longer carries ``principal`` so the only path
+    to the verified caller is the contextvar.
+    """
+    room = await store.create(
+        room_id="er_leave_no_auth",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    # No bind_authenticated_principal call.
+    with pytest.raises(AuthContextMissing):
+        await coordinator.leave_event_room(
+            room_id=room.room_id,
+            session_id="sess_alice",
+        )
+
+
+async def test_emit_shared_event_facade_rejects_impersonation(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 (HIGH — sibling-path parity):
+    ``emit_shared_event`` no longer accepts ``principal`` as a
+    free method parameter. A request that binds ContextVar=mallory
+    is rejected with ``EventRoomNotAuthorized`` BEFORE the fan-out
+    INSERT fires — the store authorization gate compares
+    mallory against the room owner (alice) and the membership
+    row's principal. Mallory matches neither → event is dropped
+    and the audit row never lands.
+
+    The ``origin_session_id`` is still caller-controlled; the
+    fix targets only the verified-principal supply path.
+    """
+    room = await store.create(
+        room_id="er_emit_impersonate",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    token = bind_authenticated_principal("mallory")
+    try:
+        seq = await coordinator.emit_shared_event(
+            room_id=room.room_id,
+            event_subtype="user_message",
+            payload={"content": "evil"},
+            origin_session_id="sess_mallory",
+        )
+        # No event landed — the authorization gate dropped the
+        # INSERT. ``seq`` is None per the best-effort contract
+        # in audit §7.1.
+        assert seq is None
+        events = await store.list_room_events(room.room_id)
+        assert events == []
+    finally:
+        token.reset()
+
+
+async def test_emit_shared_event_facade_rejects_without_auth_context(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1: ``emit_shared_event`` rejects requests that have
+    NOT bound the ContextVar with ``AuthContextMissing``. No
+    request body / RPC argument / event payload can populate the
+    verified caller identity."""
+    room = await store.create(
+        room_id="er_emit_no_auth",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    # No bind_authenticated_principal call. The ContextVar default
+    # is None → facade fails closed.
+    with pytest.raises(AuthContextMissing):
+        await coordinator.emit_shared_event(
+            room_id=room.room_id,
+            event_subtype="user_message",
+            payload={"content": "hello"},
+            origin_session_id="sess_alice",
+        )
+
+
+async def test_emit_shared_event_facade_records_verified_caller(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 follow-on: when ``emit_shared_event`` succeeds,
+    the recorded principal on the SSE-visible envelope + the
+    store-side row is the verified caller (alice), NOT any value
+    the request body might have supplied. Mirrors the round-3
+    ``join_event_room`` regression shape.
+    """
+    room = await store.create(
+        room_id="er_emit_owner",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    token = bind_authenticated_principal("alice")
+    try:
+        seq = await coordinator.emit_shared_event(
+            room_id=room.room_id,
+            event_subtype="user_message",
+            payload={"content": "hello"},
+            origin_session_id="sess_alice",
+        )
+        assert seq is not None and seq >= 1
+        # Verify the envelope records the verified caller.
+        events = await store.list_room_events(room.room_id)
+        assert len(events) == 1
+        assert events[0]["payload"]["principal"] == "alice"
+    finally:
+        token.reset()
+
+
+async def test_resume_with_human_decision_facade_rejects_impersonation(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 (HIGH — sibling-path parity):
+    ``resume_with_human_decision`` no longer accepts
+    ``human_principal`` as a free method parameter. A request
+    that binds ContextVar=alice and tries to resume a chain as
+    the room owner (bob) is rejected with
+    ``EventRoomNotAuthorized`` — the membership gate compares the
+    verified caller (alice) against the supplied room's
+    members + owner; if alice is a member of the room, the call
+    succeeds, but in this test alice is NOT a member. This
+    proves the verified caller, NOT the body assertion, drives
+    the authorization decision.
+
+    Failure surface: ``EventRoomNotAuthorized`` (sibling-path
+    parity with the other facade methods). The round-3 shape
+    raised ``PermissionError``; round 4 promotes the failure
+    surface to the canonical ``EventRoomNotAuthorized`` so all
+    four entry points share the same exception taxonomy.
+    """
+    room = await store.create(
+        room_id="er_resume_impersonate",
+        tenant_id="t1",
+        owner_principal="bob",
+    )
+    # bob is the owner; alice is NOT a member.
+    token = bind_authenticated_principal("alice")
+    try:
+        with pytest.raises(EventRoomNotAuthorized):
+            await coordinator.resume_with_human_decision(
+                session_id="sess_x",
+                room_id=room.room_id,
+                decision_id="dec_001",
+                human_decision="allow",
+                human_reason="test-only reason",
+            )
+    finally:
+        token.reset()
+
+
+async def test_resume_with_human_decision_facade_rejects_without_auth_context(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1: ``resume_with_human_decision`` rejects requests
+    that have NOT bound the ContextVar with
+    ``AuthContextMissing``. The legacy ``ValueError`` for missing
+    ``human_principal`` is gone — the only failure mode is the
+    contextvar missing."""
+    room = await store.create(
+        room_id="er_resume_no_auth",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    # No bind_authenticated_principal call.
+    with pytest.raises(AuthContextMissing):
+        await coordinator.resume_with_human_decision(
+            session_id="sess_alice",
+            room_id=room.room_id,
+            decision_id="dec_002",
+            human_decision="allow",
+            human_reason="test-only reason",
+        )
+
+
+async def test_resume_with_human_decision_facade_succeeds_with_verified_caller(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 4 #1 follow-on: when ``resume_with_human_decision``
+    succeeds, the recorded ``principal`` in the returned dict +
+    the room event log envelope is the verified caller (alice).
+    """
+    room = await store.create(
+        room_id="er_resume_owner",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    token = bind_authenticated_principal("alice")
+    try:
+        result = await coordinator.resume_with_human_decision(
+            session_id="sess_alice",
+            room_id=room.room_id,
+            decision_id="dec_003",
+            human_decision="allow",
+            human_reason="verified caller approves",
+        )
+        assert result is not None
+        assert result["principal"] == "alice"
+        # The room event log carries the verified principal.
+        events = await store.list_room_events(room.room_id)
+        approval_events = [
+            e for e in events if "approval_resume" in e["event_type"]
+        ]
+        assert len(approval_events) == 1
+        assert approval_events[0]["payload"]["principal"] == "alice"
+    finally:
+        token.reset()
+
+
+async def test_safe_subject_id_uses_runtime_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ROUND 4 #2 (MEDIUM): ``_safe_subject_id`` uses a runtime
+    secret from ``EAASP_L4_SUBJECT_HASH_SALT`` and produces a
+    full HMAC-SHA256 digest (NOT a truncated round-3 shape).
+
+    Two regression points:
+
+    1. The salt is sourced from the env var (not a module
+       constant). Two secrets produce two different hashes for
+       the same input. With the round-3 module-level salt the
+       output was process-stable across secret rotation, which
+       broke log correlation across secret rotations.
+    2. The hash is the FULL 256-bit HMAC-SHA256 output. A 48-bit
+       truncated hash is reversible via brute force from a
+       known principal set (~1M candidates); the full hash
+       resists.
+    """
+    from eaasp_l4_orchestration import event_room as er_module
+    from eaasp_l4_orchestration.event_room import (
+        _reset_subject_hash_secret_for_testing,
+    )
+    # Capture the autouse-set secret.
+    secret_a = b"round4-test-salt-32-bytes-min-aaaaaa"
+    # Force cache invalidation so the env var is reread.
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", "secret-A-" + "x" * 32)
+    _reset_subject_hash_secret_for_testing()
+    h_a = er_module._safe_subject_id("alice@example.com")
+    # Confirm the full 64-char hex digest is preserved (256 bits).
+    assert h_a.startswith("subj_")
+    assert len(h_a) == len("subj_") + 64  # full SHA-256 hex
+
+    # Rotate the secret (simulates a log correlation break / new
+    # process). The output MUST differ for the same input — if
+    # not, the function is silently using a cached / module-level
+    # salt and bypassing the env var.
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", "secret-B-" + "y" * 32)
+    _reset_subject_hash_secret_for_testing()
+    h_b = er_module._safe_subject_id("alice@example.com")
+    assert h_a != h_b, (
+        "round-4 hash is not secret-keyed: rotating the env var "
+        "must produce different outputs for the same input"
+    )
+    # Restore the autouse value so other tests see the canonical
+    # hash.
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", secret_a.decode("ascii"))
+    _reset_subject_hash_secret_for_testing()
+
+
+async def test_safe_subject_id_fails_closed_without_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ROUND 4 #2: ``_safe_subject_id`` fails closed with
+    ``ValueError`` when the env var is missing or empty
+    (ADR-V2-028 strict-by-default). The autouse fixture sets the
+    env var; this test ``delenv``'s it and asserts the failure.
+    """
+    from eaasp_l4_orchestration import event_room as er_module
+    from eaasp_l4_orchestration.event_room import (
+        _reset_subject_hash_secret_for_testing,
+    )
+    monkeypatch.delenv("EAASP_L4_SUBJECT_HASH_SALT", raising=False)
+    _reset_subject_hash_secret_for_testing()
+    with pytest.raises(ValueError, match="EAASP_L4_SUBJECT_HASH_SALT"):
+        er_module._safe_subject_id("alice@example.com")
+    # Whitespace-only is also rejected.
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", "   ")
+    _reset_subject_hash_secret_for_testing()
+    with pytest.raises(ValueError, match="EAASP_L4_SUBJECT_HASH_SALT"):
+        er_module._safe_subject_id("alice@example.com")
+    # Empty string is also rejected.
+    monkeypatch.setenv("EAASP_L4_SUBJECT_HASH_SALT", "")
+    _reset_subject_hash_secret_for_testing()
+    with pytest.raises(ValueError, match="EAASP_L4_SUBJECT_HASH_SALT"):
+        er_module._safe_subject_id("alice@example.com")
+
+
+async def test_safe_subject_id_anon_for_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ROUND 4 #2 follow-on: ``_safe_subject_id("")`` and
+    ``_safe_subject_id(None)`` return ``"anon"`` WITHOUT touching
+    the secret. This preserves the round-3 contract for empty
+    inputs — the salt is never consulted for the empty branch,
+    so an attacker cannot probe the secret by sending empty
+    payloads during a misconfigured boot.
+    """
+    from eaasp_l4_orchestration import event_room as er_module
+    from eaasp_l4_orchestration.event_room import (
+        _reset_subject_hash_secret_for_testing,
+    )
+    monkeypatch.delenv("EAASP_L4_SUBJECT_HASH_SALT", raising=False)
+    _reset_subject_hash_secret_for_testing()
+    assert er_module._safe_subject_id("") == "anon"
+    assert er_module._safe_subject_id(None) == "anon"
+
+
+async def test_init_db_creates_l4_startup_failures_table(
+    tmp_db_path: str,
+) -> None:
+    """ROUND 4 #2 follow-on (audit-ledger style startup-fail
+    record): the migration schema creates a dedicated
+    ``l4_startup_failures`` table in the same L4 SQLite file so
+    boot-time failures (e.g. missing required env var) can be
+    persisted in the same WAL discipline as the rest of the
+    audit surface. The table is created BEFORE the process-
+    startup gates fire so a boot probe can write one row before
+    the process exits.
+    """
+    import aiosqlite
+
+    db = await aiosqlite.connect(tmp_db_path)
+    try:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name='l4_startup_failures'"
+        )
+        row = await cur.fetchone()
+        assert row is not None
+        # The table has the documented columns.
+        cur = await db.execute("PRAGMA table_info(l4_startup_failures)")
+        cols = await cur.fetchall()
+        col_names = {c["name"] for c in cols}
+        assert col_names == {
+            "seq",
+            "reason",
+            "env_var",
+            "resolution",
+            "req_id",
+            "adr_id",
+            "created_at",
+        }
+    finally:
+        await db.close()

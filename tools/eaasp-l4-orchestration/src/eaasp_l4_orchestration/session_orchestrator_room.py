@@ -8,9 +8,9 @@ REQ-APPROVAL-01..02:
 - ``MultiSessionCoordinator`` is the L4-facing wrapper over
   ``EventRoomStore`` that exposes the multi-session coordination
   vocabulary: ``join_event_room``, ``leave_event_room``,
-  ``emit_shared_event``. Each method delegates to the underlying
-  ``EventRoomStore`` so the storage layer remains the single
-  source of truth.
+  ``emit_shared_event``, ``resume_with_human_decision``. Each
+  method delegates to the underlying ``EventRoomStore`` so the
+  storage layer remains the single source of truth.
 - Sessions are short-lived. Rooms are long-lived. The coordinator
   bridges the two: a session joins a room, the session emits an
   event, the event is fanned-out to every other room member via
@@ -32,6 +32,21 @@ REQ-APPROVAL-01..02:
   ``SessionOrchestrator.close_session`` path calls (no side
   effect on the existing close path; the join is via a single
   call site in ``session_orchestrator.py``).
+
+Authorization model — security review rounds 3 + 4: the
+authenticated caller principal is NEVER a free method
+parameter on the facade (round 3 added this for
+``join_event_room``; round 4 promotes the rule to
+``leave_event_room`` / ``emit_shared_event`` /
+``resume_with_human_decision`` so all four entry points share a
+single source-of-truth — the ``_AUTHENTICATED_PRINCIPAL``
+``ContextVar`` populated by the API entry-point adapter).
+No request body / RPC argument / event payload / model-
+generated value can populate the caller identity. A request
+that fails to bind the contextvar is treated as
+unauthenticated and rejected with ``AuthContextMissing`` (the
+contextvar is the only path into the verified-caller
+resolution; see ``_require_authenticated_principal``).
 
 Membership is authoritative in ``event_room_members``. The
 coordinator does NOT maintain its own in-memory map; every
@@ -93,7 +108,7 @@ class AuthContextMissing(MultiSessionCoordinatorError):
     """
 
 
-# v3.12.1 — security review round 3: the authenticated caller
+# v3.12.1 — security review rounds 3 + 4: the authenticated caller
 # principal is propagated via a ``ContextVar`` populated by the API
 # entry-point adapter (FastAPI dependency → verified JWT → set
 # ``_AUTHENTICATED_PRINCIPAL.set(...)`` BEFORE invoking the
@@ -103,7 +118,10 @@ class AuthContextMissing(MultiSessionCoordinatorError):
 # ContextVar source). Default is ``None`` — every coordinator
 # method that requires the authenticated principal checks the
 # ContextVar explicitly and raises ``AuthContextMissing`` if it
-# is unset.
+# is unset. Round 4 promotes this rule from ``join_event_room``
+# only to ALL four entry points (``join`` / ``leave`` /
+# ``emit_shared_event`` / ``resume_with_human_decision``); see
+# the class docstring for the sibling-path parity rationale.
 _AUTHENTICATED_PRINCIPAL: contextvars.ContextVar[str | None] = (
     contextvars.ContextVar(
         "eaasp_l4_authenticated_principal",
@@ -121,7 +139,7 @@ class MultiSessionCoordinator:
     ``bind_authenticated_principal(...)`` to simulate a verified
     request context.
 
-    v3.12.1 — security review round 3 (HIGH authorization):
+    v3.12.1 — security review rounds 3 + 4 (HIGH authorization):
     the authenticated caller principal is NEVER accepted as a
     method parameter. It is resolved inside the facade from
     ``_AUTHENTICATED_PRINCIPAL`` (a ContextVar populated by the
@@ -129,6 +147,17 @@ class MultiSessionCoordinator:
     body, RPC argument, event payload, or model-generated value
     can populate it. A request that has not bound the ContextVar
     is rejected with ``AuthContextMissing``.
+
+    Round 4 fix — sibling-path parity: ``leave_event_room`` /
+    ``emit_shared_event`` / ``resume_with_human_decision`` are
+    now governed by the same authentication seam as
+    ``join_event_room``. The previous round-3 shape left three
+    sibling paths exposing ``principal`` / ``human_principal``
+    as free parameters, which a caller could populate from the
+    request body to act under a different identity. The
+    round-4 fix removes those parameters and routes every
+    authorization gate through ``_require_authenticated_principal``
+    so the source of truth for the verified caller is single.
     """
 
     def __init__(self, room_store: EventRoomStore) -> None:
@@ -200,7 +229,6 @@ class MultiSessionCoordinator:
         *,
         room_id: str,
         session_id: str,
-        principal: str,
     ) -> bool:
         """Unbind ``session_id`` from ``room_id``.
 
@@ -208,17 +236,24 @@ class MultiSessionCoordinator:
         session was not a member. Idempotent — safe to call from
         session-shutdown paths.
 
-        v3.12.1 — security review #2: ``principal`` is REQUIRED;
-        the underlying store enforces self-removal or
-        room-owner authorization. Calling ``leave_event_room``
-        without a principal raises ``ValueError``; the underlying
-        store raises ``EventRoomNotAuthorized`` if the principal
-        is neither the row's principal nor the room owner.
+        v3.12.1 — security review round 4 (sibling-path parity
+        follow-on: HIGH missing-authorization-gate). The
+        authenticated caller principal is resolved from
+        ``_AUTHENTICATED_PRINCIPAL`` (a ContextVar set by the API
+        entry-point adapter from a verified JWT / session /
+        AuthContext). It is NOT accepted as a method parameter;
+        a request body / RPC argument / event payload /
+        model-generated value cannot populate it. The underlying
+        store enforces self-removal or room-owner authorization;
+        a non-self non-owner caller is rejected with
+        ``EventRoomNotAuthorized``.
+
+        Raises ``AuthContextMissing`` if no principal is bound to
+        the current request context.
         """
-        if not principal:
-            raise ValueError("principal must be a non-empty string")
+        caller_principal = self._require_authenticated_principal()
         return await self.room_store.remove_member(
-            room_id, session_id, principal
+            room_id, session_id, caller_principal
         )
 
     async def auto_leave_event_rooms(
@@ -288,23 +323,35 @@ class MultiSessionCoordinator:
         event_subtype: str,
         payload: dict[str, Any],
         origin_session_id: str,
-        principal: str,
     ) -> int | None:
         """Fan-out a shared event to every room member.
 
         Builds the canonical ``governance.session.cross.<sub>`` event
         type (via ``make_event_room_event_type``), embeds the
-        origin_session_id + principal in the payload envelope, and
-        delegates to ``EventRoomStore.fan_out_event``. Returns the
-        new ``seq`` on success or ``None`` on best-effort failure.
+        origin_session_id + caller principal in the payload envelope,
+        and delegates to ``EventRoomStore.fan_out_event``. Returns
+        the new ``seq`` on success or ``None`` on best-effort failure.
 
         The fan-out itself is structural: SSE consumers read
         ``event_room_events`` and dispatch the row to every active
         session in the room. The coordinator does NOT maintain an
         in-process SSE bus.
+
+        v3.12.1 — security review round 4 (sibling-path parity
+        follow-on: HIGH missing-authorization-gate). The
+        authenticated caller principal is resolved from
+        ``_AUTHENTICATED_PRINCIPAL`` (a ContextVar set by the API
+        entry-point adapter from a verified JWT / session /
+        AuthContext). It is NOT accepted as a method parameter;
+        a request body / RPC argument / event payload /
+        model-generated value cannot populate it. The same
+        verified caller is recorded in both the SSE-visible
+        payload envelope and the store-side ``principal`` kwarg.
+
+        Raises ``AuthContextMissing`` if no principal is bound to
+        the current request context.
         """
-        if not principal:
-            raise ValueError("principal must be a non-empty string")
+        caller_principal = self._require_authenticated_principal()
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dict")
 
@@ -312,14 +359,16 @@ class MultiSessionCoordinator:
         # the validation lives outside the transaction.
         event_type = make_event_room_event_type(event_subtype)
 
-        # Embed origin + principal in the payload envelope so SSE
-        # consumers don't need a separate metadata table to know who
-        # emitted the event. ``origin_session_id`` is also carried
-        # as a first-class column by ``fan_out_event`` itself, so
-        # this is the SSE-visible view (JSON-serialized).
+        # Embed origin + caller principal in the payload envelope so
+        # SSE consumers don't need a separate metadata table to know
+        # who emitted the event. The principal recorded here is the
+        # verified caller — it is NEVER sourced from the request
+        # body. ``origin_session_id`` is also carried as a first-
+        # class column by ``fan_out_event`` itself, so this is the
+        # SSE-visible view (JSON-serialized).
         envelope = {
             "origin_session_id": origin_session_id,
-            "principal": principal,
+            "principal": caller_principal,
             "ts": int(time.time()),
             "payload": payload,
         }
@@ -329,7 +378,7 @@ class MultiSessionCoordinator:
             event_type=event_type,
             payload=envelope,
             origin_session_id=origin_session_id,
-            principal=principal,
+            principal=caller_principal,
         )
 
     # ─── Read paths ──────────────────────────────────────────────────────
@@ -382,38 +431,58 @@ class MultiSessionCoordinator:
         decision_id: str,
         human_decision: str,
         human_reason: str,
-        human_principal: str,
         evidence_refs: list[str] | None = None,
     ) -> dict[str, Any] | None:
         """Resume a paused 5-stage approval chain with the human verdict.
 
         v3.12.1 — REQ-APPROVAL-01..02 + REQ-COORD-02: when a session
         participating in an Event Room is paused at the Approve
-        stage, ONLY a room member's principal may resume the chain.
-        The coordinator enforces this by checking membership in
-        ``event_room_members`` BEFORE delegating to the underlying
-        L3 audit store.
+        stage, ONLY a verified caller's principal may resume the
+        chain. The coordinator enforces this by checking the
+        ContextVar-resolved verified principal against membership
+        in ``event_room_members`` BEFORE delegating to the
+        underlying L3 audit store.
+
+        v3.12.1 round 4 — security review follow-on (HIGH
+        missing-authorization-gate): ``human_principal`` is NO
+        LONGER a method parameter. The verified principal is
+        resolved inside the facade from
+        ``_AUTHENTICATED_PRINCIPAL`` — the same contextvar that
+        ``join_event_room`` / ``leave_event_room`` /
+        ``emit_shared_event`` consume. The API entry-point
+        adapter must call ``bind_authenticated_principal(verified)``
+        BEFORE invoking this method; a request that has not bound
+        the contextvar is rejected with ``AuthContextMissing``
+        (fail-closed). This closes the horizontal-privilege-
+        escalation vector where any caller could resume a paused
+        chain while asserting ``human_principal=<room owner>`` in
+        the request body.
 
         Returns a dict describing the resume outcome (``{ok: True,
-        decision: 'allow'|'deny', room_id, session_id}`` on success;
-        ``None`` if the chain is not paused under this decision_id).
-        Returns ``EventRoomNotFound`` if the room_id is supplied
-        but absent; ``PermissionError`` if the principal is not a
-        member of the supplied room.
+        decision: 'allow'|'deny', room_id, session_id, principal}``
+        on success; ``None`` if the chain is not paused under this
+        decision_id). Returns ``EventRoomNotFound`` if the
+        ``room_id`` is supplied but absent;
+        ``EventRoomNotAuthorized`` (NOT ``PermissionError`` —
+        sibling-path parity with the other facade methods) if the
+        verified caller is neither a member of the supplied room
+        nor its owner; ``AuthContextMissing`` if the contextvar
+        has not been bound.
 
         Implementation note: this method is intentionally
         structural. It does NOT run the L3 ``ApprovalStateMachine``
         itself (the API layer in 03.12.2 + 03.12.3 wires that up);
-        it only validates the principal is a room member and
-        records the resume decision in the audit ledger via the
-        ``AuditStore``. The chain's terminal state (allow / deny)
-        is returned so callers can drive the next stage.
+        it only validates the verified caller is a room member
+        and records the resume decision in the audit ledger via
+        ``EventRoomStore.fan_out_event``. The chain's terminal
+        state (allow / deny) is returned so callers can drive the
+        next stage.
 
         Audit ledger row shape: ``decision_id`` is the chain's
         paused ``gd_approval_*_approve`` row (set by the L3 state
         machine); the resume appends a NEW row with stage
         ``await_human`` carrying the human's verdict + reason +
-        principal. Append-only invariant preserved.
+        the verified principal. Append-only invariant preserved.
         """
         if not session_id:
             raise ValueError("session_id must be a non-empty string")
@@ -425,16 +494,21 @@ class MultiSessionCoordinator:
             )
         if not human_reason:
             raise ValueError("human_reason must be a non-empty string")
-        if not human_principal:
-            raise ValueError(
-                "human_principal must be a non-empty string (RBAC binding required)"
-            )
+
+        # Resolve the verified caller from the API entry-point
+        # ContextVar. This is the only source of truth for the
+        # human principal recorded on the audit ledger row + the
+        # SSE event envelope below. A request that has not bound
+        # the contextvar fails closed with ``AuthContextMissing``
+        # BEFORE any room-membership check fires — sibling-path
+        # parity with the rest of the facade.
+        human_principal = self._require_authenticated_principal()
 
         # Room membership gate: if a room_id is supplied, the
-        # principal must be a member of the room (recorded via
-        # ``add_member`` — the principal is the audit trail of who
-        # joined the room, but the join itself is owner-gated). If
-        # the room_id is None, we skip the membership check (no
+        # verified caller must be a member of the room (recorded
+        # via ``add_member`` — the principal is the audit trail of
+        # who joined the room, but the join itself is owner-gated).
+        # If the room_id is None, we skip the membership check (no
         # room is associated with the chain — back-compat with the
         # v3.11.2 single-session chain path).
         if room_id is not None:
@@ -443,17 +517,23 @@ class MultiSessionCoordinator:
             room = await self.room_store.get(room_id)
             if room is None:
                 raise EventRoomNotFound(room_id, "no such room")
-            # The principal must either be a member of the room or
-            # the room owner. Both are recorded in the event_room
-            # tables, so we check both.
+            # The verified caller must either be a member of the
+            # room or the room owner. Both are recorded in the
+            # event_room tables, so we check both. The failure
+            # surface is ``EventRoomNotAuthorized`` (sibling-path
+            # parity with the other facade methods) — NOT the
+            # legacy ``PermissionError`` shape that preceded the
+            # round-4 cleanup.
             if (
                 human_principal not in members
                 and room.owner_principal != human_principal
             ):
-                raise PermissionError(
-                    f"principal {human_principal!r} is not a member of "
-                    f"room {room_id!r} and is not the room owner; "
-                    f"resume rejected (audit §REQ-APPROVAL-02)"
+                raise EventRoomNotAuthorized(
+                    room_id,
+                    human_principal,
+                    "verified caller is not a member of room and "
+                    "is not the room owner; resume rejected "
+                    "(audit §REQ-APPROVAL-02 / §REQ-ROOM-05)",
                 )
 
         # Append the resume decision to the room's event log so
@@ -466,6 +546,13 @@ class MultiSessionCoordinator:
         # (it does not need the room fan-out to be deterministic).
         # The room event log entry is the cross-session
         # coordination visibility layer.
+        #
+        # v3.12.1 round 4: the ``principal`` recorded here is the
+        # verified caller (resolved above), NOT a free parameter.
+        # A request body that asserts ``human_principal=<value>``
+        # has no effect on what gets persisted. The envelope
+        # carrier is structurally identical to round-3 so SSE
+        # consumers keep working without churn.
         #
         # v3.12.1 — security review #1 follow-on: the room event
         # log entry ONLY runs when a real ``room_id`` is supplied.
