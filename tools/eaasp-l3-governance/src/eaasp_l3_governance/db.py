@@ -67,6 +67,14 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_received_at
 -- pause-on-Approve sentinel). Fresh schemas carry the widened
 -- constraint inline; existing v3.11.x DBs are upgraded via the
 -- idempotent ``migrate_decision_await_human`` migration below.
+--
+-- Note: indexes on ``governance_decisions`` are NOT created here
+-- because the ``stage`` column is added conditionally below; the
+-- indexes are created in ``init_db`` AFTER the conditional column
+-- add so legacy v3.11.0 / v3.11.1 DBs (which lack ``stage``) don't
+-- fail the CREATE INDEX with ``no such column: stage``. ``init_db``
+-- also runs the indexes again after ``migrate_decision_await_human``
+-- in case the migration's table-rebuild dropped them.
 CREATE TABLE IF NOT EXISTS governance_decisions (
     decision_id TEXT PRIMARY KEY,
     session_id  TEXT NOT NULL,
@@ -79,12 +87,31 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     stage       TEXT,
     ts          TEXT NOT NULL DEFAULT (datetime('now'))
 );
-
-CREATE INDEX IF NOT EXISTS idx_governance_decisions_session_ts
-    ON governance_decisions(session_id, ts DESC);
-CREATE INDEX IF NOT EXISTS idx_governance_decisions_stage
-    ON governance_decisions(stage) WHERE stage IS NOT NULL;
 """
+
+
+# Indexes on governance_decisions are created AFTER the table exists
+# (and after the v3.11.2 ``stage`` column migration runs). See
+# ``_create_governance_decisions_indexes`` for the helper.
+_GOVERNANCE_DECISIONS_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS idx_governance_decisions_session_ts "
+    "ON governance_decisions(session_id, ts DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_governance_decisions_stage "
+    "ON governance_decisions(stage) WHERE stage IS NOT NULL",
+)
+
+
+async def _create_governance_decisions_indexes(path: str) -> None:
+    """Create governance_decisions indexes idempotently.
+
+    Called from ``init_db`` after the conditional ``stage`` column
+    add and again after ``migrate_decision_await_human`` (which
+    rebuilds the table and drops indexes).
+    """
+    async with aiosqlite.connect(path) as db:
+        for ddl in _GOVERNANCE_DECISIONS_INDEXES:
+            await db.execute(ddl)
+        await db.commit()
 
 
 async def init_db(path: str) -> None:
@@ -118,12 +145,25 @@ async def init_db(path: str) -> None:
             )
             await db.commit()
 
+    # Indexes that depend on ``stage`` are created after the column
+    # add so legacy v3.11.0 / v3.11.1 DBs (no ``stage`` column yet)
+    # don't fail with ``no such column: stage``.
+    await _create_governance_decisions_indexes(path)
+
     # v3.12.0 — V311-AUDIT-01 / SCHEMA-02 — widen the CHECK constraint on
     # ``governance_decisions.decision`` to include ``await_human``
     # (idempotent: detects a pre-migration CHECK that lacks the sentinel
     # and rebuilds the table; no-op on fresh schemas that already include
     # it inline). The migration preserves all existing rows.
-    await migrate_decision_await_human(path)
+    migrated = await migrate_decision_await_human(path)
+    if migrated:
+        # The migration rebuilds the table and recreates the indexes
+        # itself; but if the legacy DB did not have the ``stage``
+        # column (v3.11.0 / v3.11.1), the migration's
+        # ``idx_governance_decisions_stage`` CREATE would have failed
+        # the same way the inline SCHEMA did. Run the indexes again
+        # defensively.
+        await _create_governance_decisions_indexes(path)
 
 
 async def migrate_decision_await_human(path: str) -> bool:
@@ -180,6 +220,14 @@ async def migrate_decision_await_human(path: str) -> bool:
         # write-path convention (audit §C1).
         await db.execute("BEGIN IMMEDIATE")
         try:
+            # Probe the legacy column list. v3.11.0 / v3.11.1 had no
+            # ``stage`` column; v3.11.2 added it via ALTER TABLE; we
+            # copy only the columns the legacy row actually carries,
+            # defaulting ``stage`` to NULL for pre-v3.11.2 rows.
+            cur = await db.execute(
+                "PRAGMA table_info(governance_decisions)"
+            )
+            legacy_cols = [row[1] async for row in cur]
             await db.execute(
                 "ALTER TABLE governance_decisions "
                 "RENAME TO governance_decisions__legacy_v3_11"
@@ -203,12 +251,13 @@ async def migrate_decision_await_human(path: str) -> bool:
                 )
                 """
             )
-            # Copy every row across. Column-list is identical between
-            # old and new schemas (the CHECK is a constraint, not a
-            # column), so ``SELECT *`` is safe.
+            # Copy every row across, projecting only the columns the
+            # legacy table carries. ``stage`` defaults to NULL when
+            # missing on the legacy row (pre-v3.11.2).
+            col_list = ", ".join(legacy_cols)
             await db.execute(
-                "INSERT INTO governance_decisions "
-                "SELECT * FROM governance_decisions__legacy_v3_11"
+                f"INSERT INTO governance_decisions ({col_list}) "
+                f"SELECT {col_list} FROM governance_decisions__legacy_v3_11"
             )
             await db.execute(
                 "DROP TABLE governance_decisions__legacy_v3_11"
