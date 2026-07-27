@@ -60,6 +60,7 @@ from .event_room import (
     EVENT_ROOM_EVENT_TYPE_PREFIX,
     EventRoom,
     EventRoomError,
+    EventRoomNotAuthorized,
     EventRoomNotFound,
     EventRoomStore,
     make_event_room_event_type,
@@ -93,18 +94,37 @@ class MultiSessionCoordinator:
         room_id: str,
         session_id: str,
         principal: str,
+        caller_principal: str,
     ) -> bool:
         """Bind ``session_id`` to ``room_id``.
 
         Returns ``True`` if a new row was inserted, ``False`` if the
-        (room_id, session_id) pair was already present. Raises
-        ``EventRoomError`` subclasses for room-level failures (room
-        not found, room not open).
+        (room_id, session_id) pair was already present.
+
+        v3.12.1 — security review round 2 #1 (CRITICAL):
+        ``caller_principal`` is REQUIRED and is sourced from the
+        authenticated caller (NOT a free parameter). The underlying
+        store enforces the caller-side authorization gate:
+        caller_principal must match the room owner OR an existing
+        member's principal. A non-member non-owner caller is
+        rejected with ``EventRoomNotAuthorized``.
+
+        Raises ``EventRoomError`` subclasses for room-level
+        failures (room not found, room not open, room not
+        authorized, re-bind conflict).
         """
         if not principal:
             raise ValueError("principal must be a non-empty string")
+        if not caller_principal:
+            raise ValueError(
+                "caller_principal must be a non-empty string "
+                "(sourced from auth context, NOT a free parameter)"
+            )
         return await self.room_store.add_member(
-            room_id, session_id, principal
+            room_id,
+            session_id,
+            principal,
+            caller_principal=caller_principal,
         )
 
     async def leave_event_room(

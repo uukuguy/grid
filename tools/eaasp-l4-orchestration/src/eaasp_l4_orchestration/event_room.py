@@ -469,31 +469,56 @@ class EventRoomStore:
     # ─── Membership ──────────────────────────────────────────────────────
 
     async def add_member(
-        self, room_id: str, session_id: str, principal: str
+        self,
+        room_id: str,
+        session_id: str,
+        principal: str,
+        *,
+        caller_principal: str,
     ) -> bool:
         """Bind a session to a room.
 
-        ``principal`` is the human/service principal who authorizes
-        the bind. Returns ``True`` if a new row was inserted.
+        ``principal`` is the human/service principal recorded in
+        the membership row as the one who authorized the bind.
+        ``caller_principal`` is the authenticated caller identity
+        (sourced from the auth context / JWT claims, NOT a free
+        parameter). Returns ``True`` if a new row was inserted.
 
-        v3.12.1 — security review #4: a re-bind of an existing
-        (room_id, session_id) pair is NOT silently absorbed by
-        ``ON CONFLICT DO NOTHING``. The previous shape silently
-        swapped the principal who authorized the join without
-        surfacing it in the audit log — a caller could
-        re-``add_member`` with a new ``principal`` and the
-        original author would be erased. The new shape raises
-        ``EventRoomAlreadyExists`` (preserves the v3.12.1 audit
-        contract: re-bind must be a separate explicit operation
-        such as ``remove_member`` + ``add_member``). The existing
-        membership row stays intact (no UPDATE on conflict — the
-        caller decides whether to swap by going through the
-        remove+add sequence).
+        v3.12.1 — security review round 1 #4: a re-bind of an
+        existing (room_id, session_id) pair is NOT silently
+        absorbed by ``ON CONFLICT DO NOTHING``. The previous
+        shape silently swapped the principal who authorized
+        the join without surfacing it in the audit log — a
+        caller could re-``add_member`` with a new ``principal``
+        and the original author would be erased. The new shape
+        raises ``EventRoomAlreadyExists`` (preserves the v3.12.1
+        audit contract: re-bind must be a separate explicit
+        operation such as ``remove_member`` + ``add_member``).
+        The existing membership row stays intact (no UPDATE on
+        conflict — the caller decides whether to swap by going
+        through the remove+add sequence).
+
+        v3.12.1 — security review round 2 #1 (CRITICAL):
+        caller-side authorization gate. ``add_member`` previously
+        allowed ANY caller to bind ANY session to ANY open room
+        with ANY principal — a horizontal-privilege-escalation
+        bug. The new gate requires:
+
+        - ``caller_principal`` (the authenticated caller, NOT a
+          free parameter) must match ``event_rooms.owner_principal``
+          OR the principal recorded on an existing membership row
+          for the same session. The owner can authorize a fresh
+          bind for any session; an existing member's principal can
+          bind additional sessions to the same room (room-internal
+          delegation). A non-member non-owner caller is rejected
+          with ``EventRoomNotAuthorized``.
 
         Raises ``EventRoomNotFound`` if the room does not exist;
         ``EventRoomNotOpen`` if the room is closed / expired;
         ``EventRoomAlreadyExists`` if the (room_id, session_id)
-        pair is already bound.
+        pair is already bound; ``EventRoomNotAuthorized`` if
+        the caller is neither the room owner nor an existing
+        member under the same principal.
         """
         if not room_id:
             raise ValueError("room_id must be a non-empty string")
@@ -501,44 +526,78 @@ class EventRoomStore:
             raise ValueError("session_id must be a non-empty string")
         if not principal:
             raise ValueError("principal must be a non-empty string")
+        if not caller_principal:
+            raise ValueError(
+                "caller_principal must be a non-empty string "
+                "(sourced from auth context, NOT a free parameter)"
+            )
 
         db = await connect(self.db_path)
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
+                # Probe room + existing membership rows for the
+                # same session so we can enforce the
+                # caller-side authorization gate AND detect the
+                # re-bind conflict in one pass.
                 cur = await db.execute(
-                    "SELECT status FROM event_rooms WHERE room_id = ?",
-                    (room_id,),
+                    """
+                    SELECT r.status AS room_status,
+                           r.owner_principal AS room_owner,
+                           m.principal AS existing_principal
+                      FROM event_rooms r
+                      LEFT JOIN event_room_members m
+                        ON m.room_id = r.room_id
+                       AND m.session_id = ?
+                     WHERE r.room_id = ?
+                    """,
+                    (session_id, room_id),
                 )
                 row = await cur.fetchone()
                 if row is None:
                     await db.rollback()
                     raise EventRoomNotFound(room_id, "no such room")
-                if row["status"] != STATUS_OPEN:
+                if row["room_status"] != STATUS_OPEN:
                     await db.rollback()
                     raise EventRoomNotOpen(
                         room_id,
-                        f"room status is {row['status']!r}, not 'open'",
+                        f"room status is {row['room_status']!r}, not 'open'",
                     )
 
-                # v3.12.1 — security review #4: detect the
-                # re-bind BEFORE INSERT, raise explicitly, and
-                # emit a room event log row so the rejected
-                # attempt is auditable. The pre-INSERT probe +
-                # ROLLBACK-on-conflict is the only safe shape —
-                # ``ON CONFLICT DO NOTHING`` would silently swap
-                # the principal that authorized the bind.
-                cur = await db.execute(
-                    """
-                    SELECT 1 FROM event_room_members
-                     WHERE room_id = ? AND session_id = ?
-                    """,
-                    (room_id, session_id),
-                )
-                existing = await cur.fetchone()
-                if existing is not None:
-                    # Audit the rejected re-bind attempt (best-effort).
+                # v3.12.1 — security review round 2 #1: caller
+                # authorization gate. The caller must be either
+                # the room owner (allowed to invite new sessions)
+                # or an existing member of the room under the
+                # same caller_principal (room-internal delegation).
+                existing_principal = row["existing_principal"]
+                room_owner = row["room_owner"]
+                if (
+                    caller_principal != room_owner
+                    and caller_principal != existing_principal
+                ):
+                    await db.rollback()
+                    raise EventRoomNotAuthorized(
+                        room_id,
+                        caller_principal,
+                        "caller must be the room owner or an "
+                        "existing member under the same principal "
+                        "(audit §REQ-ROOM-05)",
+                    )
+
+                if existing_principal is not None:
+                    # Re-bind attempt — reject + audit.
                     ts = int(time.time())
+                    audit_event_type = make_event_room_event_type(
+                        "member_rebind_rejected"
+                    )
+                    audit_payload = json.dumps(
+                        {
+                            "attempted_principal": principal,
+                            "caller_principal": caller_principal,
+                            "ts": ts,
+                        },
+                        sort_keys=True,
+                    )
                     try:
                         await db.execute(
                             """
@@ -549,21 +608,41 @@ class EventRoomStore:
                             (
                                 room_id,
                                 session_id,
-                                make_event_room_event_type(
-                                    "member_rebind_rejected"
-                                ),
-                                json.dumps(
-                                    {
-                                        "attempted_principal": principal,
-                                        "ts": ts,
-                                    },
-                                    sort_keys=True,
-                                ),
+                                audit_event_type,
+                                audit_payload,
                                 ts,
                             ),
                         )
-                    except Exception:
-                        pass  # best-effort audit
+                    except Exception as exc:
+                        # v3.12.1 — security review round 2 #4:
+                        # the audit row MUST surface on failure.
+                        # Log at WARN with full context + ROLLBACK
+                        # the rejection so the caller sees a
+                        # consistent DB state. The previous
+                        # ``except: pass`` swallowed audit
+                        # failures silently, making the audit
+                        # data unreliable.
+                        await db.rollback()
+                        logger.warning(
+                            "add_member: audit row insert FAILED "
+                            "(room_id={}, session_id={}, "
+                            "caller_principal={!r}, "
+                            "attempted_principal={!r}): {} — "
+                            "caller must treat the re-bind "
+                            "as if it also failed",
+                            room_id,
+                            session_id,
+                            caller_principal,
+                            principal,
+                            exc,
+                        )
+                        raise EventRoomAlreadyExists(
+                            room_id,
+                            f"(room_id, session_id) already bound; "
+                            f"re-bind rejected AND audit row "
+                            f"failed to persist; caller must "
+                            f"retry after audit infra recovers",
+                        )
                     await db.commit()
                     raise EventRoomAlreadyExists(
                         room_id,
@@ -743,16 +822,29 @@ class EventRoomStore:
         list because the previous sweep already flipped the
         status). Safe to call on a schedule.
 
-        v3.12.1 — security review #3: the candidate room_ids are
-        CAPTURED in a ``SELECT`` BEFORE the ``UPDATE`` runs, then
-        the ``UPDATE`` targets only those specific ids. The
-        previous shape updated via a filter predicate
-        (``WHERE status='open' AND expires_at <= ts``) and then
-        re-read the post-update set, which has a TOCTOU window:
-        another writer could insert a NEW room between the
-        UPDATE and the re-read that happens to satisfy the same
-        filter, and the returned list would include the
-        unrelated room. Capture-then-update closes the window.
+        v3.12.1 — security review round 1 #3: the candidate
+        room_ids are CAPTURED in a ``SELECT`` BEFORE the
+        ``UPDATE`` runs, then the ``UPDATE`` targets only those
+        specific ids. The previous shape updated via a filter
+        predicate (``WHERE status='open' AND expires_at <= ts``)
+        and then re-read the post-update set, which has a TOCTOU
+        window: another writer could insert a NEW room between
+        the UPDATE and the re-read that happens to satisfy the
+        same filter, and the returned list would include the
+        unrelated room.
+
+        v3.12.1 — security review round 2 #3: the result list is
+        derived from a SECOND SELECT that reads the post-UPDATE
+        state filtered by ``room_id IN (candidate_ids) AND
+        status='expired'`` — NOT by truncating ``candidate_ids``
+        by ``rows_affected``. The truncation shape had a
+        silent-data-error bug: the slice returned the FIRST
+        ``rows_affected`` ids of the candidate set, which would
+        be wrong if the UPDATE failed for any reason other than
+        a concurrent close (e.g. the room had already been
+        closed, the UPDATE encountered a constraint violation,
+        or the order of ``candidate_ids`` differed from the
+        physical UPDATE order).
         """
         ts = int(now if now is not None else time.time())
         db = await connect(self.db_path)
@@ -781,7 +873,7 @@ class EventRoomStore:
                 # filter predicate) so a concurrent INSERT of a
                 # new stale room cannot sneak into the result set.
                 placeholders = ",".join("?" for _ in candidate_ids)
-                cur = await db.execute(
+                await db.execute(
                     f"""
                     UPDATE event_rooms
                        SET status = ?
@@ -790,28 +882,43 @@ class EventRoomStore:
                     """,
                     [STATUS_EXPIRED, *candidate_ids, STATUS_OPEN],
                 )
-                rows_affected = cur.rowcount
+
+                # Step 3: re-read the post-UPDATE state filtered
+                # by the candidate set + status='expired'. The
+                # returned list is derived from authoritative DB
+                # state, not from a slice of the candidate set.
+                cur = await db.execute(
+                    f"""
+                    SELECT room_id FROM event_rooms
+                     WHERE room_id IN ({placeholders})
+                       AND status = ?
+                     ORDER BY room_id ASC
+                    """,
+                    [*candidate_ids, STATUS_EXPIRED],
+                )
+                expired_rows = await cur.fetchall()
+                flipped_ids = [r["room_id"] for r in expired_rows]
                 await db.commit()
+
+                # If the post-UPDATE state has fewer expired
+                # rows than the candidate set, a concurrent
+                # writer closed one of the candidates. Log a
+                # warning (the DB state is consistent; the
+                # discrepancy is informational).
+                if len(flipped_ids) < len(candidate_ids):
+                    logger.info(
+                        "expire_stale_rooms: {} candidates captured but "
+                        "{} flipped (concurrent close / status change; "
+                        "non-error)",
+                        len(candidate_ids),
+                        len(flipped_ids),
+                    )
+                return flipped_ids
             except Exception:
                 await db.rollback()
                 raise
         finally:
             await db.close()
-
-        # Sanity: the candidate set was the only thing the
-        # UPDATE could have flipped. If the UPDATE affected fewer
-        # rows than expected, log a warning (concurrent writer
-        # closed a candidate first) but DO NOT raise — the
-        # contract is "return the ids that flipped" not
-        # "raise on concurrent close".
-        if rows_affected < len(candidate_ids):
-            logger.info(
-                "expire_stale_rooms: {} candidates captured but {} flipped "
-                "(concurrent close / status change; non-error)",
-                len(candidate_ids),
-                rows_affected,
-            )
-        return candidate_ids[:rows_affected]
 
     async def list_active(
         self, tenant_id: str | None = None
@@ -859,7 +966,7 @@ class EventRoomStore:
         event_type: str,
         payload: dict[str, Any],
         origin_session_id: str,
-        principal: str | None = None,
+        principal: str,
     ) -> int | None:
         """Append ONE row to ``event_room_events`` and return its seq.
 
@@ -875,21 +982,21 @@ class EventRoomStore:
         (the room-scoped SSE replay can skip echoing the event back
         to the emitter).
 
-        v3.12.1 — security review #1: ``principal`` is OPTIONAL
-        for backwards compatibility with the existing
-        ``MultiSessionCoordinator.emit_shared_event`` call site
-        which already passes the principal in the payload envelope.
-        When supplied, the principal must either:
-        - match the membership row's ``principal`` (the session
-          is a member of the room under this principal), OR
-        - match ``event_rooms.owner_principal`` (room-management
-          event from the room owner).
-
+        v3.12.1 — security review #1 (round 1): probe the room +
+        the membership row + the room owner in one SELECT.
         Without the membership check, a non-member caller could
-        emit a phantom fan-out to a room they're not in (horizontal
-        privilege escalation — event log poisoning). With the
-        check, every event row carries a verified authorization
-        chain.
+        fan-out phantom events into a room they are not in.
+
+        v3.12.1 — security review #2 (round 2): ``principal`` is
+        REQUIRED (keyword-only, no default). The previous
+        ``if principal is not None: ... else INSERT`` shape had a
+        permission-relaxation bug: a caller that omitted the
+        keyword arg fell through to INSERT for ANY session_id.
+        Callers MUST pass an authenticated principal (sourced
+        from the auth context, not a free parameter). The
+        authorization gate then verifies that ``principal``
+        matches the membership row's principal OR the room owner.
+        Rejected attempts roll back + log + return None.
         """
         if not room_id:
             raise ValueError("room_id must be a non-empty string")
@@ -902,9 +1009,15 @@ class EventRoomStore:
             )
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dict")
-        if principal is not None and not principal:
+        if not principal:
+            # v3.12.1 — security review round 2 #2: principal is
+            # REQUIRED. The previous ``principal: str | None = None``
+            # defaulted to ``None`` and the body silently fell
+            # through to INSERT for any caller. Reject the call
+            # with a clear ValueError instead.
             raise ValueError(
-                "principal must be a non-empty string when supplied"
+                "principal must be a non-empty string "
+                "(sourced from auth context, NOT optional)"
             )
 
         payload_json = json.dumps(payload, sort_keys=True)
@@ -914,13 +1027,6 @@ class EventRoomStore:
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
-                # v3.12.1 — security review #1: probe the room +
-                # the membership row + the room owner in one
-                # SELECT. Without the membership check, a
-                # non-member caller could fan-out phantom events
-                # into a room they are not in. The check runs
-                # BEFORE the INSERT so a rejected attempt is
-                # never persisted.
                 cur = await db.execute(
                     """
                     SELECT r.status AS room_status,
@@ -952,29 +1058,23 @@ class EventRoomStore:
                         event_type,
                     )
                     return None
-                # Authorization gate (only when principal is supplied).
-                # Backwards-compat: pre-security-review callers that
-                # do not pass ``principal`` (e.g. tests, the
-                # MultiSessionCoordinator internal helper that
-                # already validates membership upstream) skip this
-                # check. New callers SHOULD pass principal.
-                if principal is not None:
-                    member_principal = row["member_principal"]
-                    room_owner = row["room_owner"]
-                    if (
-                        principal != member_principal
-                        and principal != room_owner
-                    ):
-                        await db.rollback()
-                        logger.warning(
-                            "fan_out_event: room_id={} principal={!r} "
-                            "not authorized (not a member and not the "
-                            "room owner); dropping event_type={}",
-                            room_id,
-                            principal,
-                            event_type,
-                        )
-                        return None
+                # Authorization gate — required, not optional.
+                member_principal = row["member_principal"]
+                room_owner = row["room_owner"]
+                if (
+                    principal != member_principal
+                    and principal != room_owner
+                ):
+                    await db.rollback()
+                    logger.warning(
+                        "fan_out_event: room_id={} principal={!r} "
+                        "not authorized (not a member and not the "
+                        "room owner); dropping event_type={}",
+                        room_id,
+                        principal,
+                        event_type,
+                    )
+                    return None
                 cur = await db.execute(
                     """
                     INSERT INTO event_room_events
