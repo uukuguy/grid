@@ -487,6 +487,7 @@ class ApprovalStateMachine:
             decision=decision,
             approver=self.caller_principal,
             rationale=reason,
+            stage=stage,
         )
         return StageRecord(
             decision_id=out.decision_id,

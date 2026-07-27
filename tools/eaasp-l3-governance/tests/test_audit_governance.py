@@ -35,6 +35,9 @@ async def test_governance_decisions_schema_has_nine_columns_and_checks(
 
         cur = await db.execute("PRAGMA table_info(governance_decisions)")
         cols = [row[1] async for row in cur]
+        # v3.11.2 — added ``stage`` column for the 5-stage approval
+        # chain; sits between rationale and ts (NULL default for
+        # backwards compatibility with v3.11.0 / v3.11.1 rows).
         assert cols == [
             "decision_id",
             "session_id",
@@ -44,6 +47,7 @@ async def test_governance_decisions_schema_has_nine_columns_and_checks(
             "decision",
             "approver",
             "rationale",
+            "stage",
             "ts",
         ]
     finally:
@@ -62,6 +66,55 @@ async def test_governance_decisions_index_on_session_ts(
         assert await cur.fetchone() is not None
     finally:
         await db.close()
+
+
+async def test_governance_decisions_stage_index_present(
+    db_path: str,
+) -> None:
+    """v3.11.2 — partial index on the new ``stage`` column."""
+    db = await connect(db_path)
+    try:
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='index' AND name='idx_governance_decisions_stage'"
+        )
+        assert await cur.fetchone() is not None
+    finally:
+        await db.close()
+
+
+async def test_governance_decisions_stage_defaults_to_null_for_legacy(
+    audit_store: AuditStore,
+) -> None:
+    """v3.11.0 / v3.11.1 callers don't pass ``stage``; column stays NULL."""
+    out = await audit_store.record_governance_decision(
+        decision_id="gd_no_stage",
+        session_id="sess_ns",
+        hook_id="h_pre",
+        tool_name="t",
+        risk_level="read",
+        decision="allow",
+        approver=None,
+        rationale="v3.11.1-style row",
+    )
+    assert out.stage is None
+
+
+async def test_governance_decisions_records_stage_when_provided(
+    audit_store: AuditStore,
+) -> None:
+    out = await audit_store.record_governance_decision(
+        decision_id="gd_with_stage",
+        session_id="sess_ws",
+        hook_id="h_pre",
+        tool_name="t",
+        risk_level="write_external",
+        decision="gate_request",
+        approver="caller",
+        rationale="stage-routed",
+        stage="plan",
+    )
+    assert out.stage == "plan"
 
 
 async def test_record_governance_decision_persists_row(
