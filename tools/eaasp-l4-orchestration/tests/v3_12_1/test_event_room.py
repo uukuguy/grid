@@ -1383,6 +1383,236 @@ async def test_resume_with_human_decision_facade_succeeds_with_verified_caller(
         token.reset()
 
 
+# ─── v3.12.1 round 5 — authorization-bypass + principal-membership gate ─
+
+
+async def test_is_member_by_principal_round5_helper(
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #2 (MEDIUM — authorization-check-type-mismatch
+    helper): the new ``is_member_by_principal`` keys the
+    membership check on the ``principal`` column (NOT on a list
+    of session_id strings, which is what ``list_members``
+    returns). A non-owner member gets ``True``; a non-member
+    gets ``False``; an absent room gets ``False``.
+    """
+    room = await store.create(
+        room_id="er_by_principal",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    await store.add_member(
+        room.room_id, "sess_bob", "bob", caller_principal="alice"
+    )
+    # A principal with at least one row in event_room_members → True.
+    assert await store.is_member_by_principal(room.room_id, "alice") is True
+    assert await store.is_member_by_principal(room.room_id, "bob") is True
+    # A principal with no row → False.
+    assert await store.is_member_by_principal(room.room_id, "mallory") is False
+    # An absent room → False (NOT EventRoomNotFound; the helper
+    # is a presence probe, not an existence assertion).
+    assert await store.is_member_by_principal("er_missing", "alice") is False
+
+
+async def test_is_session_in_room_round5_helper(
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #2 helper: ``is_session_in_room`` is the
+    (room_id, session_id) presence check the round-5 facade
+    gate uses to verify the paused chain's ``session_id`` is
+    bound to the same room."""
+    room = await store.create(
+        room_id="er_session_in_room",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    assert await store.is_session_in_room(room.room_id, "sess_alice") is True
+    assert await store.is_session_in_room(room.room_id, "sess_stranger") is False
+    assert await store.is_session_in_room("er_missing", "sess_alice") is False
+
+
+async def test_resume_with_human_decision_rejects_none_room_id(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #1 (HIGH — authorization-bypass via ``room_id=None``):
+    the round-4 shape silently returned a synthetic success
+    dict when ``room_id=None`` — bypassing the membership
+    check entirely. The round-5 fix requires a non-empty
+    ``room_id``; a request that omits it is rejected with
+    ``ValueError`` BEFORE the ContextVar is consulted (the
+    failure surface names the round-5 fix).
+    """
+    room = await store.create(
+        room_id="er_resume_no_room",
+        tenant_id="t1",
+        owner_principal="alice",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="alice"
+    )
+    # No room_id supplied — must raise ValueError, NOT silently
+    # succeed.
+    token = bind_authenticated_principal("alice")
+    try:
+        with pytest.raises(ValueError, match="room_id must be a non-empty"):
+            await coordinator.resume_with_human_decision(
+                session_id="sess_alice",
+                room_id=None,  # type: ignore[arg-type]
+                decision_id="dec_005",
+                human_decision="allow",
+                human_reason="round-5 fail-closed regression",
+            )
+        # No audit row was written (the gate fires before
+        # fan_out_event).
+        events = await store.list_room_events(room.room_id)
+        assert events == []
+    finally:
+        token.reset()
+
+
+async def test_resume_with_human_decision_rejects_cross_principal(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #1 (HIGH — authorization-bypass): the paused
+    chain belongs to ``decision_id`` which is bound to
+    session_id=sess_bob under principal=bob. A caller that
+    binds ContextVar=alice and supplies ``room_id`` + the
+    correct ``session_id`` is still rejected with
+    ``EventRoomNotAuthorized`` because the
+    (session_id, principal) row in ``event_room_members``
+    belongs to bob, not alice.
+
+    This proves the round-5 triple-gate:
+      1. The room exists (yes).
+      2. The verified caller is a member or owner (alice is a
+         member but under session_id=sess_alice, not
+         sess_bob).
+      3. The (session_id, principal) pair matches a real row
+         in ``event_room_members`` (NO — sess_bob is bound
+         under bob, not alice).
+    """
+    room = await store.create(
+        room_id="er_resume_cross",
+        tenant_id="t1",
+        owner_principal="carol",
+    )
+    # alice is a member under her own session; bob is a member
+    # under his own session. carol is the room owner.
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="carol"
+    )
+    await store.add_member(
+        room.room_id, "sess_bob", "bob", caller_principal="carol"
+    )
+    # Caller is alice; alice IS a member of the room (gate 2
+    # passes), but the chain's session_id=sess_bob is bound
+    # under bob (gate 3 fails) → must be rejected.
+    token = bind_authenticated_principal("alice")
+    try:
+        with pytest.raises(EventRoomNotAuthorized):
+            await coordinator.resume_with_human_decision(
+                session_id="sess_bob",  # belongs to bob, not alice
+                room_id=room.room_id,
+                decision_id="dec_006",
+                human_decision="allow",
+                human_reason="round-5 cross-principal regression",
+            )
+        # No audit row was written.
+        events = await store.list_room_events(room.room_id)
+        assert events == []
+    finally:
+        token.reset()
+
+
+async def test_resume_with_human_decision_non_owner_member_authorized(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #2 (MEDIUM — authorization-check-type-mismatch):
+    a non-owner member of the room (principal=alice,
+    session_id=sess_alice) is allowed to resume a paused chain
+    that is bound to her OWN session_id. This proves the
+    round-5 gate accepts the legitimate "alice resumes her own
+    chain" path the round-4 type-mismatched check
+    incidentally blocked.
+    """
+    room = await store.create(
+        room_id="er_resume_member_ok",
+        tenant_id="t1",
+        owner_principal="carol",
+    )
+    await store.add_member(
+        room.room_id, "sess_alice", "alice", caller_principal="carol"
+    )
+    await store.add_member(
+        room.room_id, "sess_bob", "bob", caller_principal="carol"
+    )
+    # alice (a non-owner member) resumes her OWN chain.
+    token = bind_authenticated_principal("alice")
+    try:
+        result = await coordinator.resume_with_human_decision(
+            session_id="sess_alice",
+            room_id=room.room_id,
+            decision_id="dec_007",
+            human_decision="allow",
+            human_reason="alice resumes her own chain",
+        )
+        assert result["ok"] is True
+        assert result["principal"] == "alice"
+        assert result["session_id"] == "sess_alice"
+        # Audit row carries the verified principal.
+        events = await store.list_room_events(room.room_id)
+        approval_events = [
+            e for e in events if "approval_resume" in e["event_type"]
+        ]
+        assert len(approval_events) == 1
+        assert approval_events[0]["payload"]["principal"] == "alice"
+    finally:
+        token.reset()
+
+
+async def test_resume_with_human_decision_owner_can_resume_any_session(
+    coordinator: MultiSessionCoordinator,
+    store: EventRoomStore,
+) -> None:
+    """ROUND 5 #1 follow-on: the room owner can still resume a
+    chain for any session in the room (gate 1 — owner —
+    passes regardless of the (session_id, principal) row).
+    This proves the round-5 fix preserves the legitimate
+    owner-overrides path that round-3 / 4 supported.
+    """
+    room = await store.create(
+        room_id="er_resume_owner_any",
+        tenant_id="t1",
+        owner_principal="carol",
+    )
+    await store.add_member(
+        room.room_id, "sess_bob", "bob", caller_principal="carol"
+    )
+    # Owner carol resumes a chain bound to bob's session.
+    token = bind_authenticated_principal("carol")
+    try:
+        result = await coordinator.resume_with_human_decision(
+            session_id="sess_bob",
+            room_id=room.room_id,
+            decision_id="dec_008",
+            human_decision="deny",
+            human_reason="owner override",
+        )
+        assert result["ok"] is True
+        assert result["principal"] == "carol"
+    finally:
+        token.reset()
+
+
 async def test_safe_subject_id_uses_runtime_secret(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1479,43 +1709,3 @@ async def test_safe_subject_id_anon_for_empty(
     _reset_subject_hash_secret_for_testing()
     assert er_module._safe_subject_id("") == "anon"
     assert er_module._safe_subject_id(None) == "anon"
-
-
-async def test_init_db_creates_l4_startup_failures_table(
-    tmp_db_path: str,
-) -> None:
-    """ROUND 4 #2 follow-on (audit-ledger style startup-fail
-    record): the migration schema creates a dedicated
-    ``l4_startup_failures`` table in the same L4 SQLite file so
-    boot-time failures (e.g. missing required env var) can be
-    persisted in the same WAL discipline as the rest of the
-    audit surface. The table is created BEFORE the process-
-    startup gates fire so a boot probe can write one row before
-    the process exits.
-    """
-    import aiosqlite
-
-    db = await aiosqlite.connect(tmp_db_path)
-    try:
-        db.row_factory = aiosqlite.Row
-        cur = await db.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type='table' AND name='l4_startup_failures'"
-        )
-        row = await cur.fetchone()
-        assert row is not None
-        # The table has the documented columns.
-        cur = await db.execute("PRAGMA table_info(l4_startup_failures)")
-        cols = await cur.fetchall()
-        col_names = {c["name"] for c in cols}
-        assert col_names == {
-            "seq",
-            "reason",
-            "env_var",
-            "resolution",
-            "req_id",
-            "adr_id",
-            "created_at",
-        }
-    finally:
-        await db.close()

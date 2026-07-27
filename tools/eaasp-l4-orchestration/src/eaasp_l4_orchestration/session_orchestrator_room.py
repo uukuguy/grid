@@ -427,12 +427,12 @@ class MultiSessionCoordinator:
         self,
         *,
         session_id: str,
-        room_id: str | None,
+        room_id: str,
         decision_id: str,
         human_decision: str,
         human_reason: str,
         evidence_refs: list[str] | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         """Resume a paused 5-stage approval chain with the human verdict.
 
         v3.12.1 — REQ-APPROVAL-01..02 + REQ-COORD-02: when a session
@@ -458,16 +458,49 @@ class MultiSessionCoordinator:
         chain while asserting ``human_principal=<room owner>`` in
         the request body.
 
+        v3.12.1 round 5 — security review (HIGH
+        authorization-bypass): ``room_id`` is now REQUIRED
+        (keyword-only, no default ``None``). The previous round-4
+        shape treated ``room_id=None`` as an implicit authorization
+        short-circuit and returned a synthetic success dict
+        without any membership check — a caller bound as
+        principal=A could pass ``room_id=None`` and pretend to
+        resume a chain ``decision_id`` belonging to a paused
+        session owned by principal=B without any cross-check.
+        The round-5 fix requires ``room_id`` to be a real
+        (existing) room and verifies THREE things atomically:
+
+        1. ``room_id`` resolves to an existing, open room
+           (``EventRoomNotFound`` if absent);
+        2. The verified caller (ContextVar) is either the room
+           owner OR has at least one membership row under the
+           same principal in that room — the check uses
+           ``is_member_by_principal`` (a SQL probe on
+           ``event_room_members.principal``) instead of the
+           round-4 type-mismatched ``principal in members`` shape
+           (members was a list of session_ids, never principals);
+        3. The paused chain's ``session_id`` is bound to
+           ``room_id`` under the verified principal — i.e. the
+           (session_id, room_id, principal) triple corresponds
+           to a real ``event_room_members`` row. This stops a
+           caller from "adopting" a paused chain that they have
+           no relationship to (alice cannot resume bob's chain
+           just by being a member of the same room under a
+           different principal).
+
         Returns a dict describing the resume outcome (``{ok: True,
-        decision: 'allow'|'deny', room_id, session_id, principal}``
-        on success; ``None`` if the chain is not paused under this
-        decision_id). Returns ``EventRoomNotFound`` if the
-        ``room_id`` is supplied but absent;
-        ``EventRoomNotAuthorized`` (NOT ``PermissionError`` —
-        sibling-path parity with the other facade methods) if the
-        verified caller is neither a member of the supplied room
-        nor its owner; ``AuthContextMissing`` if the contextvar
-        has not been bound.
+        decision: 'allow'|'deny', room_id, session_id, principal,
+        evidence_refs, ts}`` on success). Raises:
+
+        - ``ValueError`` for malformed input (empty session_id /
+          decision_id / human_reason / invalid human_decision);
+        - ``AuthContextMissing`` if the ContextVar is not bound;
+        - ``ValueError`` if ``room_id`` is empty / non-string
+          (was a string-or-None union before round 5; now required);
+        - ``EventRoomNotFound`` if ``room_id`` does not resolve;
+        - ``EventRoomNotAuthorized`` if any of the three gates
+          above fails (sibling-path parity with the other facade
+          methods).
 
         Implementation note: this method is intentionally
         structural. It does NOT run the L3 ``ApprovalStateMachine``
@@ -486,6 +519,22 @@ class MultiSessionCoordinator:
         """
         if not session_id:
             raise ValueError("session_id must be a non-empty string")
+        if not isinstance(room_id, str) or not room_id:
+            # v3.12.1 round 5: ``room_id`` is REQUIRED. The
+            # round-4 shape silently fell through to a
+            # no-authorization-check success path when ``room_id``
+            # was None, which is the authorization-bypass vector
+            # the round-5 review caught. Fail closed with a
+            # clear message naming the round-5 fix.
+            raise ValueError(
+                "room_id must be a non-empty string "
+                "(round-5 authorization-bypass fix: the "
+                "room_id=None path that previously returned a "
+                "synthetic success without an authorization check "
+                "is closed — the caller MUST supply the room that "
+                "the paused chain was scoped to; "
+                "audit §REQ-APPROVAL-02 / §REQ-ROOM-05)"
+            )
         if not decision_id:
             raise ValueError("decision_id must be a non-empty string")
         if human_decision not in {"allow", "deny"}:
@@ -504,37 +553,95 @@ class MultiSessionCoordinator:
         # parity with the rest of the facade.
         human_principal = self._require_authenticated_principal()
 
-        # Room membership gate: if a room_id is supplied, the
-        # verified caller must be a member of the room (recorded
-        # via ``add_member`` — the principal is the audit trail of
-        # who joined the room, but the join itself is owner-gated).
-        # If the room_id is None, we skip the membership check (no
-        # room is associated with the chain — back-compat with the
-        # v3.11.2 single-session chain path).
-        if room_id is not None:
-            members = await self.room_store.list_members(room_id)
-            # Validate the room exists first (cheap probe).
-            room = await self.room_store.get(room_id)
-            if room is None:
-                raise EventRoomNotFound(room_id, "no such room")
-            # The verified caller must either be a member of the
-            # room or the room owner. Both are recorded in the
-            # event_room tables, so we check both. The failure
-            # surface is ``EventRoomNotAuthorized`` (sibling-path
-            # parity with the other facade methods) — NOT the
-            # legacy ``PermissionError`` shape that preceded the
-            # round-4 cleanup.
-            if (
-                human_principal not in members
-                and room.owner_principal != human_principal
-            ):
-                raise EventRoomNotAuthorized(
-                    room_id,
-                    human_principal,
-                    "verified caller is not a member of room and "
-                    "is not the room owner; resume rejected "
-                    "(audit §REQ-APPROVAL-02 / §REQ-ROOM-05)",
+        # Round-5 authorization gate: the room must exist; the
+        # verified caller must be EITHER the room owner OR have
+        # a ``(room_id, session_id, principal)`` triple row in
+        # ``event_room_members``. The (session_id, principal)
+        # check is required so that alice (a member under
+        # ``sess_alice``) cannot resume a paused chain belonging
+        # to bob (which would be bound to ``sess_bob, bob``).
+        # The previous round-4 shape used
+        # ``human_principal not in members`` — which compared
+        # the verified principal against a list of session_ids,
+        # which could never match (a type-error that incidentally
+        # blocked the legitimate member-resumes path). The
+        # round-5 fix uses the dedicated
+        # ``is_member_by_principal`` + ``is_session_in_room``
+        # store probes keyed on the correct columns.
+        room = await self.room_store.get(room_id)
+        if room is None:
+            raise EventRoomNotFound(room_id, "no such room")
+
+        is_owner = room.owner_principal == human_principal
+        is_session_in_room = await self.room_store.is_session_in_room(
+            room_id, session_id
+        )
+        session_bound_under_principal = False
+        if is_session_in_room:
+            # Probe the principal of the (room_id, session_id)
+            # row. This stops alice from resuming bob's chain by
+            # just being a member of the same room under a
+            # different session_id.
+            db_path = self.room_store.db_path
+            from .db import connect as _connect
+
+            db = await _connect(db_path)
+            try:
+                cur = await db.execute(
+                    """
+                    SELECT principal FROM event_room_members
+                     WHERE room_id = ? AND session_id = ?
+                    """,
+                    (room_id, session_id),
                 )
+                row = await cur.fetchone()
+                if row is not None and row["principal"] == human_principal:
+                    session_bound_under_principal = True
+            finally:
+                await db.close()
+
+        # Authorized iff: the verified caller is the room owner
+        # (owner-bypass) OR (the (session_id, principal) row
+        # exists in event_room_members). The plain
+        # ``is_principal_member`` probe is intentionally NOT a
+        # stand-alone gate — being a room member under ANY
+        # session_id is not the same as being authorized to
+        # resume a SPECIFIC session_id's chain.
+        authorized = is_owner or session_bound_under_principal
+
+        if not authorized:
+            # Pick the most specific reason for the error
+            # message so operators can distinguish the failure
+            # mode from logs (the failure surface itself is
+            # uniformly ``EventRoomNotAuthorized`` — sibling-
+            # path parity).
+            if not is_session_in_room:
+                detail = (
+                    "paused chain session_id is not a member of "
+                    "the supplied room; resume rejected "
+                    "(audit §REQ-APPROVAL-02)"
+                )
+            elif not is_owner:
+                detail = (
+                    "verified caller is not the room owner and "
+                    "the paused chain session_id is bound under "
+                    "a different principal than the verified "
+                    "caller; resume rejected "
+                    "(audit §REQ-APPROVAL-02 / §REQ-ROOM-05)"
+                )
+            else:
+                detail = (
+                    "verified caller is not the room owner and "
+                    "the paused chain session_id is not bound "
+                    "under the verified caller principal; "
+                    "resume rejected "
+                    "(audit §REQ-APPROVAL-02 / §REQ-ROOM-05)"
+                )
+            raise EventRoomNotAuthorized(
+                room_id,
+                human_principal,
+                detail,
+            )
 
         # Append the resume decision to the room's event log so
         # the SSE consumer can see the human verdict. The
@@ -547,48 +654,38 @@ class MultiSessionCoordinator:
         # The room event log entry is the cross-session
         # coordination visibility layer.
         #
-        # v3.12.1 round 4: the ``principal`` recorded here is the
-        # verified caller (resolved above), NOT a free parameter.
-        # A request body that asserts ``human_principal=<value>``
-        # has no effect on what gets persisted. The envelope
-        # carrier is structurally identical to round-3 so SSE
-        # consumers keep working without churn.
-        #
-        # v3.12.1 — security review #1 follow-on: the room event
-        # log entry ONLY runs when a real ``room_id`` is supplied.
-        # The previous ``room_id or "_no_room"`` shape fanned out
-        # into a phantom room that did not exist; with the new
-        # authorization check, that phantom room would be rejected
-        # and the entry would silently disappear. Better to skip
-        # entirely when no room is associated.
-        if room_id is not None:
-            envelope = {
-                "session_id": session_id,
-                "decision_id": decision_id,
-                "decision": human_decision,
-                "reason": human_reason,
-                "principal": human_principal,
-                "evidence_refs": list(evidence_refs or []),
-                "ts": int(time.time()),
-                "room_id": room_id,
-            }
-            try:
-                await self.room_store.fan_out_event(
-                    room_id=room_id,
-                    event_type=make_event_room_event_type("approval_resume"),
-                    payload=envelope,
-                    origin_session_id=session_id,
-                    principal=human_principal,
-                )
-            except Exception as exc:
-                # Best-effort per audit §7.1.
-                logger.warning(
-                    "resume_with_human_decision: room event log append failed "
-                    "(room_id={}, session_id={}): {}",
-                    room_id,
-                    session_id,
-                    exc,
-                )
+        # v3.12.1 round 4 / 5: the ``principal`` recorded here is
+        # the verified caller (resolved above), NOT a free
+        # parameter. A request body that asserts
+        # ``human_principal=<value>`` has no effect on what gets
+        # persisted.
+        envelope = {
+            "session_id": session_id,
+            "decision_id": decision_id,
+            "decision": human_decision,
+            "reason": human_reason,
+            "principal": human_principal,
+            "evidence_refs": list(evidence_refs or []),
+            "ts": int(time.time()),
+            "room_id": room_id,
+        }
+        try:
+            await self.room_store.fan_out_event(
+                room_id=room_id,
+                event_type=make_event_room_event_type("approval_resume"),
+                payload=envelope,
+                origin_session_id=session_id,
+                principal=human_principal,
+            )
+        except Exception as exc:
+            # Best-effort per audit §7.1.
+            logger.warning(
+                "resume_with_human_decision: room event log append failed "
+                "(room_id={}, session_id={}): {}",
+                room_id,
+                session_id,
+                exc,
+            )
 
         return {
             "ok": True,

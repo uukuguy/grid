@@ -120,12 +120,22 @@ from .db import connect
 # secret read from ``EAASP_L4_SUBJECT_HASH_SALT``. Per ADR-V2-028
 # strict-by-default, the salt is REQUIRED at process startup —
 # missing/empty env var raises ``ValueError`` and aborts the
-# process via the ``__init_subclass__``-style guard below. With
-# the secret kept out of source + logs, the operator log subject
-# hashes are no longer reversible from the source code alone.
-# The full 256-bit output is preserved (no truncation) so the
-# hash retains collision-resistance even if a malicious actor
-# gains read access to a single log line.
+# process. With the secret kept out of source + logs, the
+# operator log subject hashes are no longer reversible from the
+# source code alone. The full 256-bit output is preserved (no
+# truncation) so the hash retains collision-resistance even if a
+# malicious actor gains read access to a single log line.
+#
+# Round 5 — boot-failure record simplified: the failed attempt to
+# record the startup failure in a dedicated ``l4_startup_failures``
+# DB table was removed. The boot probe / supervisor is the single
+# source of truth for startup-failure records. Inserting into a DB
+# table from inside a module-load chain either races with the
+# schema migration or duplicates DB-open logic — both options
+# expand the trusted-code-base at the boot boundary for
+# observability the supervisor already provides. A bare
+# ``ValueError`` is the failure surface; the supervisor captures
+# it and persists it on its own side.
 _SUBJECT_HASH_ENV = "EAASP_L4_SUBJECT_HASH_SALT"
 
 
@@ -138,28 +148,29 @@ def _load_subject_hash_secret() -> bytes:
     the ``EventRoomStore`` is constructed; the
     ``validation-on-first-use`` pattern keeps the gate inside
     the module rather than as a top-level import side-effect.
+
+    Failure handling (round 5): we deliberately raise ``ValueError``
+    and DO NOT attempt to record the failure in any DB table. The
+    reason: the boot probe / supervisor that catches the failing
+    process is the single source of truth for startup-failure
+    records. Inserting into ``l4_startup_failures`` from inside
+    this function would either (a) attempt to open the DB before
+    the schema migration runs (the migration is the FIRST thing
+    that touches the DB at boot — opening the DB from inside a
+    module-load chain would race with it), or (b) require the
+    store to be already constructed (creating a circular dep:
+    the gate fires at store construction time, so the writer
+    would either reuse the in-construction store — undefined
+    behavior — or duplicate the DB-open logic, which would
+    double-bookkeep transaction discipline). Both options
+    expand the trusted-code-base at the boot boundary for
+    observability that the supervisor already provides. The
+    round-5 simplification keeps the failure surface tight:
+    a single ``ValueError`` that the operator / supervisor
+    sees verbatim.
     """
     raw = os.environ.get(_SUBJECT_HASH_ENV, "")
     if not raw or not raw.strip():
-        # Audit-ledger style startup-fail record: log a structured
-        # event that operators can grep for, mirroring the format
-        # of ``governance_decisions`` rows so postmortem tooling
-        # can recognize the failure mode. The record is intentionally
-        # written BEFORE the ValueError so an automated boot probe
-        # sees a single line at ERROR level before the process
-        # exits — the operator's first line of evidence that the
-        # process refused to start for the right reason.
-        logger.error(
-            "l4_startup_fail: reason={} env={} resolution={} "
-            "req={} adr={}",
-            "subject_hash_secret_missing",
-            _SUBJECT_HASH_ENV,
-            "set the env var to a non-empty string (min 32 bytes "
-            "recommended) BEFORE constructing EventRoomStore / "
-            "MultiSessionCoordinator",
-            "REQ-ROOM-06",
-            "ADR-V2-028",
-        )
         raise ValueError(
             f"{_SUBJECT_HASH_ENV} environment variable must be set to a "
             f"non-empty string before constructing EventRoomStore / "
@@ -943,6 +954,91 @@ class EventRoomStore:
             await db.close()
 
         return [r["session_id"] for r in rows]
+
+    async def is_member_by_principal(
+        self, room_id: str, principal: str
+    ) -> bool:
+        """Return True iff there exists at least one row in
+        ``event_room_members`` for ``(room_id, principal)``.
+
+        v3.12.1 round 5 — authorization-check-type-mismatch:
+        ``list_members`` returns session_id strings, NOT
+        principals, so the previous "human_principal in members"
+        check was type-incompatible (it could never match). The
+        correct gate keys the membership check on the principal
+        column directly via ``WHERE room_id = ? AND principal =
+        ?``. Distinct members under the same principal (e.g.
+        several sessions owned by alice) all count toward
+        alice's membership — the gate is on the principal, not
+        on a specific session_id.
+
+        Returns ``False`` if the room does not exist (callers
+        should probe ``get(room_id)`` first if they need to
+        distinguish "absent room" from "principal is not a
+        member" — the cheap presence check is the more common
+        shape).
+        """
+        if not room_id:
+            raise ValueError("room_id must be a non-empty string")
+        if not principal:
+            raise ValueError("principal must be a non-empty string")
+
+        db = await connect(self.db_path)
+        try:
+            cur = await db.execute(
+                """
+                SELECT 1 AS hit
+                  FROM event_room_members
+                 WHERE room_id = ? AND principal = ?
+                 LIMIT 1
+                """,
+                (room_id, principal),
+            )
+            row = await cur.fetchone()
+        finally:
+            await db.close()
+
+        return row is not None
+
+    async def is_session_in_room(
+        self, room_id: str, session_id: str
+    ) -> bool:
+        """Return True iff ``(room_id, session_id)`` has a row in
+        ``event_room_members``.
+
+        v3.12.1 round 5: chains-scoped-to-a-room require the
+        paused chain's session_id to be a member of the same
+        room under a *matching principal* — i.e. the principal
+        that bound the session to the room is the verified
+        caller invoking ``resume_with_human_decision``. This
+        helper lets the coordinator enforce that the
+        (session_id, principal) pair matches a row in
+        ``event_room_members`` rather than just any-principal
+        membership (which would let any session bound by alice
+        be authorized to resume any chain alice ever joined).
+        Returns ``False`` if the room does not exist.
+        """
+        if not room_id:
+            raise ValueError("room_id must be a non-empty string")
+        if not session_id:
+            raise ValueError("session_id must be a non-empty string")
+
+        db = await connect(self.db_path)
+        try:
+            cur = await db.execute(
+                """
+                SELECT 1 AS hit
+                  FROM event_room_members
+                 WHERE room_id = ? AND session_id = ?
+                 LIMIT 1
+                """,
+                (room_id, session_id),
+            )
+            row = await cur.fetchone()
+        finally:
+            await db.close()
+
+        return row is not None
 
     async def list_rooms_for_session(self, session_id: str) -> list[str]:
         """Return the room_ids a session is currently a member of.

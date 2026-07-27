@@ -108,28 +108,6 @@ CREATE INDEX IF NOT EXISTS idx_event_room_events_seq
     ON event_room_events(room_id, seq);
 CREATE INDEX IF NOT EXISTS idx_event_room_events_session
     ON event_room_events(room_id, session_id, seq);
-
--- v3.12.1 round 4 — startup-fail ledger (audit-ledger style).
--- The L4 startup gate (e.g. ADR-V2-028 strict-by-default missing
--- env var) MUST produce a structured record operators can grep /
--- correlate. We persist these into a dedicated append-only
--- table so they survive process restart and end up in the
--- same audit surface as the rest of the L4 event stream.
--- The table is created BEFORE process startup gates fire so a
--- boot probe can write one row before the process exits
--- (persisted via the same WAL discipline as ``session_events``).
-CREATE TABLE IF NOT EXISTS l4_startup_failures (
-    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
-    reason       TEXT NOT NULL,
-    env_var      TEXT,
-    resolution   TEXT NOT NULL,
-    req_id       TEXT,
-    adr_id       TEXT,
-    created_at   INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_l4_startup_failures_reason
-    ON l4_startup_failures(reason, created_at DESC);
 """
 
 
