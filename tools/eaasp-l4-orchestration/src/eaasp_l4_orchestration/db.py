@@ -46,6 +46,68 @@ CREATE TABLE IF NOT EXISTS session_events (
 
 CREATE INDEX IF NOT EXISTS idx_session_seq
     ON session_events(session_id, seq);
+
+-- v3.12.1 — EVENT-ROOM-01 (EAASP Phase 4 / Event Room + multi-session).
+-- Long-lived coordination namespace spanning multiple sessions. Rooms
+-- outlive any individual session; members (sessions) join / leave
+-- freely; events fan-out across every member. See
+-- ``tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_room.py``
+-- for the full contract.
+--
+-- Tables (created idempotently via CREATE TABLE IF NOT EXISTS):
+--   event_rooms         — room metadata + status machine (open/closed/expired).
+--   event_room_members  — (room_id, session_id) binding + the principal
+--                         that authorized the bind (audit trail).
+--   event_room_events   — append-only per-room event log; one row per
+--                         fan-out dispatch (NOT one per recipient; SSE
+--                         consumers fan out per the canonical schema).
+--
+-- All four tables live in the same L4 SQLite file (WAL) and share the
+-- sessions.session_id FK convention used by session_events. Foreign
+-- keys are enforced per-connection (PRAGMA foreign_keys=ON).
+CREATE TABLE IF NOT EXISTS event_rooms (
+    room_id          TEXT PRIMARY KEY,
+    tenant_id        TEXT NOT NULL,
+    owner_principal  TEXT NOT NULL,
+    status           TEXT NOT NULL
+        CHECK(status IN ('open','closed','expired')),
+    created_at       INTEGER NOT NULL,
+    expires_at       INTEGER NOT NULL,
+    closed_at        INTEGER,
+    name             TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_rooms_status
+    ON event_rooms(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_event_rooms_tenant
+    ON event_rooms(tenant_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS event_room_members (
+    room_id     TEXT NOT NULL,
+    session_id  TEXT NOT NULL,
+    principal   TEXT NOT NULL,
+    joined_at   INTEGER NOT NULL,
+    PRIMARY KEY (room_id, session_id),
+    FOREIGN KEY(room_id) REFERENCES event_rooms(room_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_room_members_session
+    ON event_room_members(session_id);
+
+CREATE TABLE IF NOT EXISTS event_room_events (
+    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id      TEXT NOT NULL,
+    session_id   TEXT NOT NULL,
+    event_type   TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at   INTEGER NOT NULL,
+    FOREIGN KEY(room_id) REFERENCES event_rooms(room_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_room_events_seq
+    ON event_room_events(room_id, seq);
+CREATE INDEX IF NOT EXISTS idx_event_room_events_session
+    ON event_room_events(room_id, session_id, seq);
 """
 
 
