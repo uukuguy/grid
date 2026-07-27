@@ -73,7 +73,7 @@
 | ID | 标题 | 状态 / 去向 | 证据 |
 |----|------|-------------|------|
 | **V310-OPA-01** | L3 production OPA/Rego backend + atomic bundle deployment | ✅ CLOSED 2026-07-26 (v3.11.0 lift ADR-V2-034 Accepted + sidecar topology + `make opa-install`) | `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md`; `scripts/eaasp-install-opa.sh`; `Makefile` `opa-install`/`opa-clean` |
-| **V310-APPROVAL-01** | Plan → Check → Draft → Approve → Execute 五阶段审批链 + deterministic verifier | 📦 deferred_to_v3.11+ / Phase 3 | Spec §6.9-6.10；当前仅 risk decision + request/final decision |
+| **V310-APPROVAL-01** | Plan → Check → Draft → Approve → Execute 五阶段审批链 + deterministic verifier | ✅ CLOSED 2026-07-27 (v3.11.2 5-stage state machine + governance.approval.* SSE events + append-only ledger extension) | `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py`；`tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_stream.py` (`emit_governance_approval_<stage>`)；`tools/eaasp-l3-governance/tests/test_approval_state_machine.py`；`tools/eaasp-l4-orchestration/tests/test_governance_sse.py` |
 | **V310-A2A-01** | A2A Router、Event Room、多 Session per Event | 📦 deferred_to_v3.12+ / Phase 4 | Spec §5.3/§14/§17；当前 L4 单 session 骨架 |
 | **V310-COWORK-01** | L5 Cowork Event Room + Event/Evidence/Action/Approval 四卡 UI | 📦 deferred_to_v3.13+ / Phase 5 | Spec §4；当前 CLI/SSE 仅为 MVP 可执行界面 |
 | **V310-ECOSYSTEM-01** | Ontology、Marketplace/生态、完整 Skill promotion/ACL/analytics | 📦 deferred_to_v3.14+ / Phase 6 | Spec §7.5-7.8；当前 L2 模拟器级资产服务 |

@@ -182,7 +182,42 @@
 
 - [x] **DISABLED-01**: When `L3_OPA_ENABLED` is unset / falsy, the `/v1/evaluate` endpoint routes through `evaluate_gate()` (the in-process decision matrix) without instantiating an `OPABackend`. The end-to-end integration test calls the API surface and asserts `backend == "in_process"`, with a 4-test hermetic coverage that verifies validation guards and `HookNotFoundError → 404` behavior.
 
-### v3.11.1 Traceability
+---
+
+## v3.11.2 Requirements — 5-stage approval chain state machine
+
+**Defined:** 2026-07-27 (v3.11.0 + v3.11.1 SHIPPED)
+**Goal:** Implement the EAASP spec §6.9–6.10 Plan → Check → Draft → Approve → Execute 5-stage approval state machine on top of the L3 OPA backend (v3.11.1) and the L4 event stream. Each stage persists one row in the append-only `governance_decisions` ledger (new nullable `stage` column) and emits a `governance.approval.<stage>` SSE event. Deny in any stage short-circuits remaining stages; the Approve stage pauses for human-in-the-loop. Closes `V310-APPROVAL-01`.
+
+**REQ-IDs** use v3.11.2 numbering (`STAGE-*`, `SSE-*`, `AUDIT-*`, `DENY-*`). 14 REQ-IDs cover this phase; 03.11.3 live walkthrough remains future scope.
+
+### STAGE — State machine contract
+
+- [x] **STAGE-01**: `APPROVAL_STAGE_PLAN` / `APPROVAL_STAGE_CHECK` / `APPROVAL_STAGE_DRAFT` / `APPROVAL_STAGE_APPROVE` / `APPROVAL_STAGE_EXECUTE` are exported from `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` and form the canonical `STAGE_ORDER` tuple (`("plan", "check", "draft", "approve", "execute")`).
+- [x] **STAGE-02**: `ApprovalStateMachine.__init__(policy_input, session_id, hook_id, caller_principal, audit_store, event_sink=None)` validates session_id / hook_id / caller_principal / policy_input BEFORE any DB open (audit §6 contract).
+- [x] **STAGE-03**: `ApprovalStateMachine.run(evaluator)` iterates `STAGE_ORDER` in order, invoking the supplied evaluator per stage. Returns an `ApprovalChainResult` with `stages_completed`, `final_decision` (`approve` / `deny` / `await_human`), `final_reason`, and a `records` list of `StageRecord`.
+- [x] **STAGE-04**: On full success (all 5 stages allow without deny or human pause), `final_decision == "approve"` and `stages_completed == 5`. Five `StageRecord`s are produced, one per stage.
+- [x] **STAGE-05**: `ApprovalStateMachine.resume_with_human_decision(human_decision, human_reason, evidence_refs)` accepts `human_decision in {"allow", "deny"}`. On allow, runs the execute stage and persists an `await_human` audit row carrying the human's reason; on deny, terminates without an execute row.
+
+### SSE — L4 governance.approval.* events
+
+- [x] **SSE-01**: `SessionEventStream.emit_governance_approval_plan(...)` writes a `governance.approval.plan` event with payload `{stage, decision_id, request_id, session_id, hook_id, decision, reason, caller_principal, evidence_refs, ts}`.
+- [x] **SSE-02**: `SessionEventStream.emit_governance_approval_check(...)` writes a `governance.approval.check` event with the same canonical payload shape.
+- [x] **SSE-03**: `SessionEventStream.emit_governance_approval_draft(...)` writes a `governance.approval.draft` event with the same canonical payload shape.
+- [x] **SSE-04**: `SessionEventStream.emit_governance_approval_approve(...)` writes a `governance.approval.approve` event with the same canonical payload shape. This is the human-in-the-loop pause stage.
+- [x] **SSE-05**: `SessionEventStream.emit_governance_approval_execute(...)` writes a `governance.approval.execute` event with the same canonical payload shape.
+
+### AUDIT — Append-only ledger extension
+
+- [x] **AUDIT-01**: `audit.py`'s `record_governance_decision(...)` accepts an optional `stage` kwarg (default `None`) that is persisted in the new `governance_decisions.stage` column. v3.11.0 / v3.11.1 rows are preserved (column NULL by default).
+- [x] **AUDIT-02**: `governance_decisions.stage` column is added to the schema via an idempotent `ALTER TABLE` migration. A partial index `idx_governance_decisions_stage` is created for stage-routed queries.
+
+### DENY — Deny-always-wins
+
+- [x] **DENY-01**: When a stage evaluator returns `decision == "deny"`, `ApprovalStateMachine.run()` short-circuits the remaining stages: no further audit rows are written and no further SSE events are emitted. `final_decision == "deny"`, `final_reason` carries the denier's reason.
+- [x] **DENY-02**: When `resume_with_human_decision` is called with `human_decision == "deny"`, the execute stage row is NOT persisted; the chain terminates with `final_decision == "deny"` and the human's reason in `final_reason`.
+
+### v3.11.2 Traceability
 
 | Phase | REQ-IDs |
 |---|---|
@@ -195,7 +230,7 @@
 |---|---|
 | **03.11.0 OPA sidecar infrastructure** | OPA-01, OPA-02, INSTALL-01, COMPAT-01, COMPAT-02, DEFER-LEDGER-CLOSE-01 |
 | **03.11.1 L3 OPA backend adapter** | OPA-BACKEND-01..04, REGO-01..02, FAIL-CLOSED-01..02, DISABLED-01 |
-| **03.11.2 5-stage approval state machine** (next) | Plan → Check → Draft → Approve → Execute + governance.* SSE events + append-only ledger + deny-always-wins |
+| **03.11.2 5-stage approval state machine** ✅ SHIPPED 2026-07-27 | STAGE-01..05, SSE-01..05, AUDIT-01..02, DENY-01..02 |
 | **03.11.3 single-point live walkthrough** (next) | `make opa-install` + `make dev-eaasp` + `threshold-calibration` skill + dated production evidence |
 - **Phase 4 A2A / Event Room** — v3.12+ scope.
 - **Phase 5 L5 Cowork UI** — v3.13+ scope.

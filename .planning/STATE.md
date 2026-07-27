@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.11
 milestone_name: EAASP Phase 3 — production OPA backend + 5-stage approval chain
 status: in_progress
-stopped_at: v3.11.1 L3 OPA backend adapter + Rego templates shipped; 03.11.2+ pending
-last_updated: "2026-07-26T22:30:00.000Z"
-last_activity: 2026-07-26
+stopped_at: v3.11.2 5-stage approval chain state machine shipped (Plan → Check → Draft → Approve → Execute + governance.approval.* SSE events + append-only ledger extension); 03.11.3 pending
+last_updated: "2026-07-27T10:30:00.000Z"
+last_activity: 2026-07-27
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -30,8 +30,8 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.1 L3 OPA backend adapter shipped)**
-Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 + 03.11.1 done; 03.11.2+ pending.
+Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.2 5-stage approval state machine shipped)**
+Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 + 03.11.1 + 03.11.2 done; 03.11.3 live walkthrough pending.
 Current verification: ADR-V2-034 Accepted + `make opa-install` reproducible (03.11.0); L3 OPA backend `OPABackend.evaluate()` called from `PolicyEngine.evaluate_with_opa()` when `opa_enabled=True`; Rego template `policies/governance.rego` implements deny-always-wins (spec §15.9), risk classification (spec §6.1), and 3-state decision contract (spec §6.9, §6.10); 5 fail-closed modes covered with stable cause identifiers carried in the audit rationale; 57 targeted tests PASS (30 OPABackend + 11 PolicyEngine OPA + 12 Rego contract + 4 in-process integration); v3.9 RBAC audit still PASS (134 routes); v3.10 spec-audit still PASS (4 files / 37 rows).
 Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
@@ -74,7 +74,7 @@ Next-milestone candidates (after v3.10 SHIPS):
 - `.gitignore` excludes `third_party/`.
 - `V310-OPA-01` DEFERRED_LEDGER entry → ✅ CLOSED.
 - `v3.9` route-catalog RBAC and `v3.10` spec-audit gates remain unchanged. No shared-crate change. ADR-V2-023 P1 (shared-core rule) preserved.
-- 03.11.2 5-stage approval state machine (`V310-APPROVAL-01`) + governance.* SSE events + append-only ledger extension + 03.11.3 live walkthrough still pending.
+- 03.11.2 5-stage approval state machine ✅ SHIPPED 2026-07-27 (`V310-APPROVAL-01` → ✅ CLOSED). Plan → Check → Draft → Approve → Execute with deny-always-wins; 5 `governance.approval.<stage>` SSE events; append-only ledger `stage` column extension. 03.11.3 live walkthrough still pending.
 
 ### v3.11.1 L3 OPA backend adapter + Rego templates ✅ SHIPPED 2026-07-26
 

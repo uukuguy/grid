@@ -171,3 +171,27 @@ Out of scope (Deferred to v3.11.1+ or later):
   + append-only ledger extension.
 - v3.11.3 — `make dev-eaasp` + `threshold-calibration` live walkthrough
   with SSE event stream + OPA traffic + audit-chain evidence.
+
+<!-- v3.11.2 implementation status -->
+- v3.11.2 — 5-stage approval state machine SHIPPED 2026-07-27
+  (L3 + L4, V310-APPROVAL-01 ✅ CLOSED).
+  - L3: `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py`
+    implements Plan → Check → Draft → Approve → Execute with deny-always-wins
+    short-circuit, Approve-stage `awaits_human` pause, and `resume_with_human
+    _decision(allow|deny)`. Each stage persists one row in
+    `governance_decisions` (new nullable `stage` column, default NULL for
+    backwards compatibility with v3.11.0 / v3.11.1 rows).
+  - L4: `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_stream.py`
+    adds 5 `governance.approval.<stage>` event helpers (one per stage)
+    sharing the same canonical payload shape (`stage`, `decision_id`,
+    `request_id`, `hook_id`, `decision`, `reason`, `caller_principal`,
+    `evidence_refs`, `ts`). Coexists with pre-existing `governance.request`
+    / `governance.decision` events; SSE consumers see all three families on
+    the same session stream.
+  - Tests: 21 new tests (17 L3 state-machine + 10 L4 SSE — 17+10 = 27
+    tests total in this phase; 0 regressions across 157 L3 + 21 L4
+    event-stream tests).
+  - v3.9 RBAC catalog unchanged (134 routes); v3.10 spec-audit still
+    PASS (4 files / 37 rows). Shared-core preserved (ADR-V2-023 P1):
+    no changes under `crates/grid-engine`, `grid-runtime`, `grid-types`,
+    `grid-sandbox`, `grid-hook-bridge`.
