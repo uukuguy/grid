@@ -224,6 +224,20 @@
 | **03.11.1 L3 OPA backend adapter + Rego templates** | OPA-BACKEND-01, OPA-BACKEND-02, OPA-BACKEND-03, OPA-BACKEND-04, REGO-01, REGO-02, FAIL-CLOSED-01, FAIL-CLOSED-02, DISABLED-01 |
 | **Total** | **9 REQ-IDs / 1 phase / 4 categories** |
 
+## v3.11.3 Requirements — Single-point live walkthrough
+
+**Defined:** 2026-07-27 (v3.11.0 + v3.11.1 + v3.11.2 SHIPPED)
+**Goal:** Run the threshold-calibration skill end-to-end against a real OPA sidecar on `127.0.0.1:18181`, drive the v3.11.2 5-stage `ApprovalStateMachine.run()` to force the full Plan → Check → Draft → Approve → Execute chain, capture the canonical `governance.approval.<stage>` SSE event stream in order, verify OPA receives the 3-state decision roundtrip, and write a dated production-evidence document. Closes the v3.11 milestone.
+
+**REQ-IDs** use v3.11.3 numbering (`LIVE-*`). 4 REQ-IDs cover this phase.
+
+### LIVE — Single-point live walkthrough evidence
+
+- [x] **LIVE-01**: Real OPA sidecar (v0.68.0 darwin arm64) running on `127.0.0.1:18181`, bundle mounted at `tools/eaasp-l3-governance/policies`, serving `POST /v1/data/governance/decision` returning the 3-state decision (`allow` / `approval` / `deny`) with `obligations` and `reason`. Startup banner + at least 5 successful roundtrip responses captured in `.logs/opa-sidecar.log`.
+- [x] **LIVE-02**: 7 EAASP services up via the custom launcher `.grid/dev-eaasp-live.sh` (skill-registry, L2 memory-engine, L3 governance with OPA enabled, mock-scada SSE, MCP orchestrator, grid-runtime, L4 orchestration) — all ports listening, all health checks returning 200. Real `.env` keys sourced into L3 (DashScope `qwen-turbo` OpenAI-compat endpoint for the LLM provider). claude-code-runtime / goose / nanobot intentionally skipped.
+- [x] **LIVE-03**: `tools/eaasp-l3-governance/src/eaasp_l3_governance/approval_state_machine.py` driven end-to-end via the local harness `.grid/live-walkthrough.py` for the high-risk `scada_set_setpoint` action under `mode=enforce` `risk_level=write_external`. L4 `SessionEventStream.append(...)` bridge emits 5 SSE events in canonical order (`governance.approval.plan` → `check` → `draft` → `approve` → `execute`), all sharing one `request_id`. Event stream captured live into `docs/status/PRODUCTION_USABILITY_LOGS_2026-07-27/sse-capture.json`. L3 `governance_decisions` ledger captured ≥18 rows across ≥3 chain runs with per-stage `decision_id` suffixes. OPA HTTP traffic captured 5 POSTs `/v1/data/governance/decision` all returning 200 OK with `{"decision":"approval","obligations":["notify:admin"],"reason":"write_external in enforce mode requires human approval (spec §6.10)"}`.
+- [x] **LIVE-04**: v3.9 RBAC audit (`make rbac-audit`) and v3.10 spec-audit (`make v3.10-spec-audit`) re-run after the v3.11.3 walkthrough, both PASS. ADR-V2-023 P1 shared-core rule preserved (zero edits under `crates/grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`). Dated production-evidence document written to `docs/status/PRODUCTION_USABILITY_2026-07-27.md`. OPA + dev-eaasp services cleanly terminated at end of walkthrough.
+
 ### v3.11.0 Traceability
 
 | Phase | REQ-IDs |
@@ -231,7 +245,7 @@
 | **03.11.0 OPA sidecar infrastructure** | OPA-01, OPA-02, INSTALL-01, COMPAT-01, COMPAT-02, DEFER-LEDGER-CLOSE-01 |
 | **03.11.1 L3 OPA backend adapter** | OPA-BACKEND-01..04, REGO-01..02, FAIL-CLOSED-01..02, DISABLED-01 |
 | **03.11.2 5-stage approval state machine** ✅ SHIPPED 2026-07-27 | STAGE-01..05, SSE-01..05, AUDIT-01..02, DENY-01..02 |
-| **03.11.3 single-point live walkthrough** (next) | `make opa-install` + `make dev-eaasp` + `threshold-calibration` skill + dated production evidence |
+| **03.11.3 single-point live walkthrough** ✅ SHIPPED 2026-07-27 | LIVE-01, LIVE-02, LIVE-03, LIVE-04 |
 - **Phase 4 A2A / Event Room** — v3.12+ scope.
 - **Phase 5 L5 Cowork UI** — v3.13+ scope.
 - **Phase 6 ecosystem expansion** — v3.14+ scope.
@@ -273,4 +287,4 @@
 
 ---
 
-*Last updated: 2026-07-26 — v3.11.1 L3 OPA backend adapter + Rego templates SHIPPED (9/9 REQ-IDs / 4 categories / 57 targeted tests PASS). v3.11.0 OPA sidecar infrastructure SHIPPED 2026-07-26 (6/6 REQ-IDs, archived to `.planning/milestones/v3.11.0-*`). v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED 2026-07-26 (16 REQ-IDs / 5 categories / locked decisions D-11..D-18). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26 (20/20 REQ-IDs, archived to `.planning/milestones/v3.9-*`). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*
+*Last updated: 2026-07-27 — v3.11.3 single-point live walkthrough SHIPPED (4/4 REQ-IDs / 1 category: LIVE-01..04). Real OPA sidecar + 7 EAASP services + 5-stage ApprovalStateMachine end-to-end; 5 SSE events captured in canonical order; L3 audit ledger captured 18 rows; OPA 3-state decision verified; v3.9 RBAC + v3.10 spec-audit double-gate PASS; ADR-V2-023 P1 preserved. v3.11 SHIPPED — 4 phases (03.11.0 + 03.11.1 + 03.11.2 + 03.11.3) all CLOSED. Dated production evidence: `docs/status/PRODUCTION_USABILITY_2026-07-27.md`. v3.11.2 5-stage approval state machine SHIPPED 2026-07-27 (14/14 REQ-IDs, archived to `.planning/milestones/v3.11.2-*`). v3.11.1 L3 OPA backend adapter + Rego templates SHIPPED 2026-07-26 (9/9 REQ-IDs / 4 categories / 57 targeted tests PASS). v3.11.0 OPA sidecar infrastructure SHIPPED 2026-07-26 (6/6 REQ-IDs, archived to `.planning/milestones/v3.11.0-*`). v3.10 EAASP v2.0 platform-skeleton alignment SHIPPED 2026-07-26 (16 REQ-IDs / 5 categories / locked decisions D-11..D-18). v3.9 (route-catalog RBAC wiring + authorization auditor) SHIPPED 2026-07-26 (20/20 REQ-IDs, archived to `.planning/milestones/v3.9-*`). v3.8 (grid-server multi-user login) SHIPPED 2026-07-24, archived to `.planning/milestones/v3.8-REQUIREMENTS.md`. Pre-v3.8 milestones archived under `.planning/milestones/v3.{X}-REQUIREMENTS.md`.*

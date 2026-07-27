@@ -1,0 +1,20 @@
+======================================================================
+Phase 03.11.3 — Single-point live walkthrough
+======================================================================
+  L4 session row ensured: session_id=sess_live_walkthrough
+  L3 OPA decision (HTTP round-trip): {'decision_id': 'gd_f96d9b8f99cd4e4abd2df37cbf172c6e', 'decision': 'gate_request', 'rationale': 'write_external in enforce mode requires human approval (spec §6.10)', 'backend': 'opa'}
+  Picked stage order: {'plan': 'governance.approval.plan', 'check': 'governance.approval.check', 'draft': 'governance.approval.draft', 'approve': 'governance.approval.approve', 'execute': 'governance.approval.execute'}
+  Decision routing target: pause_on_approve=False
+  SSE pushed: governance.approval.plan (seq=26)
+  SSE pushed: governance.approval.check (seq=27)
+  SSE pushed: governance.approval.draft (seq=28)
+  SSE pushed: governance.approval.approve (seq=29)
+  SSE pushed: governance.approval.execute (seq=30)
+  State machine final_decision: approve (stages_completed=5/5)
+  Total governance.approval.* events emitted: 5
+    governance.approval.plan — stage=plan decision=allow
+    governance.approval.check — stage=check decision=allow
+    governance.approval.draft — stage=draft decision=allow
+    governance.approval.approve — stage=approve decision=approve
+    governance.approval.execute — stage=execute decision=allow
+

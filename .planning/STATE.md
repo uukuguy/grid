@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.11
 milestone_name: EAASP Phase 3 — production OPA backend + 5-stage approval chain
-status: in_progress
-stopped_at: v3.11.2 5-stage approval chain state machine shipped (Plan → Check → Draft → Approve → Execute + governance.approval.* SSE events + append-only ledger extension); 03.11.3 pending
-last_updated: "2026-07-27T10:30:00.000Z"
+status: shipped
+stopped_at: v3.11 SHIPPED 2026-07-27 — 4/4 phases complete (03.11.0 OPA sidecar + 03.11.1 L3 OPA backend + 03.11.2 5-stage approval state machine + 03.11.3 single-point live walkthrough). 5 SSE events captured live in canonical order against real OPA sidecar; OPA 3-state decision verified end-to-end; L3 audit ledger captured per-stage rows; v3.9 RBAC + v3.10 spec-audit double-gate PASS; ADR-V2-023 P1 preserved.
+last_updated: "2026-07-27T11:45:00.000Z"
 last_activity: 2026-07-27
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -30,8 +30,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain 🟡 IN PROGRESS (03.11.2 5-stage approval state machine shipped)**
-Scope: 4 phases (03.11.0 → 03.11.3), 03.11.0 + 03.11.1 + 03.11.2 done; 03.11.3 live walkthrough pending.
+Milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27**
+Scope: 4 phases (03.11.0 → 03.11.3), all 4 done.
+Final verification (03.11.3): real OPA sidecar v0.68.0 on `127.0.0.1:18181` serving `POST /v1/data/governance/decision` returning 3-state decision (`allow` / `approval` / `deny`); 7 EAASP services up via `.grid/dev-eaasp-live.sh` (skips claude / goose / nanobot); threshold-calibration skill driven through L3 5-stage `ApprovalStateMachine.run()` end-to-end; L4 `SessionEventStream.append(...)` bridge emitted 5 SSE events in canonical order (`governance.approval.{plan,check,draft,approve,execute}`, seq 26–30, single `request_id=gd_approval_01d05124f5d54060`); OPA HTTP traffic captured 5 POSTs all returning 200 OK with `decision:approval,obligations:[notify:admin]`; L3 `governance_decisions` ledger captured 18 rows across 3 chain runs; v3.9 RBAC audit still PASS (134 routes); v3.10 spec-audit still PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core preserved (zero edits under `crates/grid-engine`, `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`); OPA + dev-eaasp services cleanly terminated. Dated production evidence: `docs/status/PRODUCTION_USABILITY_2026-07-27.md`.
 Current verification: ADR-V2-034 Accepted + `make opa-install` reproducible (03.11.0); L3 OPA backend `OPABackend.evaluate()` called from `PolicyEngine.evaluate_with_opa()` when `opa_enabled=True`; Rego template `policies/governance.rego` implements deny-always-wins (spec §15.9), risk classification (spec §6.1), and 3-state decision contract (spec §6.9, §6.10); 5 fail-closed modes covered with stable cause identifiers carried in the audit rationale; 57 targeted tests PASS (30 OPABackend + 11 PolicyEngine OPA + 12 Rego contract + 4 in-process integration); v3.9 RBAC audit still PASS (134 routes); v3.10 spec-audit still PASS (4 files / 37 rows).
 Prior milestone: **v3.9 route-catalog RBAC wiring + authorization auditor ✅ SHIPPED 2026-07-26**
 Prior scope: 3 phases complete (03.9.0 → 03.9.2), 20/20 REQ-IDs closed.
@@ -74,7 +75,8 @@ Next-milestone candidates (after v3.10 SHIPS):
 - `.gitignore` excludes `third_party/`.
 - `V310-OPA-01` DEFERRED_LEDGER entry → ✅ CLOSED.
 - `v3.9` route-catalog RBAC and `v3.10` spec-audit gates remain unchanged. No shared-crate change. ADR-V2-023 P1 (shared-core rule) preserved.
-- 03.11.2 5-stage approval state machine ✅ SHIPPED 2026-07-27 (`V310-APPROVAL-01` → ✅ CLOSED). Plan → Check → Draft → Approve → Execute with deny-always-wins; 5 `governance.approval.<stage>` SSE events; append-only ledger `stage` column extension. 03.11.3 live walkthrough still pending.
+- 03.11.2 5-stage approval state machine ✅ SHIPPED 2026-07-27 (`V310-APPROVAL-01` → ✅ CLOSED). Plan → Check → Draft → Approve → Execute with deny-always-wins; 5 `governance.approval.<stage>` SSE events; append-only ledger `stage` column extension.
+- 03.11.3 single-point live walkthrough ✅ SHIPPED 2026-07-27 (`LIVE-01..04` → ✅ CLOSED). Real OPA sidecar + 7 EAASP services + L4 SSE event capture (5 events, canonical order, single `request_id`); OPA HTTP traffic captured 5 POSTs `/v1/data/governance/decision` all returning 200 OK with `decision:approval` for `scada_set_setpoint` `mode=enforce` `write_external`; L3 `governance_decisions` ledger captured 18 rows across 3 chain runs. ADR-V2-023 P1 preserved; v3.9 RBAC + v3.10 spec-audit double-gate PASS. Dated production evidence: `docs/status/PRODUCTION_USABILITY_2026-07-27.md` + artifact dir `docs/status/PRODUCTION_USABILITY_LOGS_2026-07-27/`.
 
 ### v3.11.1 L3 OPA backend adapter + Rego templates ✅ SHIPPED 2026-07-26
 

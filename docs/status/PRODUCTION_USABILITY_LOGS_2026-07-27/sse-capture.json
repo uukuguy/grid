@@ -1,0 +1,141 @@
+{
+  "captured_events": [
+    {
+      "event": "event",
+      "data": {
+        "seq": 26,
+        "session_id": "sess_live_walkthrough",
+        "event_type": "governance.approval.plan",
+        "payload": {
+          "caller_principal": "agent_demo@org:eaasp-mvp",
+          "decision": "allow",
+          "decision_id": "gd_approval_01d05124f5d54060_plan",
+          "evidence_refs": [
+            "anchor-plan-1"
+          ],
+          "hook_id": "h_scada_setpoint",
+          "reason": "plan:ok (regenerated from live OPA risk-level=risk_class)",
+          "request_id": "gd_approval_01d05124f5d54060",
+          "session_id": "sess_live_walkthrough",
+          "stage": "plan",
+          "ts": "2026-07-27 03:39:02"
+        },
+        "created_at": 1785123542,
+        "event_id": "",
+        "source": "",
+        "metadata": {},
+        "cluster_id": null
+      }
+    },
+    {
+      "event": "event",
+      "data": {
+        "seq": 27,
+        "session_id": "sess_live_walkthrough",
+        "event_type": "governance.approval.check",
+        "payload": {
+          "caller_principal": "agent_demo@org:eaasp-mvp",
+          "decision": "allow",
+          "decision_id": "gd_approval_01d05124f5d54060_check",
+          "evidence_refs": [],
+          "hook_id": "h_scada_setpoint",
+          "reason": "check:ok (L3 OPA decision=approval \u21d2 continue stage)",
+          "request_id": "gd_approval_01d05124f5d54060",
+          "session_id": "sess_live_walkthrough",
+          "stage": "check",
+          "ts": "2026-07-27 03:39:02"
+        },
+        "created_at": 1785123542,
+        "event_id": "",
+        "source": "",
+        "metadata": {},
+        "cluster_id": null
+      }
+    },
+    {
+      "event": "event",
+      "data": {
+        "seq": 28,
+        "session_id": "sess_live_walkthrough",
+        "event_type": "governance.approval.draft",
+        "payload": {
+          "caller_principal": "agent_demo@org:eaasp-mvp",
+          "decision": "allow",
+          "decision_id": "gd_approval_01d05124f5d54060_draft",
+          "evidence_refs": [
+            "doc-draft-42"
+          ],
+          "hook_id": "h_scada_setpoint",
+          "reason": "draft:ok (PlanDraft v1, evidence anchored)",
+          "request_id": "gd_approval_01d05124f5d54060",
+          "session_id": "sess_live_walkthrough",
+          "stage": "draft",
+          "ts": "2026-07-27 03:39:02"
+        },
+        "created_at": 1785123542,
+        "event_id": "",
+        "source": "",
+        "metadata": {},
+        "cluster_id": null
+      }
+    },
+    {
+      "event": "event",
+      "data": {
+        "seq": 29,
+        "session_id": "sess_live_walkthrough",
+        "event_type": "governance.approval.approve",
+        "payload": {
+          "caller_principal": "agent_demo@org:eaasp-mvp",
+          "decision": "approve",
+          "decision_id": "gd_approval_01d05124f5d54060_approve",
+          "evidence_refs": [
+            "doc-draft-42",
+            "anchor-plan-1",
+            "human-approval-2026-07-27"
+          ],
+          "hook_id": "h_scada_setpoint",
+          "reason": "approve:human_approved",
+          "request_id": "gd_approval_01d05124f5d54060",
+          "session_id": "sess_live_walkthrough",
+          "stage": "approve",
+          "ts": "2026-07-27 03:39:02"
+        },
+        "created_at": 1785123542,
+        "event_id": "",
+        "source": "",
+        "metadata": {},
+        "cluster_id": null
+      }
+    },
+    {
+      "event": "event",
+      "data": {
+        "seq": 30,
+        "session_id": "sess_live_walkthrough",
+        "event_type": "governance.approval.execute",
+        "payload": {
+          "caller_principal": "agent_demo@org:eaasp-mvp",
+          "decision": "allow",
+          "decision_id": "gd_approval_01d05124f5d54060_execute",
+          "evidence_refs": [
+            "anchor-plan-1",
+            "human-approval-2026-07-27"
+          ],
+          "hook_id": "h_scada_setpoint",
+          "reason": "execute:ok (scada_set_setpoint dispatched)",
+          "request_id": "gd_approval_01d05124f5d54060",
+          "session_id": "sess_live_walkthrough",
+          "stage": "execute",
+          "ts": "2026-07-27 03:39:02"
+        },
+        "created_at": 1785123542,
+        "event_id": "",
+        "source": "",
+        "metadata": {},
+        "cluster_id": null
+      }
+    }
+  ],
+  "count": 5
+}

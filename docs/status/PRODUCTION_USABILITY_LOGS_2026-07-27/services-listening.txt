@@ -1,0 +1,9 @@
+COMMAND     PID       USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+opa       13801 sujiangwen    8u  IPv4  0xa662ed140e8ac41      0t0  TCP 127.0.0.1:18181 (LISTEN)
+python3.1 14102 sujiangwen   10u  IPv4 0x3121a1151b192602      0t0  TCP 127.0.0.1:18083 (LISTEN)
+eaasp-ski 73194 sujiangwen   10u  IPv4 0x86cf79aed72676c0      0t0  TCP 127.0.0.1:18081 (LISTEN)
+python3.1 73196 sujiangwen   10u  IPv4 0xcced8e8e06245290      0t0  TCP 127.0.0.1:18085 (LISTEN)
+python3.1 73246 sujiangwen    6u  IPv4 0xcd6858a6270d83f5      0t0  TCP *:18090 (LISTEN)
+eaasp-mcp 73248 sujiangwen    9u  IPv4 0xda52a4d8272e31e6      0t0  TCP 127.0.0.1:18082 (LISTEN)
+grid-runt 73250 sujiangwen   18u  IPv4 0xade614f3830f2d50      0t0  TCP *:50051 (LISTEN)
+python3.1 73325 sujiangwen   10u  IPv4 0xef3b229b3e24d536      0t0  TCP 127.0.0.1:18084 (LISTEN)

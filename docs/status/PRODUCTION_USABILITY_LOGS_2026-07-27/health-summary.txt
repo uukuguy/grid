@@ -1,0 +1,8 @@
+  :18181 -> {}
+  :18081 -> {"status":"ok"}
+  :18082 -> {"status":"ok"}
+  :18083 -> {"status":"ok"}
+  :18084 -> {"status":"ok"}
+  :18085 -> {"status":"ok"}
+  :18090 -> curl: (22) The requested URL returned error: 404
+  :50051 -> curl: (1) Received HTTP/0.9 when not allowed

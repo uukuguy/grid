@@ -1,0 +1,18 @@
+gd_approval_6c4d03bffad94683_execute|allow|execute:ok (scada_set_setpoint dispatched)|execute|2026-07-27 03:38:16
+gd_approval_6c4d03bffad94683_approve|approve|approve:human_approved|approve|2026-07-27 03:38:16
+gd_approval_6c4d03bffad94683_draft|allow|draft:ok (PlanDraft v1, evidence anchored)|draft|2026-07-27 03:38:16
+gd_approval_6c4d03bffad94683_check|allow|check:ok (L3 OPA decision=approval ⇒ continue stage)|check|2026-07-27 03:38:16
+gd_approval_6c4d03bffad94683_plan|allow|plan:ok (regenerated from live OPA risk-level=risk_class)|plan|2026-07-27 03:38:16
+gd_1caccc6d2518424a939d743c7f1fd121|gate_request|write_external in enforce mode requires human approval (spec §6.10)||2026-07-27 03:38:16
+gd_approval_04999a37395a4ee7_execute|allow|execute:ok (scada_set_setpoint dispatched)|execute|2026-07-27 03:38:18
+gd_approval_04999a37395a4ee7_approve|approve|approve:human_approved|approve|2026-07-27 03:38:18
+gd_approval_04999a37395a4ee7_draft|allow|draft:ok (PlanDraft v1, evidence anchored)|draft|2026-07-27 03:38:18
+gd_approval_04999a37395a4ee7_check|allow|check:ok (L3 OPA decision=approval ⇒ continue stage)|check|2026-07-27 03:38:18
+gd_approval_04999a37395a4ee7_plan|allow|plan:ok (regenerated from live OPA risk-level=risk_class)|plan|2026-07-27 03:38:18
+gd_4c421ca8c90a4c1b8984ffe4f4b1104e|gate_request|write_external in enforce mode requires human approval (spec §6.10)||2026-07-27 03:38:18
+gd_approval_01d05124f5d54060_execute|allow|execute:ok (scada_set_setpoint dispatched)|execute|2026-07-27 03:39:02
+gd_approval_01d05124f5d54060_approve|approve|approve:human_approved|approve|2026-07-27 03:39:02
+gd_approval_01d05124f5d54060_draft|allow|draft:ok (PlanDraft v1, evidence anchored)|draft|2026-07-27 03:39:02
+gd_approval_01d05124f5d54060_check|allow|check:ok (L3 OPA decision=approval ⇒ continue stage)|check|2026-07-27 03:39:02
+gd_approval_01d05124f5d54060_plan|allow|plan:ok (regenerated from live OPA risk-level=risk_class)|plan|2026-07-27 03:39:02
+gd_f96d9b8f99cd4e4abd2df37cbf172c6e|gate_request|write_external in enforce mode requires human approval (spec §6.10)||2026-07-27 03:39:02

@@ -171,6 +171,53 @@ Out of scope (Deferred to v3.11.1+ or later):
   + append-only ledger extension.
 - v3.11.3 — `make dev-eaasp` + `threshold-calibration` live walkthrough
   with SSE event stream + OPA traffic + audit-chain evidence.
+  **SHIPPED 2026-07-27 (LIVE-01..04 ✅ CLOSED).** See
+  `docs/status/PRODUCTION_USABILITY_2026-07-27.md` for the dated,
+  auditable production evidence (timestamp, commands, key stdout, SSE
+  event capture, OPA HTTP traffic snippets, 5-stage audit evidence,
+  human-in-the-loop pause explanation). Key results:
+  - OPA sidecar v0.68.0 darwin arm64 running on `127.0.0.1:18181`,
+    bundle mounted at `tools/eaasp-l3-governance/policies`. Bundle
+    serves `POST /v1/data/governance/decision` returning the 3-state
+    decision (`allow` / `approval` / `deny`) with `obligations` and
+    `reason`.
+  - 7 EAASP services up (skill-registry, L2, L3 with OPA enabled,
+    mock-scada, MCP orchestrator, grid-runtime, L4) via the custom
+    launcher `.grid/dev-eaasp-live.sh` (skips claude / goose / nanobot).
+    Real `.env` keys sourced into L3 (DashScope `qwen-turbo` OpenAI-compat).
+  - Harness `.grid/live-walkthrough.py` drives the 5-stage state machine
+    end-to-end through a real L4 `SessionEventStream.append(...)` bridge
+    into the L4 SSE event stream. **5 SSE events captured live** in
+    canonical order: `governance.approval.plan` (seq=26, `allow`) →
+    `governance.approval.check` (seq=27, `allow`) →
+    `governance.approval.draft` (seq=28, `allow`) →
+    `governance.approval.approve` (seq=29, `approve`) →
+    `governance.approval.execute` (seq=30, `allow`). All 5 share one
+    `request_id=gd_approval_01d05124f5d54060`.
+  - **OPA HTTP traffic captured**: 5 POST `/v1/data/governance/decision`
+    requests returning 200 OK with `{"decision":"approval","obligations":
+    ["notify:admin"],"reason":"write_external in enforce mode requires
+    human approval (spec §6.10)"}` for the `scada_set_setpoint` tool under
+    `mode=enforce`. The 3-state OPA decision contract verified end-to-end.
+  - **L3 audit ledger verified**: 18 rows in `governance_decisions` across
+    3 chain runs (5 stages × 3 + 3 `gate_request` initial roundtrips).
+  - **Human-in-the-loop pause**: policy-driven, not LLM-driven. OPA
+    `decision=approval` for `mode=enforce && risk_level=write_external`
+    maps to `awaits_human` in the state machine; harness emits
+    `governance.approval.approve` and halts until resume.
+  - **Double-gate re-run, PASS**: `make rbac-audit` → 134 routes PASS.
+    `make v3.10-spec-audit` → 4 files / 37 rows PASS.
+  - **ADR-V2-023 P1 preserved**: zero edits to `grid-engine`,
+    `grid-runtime`, `grid-types`, `grid-sandbox`, `grid-hook-bridge`.
+    The harness + launcher are local-only scripts under `.grid/`.
+  - **Known finding (filed, not auto-fixed)**: `audit.py`'s CHECK
+    constraint on `governance_decisions.decision` lists only
+    `{allow, approve, deny, gate_request}` — the L3 state machine's
+    `DECISION_AWAIT_HUMAN` sentinel is not in that allowlist. This is
+    an architectural migration (Rule 4 scope); it does NOT block
+    03.11.3 because the L4 SSE path emits the canonical
+    `governance.approval.approve` event cleanly. Filed as a deferred
+    item for v3.12 review.
 
 <!-- v3.11.2 implementation status -->
 - v3.11.2 — 5-stage approval state machine SHIPPED 2026-07-27
