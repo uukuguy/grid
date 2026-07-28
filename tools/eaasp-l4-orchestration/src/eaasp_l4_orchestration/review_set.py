@@ -242,6 +242,16 @@ class ReviewSet:
     closed_at: int | None = None
     aggregation: AggregationResult | None = None
 
+    # Cached ``{session_id: principal}`` map built once in
+    # ``__post_init__`` so ``submit_review`` / ``aggregate`` do
+    # NOT rebuild it on every call. Used to authorize the
+    # session→principal binding in ``submit_review`` (security
+    # review HIGH #2: refuse caller-supplied reviewer_principal
+    # when it disagrees with the expected principal).
+    _expected_sessions_with_principals: dict[str, str] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+
     def __post_init__(self) -> None:
         if not self.set_id:
             raise ValueError("set_id must be a non-empty string")
@@ -268,18 +278,23 @@ class ReviewSet:
             self.ttl_seconds = 86400
         if not self.created_at:
             self.created_at = int(time.time())
-        # Defensive: reviewers must be unique on session_id.
-        seen: set[str] = set()
+        # Build the canonical session_id → principal map ONCE so
+        # subsequent operations (submit_review / aggregate) can
+        # look up the bound principal in O(1). Defensive: reviewers
+        # must be unique on session_id; every principal must be a
+        # non-empty string.
+        cache: dict[str, str] = {}
         for sid, principal in self.reviewers:
-            if sid in seen:
+            if sid in cache:
                 raise ValueError(
                     f"duplicate reviewer session_id {sid!r} in reviewers"
                 )
-            seen.add(sid)
             if not principal:
                 raise ValueError(
                     f"reviewer ({sid!r}) has empty principal"
                 )
+            cache[sid] = principal
+        self._expected_sessions_with_principals = cache
 
     # ─── Lifecycle helpers ──────────────────────────────────────────────────
 
@@ -296,7 +311,7 @@ class ReviewSet:
 
     def expected_reviewer_session_ids(self) -> set[str]:
         """Return the session_ids this ReviewSet expects reviews from."""
-        return {sid for sid, _principal in self.reviewers}
+        return set(self._expected_sessions_with_principals.keys())
 
     def submit_review(self, review: Review) -> bool:
         """Record a reviewer's decision. Returns True if a new review
@@ -306,6 +321,19 @@ class ReviewSet:
         Refuses submissions after ``close()`` / after TTL expiry.
         Refuses submissions from sessions that are not in the
         expected reviewers list (REQ-REVIEW-01).
+
+        Security review HIGH #2 — principal mismatch: after the
+        session-membership check, the function looks up the
+        expected principal for that session from the cached
+        ``_expected_sessions_with_principals`` map and requires
+        exact match with ``review.reviewer_principal``. A
+        caller-supplied principal that disagrees with the
+        expected one is rejected with
+        ``ReviewerPrincipalMismatch`` BEFORE the review is
+        written to ``self.reviews``. This closes the
+        horizontal-privilege-escalation vector where a session
+        bound to principal=A could submit a review attributed
+        to principal=B by populating the request-body field.
         """
         if self.status == STATUS_CLOSED:
             raise ReviewSetClosed(
@@ -316,12 +344,34 @@ class ReviewSet:
             raise ReviewSetExpired(
                 self.set_id, f"set {self.set_id!r} has expired"
             )
-        if review.reviewer_session_id not in self.expected_reviewer_session_ids():
+
+        # Security review HIGH #2 — verify the (session_id,
+        # principal) pair matches the configured reviewer. The
+        # cached map is built in ``__post_init__`` so this lookup
+        # is O(1) and the principal is sourced from the trusted
+        # ReviewSet configuration (request_review probe), NOT
+        # from the caller-supplied field.
+        expected_principal = self._expected_sessions_with_principals.get(
+            review.reviewer_session_id
+        )
+        if expected_principal is None:
             raise ReviewerNotExpected(
                 self.set_id,
                 review.reviewer_session_id,
+                review.reviewer_principal,
                 f"session {review.reviewer_session_id!r} is not in the "
                 f"ReviewSet's reviewers list",
+            )
+        if review.reviewer_principal != expected_principal:
+            raise ReviewerPrincipalMismatch(
+                self.set_id,
+                review.reviewer_session_id,
+                review.reviewer_principal,
+                f"session {review.reviewer_session_id!r} is bound "
+                f"to principal {expected_principal!r}, not "
+                f"{review.reviewer_principal!r}; refusing the "
+                f"submission (audit §REQ-REVIEW-01 / "
+                f"security review HIGH #2)",
             )
 
         replaced = review.reviewer_session_id in self.reviews
@@ -339,14 +389,26 @@ class ReviewSet:
 
         Aggregation algorithm (v3.12.2 — ADR-V2-035):
 
-        1. Conflict detection: build a map of ``evidence_ref`` →
+        1. Completeness gate (security review HIGH #1 — fail-open
+           aggregation): compute the set of expected reviewer
+           session_ids (``_expected_sessions_with_principals``)
+           and the set of recorded reviewer session_ids
+           (``self.reviews``). If ANY expected reviewer has NOT
+           submitted, return ``AGGREGATE_ESCALATE`` immediately
+           with ``synthesis_required=True`` — unanimity is NOT
+           decidable without every reviewer's input. A
+           single ``allow`` from one of N expected reviewers is
+           NOT a unanimous verdict; the aggregation engine
+           refuses to produce a terminal allow/deny until every
+           reviewer has spoken.
+        2. Conflict detection: build a map of ``evidence_ref`` →
            ``[(session_id, decision), ...]``. If any single
            ``evidence_ref`` has 2+ reviews with DIFFERENT decisions,
            mark ``conflict_detected=True`` and record the
            contradicting ``(session_id_a, session_id_b)`` pairs.
-        2. Decision counting: count allow / deny / needs_revision
+        3. Decision counting: count allow / deny / needs_revision
            in the recorded reviews.
-        3. Apply aggregation rules:
+        4. Apply aggregation rules:
            - all allow → AGGREGATE_ALLOW.
            - any needs_revision → AGGREGATE_ESCALATE
              (needs_revision wins over allow; deny that
@@ -357,13 +419,40 @@ class ReviewSet:
            - single deny + at least one allow → AGGREGATE_ESCALATE
              (mixed-but-not-all-deny).
            - all deny → AGGREGATE_DENY.
-        4. Synthesis flag: True iff conflict_detected OR the
+        5. Synthesis flag: True iff conflict_detected OR the
            aggregation result is AGGREGATE_ESCALATE.
 
         The aggregator is deterministic and free of side effects;
         tests assert against fixed inputs (deterministic decisions
         + timestamps).
         """
+        expected_sids = set(self._expected_sessions_with_principals.keys())
+        recorded_sids = set(self.reviews.keys())
+        missing_sids = expected_sids - recorded_sids
+
+        if missing_sids:
+            # Security review HIGH #1 — fail-open aggregation:
+            # missing reviewers means unanimity is not decidable.
+            # Even if every recorded reviewer voted ``allow``,
+            # the absent reviewer's verdict is unknown — escalate
+            # rather than produce a terminal allow/deny verdict.
+            return AggregationResult(
+                set_id=self.set_id,
+                final_decision=AGGREGATE_ESCALATE,
+                conflict_detected=False,
+                conflicting_pairs=[],
+                synthesis_required=True,
+                aggregate_reason=(
+                    f"escalate: {len(missing_sids)} of "
+                    f"{len(expected_sids)} expected reviewer(s) have "
+                    f"not submitted; unanimity is not decidable; "
+                    f"missing session_ids = {sorted(missing_sids)} "
+                    f"(audit §REQ-REVIEW-01 / security review "
+                    f"HIGH #1 — fail-open aggregation)"
+                ),
+                aggregated_at=int(now if now is not None else time.time()),
+            )
+
         if not self.reviews:
             # No reviews yet → escalate (cannot decide without input).
             return AggregationResult(
@@ -550,7 +639,62 @@ class ReviewSetExpired(ReviewSetError):
 
 class ReviewerNotExpected(ReviewSetError):
     """Raised when a session that is not in the reviewers list
-    tries to submit a review."""
+    tries to submit a review.
+
+    v3.12.2 — security review HIGH #2: now carries BOTH the
+    session_id and the caller-supplied principal so operators
+    can distinguish "session not in reviewers list" from
+    "session is in the list but supplied a wrong principal"
+    (which is the companion ``ReviewerPrincipalMismatch``).
+    """
+
+    def __init__(
+        self,
+        set_id: str,
+        session_id: str,
+        principal: str,
+        detail: str = "",
+    ) -> None:
+        self.set_id = set_id
+        self.session_id = session_id
+        self.principal = principal
+        super().__init__(
+            f"reviewer {session_id!r} (principal={principal!r}) "
+            f"not in ReviewSet {set_id!r} reviewers list: "
+            f"{detail}".strip()
+        )
+
+
+class ReviewerPrincipalMismatch(ReviewSetError):
+    """Raised when a reviewer's session_id IS in the expected
+    reviewers list but the caller-supplied ``reviewer_principal``
+    disagrees with the bound principal in
+    ``_expected_sessions_with_principals``.
+
+    v3.12.2 — security review HIGH #2: closes the horizontal-
+    privilege-escalation vector where a session bound to
+    principal=A could submit a review attributed to principal=B
+    by populating the request-body field. The ReviewSet looks
+    up the expected principal from the trusted configuration
+    (NOT from the caller-supplied field) and rejects mismatches
+    BEFORE the review is written to ``self.reviews``.
+    """
+
+    def __init__(
+        self,
+        set_id: str,
+        session_id: str,
+        supplied_principal: str,
+        detail: str = "",
+    ) -> None:
+        self.set_id = set_id
+        self.session_id = session_id
+        self.supplied_principal = supplied_principal
+        super().__init__(
+            f"ReviewSet {set_id!r}: reviewer {session_id!r} "
+            f"supplied principal {supplied_principal!r} which "
+            f"does not match the bound principal; {detail}".strip()
+        )
 
 
 def make_review_set_id() -> str:
@@ -578,5 +722,6 @@ __all__ = [
     "ReviewSetClosed",
     "ReviewSetExpired",
     "ReviewerNotExpected",
+    "ReviewerPrincipalMismatch",
     "make_review_set_id",
 ]
