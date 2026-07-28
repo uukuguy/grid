@@ -74,6 +74,8 @@ from .cards import (
     EventCard,
 )
 from .projection import CoworkProjection
+from .state import CoworkStateStore
+from .state_backend import wire_state_routes
 
 
 # ─── CoworkConfig (env-driven, strict-by-default per ADR-V2-028) ────────
@@ -110,6 +112,11 @@ class CoworkConfig(BaseModel):
     port: int = Field(
         default_factory=lambda: int(
             os.environ.get("EAASP_L5_PORT", "18086")
+        )
+    )
+    state_db_path: str = Field(
+        default_factory=lambda: os.environ.get(
+            "EAASP_L5_STATE_DB_PATH", "./data/cowork.db"
         )
     )
 
@@ -194,6 +201,7 @@ def create_app(
     *,
     config: CoworkConfig | None = None,
     projection: CoworkProjection | None = None,
+    state_store: CoworkStateStore | None = None,
 ) -> FastAPI:
     """Build the Cowork FastAPI app.
 
@@ -207,15 +215,18 @@ def create_app(
         l3_db_path=cfg.l3_db_path,
         l4_db_path=cfg.l4_db_path,
     )
+    store = state_store or CoworkStateStore(cfg.state_db_path)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         logger.info(
-            "l5_cowork_start l2_db={} l3_db={} l4_db={}",
+            "l5_cowork_start l2_db={} l3_db={} l4_db={} state_db={}",
             cfg.l2_db_path,
             cfg.l3_db_path,
             cfg.l4_db_path,
+            cfg.state_db_path,
         )
+        await store.init_db()
         try:
             yield
         finally:
@@ -555,6 +566,12 @@ def create_app(
                 "idempotency + 403) lands in 03.13.2"
             ),
         }
+
+    # v3.13.1 — wire the state-machine routes (transition +
+    # transitions list + session cards list + extended SSE).
+    wire_state_routes(
+        app, store, default_tenant=cfg.default_tenant
+    )
 
     return app
 
