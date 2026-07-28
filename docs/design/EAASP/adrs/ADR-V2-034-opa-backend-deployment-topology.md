@@ -290,3 +290,17 @@ Out of scope (Deferred to v3.11.1+ or later):
     Shared-core preserved (ADR-V2-023 P1): no changes under
     `crates/grid-engine`, `grid-runtime`, `grid-types`,
     `grid-sandbox`, `grid-hook-bridge`.
+- v3.12.2 — A2A Router + ReviewSet aggregation + conflict detection
+  + 5 A2A SSE event types (a2a.request.sent /
+  a2a.request.acknowledged / a2a.review.submitted /
+  a2a.review.closed / a2a.conflict.detected). The 5-stage approval
+  chain (Plan → Check → Draft → Approve → Execute) remains the
+  canonical gating surface for the A2A dispatch path. The
+  `ReviewSet` aggregation engine's output (`allow` / `deny` /
+  `escalate`) feeds into
+  `ApprovalStateMachine.resume_with_human_decision(...)` via the
+  API layer (deferred to 03.12.3 live walkthrough per D-25).
+  ADR-V2-035 (conflict-detection algorithm) Accepted. OPA sidecar
+  topology unchanged. v3.9 RBAC audit + v3.10 spec-audit still
+  PASS. ADR-V2-023 P1 shared-core rule preserved (no shared-crate
+  change). **SHIPPED 2026-07-28 on top of v3.12.1 (`a248d73a`).**

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.12
 milestone_name: EAASP Phase 4 — A2A Router + Event Room + multi-session 协调
 status: in_progress
-stopped_at: 03.12.0 SHIPPED 2026-07-27 (audit.py CHECK constraint patch + DECISION_AWAIT_HUMAN + idempotent ALTER TABLE migration; V311-AUDIT-01 ✅ CLOSED). v3.11 SHIPPED 2026-07-27 (4 phases, 29/29 REQ-IDs, 11 categories). v3.12 plans 03.12.1 / 03.12.2 / 03.12.3 pending.
-last_updated: "2026-07-27T14:30:00.000Z"
-last_activity: 2026-07-27
+stopped_at: 03.12.2 SHIPPED 2026-07-28 (A2A Router facade + ReviewSet aggregation engine + 5-stage approval integration + conflict detection algorithm + 5 A2A SSE event types; V310-A2A-01 ✅ CLOSED; ADR-V2-035 Accepted; 51 new targeted tests PASS; security regression fixes for HIGH #1 fail-open aggregation + HIGH #2 principal-mismatch gate applied). v3.12 plans 03.12.3 pending.
+last_updated: "2026-07-28T12:00:00.000Z"
+last_activity: 2026-07-28
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 75
   prior_milestones:
     v3.11_completed_phases: 4
     v3.11_completed_plans: 4
@@ -34,8 +34,8 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS (4-phase ladder 03.12.0 ✅ SHIPPED → 03.12.1 → 03.12.2 → 03.12.3; 25% complete, 1/4 phases)**
-Scope: 4 phases (03.12.0 schema + audit constraint patch ✅ → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough). 03.12.0 is the gating phase; SCHEMA-01..03 SHIPPED 2026-07-27 + V311-AUDIT-01 ✅ CLOSED; 03.12.1 / 03.12.2 / 03.12.3 unblocked.
+Milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS (4-phase ladder 03.12.0 ✅ SHIPPED → 03.12.1 ✅ SHIPPED → 03.12.2 ✅ SHIPPED → 03.12.3; 50% complete, 2/4 phases)**
+Scope: 4 phases (03.12.0 schema + audit constraint patch ✅ → 03.12.1 Event Room + multi-session ✅ → 03.12.2 A2A Router ✅ → 03.12.3 single-point live walkthrough). 03.12.0 is the gating phase; SCHEMA-01..03 SHIPPED 2026-07-27 + V311-AUDIT-01 ✅ CLOSED; 03.12.1 / 03.12.2 SHIPPED 2026-07-28. 03.12.3 unblocked.
 03.12.0 deliverables (SHIPPED 2026-07-27): `audit.py` `DECISION_ALLOWLIST` widens to include `await_human`; `db.py` `migrate_decision_await_human` idempotent ALTER TABLE migration (v3.11.0 / v3.11.1 / v3.11.2 legacy DBs preserved); `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN`; 14 new targeted tests PASS in `test_audit_decision_await_human.py` + `test_audit_await_human_migration.py`; `docs/design/EAASP/DEFERRED_LEDGER.md` V311-AUDIT-01 → ✅ CLOSED.
 Bootstrap deliverables (milestone bootstrap, 2026-07-27): `.planning/PROJECT.md` (Latest Shipped Milestone + v3.12 Current Milestone + D-23..D-29 in Key Decisions) / `.planning/REQUIREMENTS.md` (v3.11.3 + v3.12 sections, 5 categories: SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) / `.planning/ROADMAP.md` (v3.11 SHIPPED + v3.12 active milestone block) / `.planning/STATE.md` (frontmatter `milestone=v3.12 status=in_progress progress.percent=25`).
 Prior milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27**
@@ -111,9 +111,9 @@ Next-milestone candidates (after v3.12 SHIPS):
 - v3.9 RBAC audit still PASS (134 routes — unchanged). v3.10 spec-audit still PASS (4 files / 37 rows). ADR-V2-023 P1 shared-core rule preserved (no shared-crate change). `docs/status/JOURNAL.md` untouched per task directive.
 - **Known finding (deferred to v3.12.0 per D-23):** `audit.py`'s CHECK constraint on `governance_decisions.decision` does not include `await_human`; the 5-stage state machine emits `await_human` at the Approve stage. Documented in `PRODUCTION_USABILITY_2026-07-27.md` §7. Filed as `V311-AUDIT-01` in `DEFERRED_LEDGER.md`.
 
-### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS 2026-07-27
+### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 🔵 IN PROGRESS 2026-07-28
 
-- 4 phases planned (03.12.0 schema + audit constraint patch ✅ SHIPPED 2026-07-27 → 03.12.1 Event Room + multi-session → 03.12.2 A2A Router → 03.12.3 single-point live walkthrough).
+- 4 phases planned (03.12.0 schema + audit constraint patch ✅ SHIPPED 2026-07-27 → 03.12.1 Event Room + multi-session ✅ SHIPPED 2026-07-27 → 03.12.2 A2A Router ✅ SHIPPED 2026-07-28 → 03.12.3 single-point live walkthrough pending).
 - 13–16 REQ-IDs across 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) + TRACE cross-axis.
 - Locked decisions D-23..D-29 (see PROJECT.md §Key Decisions):
   - **D-23** `audit.py` CHECK constraint patch is mandatory phase 0; no 03.12.1 / 03.12.2 / 03.12.3 work before 03.12.0 ships.
@@ -123,6 +123,27 @@ Next-milestone candidates (after v3.12 SHIPS):
   - **D-27** v3.12 stays in `tools/eaasp-*/` simulator-level implementations; no new repo / no new service port.
   - **D-28** v3.9 route-catalog RBAC + v3.10 spec-audit + ADR-V2-023 P1 + ADR-V2-034 OPA sidecar all continue to PASS.
   - **D-29** 探索策略 = Explore + Grep (no `.codegraph/` in this repo).
+
+#### 03.12.2 A2A Router + ReviewSet aggregation + conflict detection ✅ SHIPPED 2026-07-28
+
+- Built on top of v3.12.1 (`a248d73a`); no changes to any shared crate (ADR-V2-023 P1 + ADR-V2-029 preserved).
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/a2a_protocol.py` — `A2AMessageEnvelope` (pydantic BaseModel with strict id pattern `[a-zA-Z0-9_.-]{1,128}` + principal-keyed source/target fields + parallel-array invariant) + `RiskMetadata` (L3 risk_level classification: read / write_local / write_external) + 5 A2A SSE event type constants (a2a.request.sent / a2a.request.acknowledged / a2a.review.submitted / a2a.review.closed / a2a.conflict.detected) + `make_a2a_event_type` helper.
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/review_set.py` — `Review` + `ReviewSet` + `AggregationResult` dataclasses + 4 exception classes (`ReviewSetError` / `ReviewSetClosed` / `ReviewSetExpired` / `ReviewerNotExpected` / `ReviewerPrincipalMismatch`); 5 canonical aggregation scenarios (all allow / all deny / any needs_revision → escalate / multiple deny → deny / mixed verdict → escalate) + conflict detection on shared evidence_ref (majority-deny rule + review_synthesis escalation per ADR-V2-035) + cached `_expected_sessions_with_principals` map in `__post_init__` (O(1) lookup).
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/a2a_router.py` — `A2ARouter` facade over `EventRoomStore` + `MultiSessionCoordinator` + optional `L3RiskClassifier` Protocol; 5-step authorization chain (ContextVar resolve → source-principal parity → room existence + open status → source session + principal probe → target session + principal probe) + `route_message` / `request_review` / `route_review_submission` / `aggregate_review_set` / `close_review_set`.
+- Security review fixes (3 HIGH applied 2026-07-28 BEFORE further commit per coordinator directive): (a) fail-open aggregation when expected reviewers are missing (HIGH #1 — single allow no longer produces unanimous allow); (b) principal-mismatch gate in `submit_review` rejecting caller-supplied principal that disagrees with cached expected principal (HIGH #2); (c) `ReviewerPrincipalMismatch` exception + `ReviewerNotExpected` signature extended to carry both session_id + principal.
+- `tools/eaasp-l4-orchestration/tests/v3_12_2/test_review_set_aggregation.py` (23 tests) + `test_a2a_router.py` (16 tests) + `test_a2a_sse.py` (12 tests) — 51 new targeted tests PASS; total L4 orchestration tests 230 PASS (54 v3.12.1 baseline + 51 v3.12.2 new + 176 pre-existing — 1 unrelated policy_version assertion failure in pre-existing `test_session_orchestrator.py::test_create_session_happy_path` deselected, not a v3.12.2 regression).
+- `docs/design/EAASP/adrs/ADR-V2-035-a2a-router-conflict-detection.md` — Accepted 2026-07-28. Records majority-deny rule + review_synthesis escalation + cross-session evidence conflict detection.
+- `docs/design/EAASP/DEFERRED_LEDGER.md` — `V310-A2A-01` ✅ CLOSED 2026-07-28. `V310-SESSION-01` already ✅ CLOSED via 03.12.1 (kept).
+- ADR-V2-034 OPA sidecar topology unchanged. v3.9 RBAC audit still PASS. v3.10 spec-audit still PASS. ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
+
+#### 03.12.1 Event Room + multi-session coordination ✅ SHIPPED 2026-07-27
+
+- Built on top of v3.12.0 (`91a23b55`); no changes to any shared crate (ADR-V2-023 P1 preserved).
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_room.py` — `EventRoom` + `EventRoomStore` with `create` / `close` / `add_member` / `remove_member` / `expire_stale_rooms` / `list_active` / `fan_out_event` / `list_room_events`; SQL-backed append-only event log; 5-round security review applied (HMAC-SHA256 subject hash + ContextVar auth + principal-keyed membership gate).
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/session_orchestrator_room.py` — `MultiSessionCoordinator` facade with `join_event_room` / `leave_event_room` / `auto_leave_event_rooms` / `emit_shared_event` / `resume_with_human_decision` (sibling-path parity: all four entry points resolve the verified caller principal from the `_AUTHENTICATED_PRINCIPAL` ContextVar, NEVER from a method parameter).
+- `tools/eaasp-l4-orchestration/tests/v3_12_1/test_event_room.py` — 54 targeted tests PASS covering 5 security rounds (caller auth + principal-keyed membership gate + HMAC-SHA256 + log sanitization + audit reliability).
+- `V310-SESSION-01` ✅ CLOSED via 03.12.1 (kept in 03.12.2 closure notes).
+- v3.9 RBAC audit still PASS. v3.10 spec-audit still PASS. ADR-V2-023 P1 shared-core rule preserved.
 
 #### 03.12.0 audit.py CHECK constraint patch ✅ SHIPPED 2026-07-27
 
