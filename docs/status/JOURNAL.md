@@ -14,3 +14,6 @@
 - v3.11.0 OPA sidecar 基础设施已 SHIPPED，ADR-V2-034 Accepted，make opa-install 可用，V310-OPA-01 已 CLOSED [84ca0a11]。
 - v3.11.1 L3 OPA backend adapter + Rego templates 已 SHIPPED (OPABackend.evaluate + 5 fail-closed modes; 57/57 tests PASS; ADR-V2-023 P1 unchanged) — [2acbf62a] + ADR/STATE/REQUIREMENTS sync [4fe41955]。
 - v3.11.1 security review 3 issues fixed (Issue 1 /v1/evaluate session binding; Issue 2 bidirectional allow↔decision invariant; Issue 3 URL guard + sanitized origin) — [6338d376]。
+
+## 2026-07-28
+- v3.14 EAASP Phase 6 — Ontology/Marketplace/SDK bootstrap (EVO final phase) on main [b878e7b2]
