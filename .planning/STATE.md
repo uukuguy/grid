@@ -1,18 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.13
-milestone_name: EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle)
-status: in_progress
-stopped_at: v3.13 SHIPPED 2026-07-29 (4 phases complete, 13+ REQ-IDs / 5 categories, tag `v3.13` pushed). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
-last_updated: "2026-07-29T16:00:00.000Z"
-last_activity: 2026-07-29
+milestone: v3.14
+milestone_name: EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem
+status: bootstrapping
+stopped_at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem BOOTSTRAPPING 2026-07-28 (4 phases planned 03.14.0 → 03.14.3, 13–16 REQ-IDs / 5 categories, locked decisions D-38..D-46, no implementation work yet). v3.13 EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环 ✅ SHIPPED 2026-07-29 @ d0d83a23 (4 phases complete, 13+ REQ-IDs / 5 categories, tag `v3.13` annotated). V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
+last_updated: "2026-07-28T18:00:00.000Z"
+last_activity: 2026-07-28
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
   prior_milestones:
+    v3.14_completed_phases: 0
+    v3.14_completed_plans: 0
+    v3.14_percent: 0
     v3.13_completed_phases: 4
     v3.13_completed_plans: 4
     v3.13_percent: 100
@@ -28,7 +31,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.13 (EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环) SHIPPED 2026-07-29. Four phases complete (03.13.0 four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle trace API → 03.13.3 single-point live walkthrough + tag v3.13), 13+ REQ-IDs / 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE), tag `v3.13` pushed. V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit `894639dd`.
+**Current focus:** Milestone v3.14 (EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem) BOOTSTRAPPING 2026-07-28. 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED), 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT). Locked decisions D-38..D-46. No implementation work yet.
 
 Canonical product-status sources:
 
@@ -37,23 +40,19 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 (4-phase ladder 03.13.0 → 03.13.1 → 03.13.2 → 03.13.3; 100% complete, 4/4 phases)**
-Scope: 4 phases (03.13.0 Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle (trace API) → 03.13.3 single-point live walkthrough + tag v3.13). 13+ REQ-IDs across 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE).
-v3.13 SHIPPED 2026-07-29: `tools/eaasp-l5-cowork/` (new package — projection layer + state machine + RETROSPECTIVE trace + CLI + SSE fan-out); 82 targeted tests PASS; dual-gate PASS (134 routes RBAC + 4 files / 37 rows spec-audit); `docs/status/PRODUCTION_USABILITY_2026-07-29.md` captures the live walkthrough evidence; `docs/design/EAASP/DEFERRED_LEDGER.md` V310-COWORK-01 → ✅ CLOSED; tag `v3.13` annotated.
-Prior milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd**
-Prior scope: 4 phases complete (03.12.0 → 03.12.3), 13-16 REQ-IDs in 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT + TRACE cross-axis).
-Prior verification: 03.12.0 audit.py `DECISION_ALLOWLIST` widens to `{allow, approve, deny, gate_request, await_human}` + `db.migrate_decision_await_human` idempotent ALTER TABLE migration + `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN` (14 new targeted tests PASS). 03.12.1 Event Room data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant + 5 rounds of security review fixes (room_id required + principal-keyed membership gate + sibling-path parity + HMAC-SHA256 + ContextVar auth + log sanitization + empty-id test + caller auth + principal required + audit reliability). 03.12.2 A2A Router + A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot. 03.12.3 single-point live walkthrough against real OPA sidecar + Event Room + A2A Router.
-Prior close: `make rbac-audit` PASS (134 routes); `make v3.10-spec-audit` PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change); ADR-V2-035 Accepted (A2A Router credential gate); V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
-Prior-prior milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27**
-Prior-prior scope: 4 phases complete (03.11.0 → 03.11.3), 29/29 REQ-IDs in 11 categories (OPA + INSTALL + OPA-BACKEND + REGO + FAIL-CLOSED + DISABLED + STAGE + SSE / AUDIT / DENY + LIVE).
-Prior-prior verification: 57 + targeted regression tests PASS; real OPA sidecar v0.68.0 on `127.0.0.1:18181`; 5 SSE events in canonical order (seq 26–30, single request_id); 18 rows in L3 `governance_decisions` ledger across 3 chain runs; `make rbac-audit` PASS (134 routes); `make v3.10-spec-audit` PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
-Prior-prior-prior milestone: **v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26** (4 phases, 16/16 REQ-IDs, 174 targeted tests PASS).
-
-Next-milestone candidates (after v3.13 SHIPS):
-
-- `web-platform/` Quality 7.5→9.0.
-- `grid-desktop` Quality 6.5→9.0.
-- EAASP Phase 6 ecosystem expansion (V310-ECOSYSTEM-01 / V310-MAT-01).
+Milestone: **v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem 🔵 BOOTSTRAPPING 2026-07-28 (4-phase ladder 03.14.0 → 03.14.1 → 03.14.2 → 03.14.3; 0/4 phases, 0% complete, 0/0 plans)**
+Scope: 4 phases (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED). 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT).
+v3.14.0 派生不复制 (D-40): Ontology 服务 from existing L2 evidence anchor + L3 governance_decisions + L4 event_room_events + L5 four-card projections via SELECT; no new tables, no new columns, no new event types. v3.14.1 Marketplace API extends v3.11.2 eaasp-skill-registry (no replacement; D-41). v3.14.2 SDK scaffolding is thin client that wraps marketplace + ontology endpoints (no business logic re-implementation; D-42). v3.14.3 closes EVOLUTION_PATH §三 8-Phase roadmap (D-46) by tagging `v3.14` and marking V310-ECOSYSTEM-01 ✅ CLOSED.
+Prior milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 @ d0d83a23**
+Prior scope: 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle trace API → 03.13.3 single-point live walkthrough + tag v3.13), 13+ REQ-IDs / 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE + COMPAT / TRACE cross-axis).
+Prior close: V310-COWORK-01 ✅ CLOSED; tag `v3.13` annotated; `docs/status/PRODUCTION_USABILITY_2026-07-29.md` captures the live walkthrough evidence; 82 targeted tests PASS; dual-gate PASS (134 routes RBAC + 4 files / 37 rows spec-audit).
+Prior-prior milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd**
+Prior-prior scope: 4 phases complete (03.12.0 → 03.12.3), 13-16 REQ-IDs in 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT + TRACE cross-axis).
+Prior-prior verification: 03.12.0 audit.py `DECISION_ALLOWLIST` widens to `{allow, approve, deny, gate_request, await_human}` + `db.migrate_decision_await_human` idempotent ALTER TABLE migration + `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN` (14 new targeted tests PASS). 03.12.1 Event Room data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant + 5 rounds of security review fixes (room_id required + principal-keyed membership gate + sibling-path parity + HMAC-SHA256 + ContextVar auth + log sanitization + empty-id test + caller auth + principal required + audit reliability). 03.12.2 A2A Router + A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot. 03.12.3 single-point live walkthrough against real OPA sidecar + Event Room + A2A Router.
+Prior-prior close: `make rbac-audit` PASS (134 routes); `make v3.10-spec-audit` PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change); ADR-V2-035 Accepted (A2A Router credential gate); V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
+Prior-prior-prior milestone: **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27**
+Prior-prior-prior scope: 4 phases complete (03.11.0 → 03.11.3), 29/29 REQ-IDs in 11 categories (OPA + INSTALL + OPA-BACKEND + REGO + FAIL-CLOSED + DISABLED + STAGE + SSE / AUDIT / DENY + LIVE).
+Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA sidecar v0.68.0 on `127.0.0.1:18181`; 5 SSE events in canonical order (seq 26–30, single request_id); 18 rows in L3 `governance_decisions` ledger across 3 chain runs; `make rbac-audit` PASS (134 routes); `make v3.10-spec-audit` PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
 
 ## Audit Findings Summary (Post-Activation Scores)
 
@@ -78,19 +77,29 @@ Next-milestone candidates (after v3.13 SHIPS):
 
 *5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
-### v3.13.0..03.13.3 EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环 🔵 BOOTSTRAPPING 2026-07-27
+### v3.14.0..03.14.3 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem 🔵 BOOTSTRAPPING 2026-07-28
 
-- 4 phases planned (03.13.0 Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle (trace API) → 03.13.3 single-point live walkthrough + tag v3.13).
-- 13–16 REQ-IDs across 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE) + COMPAT cross-axis carry-over.
-- Locked decisions D-30..D-37 (see PROJECT.md §Key Decisions):
-  - **D-30** v3.13 scope = EAASP Phase 5 L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle). Closes V310-COWORK-01. v3.14+ = Phase 6 ecosystem.
-  - **D-31** L5 仍以 EAASP v2.0 spec §4 + §4.4 为权威源;本仓前端 (web/ + web-platform/) 仍为 dormant 状态;v3.13 在 `tools/eaasp-l5-cowork/` (新建) 落模拟器级四卡 backend + projection.
-  - **D-32** 四卡全部派生自 v3.12 已落地的 L2 evidence anchor + L3 governance_decisions + L4 event_room_events + A2A review.closed 事件;不新建独立存储.
-  - **D-33** 回溯闭环 (retrospective cycle) = 任何四卡 record 都能以 `session_id` 为根 trace 到 Event → Evidence → Action → Approval 全链;新增 `tools/eaasp-l5-cowork/retrospective.py` 提供 trace API.
-  - **D-34** 仍以 Phase 0.5 MVP 人工可执行性为最低标尺 (threshold-calibration skill + `make dev-eaasp`).
-  - **D-35** v3.9 / v3.10 / v3.11 / v3.12 硬约束 (134 routes RBAC, spec-audit, ADR-V2-023 P1 shared-core, ADR-V2-028 strict-by-default, ADR-V2-034 OPA sidecar) 不动.
-  - **D-36** 探索策略保持 Explore + Grep (本仓无 `.codegraph/`).
-  - **D-37** v3.13 不开新前端 (react/typescript);仍 `tools/eaasp-*/` 模拟器级实现;不开新服务端口.
+- 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED).
+- 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT) + TRACE cross-axis carry-over.
+- Locked decisions D-38..D-46 (see PROJECT.md §Key Decisions):
+  - **D-38** v3.14 scope = EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem. Closes V310-ECOSYSTEM-01. v3.14 = EVOLUTION_PATH 8-Phase 路线 收口 (final phase per D-46). v3.15+ = data/integration axis (per ADR-V2-024 §1).
+  - **D-39** v3.14 不开新仓;仍 tools/eaasp-*/ 模拟器级实现;不开新服务端口. v3.14 does NOT open a new repo / does NOT open a new service port. Ontology 服务 + Marketplace API live in `tools/eaasp-ecosystem/` (新建 Python module). The `L4 /v1/ecosystem/ontology` + `L4 /v1/ecosystem/marketplace/...` endpoints sit behind the existing EAASP L4 service port.
+  - **D-40** Ontology 服务派生自 v3.13 已落地的 L2 evidence + L3 governance_decisions + L4 event_room + L5 four-card projections;不新建独立存储. v3.14 = projection + view layer; 底层仍是 v3.7.3 / v3.10 / v3.11 / v3.12 / v3.13 既有数据. No new tables, no new columns, no new event types. D-32 carry-over.
+  - **D-41** Marketplace API 在 v3.11.2 eaasp-skill-registry 之上扩展 submission / promotion / ACL / analytics;不替换 eaasp-skill-registry. v3.14's MarketplaceSkill / SubmissionAudit is built on top of the existing v3.11.2 `eaasp-skill-registry` (no replacement).
+  - **D-42** SDK scaffolding 在 sdk/python/ + tools/eaasp-ecosystem-sdk/ 之上加 thin client + JSON-schema 暴露. v3.14's SDK scaffolding is a thin client that wraps the existing marketplace + ontology endpoints; it does NOT re-implement business logic. The `sdk/python/eaasp_sdk/` package emits a typed Python client; `tools/eaasp-ecosystem-sdk/` provides the CLI wrapper + JSON-schema codegen hooks.
+  - **D-43** 仍以 Phase 0.5 MVP 人工可执行性为最低标尺 (threshold-calibration skill + `make dev-eaasp`);v3.14 extends the same MVP floor with an ecosystem walkthrough scenario.
+  - **D-44** v3.9 / v3.10 / v3.11 / v3.12 / v3.13 全部硬约束不动 — Owner-only 边界不动 / AuthMode 兼容不动 / CI 顺序不动 / grid-engine 共享核心不动 / ADR-V2-023 P1 / ADR-V2-028 / ADR-V2-034 OPA sidecar / v3.11.2 5-stage approval / v3.12.1 Event Room ContextVar 鉴权 / v3.12.2 A2A Router + ReviewSet / v3.13 L5 Cowork + retrospective 全部保留. v3.9 RBAC + v3.10 spec-audit + ADR-V2-034 OPA sidecar + v3.12 Event Room + v3.12 A2A Router + v3.13 RETROSPECTIVE all continue to PASS.
+  - **D-45** v3.14 探索策略 = Explore + Grep (本仓无 `.codegraph/`). Same as v3.13 D-36 + v3.12 D-29.
+  - **D-46** v3.14 是 EVOLUTION_PATH 8-Phase 路线最终 phase;收口后 v3.10 登记的全部 8 项 V310-* deferred items 全部 ✅ CLOSED. Per `EAASP_v2_0_EVOLUTION_PATH.md` §三 8-Phase roadmap. v3.14 = Phase 6 = final phase. EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED; no further Phase 7+ planned.
+
+### v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 @ d0d83a23
+
+- 4 phases SHIPPED (03.13.0 / 03.13.1 / 03.13.2 / 03.13.3), 13+ REQ-IDs in 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE + COMPAT + TRACE cross-axis).
+- 03.13.0 four-card data model + projection + L4 SSE bridge SHIPPED: `EventCard` / `EvidenceCard` / `ActionCard` / `ApprovalCard` projection types in `tools/eaasp-l5-cowork/src/eaasp_l5_cowork/cards.py`; each card derives fields via SELECT from existing L2 / L3 / L4 / A2A tables (D-32); L4 SSE bridge emits `cowork.card.<type>.<event>` events mirroring underlying envelopes; cross-table count parity asserted by `test_four_card_projection_is_derived.py` (TRACE-03).
+- 03.13.1 four-card SSE fan-out + state transitions + persistence SHIPPED: SSE fan-out delivers to all bound sessions (matching v3.12.1 EVENT-ROOM-02); state machine `pending → confirmed → acted` with `await_human` paused-state support; transitions persist as L3 governance_decisions rows.
+- 03.13.2 retrospective cycle (trace API) SHIPPED: `trace_session(session_id) -> RetrospectiveChain` in `tools/eaasp-l5-cowork/src/eaasp_l5_cowork/retrospective.py` (D-33); `L5 /v1/cowork/trace/{session_id}` endpoint + `eaasp cowork trace {session_id}` CLI command; idempotent + bounded by tenant.
+- 03.13.3 single-point live walkthrough + tag v3.13 SHIPPED: end-to-end live walkthrough against real OPA sidecar + Event Room + A2A Router + four-card projection; documented at `docs/status/PRODUCTION_USABILITY_2026-07-29.md`; 82 targeted tests PASS; dual-gate PASS (134 routes RBAC + 4 files / 37 rows spec-audit); tag `v3.13` annotated.
+- V310-COWORK-01 → ✅ CLOSED. v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 + ADR-V2-034 OPA sidecar + v3.12 Event Room + A2A Router all preserved.
 
 ### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd
 
@@ -98,17 +107,26 @@ Next-milestone candidates (after v3.13 SHIPS):
 - 03.12.0 audit.py CHECK constraint patch SHIPPED: `DECISION_ALLOWLIST` widens to `{allow, approve, deny, gate_request, await_human}`; `db.migrate_decision_await_human` idempotent ALTER TABLE migration (v3.11.0 / v3.11.1 / v3.11.2 legacy DBs preserved); `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN`; 14 new targeted tests PASS in `test_audit_decision_await_human.py` + `test_audit_await_human_migration.py`; V311-AUDIT-01 ✅ CLOSED.
 - 03.12.1 Event Room + multi-session SHIPPED: `EventRoom` data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant; 5 rounds of security review fixes (room_id required + principal-keyed membership gate + sibling-path parity + HMAC-SHA256 + ContextVar auth + log sanitization + empty-id test + caller auth + principal required + audit reliability).
 - 03.12.2 A2A Router SHIPPED: A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot; ADR-V2-035 Accepted (A2A Router credential gate).
-- 03.12.3 single-point live walkthrough SHIPPED: end-to-end live walkthrough against real OPA sidecar + Event Room + A2A Router; documented at `docs/status/PRODUCTION_USABILITY_2026-07-28.md` (target file).
+- 03.12.3 single-point live walkthrough SHIPPED: end-to-end live walkthrough against real OPA sidecar + Event Room + A2A Router; documented at `docs/status/PRODUCTION_USABILITY_2026-07-28.md`.
 - `make rbac-audit` PASS (134 routes). `make v3.10-spec-audit` PASS (4 files / 37 rows). ADR-V2-023 P1 shared-core rule preserved (no shared-crate change). ADR-V2-034 OPA sidecar ALIVE through every phase. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 → ✅ CLOSED. Tag `v3.12` pushed.
 
 ## Completed Milestones
+
+### v3.13 EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环 ✅ SHIPPED 2026-07-29 @ d0d83a23
+
+- 4 phases (03.13.0 / 03.13.1 / 03.13.2 / 03.13.3), 13+ REQ-IDs in 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE) + COMPAT / TRACE cross-axis.
+- 03.13.0 four-card data model + projection + L4 SSE bridge SHIPPED: `EventCard` / `EvidenceCard` / `ActionCard` / `ApprovalCard` projection types in `tools/eaasp-l5-cowork/src/eaasp_l5_cowork/cards.py`; each card derives fields via SELECT from existing L2 / L3 / L4 / A2A tables (D-32); L4 SSE bridge emits `cowork.card.<type>.<event>` events.
+- 03.13.1 four-card SSE fan-out + state transitions + persistence SHIPPED: SSE fan-out delivers to all bound sessions (matching v3.12.1 EVENT-ROOM-02); state machine `pending → confirmed → acted` with `await_human` paused-state support.
+- 03.13.2 retrospective cycle (trace API) SHIPPED: `trace_session(session_id) -> RetrospectiveChain` in `tools/eaasp-l5-cowork/src/eaasp_l5_cowork/retrospective.py`; `L5 /v1/cowork/trace/{session_id}` endpoint + `eaasp cowork trace {session_id}` CLI command; idempotent + bounded by tenant.
+- 03.13.3 single-point live walkthrough + tag v3.13 SHIPPED: end-to-end live walkthrough against real OPA sidecar + Event Room + A2A Router + four-card projection; documented at `docs/status/PRODUCTION_USABILITY_2026-07-29.md`; 82 targeted tests PASS; dual-gate PASS (134 routes RBAC + 4 files / 37 rows spec-audit).
+- V310-COWORK-01 → ✅ CLOSED. Tag `v3.13` annotated.
 
 ### v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd
 
 - 4 phases (03.12.0 / 03.12.1 / 03.12.2 / 03.12.3), 13-16 REQ-IDs in 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT) + TRACE cross-axis.
 - 03.12.0 audit.py CHECK constraint patch SHIPPED: `DECISION_ALLOWLIST` widens to include `await_human`; `db.migrate_decision_await_human` idempotent ALTER TABLE migration; `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN`; 14 new targeted tests PASS in `test_audit_decision_await_human.py` + `test_audit_await_human_migration.py`; `docs/design/EAASP/DEFERRED_LEDGER.md` V311-AUDIT-01 → ✅ CLOSED.
-- 03.12.1 Event Room + multi-session SHIPPED: `EventRoom` data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant; 5 rounds of security review fixes (room_id required + principal-keyed membership gate + sibling-path parity + HMAC-SHA256 + ContextVar auth + log sanitization + empty-id test + caller auth + principal required + audit reliability).
-- 03.12.2 A2A Router SHIPPED: A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot; ADR-V2-035 Accepted (A2A Router credential gate).
+- 03.12.1 Event Room + multi-session SHIPPED: `EventRoom` data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant; 5 rounds of security review fixes.
+- 03.12.2 A2A Router SHIPPED: A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot; ADR-V2-035 Accepted.
 - 03.12.3 single-point live walkthrough SHIPPED: end-to-end live walkthrough against real OPA sidecar + Event Room + A2A Router.
 - v3.9 RBAC audit still PASS (134 routes — unchanged). v3.10 spec-audit still PASS (4 files / 37 rows). ADR-V2-023 P1 shared-core rule preserved (no shared-crate change). ADR-V2-034 OPA sidecar ALIVE through every phase. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 → ✅ CLOSED. Tag `v3.12` pushed.
 
@@ -118,6 +136,12 @@ Next-milestone candidates (after v3.13 SHIPS):
 - ADR-V2-034 Accepted; `make opa-install` reproducible (03.11.0); L3 OPA backend `OPABackend.evaluate()` called from `PolicyEngine.evaluate_with_opa()` when `opa_enabled=True`; Rego template `policies/governance.rego` implements deny-always-wins (spec §15.9), risk classification (spec §6.1), and 3-state decision contract (spec §6.9, §6.10); 5 fail-closed modes covered with stable cause identifiers carried in the audit rationale; 5-stage approval state machine (Plan → Check → Draft → Approve → Execute) with `governance.approval.*` SSE events + append-only `governance_decisions.stage` column extension; `V310-OPA-01` + `V310-APPROVAL-01` ✅ CLOSED.
 - 57 + targeted regression tests PASS; v3.11.3 single-point live walkthrough against real OPA sidecar v0.68.0 captured at `docs/status/PRODUCTION_USABILITY_2026-07-27.md` (5 SSE events in canonical order; 18 rows in L3 ledger across 3 chain runs).
 - v3.9 RBAC audit still PASS (134 routes); v3.10 spec-audit still PASS (4 files / 37 rows); ADR-V2-023 P1 shared-core rule preserved (no shared-crate change).
+
+### v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26
+
+- 4 phases (03.10.0 / 03.10.1 / 03.10.2 / 03.10.3), 16/16 REQ-IDs closed.
+- Five-layer/three-pipeline/four-card matrix, deterministic spec auditor, payload-driven MCP guard, ordered CI gate.
+- 174 targeted tests PASS. `make v3.10-spec-audit` exits 0.
 
 ### v3.9 grid-server route-catalog RBAC ✅ SHIPPED 2026-07-26
 
@@ -192,7 +216,7 @@ Next-milestone candidates (after v3.13 SHIPS):
   - D-03 CI static auditor enforces per-route invariants.
   - D-04 `Action` vocabulary extensible; new variants when semantic gap; `Role × Action` matrix regenerated.
   - D-05 `AuthMode::None/ApiKey` semantics fully compatible; only `AuthMode::Full` runs per-route RBAC.
-  - D-06 `RouteCatalog` is the source of truth (`pub`); both manual-decorated-router and generate-from-router patterns acceptable.
+  - D-06 `RouteCatalog` is the source of truth (`pub`); both manual-decorated-router and generate-catalog-from-router patterns acceptable.
   - D-07 No new external crate dependency.
   - D-08 No schema migration.
   - D-09 Shared-core rule (ADR-V2-023 P1) preserved; engine-layer changes leg-agnostic; verified by `test_rbac_engine_layer_is_leg_agnostic`.
@@ -205,7 +229,7 @@ Next-milestone candidates (after v3.13 SHIPS):
   - D-15 No new external crate dependency (D-07 carry-over); same rule for Python (no new PyPI deps beyond existing `uv` lockfile).
   - D-16 No schema migration (D-08 carry-over); skeleton alignment is Rust + Python source + proto commentary only.
   - D-17 Shared-core rule (ADR-V2-023 P1, D-09 carry-over) preserved: any change to `grid-types` / `grid-engine` / `grid-sandbox` / `grid-hook-bridge` must remain leg-agnostic across engine 接入面 (EAASP) and Grid 独立产品.
-  - D-18 Phase ladder 03.10.0 (skeleton audit + alignment matrix) → 03.10.1 (MAT axis) → 03.10.2 (PIPE axis) → 03.10.3 (VERIFY axis). Optionally merged into 3 phases if scope allows per scope review at plan-phase.
+  - D-18 Phase ladder 03.10.0 (skeleton audit + alignment matrix) → 03.10.1 (MAT axis) → 03.10.2 (PIPE axis) → 03.10.3 (VERIFY axis).
 
 - **v3.11 locked decisions** (from v3.11.0 bootstrap, 2026-07-26):
   - D-19 OPA sidecar deployment topology: ADR-V2-034 — sidecar OPA on `127.0.0.1:18181`, in-repo Rego templates + atomic user bundles, fail-closed on OPA error. `make opa-install` downloads official OPA binary with SHA256 verify.
@@ -229,32 +253,43 @@ Next-milestone candidates (after v3.13 SHIPS):
   - D-35 v3.9 / v3.10 / v3.11 / v3.12 硬约束不动 — Owner-only 边界不动 / AuthMode 兼容不动 / CI 顺序不动 / grid-engine 共享核心不动 / ADR-V2-023 P1 / ADR-V2-028 / ADR-V2-034 OPA sidecar / v3.11.2 5-stage approval / v3.12.1 Event Room ContextVar 鉴权 / v3.12.2 A2A Router + ReviewSet 全部保留.
   - D-36 探索策略保持 Explore + Grep (本仓无 `.codegraph/`).
   - D-37 v3.13 不开新前端 (react/typescript);仍 `tools/eaasp-*/` 模拟器级实现;不开新服务端口。
+- **v3.14 locked decisions** (from v3.14 bootstrap, 2026-07-28 — non-negotiable):
+  - D-38 v3.14 scope = EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem. Per `EAASP_v2_0_EVOLUTION_PATH.md` §三 Phase 6 (spec §7.5–§7.8). Closes V310-ECOSYSTEM-01. v3.14 = EVOLUTION_PATH 8-Phase 路线 收口 (final phase per D-46). v3.15+ = data/integration axis (per ADR-V2-024 §1).
+  - D-39 v3.14 不开新仓;仍 tools/eaasp-*/ 模拟器级实现;不开新服务端口. v3.14 does NOT open a new repo / does NOT open a new service port. Ontology 服务 + Marketplace API live in `tools/eaasp-ecosystem/` (新建 Python module). The `L4 /v1/ecosystem/ontology` + `L4 /v1/ecosystem/marketplace/...` endpoints sit behind the existing EAASP L4 service port. D-27 + D-37 carry-over.
+  - D-40 Ontology 服务派生自 v3.13 已落地的 L2 evidence + L3 governance_decisions + L4 event_room + L5 four-card projections;不新建独立存储. v3.14 = projection + view layer; 底层仍是 v3.7.3 / v3.10 / v3.11 / v3.12 / v3.13 既有数据. No new tables, no new columns, no new event types. Reuses the existing 21 RPC + `contract-v1.2.0` baseline. D-32 carry-over (projection + 视图层).
+  - D-41 Marketplace API 在 v3.11.2 eaasp-skill-registry 之上扩展 submission / promotion / ACL / analytics;不替换 eaasp-skill-registry. v3.14's MarketplaceSkill / SubmissionAudit is built on top of the existing v3.11.2 `eaasp-skill-registry` (no replacement). The marketplace extends the registry's lifecycle (4-stage promotion), ACL (per-tenant + per-role), and analytics. The underlying skill_manifest / entrypoints / mcp_servers / permissions remain in `eaasp-skill-registry` (per V310-MAT-01 deferral rationale).
+  - D-42 SDK scaffolding 在 sdk/python/ + tools/eaasp-ecosystem-sdk/ 之上加 thin client + JSON-schema 暴露. v3.14's SDK scaffolding is a thin client that wraps the existing marketplace + ontology endpoints; it does NOT re-implement business logic. The `sdk/python/eaasp_sdk/` package emits a typed Python client; `tools/eaasp-ecosystem-sdk/` provides the CLI wrapper + JSON-schema codegen hooks. TypeScript / Go / Java SDK deferred to v3.15+.
+  - D-43 仍以 Phase 0.5 MVP 人工可执行性为最低标尺 (threshold-calibration skill + `make dev-eaasp`);v3.14 extends the same MVP floor with an ecosystem walkthrough scenario. v3.14.3 produces `docs/status/PRODUCTION_USABILITY_2026-07-30.md` exercising `eaasp marketplace submit / promote / list / stats` end-to-end against the real OPA sidecar + Event Room + A2A Router + L5 Cowork + Ontology + Marketplace + SDK. D-25 / D-34 carry-over.
+  - D-44 v3.9 / v3.10 / v3.11 / v3.12 / v3.13 全部硬约束不动. v3.9 134 routes RBAC / spec-audit 4 files 37 rows / ADR-V2-023 P1 / ADR-V2-028 / ADR-V2-034 OPA sidecar / v3.11.2 5-stage approval / v3.12.1 Event Room ContextVar 鉴权 / v3.12.2 A2A Router + ReviewSet / v3.13 L5 Cowork + retrospective 全部保留. v3.9 RBAC + v3.10 spec-audit + ADR-V2-034 OPA sidecar + v3.12 Event Room + v3.12 A2A Router + v3.13 RETROSPECTIVE all continue to PASS. D-35 carry-over.
+  - D-45 v3.14 探索策略 = Explore + Grep (本仓无 `.codegraph/`). Same as v3.13 D-36 + v3.12 D-29.
+  - D-46 v3.14 是 EVOLUTION_PATH 8-Phase 路线最终 phase;收口后 v3.10 登记的全部 8 项 V310-* deferred items 全部 ✅ CLOSED. Per `EAASP_v2_0_EVOLUTION_PATH.md` §三 8-Phase roadmap. v3.14 = Phase 6 = final phase. Once 03.14.3 ships, V310-ECOSYSTEM-01 → ✅ CLOSED (V310-OPA-01 / V310-APPROVAL-01 / V310-A2A-01 / V310-COWORK-01 / V310-SESSION-01 / V311-AUDIT-01 already CLOSED; V310-SANDBOX-01 + V310-MAT-01 are L1-infrastructure / typed-schema scope items, NOT Phase 6 deliverables — see v3.14 §Out of Scope + V310-MAT-01 row in DEFERRED_LEDGER.md). EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED; no further Phase 7+ planned.
 
 ### Pending Todos
 
-- **03.13.0 plan-phase**: run `/gsd-plan-phase 03.13.0` (D-30..D-37 locked; 03.13.0 = Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge).
-- **03.13.1 plan-phase**: after 03.13.0 ships, plan four-card SSE fan-out + state transitions + persistence.
-- **03.13.2 plan-phase**: after 03.13.1 ships, plan retrospective cycle (trace API).
-- **03.13.3 plan-phase**: after 03.13.2 ships, plan single-point live walkthrough + tag v3.13.
+- **03.14.0 plan-phase**: run `/gsd-plan-phase 03.14.0` (D-38..D-46 locked; 03.14.0 = Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生).
+- **03.14.1 plan-phase**: after 03.14.0 ships, plan Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics.
+- **03.14.2 plan-phase**: after 03.14.1 ships, plan SDK scaffolding + JSON-schema 暴露.
+- **03.14.3 plan-phase**: after 03.14.2 ships, plan single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED.
 
 ### Blockers/Concerns
 
 - **Quality gaps in shipped components**: `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) shipped with Activation but remain below the 9.0+ bar the rest of the components have hit. Need follow-on feature work (Markdown + toast + skeletons + error states for web-platform/; Icons + IPC proxy + Grid rebrand for grid-desktop).
-- **EAASP v2.0 platform-evolution gaps (explicit future work)**: Phase 6 ecosystem expansion (V310-ECOSYSTEM-01 / V310-MAT-01); L1 infrastructure tier changes (V310-SANDBOX-01). Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`. Phase 5 L5 Cowork moved into v3.13 scope.
+- **EAASP v2.0 platform-evolution gaps (explicit future work after v3.14 SHIPS)**: L1 infrastructure tier changes (V310-SANDBOX-01); V310-MAT-01 typed schema work; data/integration axis (per ADR-V2-024 §1). All Phase 6 ecosystem items close in v3.14. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 - **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
 - **v3.9 Action vocabulary growth discipline** (D-04): extension is allowed but each new variant must map to a coherent semantic; auditor surfaces gaps; "manage everything" catch-all is forbidden.
-- **v3.10 spec drift risk**: the canonical EAASP v2.0 spec is `EAASP-Design-Specification-v2.0.docx` (~4373 KB). Skeleton alignment must reference this spec by section number (D-11); otherwise drift between `tools/eaasp-*` and the spec will reappear. v3.10 audit phase (03.10.0) MUST produce a section-by-section delta before any code changes.
-- **v3.10 certifier gap**: existing `tools/eaasp-certifier` exercises `contract-v1.2.0` (17 runtime + 4 hook RPC). Skeleton alignment MUST not silently widen the certifier surface; new spec sections without contract backing must be tracked as deferred (D-13 + D-14).
-- **v3.13 L5 frontend dormant** (D-31): web/ + web-platform/ remain dormant; v3.13 is a Python projection layer, not a UI milestone. UI activation deferred to a separate future milestone.
+- **v3.13 L5 frontend dormant** (D-31 / D-37): web/ + web-platform/ remain dormant; v3.13 was a Python projection layer, not a UI milestone. UI activation deferred to a separate future milestone. **v3.14 also dormant for frontend** (D-39).
+- **v3.14 8-Phase closure dependency** (D-46): EVOLUTION_PATH §三 8-Phase roadmap closure depends on 03.14.3 SHIPPING + V310-ECOSYSTEM-01 ✅ CLOSED + tag `v3.14` pushed. Until then, 8-Phase roadmap has 7/8 SHIPPED (Phase 0 / 0.5 / 0.75 / 1 / 2 / 2.5 / 3 / 4 / 5 SHIPPED historical / current; Phase 6 = v3.14 in flight).
 
 ## Session Continuity
 
-Last session: 2026-07-27 (autonomous v3.12 climb — 03.12.0 audit.py CHECK constraint patch + 03.12.1 Event Room + multi-session + 03.12.2 A2A Router + 03.12.3 single-point live walkthrough; tag `v3.12` pushed 894639dd; then v3.13 milestone bootstrap — this commit).
-Stopped at: v3.13 bootstrapping — 4-phase ladder 03.13.0 / 03.13.1 / 03.13.2 / 03.13.3 planned; no implementation work yet. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete (03.12.0 audit.py CHECK constraint patch + 03.12.1 Event Room + multi-session + 03.12.2 A2A Router + 03.12.3 single-point live walkthrough; tag `v3.12` pushed).
+Last session: 2026-07-28 (autonomous v3.14 bootstrap — this commit; PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md updated to reflect v3.14 active milestone with locked decisions D-38..D-46; DEFERRED_LEDGER.md marker added; no implementation work yet).
+
+Stopped at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem BOOTSTRAPPING 2026-07-28 — 4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3 planned; 13–16 REQ-IDs / 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT); locked decisions D-38..D-46; no implementation work yet. v3.13 SHIPPED 2026-07-29 @ d0d83a23 — 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge + 03.13.1 four-card SSE fan-out + state transitions + persistence + 03.13.2 retrospective cycle trace API + 03.13.3 single-point live walkthrough + tag v3.13). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete.
 
 Prior sessions:
 
+- 2026-07-27 (autonomous v3.12 climb): v3.12 SHIPPED — 4 phases (03.12.0 audit.py CHECK constraint patch + 03.12.1 Event Room + multi-session + 03.12.2 A2A Router + 03.12.3 single-point live walkthrough; tag `v3.12` pushed 894639dd; then v3.13 milestone bootstrap).
 - 2026-07-27 (autonomous v3.11.2 + 03.11.3 climb): v3.11 SHIPPED — 29/29 REQ-IDs closed (4 phases: 03.11.0 OPA sidecar / 03.11.1 L3 OPA backend + Rego / 03.11.2 5-stage approval state machine / 03.11.3 single-point live walkthrough against real OPA sidecar v0.68.0).
 - 2026-07-26 (autonomous v3.9 climb): v3.9 SHIPPED — 03.9.0 catalog, 03.9.1 full RBAC, 03.9.2 CI auditor all complete; targeted gates 51 PASS.
 - 2026-07-24: Phase 03.8.3 SHIPPED — USER_GUIDE §11 + PRODUCTION_USABILITY walkthrough + regression sweep. v3.8 milestone close pending. 119/119 targeted tests PASS.
@@ -278,4 +313,4 @@ Prior sessions:
 
 ---
 
-*Milestone v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) bootstrapping (this commit). v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd (4 phases, 13-16 REQ-IDs / 5 categories, tag `v3.12` pushed). v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27. v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26. v3.9 SHIPPED 2026-07-26. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*
+*Milestone v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem bootstrapping (this commit). v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 @ d0d83a23 (4 phases, 13+ REQ-IDs / 5 categories, tag `v3.13` annotated, V310-COWORK-01 ✅ CLOSED). v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd (4 phases, 13-16 REQ-IDs / 5 categories, tag `v3.12` pushed). v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ SHIPPED 2026-07-27. v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26. v3.9 SHIPPED 2026-07-26. v3.8 SHIPPED 2026-07-24. v3.7 SHIPPED 2026-07-23.*
