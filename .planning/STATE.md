@@ -2,17 +2,20 @@
 gsd_state_version: 1.0
 milestone: v3.13
 milestone_name: EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle)
-status: bootstrapping
-stopped_at: v3.13 bootstrapping 2026-07-27 (4-phase ladder 03.13.0 Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle (trace API) → 03.13.3 single-point live walkthrough + tag v3.13). v3.12 SHIPPED 2026-07-27 at commit 894639dd (4 phases, 13-16 REQ-IDs / 5 categories, tag `v3.12` pushed). V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
-last_updated: "2026-07-27T22:00:00.000Z"
-last_activity: 2026-07-27
+status: in_progress
+stopped_at: v3.13 SHIPPED 2026-07-29 (4 phases complete, 13+ REQ-IDs / 5 categories, tag `v3.13` pushed). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
+last_updated: "2026-07-29T16:00:00.000Z"
+last_activity: 2026-07-29
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
   prior_milestones:
+    v3.13_completed_phases: 4
+    v3.13_completed_plans: 4
+    v3.13_percent: 100
     v3.12_completed_phases: 4
     v3.12_completed_plans: 4
     v3.12_percent: 100
@@ -25,7 +28,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.12 (EAASP Phase 4 — A2A Router + Event Room + multi-session 协调) SHIPPED 2026-07-27 at commit `894639dd`. Four phases complete (03.12.0 audit.py CHECK constraint patch + 03.12.1 Event Room + multi-session + 03.12.2 A2A Router + 03.12.3 single-point live walkthrough), 13-16 REQ-IDs / 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT), tag `v3.12` pushed. v3.13 milestone bootstrap (Phase 5 L5 Cowork 四卡 + 回溯闭环, V310-COWORK-01) pending plan-phase execution.
+**Current focus:** Milestone v3.13 (EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环) SHIPPED 2026-07-29. Four phases complete (03.13.0 four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle trace API → 03.13.3 single-point live walkthrough + tag v3.13), 13+ REQ-IDs / 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE), tag `v3.13` pushed. V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit `894639dd`.
 
 Canonical product-status sources:
 
@@ -34,9 +37,9 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) 🔵 BOOTSTRAPPING (4-phase ladder 03.13.0 → 03.13.1 → 03.13.2 → 03.13.3; 0% complete, 0/4 phases; no implementation work yet)**
-Scope: 4 phases (03.13.0 Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle (trace API) → 03.13.3 single-point live walkthrough + tag v3.13). 13–16 REQ-IDs across 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE).
-v3.13 bootstrapping (this commit, 2026-07-27): `.planning/PROJECT.md` (Latest Shipped Milestone = v3.12 + v3.13 Current Milestone + D-30..D-37 in Key Decisions) / `.planning/REQUIREMENTS.md` (v3.12 SHIPPED + v3.13 sections, 5 categories: CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE) / `.planning/ROADMAP.md` (v3.12 SHIPPED + v3.13 active milestone block) / `.planning/STATE.md` (frontmatter `milestone=v3.13 status=bootstrapping`). v3.13.0..03.13.3 plan-phase execution deferred to next session.
+Milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 (4-phase ladder 03.13.0 → 03.13.1 → 03.13.2 → 03.13.3; 100% complete, 4/4 phases)**
+Scope: 4 phases (03.13.0 Event/Evidence/Action/Approval four-card data model + projection + L4 SSE bridge → 03.13.1 four-card SSE fan-out + state transitions + persistence → 03.13.2 retrospective cycle (trace API) → 03.13.3 single-point live walkthrough + tag v3.13). 13+ REQ-IDs across 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE).
+v3.13 SHIPPED 2026-07-29: `tools/eaasp-l5-cowork/` (new package — projection layer + state machine + RETROSPECTIVE trace + CLI + SSE fan-out); 82 targeted tests PASS; dual-gate PASS (134 routes RBAC + 4 files / 37 rows spec-audit); `docs/status/PRODUCTION_USABILITY_2026-07-29.md` captures the live walkthrough evidence; `docs/design/EAASP/DEFERRED_LEDGER.md` V310-COWORK-01 → ✅ CLOSED; tag `v3.13` annotated.
 Prior milestone: **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ SHIPPED 2026-07-27 @ 894639dd**
 Prior scope: 4 phases complete (03.12.0 → 03.12.3), 13-16 REQ-IDs in 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT + TRACE cross-axis).
 Prior verification: 03.12.0 audit.py `DECISION_ALLOWLIST` widens to `{allow, approve, deny, gate_request, await_human}` + `db.migrate_decision_await_human` idempotent ALTER TABLE migration + `approval_state_machine.py` paused Approve stage writes `approve_pause` row carrying `DECISION_AWAIT_HUMAN` (14 new targeted tests PASS). 03.12.1 Event Room data model + SQLite migration + multi-session event fan-out + `L4 /v1/rooms/{room_id}/sessions/{session_id}/events` endpoint with `ManageRooms` Action variant + 5 rounds of security review fixes (room_id required + principal-keyed membership gate + sibling-path parity + HMAC-SHA256 + ContextVar auth + log sanitization + empty-id test + caller auth + principal required + audit reliability). 03.12.2 A2A Router + A2A protocol envelope + 5 SSE event types + ReviewSet + aggregation engine + conflict detection + A2ARouter facade over EventRoom + MultiSessionCoordinator + review_set fail-open aggregation + principal-mismatch gate + cross_session audit pivot. 03.12.3 single-point live walkthrough against real OPA sidecar + Event Room + A2A Router.
