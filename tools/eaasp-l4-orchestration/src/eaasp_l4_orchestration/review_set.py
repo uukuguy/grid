@@ -614,6 +614,8 @@ class ReviewSet:
         """
         if self.status == STATUS_CLOSED:
             return False
+        if self.status == STATUS_EXPIRED:
+            return False
         if not self.is_expired(now=now):
             return False
         self.status = STATUS_EXPIRED
