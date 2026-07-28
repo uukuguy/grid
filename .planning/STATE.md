@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.12
 milestone_name: EAASP Phase 4 — A2A Router + Event Room + multi-session 协调
-status: in_progress
-stopped_at: 03.12.2 SHIPPED 2026-07-28 (A2A Router facade + ReviewSet aggregation engine + 5-stage approval integration + conflict detection algorithm + 5 A2A SSE event types; V310-A2A-01 ✅ CLOSED; ADR-V2-035 Accepted; 51 new targeted tests PASS; security regression fixes for HIGH #1 fail-open aggregation + HIGH #2 principal-mismatch gate applied). v3.12 plans 03.12.3 pending.
-last_updated: "2026-07-28T12:00:00.000Z"
+status: shipped
+stopped_at: v3.12 milestone SHIPPED 2026-07-28 (4/4 phases: 03.12.0 schema+audit ✅ SHIPPED → 03.12.1 Event Room ✅ SHIPPED → 03.12.2 A2A Router ✅ SHIPPED → 03.12.3 live walkthrough ✅ SHIPPED; ADR-V2-034 + ADR-V2-035 IMPL=SHIPPED; live PASS evidence in docs/status/PRODUCTION_USABILITY_2026-07-28.md). 
+last_updated: "2026-07-28T12:30:00.000Z"
 last_activity: 2026-07-28
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 4
   total_plans: 4
-  completed_plans: 2
-  percent: 75
+  completed_plans: 4
+  percent: 100
   prior_milestones:
     v3.11_completed_phases: 4
     v3.11_completed_plans: 4

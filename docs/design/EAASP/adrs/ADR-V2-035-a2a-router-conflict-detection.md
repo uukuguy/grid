@@ -195,3 +195,17 @@ Negative:
 - ADR-V2-023 P1 — Shared-core rule
 - ADR-V2-024 — Dual-axis model (engine 接入面 / Grid 独立产品)
 - ADR-V2-034 — OPA sidecar deployment topology
+
+- v3.12.3 single-point live walkthrough — `docs/status/PRODUCTION_USABILITY_2026-07-28.md`
+  exercises the conflict-detection algorithm end-to-end against a real
+  OPA sidecar: Reviewer A submitted `decision=allow` +
+  `evidence_refs=["anchor-transformer-spec-v3_12_3"]`; Reviewer B
+  submitted `decision=needs_revision` + the same shared
+  `anchor-transformer-spec-v3_12_3` evidence ref. `aggregate_review_set`
+  returned `final_decision="escalate"` `conflict_detected=True`
+  `synthesis_required=True` `conflicting_pairs=[(sess_reviewer_a_v3_12_3, sess_reviewer_b_v3_12_3)]`,
+  emitting `a2a.conflict.detected` SSE event. `close_review_set`
+  re-emitted the same aggregate. The 5-stage chain resumed via
+  `human_decision=ALLOW` to `final_decision="approve"`, exercising the
+  end-to-end majority-deny + review-synthesis arbitration paths.
+  ADR-V2-035 implementation: **SHIPPED at 2026-07-28**.

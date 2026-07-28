@@ -304,3 +304,16 @@ Out of scope (Deferred to v3.11.1+ or later):
   topology unchanged. v3.9 RBAC audit + v3.10 spec-audit still
   PASS. ADR-V2-023 P1 shared-core rule preserved (no shared-crate
   change). **SHIPPED 2026-07-28 on top of v3.12.1 (`a248d73a`).**
+
+- v3.12.3 single-point live walkthrough — `docs/status/PRODUCTION_USABILITY_2026-07-28.md`
+  captures the end-to-end live PASS: 7 EAASP services up via
+  `.grid/dev-eaasp-live.sh` (skill-reg + L2 + L3 w/ OPA + mock-scada +
+  MCP orchestrator + grid-runtime + L4), real OPA sidecar on
+  `127.0.0.1:18181`, 5 SSE events emitted in canonical order
+  (governance.approval.{plan,check,draft,approve,execute}), 6
+  `POST /v1/data/governance/decision` roundtrips captured (req_id=10
+  for the walkthrough run, latency 13.3ms, no upstream_error or 5xx),
+  dual gate `make rbac-audit` PASS / 134 routes + `make v3.10-spec-audit`
+  PASS / 4 files / 37 rows, ADR-V2-023 P1 shared-core rule preserved
+  (no shared-crate change). ADR-V2-034 implementation: **SHIPPED at
+  2026-07-28**.
