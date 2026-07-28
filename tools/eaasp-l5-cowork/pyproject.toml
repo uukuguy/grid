@@ -21,7 +21,8 @@ dev = [
 ]
 
 [project.scripts]
-eaasp-l5-cowork = "eaasp_l5_cowork.main:run"
+eaasp-l5-cowork = "eaasp_l5_cowork.cli:main"
+eaasp-l5-cowork-serve = "eaasp_l5_cowork.main:run"
 
 [build-system]
 requires = ["hatchling"]

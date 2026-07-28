@@ -74,6 +74,7 @@ from .cards import (
     EventCard,
 )
 from .projection import CoworkProjection
+from .retrospective import CrossTenantForbidden, RetrospectiveTrace
 from .state import CoworkStateStore
 from .state_backend import wire_state_routes
 
@@ -521,51 +522,42 @@ def create_app(
             },
         )
 
-    # ─── /v1/cowork/trace/{session_id} (forwarded to retrospective in v3.13.2) ─
+    # ─── /v1/cowork/trace/{session_id} (full RETROSPECTIVE — v3.13.2) ──
 
     @app.get("/v1/cowork/trace/{session_id}")
-    async def trace_session_placeholder(
+    async def trace_session(
         session_id: Annotated[
             str, Path(min_length=1, pattern=r"^[a-zA-Z0-9_-]+$")
         ],
         tenant_id: Annotated[str | None, Query()] = None,
         x_tenant_id: Annotated[str | None, Header()] = None,
     ) -> dict[str, Any]:
-        """Phase 03.13.0 placeholder — full implementation in 03.13.2.
+        """Full RETROSPECTIVE chain (RETROSPECTIVE-02).
 
-        Returns the four-card chain via ``CoworkProjection`` only;
-        the ``RETROSPECTIVE-*`` cross-refs + idempotency + 403
-        boundary land in 03.13.2.
+        Returns the four-card chain + cross_refs for the session.
+        Tenant-bound (RETROSPECTIVE-05); cross-tenant reads
+        surface as 403. Read-only and idempotent
+        (RETROSPECTIVE-04) — two calls with the same ``session_id``
+        return the same chain.
         """
         caller_tenant = _resolve_caller_tenant(
             x_tenant_id, tenant_id, cfg.default_tenant
         )
-        events = await proj.list_event_cards(
-            session_id, tenant_id=caller_tenant
-        )
-        evidence = await proj.list_evidence_cards(
-            session_id, tenant_id=caller_tenant
-        )
-        actions = await proj.list_action_cards(
-            session_id, tenant_id=caller_tenant
-        )
-        approvals = await proj.list_approval_cards(
-            session_id, tenant_id=caller_tenant
-        )
-        return {
-            "session_id": session_id,
-            "tenant_id": caller_tenant,
-            "events": [e.to_dict() for e in events],
-            "evidence": [e.to_dict() for e in evidence],
-            "actions": [a.to_dict() for a in actions],
-            "approvals": [a.to_dict() for a in approvals],
-            "cross_refs": [],
-            "phase": "03.13.0",
-            "note": (
-                "placeholder; full RETROSPECTIVE chain (cross_refs + "
-                "idempotency + 403) lands in 03.13.2"
-            ),
-        }
+        trace = RetrospectiveTrace(proj, state_store=store)
+        try:
+            chain = await trace.trace_session(
+                session_id, tenant_id=caller_tenant
+            )
+        except CrossTenantForbidden as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "cross_tenant_forbidden",
+                    "session_id": session_id,
+                    "detail": str(exc),
+                },
+            ) from exc
+        return chain.to_dict()
 
     # v3.13.1 — wire the state-machine routes (transition +
     # transitions list + session cards list + extended SSE).

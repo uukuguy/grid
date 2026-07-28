@@ -343,9 +343,40 @@ class CoworkProjection:
     async def list_evidence_cards(
         self, session_id: str, *, tenant_id: str | None = None
     ) -> list[EvidenceCard]:
-        """Return every EvidenceCard for the session (CARD-EVIDENCE-02)."""
+        """Return every EvidenceCard for the session (CARD-EVIDENCE-02).
+
+        v3.13.2 — adds an L4 JOIN so the L2 anchor is only
+        returned when the session is bound to a room whose
+        tenant matches ``tenant_id``. This closes the
+        cross-tenant leak that the v3.13.0 evidence projection
+        had (the L2 schema carries no tenant_id; the bound
+        must come from the L4 session ↔ room membership).
+        """
         resolved_tenant = tenant_id or await self._resolve_tenant(session_id)
         cards: list[EvidenceCard] = []
+        # Resolve tenant via L4 first; abort if the session is
+        # not bound to a room with the caller's tenant.
+        if tenant_id is not None:
+            try:
+                l4 = await self._open_l4()
+                try:
+                    cur = await l4.execute(
+                        """
+                        SELECT 1 FROM event_room_members erm
+                        JOIN event_rooms er ON er.room_id = erm.room_id
+                        WHERE erm.session_id = ? AND er.tenant_id = ?
+                        LIMIT 1
+                        """,
+                        (session_id, tenant_id),
+                    )
+                    row = await cur.fetchone()
+                finally:
+                    await l4.close()
+                if row is None:
+                    return cards
+            except Exception:
+                return cards
+
         try:
             db = await self._open_l2()
         except Exception:
@@ -412,12 +443,39 @@ class CoworkProjection:
     ) -> list[ActionCard]:
         """Return every ActionCard for the session (CARD-ACTION-02).
 
+        v3.13.2 — adds tenant gate at the L4 ``telemetry_events``
+        SELECT: only telemetry rows whose session_id is bound to
+        a room with ``tenant_id`` are returned. Same defensive
+        pattern as ``list_evidence_cards``.
+
         Joins ``telemetry_events`` to ``governance_decisions`` on
         ``(session_id, hook_id)`` to surface the canonical
         ``risk_level`` (CARD-ACTION-03).
         """
         resolved_tenant = tenant_id or await self._resolve_tenant(session_id)
         cards: list[ActionCard] = []
+        # Tenant gate at L4 first; abort if the session is not
+        # bound to a room with the caller's tenant.
+        if tenant_id is not None:
+            try:
+                l4 = await self._open_l4()
+                try:
+                    cur = await l4.execute(
+                        """
+                        SELECT 1 FROM event_room_members erm
+                        JOIN event_rooms er ON er.room_id = erm.room_id
+                        WHERE erm.session_id = ? AND er.tenant_id = ?
+                        LIMIT 1
+                        """,
+                        (session_id, tenant_id),
+                    )
+                    row = await cur.fetchone()
+                finally:
+                    await l4.close()
+                if row is None:
+                    return cards
+            except Exception:
+                return cards
         # First read the L4 telemetry_events to get the action rows.
         try:
             l4 = await self._open_l4()
@@ -512,9 +570,34 @@ class CoworkProjection:
         Includes the v3.11.2 5-stage rows (plan / check / draft /
         approve / execute) plus the v3.12.0 ``await_human`` and
         ``approve_pause`` paused-state rows.
+
+        v3.13.2 — tenant gate at L4 ``event_room_members`` →
+        ``event_rooms.tenant_id`` so cross-tenant callers see an
+        empty approval list.
         """
         resolved_tenant = tenant_id or await self._resolve_tenant(session_id)
         cards: list[ApprovalCard] = []
+        if tenant_id is not None:
+            try:
+                l4 = await self._open_l4()
+                try:
+                    cur = await l4.execute(
+                        """
+                        SELECT 1 FROM event_room_members erm
+                        JOIN event_rooms er ON er.room_id = erm.room_id
+                        WHERE erm.session_id = ? AND er.tenant_id = ?
+                        LIMIT 1
+                        """,
+                        (session_id, tenant_id),
+                    )
+                    row = await cur.fetchone()
+                finally:
+                    await l4.close()
+                if row is None:
+                    return cards
+            except Exception:
+                return cards
+
         try:
             db = await self._open_l3()
         except Exception:

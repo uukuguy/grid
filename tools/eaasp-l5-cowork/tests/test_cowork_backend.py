@@ -235,10 +235,12 @@ async def test_cards_endpoint_invalid_session_id_rejected(
 async def test_trace_endpoint_placeholder_returns_four_lists(
     init_l2: str, init_l3: str, init_l4: str
 ) -> None:
-    """GET /v1/cowork/trace/{session_id} returns 4 lists (03.13.0 placeholder).
+    """GET /v1/cowork/trace/{session_id} returns 4 lists (full RETROSPECTIVE).
 
-    Full RETROSPECTIVE-* (cross_refs + idempotency + 403) lands
-    in 03.13.2.
+    v3.13.0 test was updated to 03.13.2 (placeholder became
+    full RETROSPECTIVE implementation). Full coverage lives in
+    tests/test_retrospective.py; this test pins the public
+    surface so an unintentional regression is caught.
     """
     await seed_event_room(
         init_l4,
@@ -254,9 +256,6 @@ async def test_trace_endpoint_placeholder_returns_four_lists(
     )
     client, _ = _make_client(init_l2, init_l3, init_l4)
     async with client as c:
-        # Note: 03.13.0 trace endpoint takes session_id via query (the
-        # path-param URL lands in 03.13.2 when the route moves under
-        # the RETROSPECTIVE envelope).
         r = await c.get(
             "/v1/cowork/trace/sess_a",
             params={"tenant_id": "acme"},
@@ -266,5 +265,4 @@ async def test_trace_endpoint_placeholder_returns_four_lists(
         assert body["session_id"] == "sess_a"
         assert body["tenant_id"] == "acme"
         assert len(body["evidence"]) == 1
-        assert body["cross_refs"] == []
-        assert body["phase"] == "03.13.0"
+        assert "summary" in body
