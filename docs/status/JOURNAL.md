@@ -27,3 +27,9 @@
 - v3.13 milestone bootstrap (EAASP Phase 5 L5 Cowork 四卡 + 回溯闭环) on main [ddd83337]。
 - v3.13 L5 Cowork 四卡 + retrospective cycle 已 SHIPPED，82/82 tests PASS，V310-COWORK-01 已 CLOSED，tag v3.13 已建立 [d0d83a23]。
 - 21:09 v3.14 Phase 6 (Ontology / Marketplace / Skill ecosystem) 已 SHIPPED，66/66 tests PASS，2 轮 security review (3 CRITICAL+1 HIGH) 关闭，V310-ECOSYSTEM-01+V310-MAT-01 已 CLOSED [05074170]；EVOLUTION_PATH 8-Phase 路线全 SHIPPED。
+
+## 2026-07-29
+- 推送 6 commit 到 origin/main（v3.14 EAASP Phase 6 + journal restore + EAASP 仿真环境使用指南 + handoff checkpoint）。
+- tag v3.14 annotated 已 push。
+- 清理 8 个 SGAI sub-worktree（soft cap 4 已合规）。
+- handoff checkpoint: docs/status/RESUME-NEXT-SESSION.md 已落地；EVOLUTION_PATH 8-Phase 路线全 SHIPPED + 8 项 V310-* deferred 全部 ✅ CLOSED [ef10222d]。
