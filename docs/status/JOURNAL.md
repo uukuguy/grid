@@ -33,3 +33,10 @@
 - tag v3.14 annotated 已 push。
 - 清理 8 个 SGAI sub-worktree（soft cap 4 已合规）。
 - handoff checkpoint: docs/status/RESUME-NEXT-SESSION.md 已落地；EVOLUTION_PATH 8-Phase 路线全 SHIPPED + 8 项 V310-* deferred 全部 ✅ CLOSED [ef10222d]。
+
+## 2026-07-30
+- 03.14.2-C1 SDK thin client 落地: `EaaspEcosystemClient` (sync + async) 包装 10 个 L4 /v1/ecosystem/* endpoint; 4 typed exception (AuthError / ACLDenied / TenantForbidden / PromotionError); 17 respx-mocked tests PASS; 实现 SDK-01 + SDK-03 [9c845e29]。
+- 03.14.2-C2 MARKETPLACE-03 CLI 落地: `eaasp-ecosystem marketplace {submit,promote,list,stats,audit}` 5 subcommand 全 HTTP httpx.Client(trust_env=False); fix latent os.environ.get NameError bug; 9 respx tests + 75 总数 PASS [ced94f33]。
+- 03.14.2-C3 SDK Click CLI 落地: `eaasp ecosystem {schema,ontology,marketplace}` Click group thin wrap EaaspEcosystemClient; 6 respx + CliRunner tests PASS; 实现 SDK-02 [de70d199]。03.14.2 全部 3 个 atomic commit 完成,32 新增 tests 0 regression。
+- 03.14.3 single-point live walkthrough 落地: `docs/status/PRODUCTION_USABILITY_2026-07-30.md` 5 步骤 + dual-gate PASS + 7-row boundary invariants; 11 nodes across 4 layers (4 l2_type + 2 l3_risk + 2 l4_event + 2 l5_card + 1 root) + 9-type JSON-schema + 32 新 SDK tests 0 regression [31c804eb]。
+- V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30 (v3.14 SHIP 4-phase ladder); EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED; V310-MAT-01 保持 `📦 long-term` (per REQUIREMENTS.md:56 + D-44/D-46 carry-over — out of v3.14 scope)。prior RESUME-NEXT-SESSION.md:44-45 + JOURNAL.md:29 "V310-MAT-01 ✅ CLOSED" 误标已 reconcile 修正。tag `v3.14 -fa` force-push。STATE.md / PROJECT.md / ROADMAP.md / REQUIREMENTS.md / DEFERRED_LEDGER.md / ALIGNMENT_MATRIX.md 全部同步收口 [this commit]。

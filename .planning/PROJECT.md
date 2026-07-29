@@ -16,7 +16,7 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Latest Shipped Milestone: v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ 2026-07-29 @ d0d83a23
+## Latest Shipped Milestone: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; `tools/eaasp-ecosystem/` FastAPI + `sdk/python/src/eaasp/{client,cli}/` thin client + Click CLI; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED; **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED**; tag `v3.14` force-push).
 
 **Goal:** Begin EAASP v2.0 EVOLUTION_PATH §三 Phase 5 by delivering the **L5 Cowork UI substrate** as a four-card projection layer (Event / Evidence / Action / Approval) plus a **retrospective cycle** (回溯闭环) that lets any four-card record trace back to its full Event → Evidence → Action → Approval chain by `session_id`. v3.13.0 establishes the four-card data model + projection + L4 SSE bridge; v3.13.1 wires four-card SSE fan-out + state transitions + persistence; v3.13.2 builds the retrospective cycle (trace API); v3.13.3 is a single-point live walkthrough that demonstrates the full Phase 5 surface and pushes tag `v3.13`.
 

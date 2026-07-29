@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v3.14
 milestone_name: EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem
-status: bootstrapping
-stopped_at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem BOOTSTRAPPING 2026-07-28 (4 phases planned 03.14.0 → 03.14.3, 13–16 REQ-IDs / 5 categories, locked decisions D-38..D-46, no implementation work yet). v3.13 EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环 ✅ SHIPPED 2026-07-29 @ d0d83a23 (4 phases complete, 13+ REQ-IDs / 5 categories, tag `v3.13` annotated). V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
-last_updated: "2026-07-28T18:00:00.000Z"
-last_activity: 2026-07-28
+status: shipped
+stopped_at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; locked decisions D-38..D-46; 6 atomic commits: `12951d48` (03.14.0) + `88bff405` (round-1 fix) + `e2d9c116` (03.14.1) + `84433535` (round-2 fix) + `05074170` (consolidated ship) + `9c845e29` (EaaspEcosystemClient) + `ced94f33` (MARKETPLACE-03 CLI) + `de70d199` (Click ecosystem subcommand) + `31c804eb` (PRODUCTION_USABILITY_2026-07-30) + this commit; 75 eaasp-ecosystem tests + 17 SDK client tests + 6 SDK CLI tests = 98 targeted v3.14 tests PASS). V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30. EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED. tag `v3.14` force-push. Prior milestone v3.13 SHIPPED 2026-07-29 @ d0d83a23. V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
+last_updated: "2026-07-30T02:26:45.000Z"
+last_activity: 2026-07-30
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
   prior_milestones:
-    v3.14_completed_phases: 0
-    v3.14_completed_plans: 0
-    v3.14_percent: 0
+    v3.14_completed_phases: 4
+    v3.14_completed_plans: 4
+    v3.14_percent: 100
     v3.13_completed_phases: 4
     v3.13_completed_plans: 4
     v3.13_percent: 100
@@ -31,7 +31,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.14 (EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem) BOOTSTRAPPING 2026-07-28. 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED), 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT). Locked decisions D-38..D-46. No implementation work yet.
+**Current focus:** Milestone v3.14 (EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem) ✅ SHIPPED 2026-07-30. 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED), 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT). Locked decisions D-38..D-46. 23 REQ-IDs / 5 categories closed; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30; tag `v3.14` force-push.
 
 Canonical product-status sources:
 
@@ -40,7 +40,7 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem 🔵 BOOTSTRAPPING 2026-07-28 (4-phase ladder 03.14.0 → 03.14.1 → 03.14.2 → 03.14.3; 0/4 phases, 0% complete, 0/0 plans)**
+Milestone: **v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 4/4 phases, 100% complete)**
 Scope: 4 phases (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED). 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT).
 v3.14.0 派生不复制 (D-40): Ontology 服务 from existing L2 evidence anchor + L3 governance_decisions + L4 event_room_events + L5 four-card projections via SELECT; no new tables, no new columns, no new event types. v3.14.1 Marketplace API extends v3.11.2 eaasp-skill-registry (no replacement; D-41). v3.14.2 SDK scaffolding is thin client that wraps marketplace + ontology endpoints (no business logic re-implementation; D-42). v3.14.3 closes EVOLUTION_PATH §三 8-Phase roadmap (D-46) by tagging `v3.14` and marking V310-ECOSYSTEM-01 ✅ CLOSED.
 Prior milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 @ d0d83a23**
@@ -77,7 +77,7 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 *5/7 components at 9.0+. web-platform/ and grid-desktop need functional feature work for 9.0+.*
 
-### v3.14.0..03.14.3 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem 🔵 BOOTSTRAPPING 2026-07-28
+### v3.14.0..03.14.3 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30
 
 - 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED).
 - 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT) + TRACE cross-axis carry-over.
@@ -266,7 +266,7 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ### Pending Todos
 
-- **03.14.0 plan-phase**: run `/gsd-plan-phase 03.14.0` (D-38..D-46 locked; 03.14.0 = Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生).
+- **None** — v3.14 SHIPPED 2026-07-30. Next milestone candidate: data/integration axis (ADR-V2-024 §1) — separate future milestone.
 - **03.14.1 plan-phase**: after 03.14.0 ships, plan Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics.
 - **03.14.2 plan-phase**: after 03.14.1 ships, plan SDK scaffolding + JSON-schema 暴露.
 - **03.14.3 plan-phase**: after 03.14.2 ships, plan single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED.
@@ -285,7 +285,7 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 Last session: 2026-07-28 (autonomous v3.14 bootstrap — this commit; PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md updated to reflect v3.14 active milestone with locked decisions D-38..D-46; DEFERRED_LEDGER.md marker added; no implementation work yet).
 
-Stopped at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem BOOTSTRAPPING 2026-07-28 — 4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3 planned; 13–16 REQ-IDs / 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT); locked decisions D-38..D-46; no implementation work yet. v3.13 SHIPPED 2026-07-29 @ d0d83a23 — 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge + 03.13.1 four-card SSE fan-out + state transitions + persistence + 03.13.2 retrospective cycle trace API + 03.13.3 single-point live walkthrough + tag v3.13). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete.
+Stopped at: v3.14 SHIPPED 2026-07-30 — 4 phases complete (03.14.0 / 03.14.1 / 03.14.2 / 03.14.3); 23 v3.14 REQ-IDs / 5 categories closed; 98 targeted tests PASS (75 eaasp-ecosystem + 17 SDK client + 6 SDK CLI); V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30; EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED. v3.13 SHIPPED 2026-07-29 @ d0d83a23 — 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge + 03.13.1 four-card SSE fan-out + state transitions + persistence + 03.13.2 retrospective cycle trace API + 03.13.3 single-point live walkthrough + tag v3.13). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete.
 
 Prior sessions:
 

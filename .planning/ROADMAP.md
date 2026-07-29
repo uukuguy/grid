@@ -5,7 +5,7 @@
 > **Latest shipped milestone:** v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain ✅ 2026-07-27
 > **Latest shipped milestone:** v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ 2026-07-27
 > **Latest shipped milestone:** v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ 2026-07-29 @ d0d83a23
-> **Current active milestone:** v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem (bootstrapping 2026-07-28)
+> **Latest shipped milestone:** v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; `tools/eaasp-ecosystem/` + `sdk/python/src/eaasp/{client,cli}/`; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED; **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED**).
 > **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`, `milestones/v3.9-ROADMAP.md`, `milestones/v3.13-ROADMAP.md`
 > **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.14 section.
 
@@ -315,10 +315,10 @@ A.8 grid-eval — independent, can run anytime with web/ components
 | **03.13.1** four-card SSE fan-out + state transitions + persistence | 1/1 | ✅ Complete | v3.13 |
 | **03.13.2** retrospective cycle (trace API) | 1/1 | ✅ Complete | v3.13 |
 | **03.13.3** single-point live walkthrough + tag v3.13 | 1/1 | ✅ Complete | v3.13 |
-| **03.14.0** Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 | 0/0 | 🔵 Bootstrapping | v3.14 |
-| **03.14.1** Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics | 0/0 | 🔵 Bootstrapping | v3.14 |
-| **03.14.2** SDK scaffolding + JSON-schema 暴露 | 0/0 | 🔵 Bootstrapping | v3.14 |
-| **03.14.3** single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED | 0/0 | 🔵 Bootstrapping | v3.14 |
+| **03.14.0** Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 | 1/1 | ✅ Complete v3.14 | v3.14 |
+| **03.14.1** Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics | 1/1 | ✅ Complete v3.14 | v3.14 |
+| **03.14.2** SDK scaffolding + JSON-schema 暴露 | 1/1 | ✅ Complete v3.14 | v3.14 |
+| **03.14.3** single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED | 1/1 | ✅ Complete v3.14 | v3.14 |
 
 ---
 

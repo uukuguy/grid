@@ -76,6 +76,7 @@ Phase 0.5 人工可执行最低标尺保持为：`make dev-eaasp` 启动服务�
 | §7.1-7.6 Assets/Skills | partial | 03.10.1 | Phase 6 ecosystem |
 | §7.7 Memory Engine | partial | 03.10.1 | L2 follow-up |
 | §7.8 Ontology Service | missing | audit only | Phase 6 ecosystem |
+| §7.5-7.8 Phase 6 ecosystem surface (v3.14 cross-index) | aligned | 03.14.0/1/2/3 | `tools/eaasp-ecosystem/{ontology,marketplace,ecosystem,cli}.py` (v3.14.0 + v3.14.1 SHIPPED 2026-07-28 @ `12951d48` + `e2d9c116`) + `sdk/python/src/eaasp/client/ecosystem_client.py` + `sdk/python/src/eaasp/cli/ecosystem_cmd.py` (v3.14.2 SHIPPED 2026-07-30) + `docs/status/PRODUCTION_USABILITY_2026-07-30.md` (v3.14.3 SHIPPED 2026-07-30). v3.14 = final phase of EVOLUTION_PATH §三 8-Phase 路线 (per D-46). **V310-ECOSYSTEM-01 → ✅ CLOSED 2026-07-30**. EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED. |
 | §8.1-8.7 L1 abstraction | partial | 03.10.3 | L1 evolution |
 | §9.1-9.3 Runtime execution | aligned | 03.10.3 | L1 evolution |
 | §9.4 Sandbox Isolation Tiers | partial | 03.10.0 | L1 infrastructure |
@@ -95,4 +96,4 @@ Phase 0.5 人工可执行最低标尺保持为：`make dev-eaasp` 启动服务�
 
 ## 审计时间点
 
-本矩阵对应 v3.10 基线 `b0d4502e`。后续 `make v3.10-spec-audit` 以结构化标记验证状态不被静默删除。
+本矩阵对应 v3.10 基线 `b0d4502e` + v3.11.3 / v3.12.3 / v3.13.3 / v3.14.3 增量更新 (TRACE-02 跨 phase 维护)。后续 `make v3.10-spec-audit` 以结构化标记验证状态不被静默删除。v3.14.3 增量：§7.5-7.8 状态从 `partial` / `missing` 升级为 `aligned`;V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30。
