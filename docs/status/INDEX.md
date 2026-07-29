@@ -12,6 +12,7 @@ Catalog of status files. The GSD planning system remains authoritative for miles
 | `RESUME-NEXT-SESSION.md` | 🟢 active | Session handoff baton. |
 | `JOURNAL.md` | 🟢 active | Append-only durable event log. |
 | `INDEX.md` | 🟢 active | This discovery index. |
+| `EAASP_SIMULATION_USER_GUIDE.md` | 🟢 active | EAASP v2.0 simulator-level reference implementation user guide (v3.14.0). |
 | `.planning/STATE.md` | 🟢 active | Canonical GSD milestone state. |
 | `.planning/ROADMAP.md` | 🟢 active | Canonical GSD roadmap and requirements mapping. |
 
