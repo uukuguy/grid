@@ -1,4 +1,4 @@
-"""Tests for eaasp.cli — CLI commands (init/validate/test/submit)."""
+"""Tests for eaasp.cli — CLI commands (init/validate/test/submit/ecosystem)."""
 
 import json
 import tempfile
@@ -6,7 +6,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import respx
 from click.testing import CliRunner
+from httpx import Response
 
 from eaasp.cli.__main__ import main
 
@@ -59,6 +61,151 @@ class TestCLIHelp:
         result = runner.invoke(main, ["submit", "--help"])
         assert result.exit_code == 0
         assert "--registry" in result.output
+
+
+# ── Ecosystem SDK subcommand (v3.14.2 SDK-02) ──────────────────────────
+
+
+class TestEcosystemCmd:
+    """Thin-CLI surface for ``eaasp ecosystem ...`` over EaaspEcosystemClient.
+
+    SDK-02: every subcommand delegates to ``EaaspEcosystemClient`` (D-42
+    thin client, no business logic re-implementation). Tests use ``respx``
+    to mock the FastAPI transport.
+    """
+
+    BASE_URL = "http://127.0.0.1:18087"
+    API_KEY = "dev-test-key-acme"
+
+    def test_ecosystem_help_lists_subcommands(self, runner):
+        result = runner.invoke(main, ["ecosystem", "--help"])
+        assert result.exit_code == 0
+        assert "schema" in result.output
+        assert "ontology" in result.output
+        assert "marketplace" in result.output
+
+    def test_schema_returns_full_ecosystem_types(self, runner):
+        schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "EAASP Ecosystem Surface",
+            "version": "1.0.0",
+            "properties": {
+                "TaxonomyNode": {"type": "object"},
+                "MarketplaceSkill": {"type": "object"},
+                "PromotionStage": {"type": "string"},
+            },
+        }
+        with respx.mock(base_url=self.BASE_URL) as mock:
+            mock.get("/v1/ecosystem/schema").mock(
+                return_value=Response(200, json=schema)
+            )
+            result = runner.invoke(
+                main,
+                [
+                    "ecosystem",
+                    "--api-key", self.API_KEY,
+                    "--base-url", self.BASE_URL,
+                    "schema",
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        # The CLI prints the full JSON-schema response (sorted keys).
+        assert "MarketplaceSkill" in result.output
+        assert "TaxonomyNode" in result.output
+
+    def test_ontology_derive_prints_graph(self, runner):
+        graph = {"tenant_id": "acme", "root_id": "root", "nodes": [], "links": []}
+        with respx.mock(base_url=self.BASE_URL) as mock:
+            route = mock.get("/v1/ecosystem/ontology").mock(
+                return_value=Response(200, json=graph)
+            )
+            result = runner.invoke(
+                main,
+                [
+                    "ecosystem",
+                    "--api-key", self.API_KEY,
+                    "--base-url", self.BASE_URL,
+                    "ontology", "derive",
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        assert "acme" in result.output
+        # The SDK client is built with the env-var-derived api_key
+        # and forwarded via Authorization: Bearer <api_key>.
+        assert route.calls.last.request.headers["Authorization"] == (
+            f"Bearer {self.API_KEY}"
+        )
+
+    def test_marketplace_submit_forwards_payload(self, runner):
+        skill = {"skill_id": "skill-cli-sdk-1", "current_stage": "draft"}
+        with respx.mock(base_url=self.BASE_URL) as mock:
+            route = mock.post(
+                "/v1/ecosystem/marketplace/skills/submit"
+            ).mock(return_value=Response(201, json=skill))
+            result = runner.invoke(
+                main,
+                [
+                    "ecosystem",
+                    "--api-key", self.API_KEY,
+                    "--base-url", self.BASE_URL,
+                    "marketplace", "submit",
+                    "--name", "x",
+                    "--summary", "x",
+                    "--version", "0.1.0",
+                    "--manifest", '{"entrypoints":["calibrate"]}',
+                    "--scope", "tenant",
+                    "--tags", "eaasp,llm",
+                    "--author-principal", "apikey:abc",
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        body = json.loads(route.calls.last.request.content)
+        assert body["scope"] == "tenant"
+        assert body["tags"] == ["eaasp", "llm"]
+        assert body["manifest"] == {"entrypoints": ["calibrate"]}
+
+    def test_marketplace_promote_401_returns_exit_code_3(self, runner):
+        with respx.mock(base_url=self.BASE_URL) as mock:
+            mock.post(
+                "/v1/ecosystem/marketplace/skills/promote"
+            ).mock(
+                return_value=Response(403, json={"code": "acl_forbidden"})
+            )
+            result = runner.invoke(
+                main,
+                [
+                    "ecosystem",
+                    "--api-key", self.API_KEY,
+                    "--base-url", self.BASE_URL,
+                    "marketplace", "promote",
+                    "--skill-id", "skill-cli-sdk-1",
+                    "--from-stage", "draft",
+                    "--to-stage", "review",
+                    "--rationale", "ready",
+                ],
+            )
+        assert result.exit_code == 3
+        assert "ACL denied" in result.output
+
+    def test_missing_api_key_exits_nonzero(self, runner):
+        """Locks the auth contract: ``--api-key`` / ``EAASP_ECOSYSTEM_API_KEY``
+        is required for every Bearer-gated subcommand.
+
+        Uses the env-var unset path (no ``--api-key`` flag, env stripped
+        via the ``env`` runner parameter) to assert the CLI surfaces a
+        human-readable error and exits with code 2 (not 3 — this is a
+        client-side configuration error, not a server-side auth failure).
+        """
+        result = runner.invoke(
+            main,
+            [
+                "ecosystem",
+                "schema",
+            ],
+            env={},  # no EAASP_ECOSYSTEM_API_KEY in env
+        )
+        assert result.exit_code == 2
+        assert "api_key required" in result.output
 
 
 # ── Init command ──
