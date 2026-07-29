@@ -44,3 +44,4 @@
 
 ## 2026-07-30
 - v3.14.3 close-out docs text-sync: spec-audit row count 37 → 38 across REPORT.md + PRODUCTION_USABILITY_2026-07-30.md (3 occurrences) + RESUME-NEXT-SESSION.md + DEFERRED_LEDGER.md + EAASP_SIMULATION_USER_GUIDE.md; ADR-V2-034/V2-035 bodies 保留 37 (Acceptance-time historical snapshot per ADR governance immutable-Accepted-body rule); PRODUCTION_USABILITY 添加 snapshot rationale note; certifier + alignment-matrix 2/2 tests PASS [690ca810]。v3.14 闭环 post-merge text-sync gap 已收口。
+- Final handoff refresh: docs/status/CURRENT-STATE.md (重写 v3.8-era baseline → v3.14 SHIPPED state) + docs/status/RESUME-NEXT-SESSION.md (重写 9e712833 → 349f769b; HEAD 38-row dual-gate; 8 × V310-* + V311-AUDIT-01 = 9 ✅ CLOSED; 5 v3.15 候选 + ADR-V2-024 Open Item #3 priority axis = grid-cli + grid-server); task list extend 到 #115/#116; 2 files / +217 / -121 [df2922f7]。v3.14 milestone handoff complete — next session reads `df2922f7` + JOURNAL latest entry 即接力。
