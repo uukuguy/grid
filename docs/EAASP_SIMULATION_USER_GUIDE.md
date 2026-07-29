@@ -149,7 +149,7 @@ cd tools/eaasp-cli-v2 && \
 
 ```bash
 # 整体
-make v3.10-spec-audit           # v3.10 spec alignment (4 files / 37 rows)
+make v3.10-spec-audit           # v3.10 spec alignment (4 files / 38 rows)
 make rbac-audit                  # v3.9 grid-server 134 routes
 
 # 各服务

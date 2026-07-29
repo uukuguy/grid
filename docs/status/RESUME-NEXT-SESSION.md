@@ -17,7 +17,7 @@
 - **behind origin/main**：0
 - **worktree count（本仓）**：1（main），其余 7 个是其他 Grid 仓库的（Autonomous-Agents / claude-code-runtime / eaasp-runtimes），非本会话 owner
 - **tags 已建**：`v3.10` / `v3.11` / `v3.12` / `v3.13`（annotated）
-- **双 gate**：`make v3.10-spec-audit` PASS（4 files / 37 rows）+ `make rbac-audit` PASS（134 routes）
+- **双 gate**：`make v3.10-spec-audit` PASS（4 files / 38 rows）+ `make rbac-audit` PASS（134 routes）
 - **shared-core rule**：零改动
 - **DOC**: `docs/EAASP_SIMULATION_USER_GUIDE.md`（v3.14.0）
 

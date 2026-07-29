@@ -100,13 +100,22 @@ Click wrapper:
 | Gate                       | Command                                 | Result     |
 |----------------------------|-----------------------------------------|------------|
 | v3.9 RBAC catalog          | `make rbac-audit`                       | PASS / 134 routes |
-| v3.10 spec-audit           | `make v3.10-spec-audit`                 | PASS / 4 files / 37 rows |
+| v3.10 spec-audit           | `make v3.10-spec-audit`                 | PASS / 4 files / 38 rows |
 
 Both gates unchanged from the v3.12 / v3.13 SHIP snapshot — confirms
 the v3.14 code path **does not regress** the route catalog or the
 EAASP-alignment audit. v3.14 itself does not touch the route catalog
 or the spec-audit matrix (the v3.14 work lives entirely in
 `tools/eaasp-ecosystem/` + `sdk/python/src/eaasp/`).
+
+> **Note on row count (37 → 38)**: the `37 rows` figure cited in
+> `ADR-V2-034` / `ADR-V2-035` body is the v3.11.x / v3.12.x
+> Acceptance-time historical snapshot (per the ADR governance
+> immutable-Accepted-body rule). The post-v3.14 row count is **38**
+> because `03.14.3` added `§7.5-7.8 Phase 6 ecosystem surface
+> (v3.14 cross-index)` to `tools/eaasp-spec-alignment/ALIGNMENT_MATRIX.md`.
+> `REPORT.md` (certifier output) and this walkthrough reflect **38**;
+> ADR bodies retain the historical **37** snapshot.
 
 > **Note on `make v2-phase3-e2e-rust`** (REQUIREMENTS.md:62 COMPAT-02
 > + :69 TRACE-01): this target is referenced in
@@ -138,7 +147,7 @@ or the spec-audit matrix (the v3.14 work lives entirely in
 | ADR-V2-023 P1 shared-core rule preserved | `git diff --stat <pre-v3.14>..HEAD -- crates/grid-{engine,runtime,types,sandbox,hook-bridge}` | **empty** (no shared-crate change) |
 | ADR-V2-034 OPA sidecar ALIVE | (carry-over from v3.11.3) `make opa-install` reproducible; sidecar v0.68.0 on `127.0.0.1:18181` | PASS |
 | v3.9 RBAC 134 routes | `make rbac-audit` | PASS / 134 routes |
-| v3.10 spec-audit 4 files / 37 rows | `make v3.10-spec-audit` | PASS / 4 files / 37 rows |
+| v3.10 spec-audit 4 files / 38 rows | `make v3.10-spec-audit` | PASS / 4 files / 38 rows |
 | v3.11.2 5-stage approval chain | (carry-over from v3.11.2) | PASS |
 | v3.12.1 Event Room ContextVar auth | (carry-over from v3.12.1) | PASS |
 | v3.13 L5 Cowork + RETROSPECTIVE trace API | (carry-over from v3.13.2) | PASS |
@@ -203,7 +212,7 @@ cd ../..
 
 # 3. Hard gates
 make rbac-audit            # PASS / 134 routes
-make v3.10-spec-audit      # PASS / 4 files / 37 rows
+make v3.10-spec-audit      # PASS / 4 files / 38 rows
 ```
 
 For the live OPA + Event Room + A2A Router + L5 Cowork + Ontology +
