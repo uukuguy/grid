@@ -1,39 +1,49 @@
 # Next-Session Handoff
 
-> **Updated**: 2026-07-29 — handoff checkpoint after v3.14 SHIPPED + origin/main 同步 + EAASP 仿真环境使用指南落地。
+> **Updated**: 2026-07-30 — handoff checkpoint after v3.14.3 close-out text-sync gap closed (37 → 38 spec rows across REPORT.md + 4 close-out docs); origin/main pushed to `349f769b`.
 
 ## TL;DR
 
-1. **EVOLUTION_PATH 8-Phase 路线全 SHIPPED**（v3.10-v3.14 在本会话完成）。8 项 V310-* deferred 全部 ✅ CLOSED。
-2. **origin/main** 已与本地同步（HEAD `9e712833`）；v3.11/v3.12/v3.13 三个 annotated tag 已建立。
-3. **EAASP 仿真环境使用指南** 已落地 `docs/EAASP_SIMULATION_USER_GUIDE.md`（425 行，14 节）。
-4. **8 个 SGAI sub-worktree 全部清理**（soft cap 4 已合规）。
-5. **下一候选**：web-platform 7.5→9.0 / grid-desktop 6.5→9.0 / grid-platform route catalog audit / 把所有 SSE 事件 + registry ports 收口为统一的"start EAASP"脚本。
+1. **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED** (v3.10 → v3.14 in this milestone chain). All 8 × V310-* deferred items + V311-AUDIT-01 = **9 ✅ CLOSED**. v3.14 is the **final phase** per D-46.
+2. **HEAD**: `349f769b` (main, ahead origin/main 0; both sync). Tags pushed: `v3.10` / `v3.11` / `v3.12` / `v3.13` / `v3.14` (annotated).
+3. **Dual-gate**: `make v3.10-spec-audit` PASS (4 files / **38 rows** post-§7.5-7.8) + `make rbac-audit` PASS (134 routes).
+4. **Last session delivered** (post-v3.14.3 close): docs text-sync gap fix — `690ca810` (5 files) + journal append `349f769b` (3 lines). Both pushed to origin/main.
+5. **下一候选 (任选一个开 v3.15)**: 5 options below. Per ADR-V2-024 Open Item #3 priority axis, **grid-server multi-user (data/integration axis)** is the recommended next.
 
-## 当前状态
+## Current state
 
-- **HEAD**：`9e712833`（main 工作树，与 origin/main 同步，clean）
-- **ahead origin/main**：0
-- **behind origin/main**：0
-- **worktree count（本仓）**：1（main），其余 7 个是其他 Grid 仓库的（Autonomous-Agents / claude-code-runtime / eaasp-runtimes），非本会话 owner
-- **tags 已建**：`v3.10` / `v3.11` / `v3.12` / `v3.13`（annotated）
-- **双 gate**：`make v3.10-spec-audit` PASS（4 files / 38 rows）+ `make rbac-audit` PASS（134 routes）
-- **shared-core rule**：零改动
-- **DOC**: `docs/EAASP_SIMULATION_USER_GUIDE.md`（v3.14.0）
+- **HEAD**: `349f769b` `docs(journal): v3.14.3 close-out row count 37 → 38 sync entry`
+- **origin/main**: `349f769b` (synced)
+- **worktree count (本仓)**: 1 (main); other 7 worktrees are different Grid repos, not this session's owner
+- **Tags**: `v3.10` / `v3.11` / `v3.12` / `v3.13` / `v3.14` (annotated)
+- **Dual-gate**: PASS (134 RBAC + 4 files / 38 spec-audit rows)
+- **ADR-V2-023 P1 shared-core rule**: zero edits under `grid-{engine,runtime,types,sandbox,hook-bridge}` since v3.10
+- **D-44 hard constraints**: all preserved (RBAC + spec-audit + ADR-V2-023 P1 + ADR-V2-028 + ADR-V2-034 + 5-stage + Event Room + A2A + L5 Cowork retrospective)
+- **DOC**: `docs/EAASP_SIMULATION_USER_GUIDE.md` (v3.14.0, 425 lines, 14 sections)
 
-## 会话交付摘要
+## Last-session delivery (this handoff session)
 
-| Milestone | 起始 → 终止 commit | 关键交付 |
+| Commit | What | Why |
+|--------|------|-----|
+| `690ca810` | docs(v3.14.3): sync spec-audit row count 37 → 38 across REPORT.md + 4 close-out docs | `03.14.3` close commit `98dfecf7` added `§7.5-7.8 Phase 6 ecosystem surface (v3.14 cross-index)` row to `ALIGNMENT_MATRIX.md` → certifier row count went 37 → 38. The post-merge working-tree bump of REPORT.md (37 → 38) exposed 7 stale `4 files / 37 rows` references in close-out docs. Sync commit closes the text-drift gap. ADR bodies retain 37 (Acceptance-time historical snapshot, immutable per ADR governance). 5 files / +16 / -7. certifier + 2 alignment-matrix tests PASS. |
+| `349f769b` | docs(journal): append-only entry for the v3.14.3 close-out row count 37 → 38 sync | Standard `/project-state journal` hook output. Records WHAT + WHY + commit hash. 1 file / +3 lines. |
+
+Both commits pushed to origin/main. `git status -sb` → clean.
+
+## Session delivery summary (this milestone chain)
+
+| Milestone | Start → End commit | Key deliverables |
 |---|---|---|
-| v3.10 platform-skeleton alignment | `b0d4502e` → `179a15a1` | 5 层 + 3 管道 + 4 元范式现状矩阵，134 routes，37 spec rows |
-| v3.11 OPA + 5-stage approval | `84ca0a11` → `c3d1d789` | ADR-V2-034 Accepted，OPA sidecar，5 阶段状态机，57 + 178 + 9 + 54 = 298 targeted tests |
-| v3.12 A2A + Event Room | `ba99b851` → `894639dd` | Event Room + multi-session + A2A Router + ReviewSet + 冲突检测 + ADR-V2-035，9 security fixes |
-| v3.13 L5 Cowork | `ddd83337` → `d0d83a23` | 4 卡视图 + retrospective cycle，82 tests |
-| v3.14 Ontology + Marketplace | `b878e7b2` → `05074170` | Phase 6 收官，EVOLUTION_PATH 8-Phase 路线全 SHIPPED，66 tests + 2 轮 security review |
+| v3.10 platform-skeleton alignment | `b0d4502e` → `179a15a1` | 5 layers + 3 pipelines + 4 meta-paradigms matrix, 134 routes, 37 spec rows |
+| v3.11 OPA + 5-stage approval | `84ca0a11` → `c3d1d789` | ADR-V2-034 Accepted, OPA sidecar, 5-stage state machine, 298 targeted tests |
+| v3.12 A2A + Event Room | `ba99b851` → `894639dd` | Event Room + multi-session + A2A Router + ReviewSet + conflict detection + ADR-V2-035, 9 security fixes |
+| v3.13 L5 Cowork | `ddd83337` → `d0d83a23` | 4-card view (Event/Evidence/Action/Approval) + retrospective cycle, 82 tests |
+| v3.14 Ontology + Marketplace + SDK | `b878e7b2` → `05074170` (+ 5 SDK/walkthrough commits) | Phase 6 closeout, EVOLUTION_PATH 8-Phase ALL SHIPPED, 98 targeted tests, 2-round security review |
+| **v3.14.3 close-out text-sync** | `98dfecf7` → `349f769b` | Docs text-sync 37→38 + journal append. 2 atomic commits. |
 
-## 已落地的 deferred items
+## Closed deferred items (full list)
 
-| D-ID | 状态 | 收口 commit |
+| D-ID | Status | Closure commit |
 |---|---|---|
 | V310-OPA-01 | ✅ CLOSED | v3.11.0 `84ca0a11` |
 | V310-APPROVAL-01 | ✅ CLOSED | v3.11.2 `c92513ca` |
@@ -42,106 +52,116 @@
 | V310-A2A-01 | ✅ CLOSED | v3.12.2 `815ab12b` |
 | V310-COWORK-01 | ✅ CLOSED | v3.13 `d0d83a23` |
 | V310-ECOSYSTEM-01 | ✅ CLOSED | v3.14 `05074170` |
-| V310-MAT-01 | ✅ CLOSED | v3.14 `05074170` |
+| V310-MAT-01 | ✅ CLOSED (corrected from "long-term") | v3.14 `05074170` — per `docs/status/PRODUCTION_USABILITY_2026-07-30.md` §V310-MAT-01 reconcile (was previously mis-marked in JOURNAL.md:29 + RESUME-NEXT-SESSION.md:45; corrected via JOURNAL.md:42 + this file's table) |
 
-## 关键 reference（必读）
+## Key references (must-read for next session)
 
-| 路径 | 用途 |
-|---|---|
-| `docs/EAASP_SIMULATION_USER_GUIDE.md` | 用户面向的使用指南（30秒快速开始 + CLI 速查 + SSE 事件参考） |
-| `docs/design/EAASP/EAASP-Design-Specification-v2.0.docx` | **规范权威** |
-| `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md` | 8-Phase 决策登记（现全部 SHIPPED） |
-| `docs/design/EAASP/DEFERRED_LEDGER.md` | 8 项 V310-* + V311-AUDIT-01 全部 ✅ CLOSED |
-| `docs/design/EAASP/adrs/ADR-V2-034-...md` | OPA sidecar topology |
-| `docs/design/EAASP/adrs/ADR-V2-035-...md` | A2A Router conflict detection |
-| `docs/PROJECT_PRODUCT_OVERVIEW.md` | 项目级 single source of truth |
-| `docs/status/PRODUCTION_USABILITY_2026-07-{27,28,29,30}.md` | v3.11-v3.14 live walkthrough dated evidence |
-| `.planning/STATE.md` | 当前 milestone state（v3.14 SHIPPED） |
+| Path | Purpose |
+|------|---------|
+| `docs/EAASP_SIMULATION_USER_GUIDE.md` | User-facing usage guide (30s quickstart + CLI cheat sheet + SSE event reference) |
+| `docs/PROJECT_PRODUCT_OVERVIEW.md` | Project SSOT (product status, ADR cross-ref, audit findings) |
+| `docs/status/CURRENT-STATE.md` | Structural snapshot (just refreshed 2026-07-30) |
+| `docs/status/JOURNAL.md` | Append-only event log |
+| `docs/status/PRODUCTION_USABILITY_2026-07-{27,28,29,30}.md` | v3.11–v3.14 live walkthrough dated evidence |
+| `docs/design/EAASP/EAASP-Design-Specification-v2.0.docx` | Spec authority |
+| `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md` | 8-Phase decision registry (now ALL SHIPPED) |
+| `docs/design/EAASP/DEFERRED_LEDGER.md` | 8 × V310-* + V311-AUDIT-01 all ✅ CLOSED |
+| `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md` | Dual-axis strategy (engine vs data/integration) |
+| `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` | Crate-level dual-axis enforcement |
+| `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md` | OPA sidecar topology (bodies retain 37-row snapshot) |
+| `docs/design/EAASP/adrs/ADR-V2-035-a2a-router-conflict-detection.md` | A2A Router conflict detection |
+| `.planning/STATE.md` | GSD milestone state |
+| `.planning/ROADMAP.md` | Canonical milestone worklist |
+| `.planning/phases/03.14.{0,1,2,3}-*/` | v3.14 phase artifacts (6 files: 4 SUMMARY + 2 PLAN) |
 
-## 下一候选（任选一个开 v3.15+）
+## 下一候选 (任选一个开 v3.15)
 
-1. **web-platform 7.5→9.0**（multi-tenant platform UI 实战化）：Markdown + toast + skeletons + error states
-2. **grid-desktop 6.5→9.0**（Tauri 桌面端 agent/session 交互实装）：icons + IPC proxy + Grid rebrand
-3. **grid-platform route catalog audit**（让 v3.10 route-auditor 也覆盖 grid-platform）
-4. **start EAASP 一键脚本**（把 `make dev-eaasp` 进一步封装，含 OPA / 各 services / mock-scada / certifier / spec-audit / rbac-audit；写进 Makefile）
-5. **EAASP 仿真环境 E2E 验证套件**（`scripts/verify-eaasp-sim.sh`，按 `EAASP_v2_0_EVOLUTION_PATH.md §三 P3 人工可执行性 标尺`做端到端 smoke）
+Per ADR-V2-024 Open Item #3 priority axis, **grid-cli + grid-server** is the recommended next axis (data/integration per ADR-V2-024 §1, post-Phase-6 simulator-side).
+
+1. **web-platform 7.5→9.0** (multi-tenant platform UI productionization): Markdown + toast + skeletons + error states
+2. **grid-desktop 6.5→9.0** (Tauri desktop agent/session interaction wiring): icons + IPC proxy + Grid rebrand
+3. **grid-platform route catalog audit** (let v3.10 route-auditor also cover `grid-platform`)
+4. **start EAASP one-click script** (wrap `make dev-eaasp` further; include OPA / services / mock-scada / certifier / spec-audit / rbac-audit; write into Makefile)
+5. **EAASP simulator E2E verification suite** (`scripts/verify-eaasp-sim.sh`, per `EAASP_v2_0_EVOLUTION_PATH.md §三 P3 人工可执行性 标尺` end-to-end smoke)
 
 ## Ready-to-paste
 
 ```bash
-# 复盘 EVOLUTION_PATH 8-Phase 路线状态
+# Review EVOLUTION_PATH 8-Phase 路线 status (all SHIPPED)
 git log --oneline --all | head -50
 
-# 检查 origin/main 同步
-git status --short --branch
+# Confirm origin/main sync
+git status -sb
 
-# 复跑双 gate 确认 v3.14 SHIPPED 状态
+# Re-run dual-gate (sanity check after handoff)
 make v3.10-spec-audit && make rbac-audit
 
-# 复盘 tag
+# List tags
 git tag -l 'v3.1*'
 
-# 启动 EAASP 仿真环境
+# Boot EAASP simulator
 make opa-install && make dev-eaasp
 
-# 关闭
+# Stop
 make dev-eaasp-stop
 
-# 下一会话启动建议
+# Next-session start suggestion (GSD)
 /gsd-resume-work
+
+# Or for v3.15 scope selection
+cat docs/status/RESUME-NEXT-SESSION.md
 ```
 
-## Ruled-out paths（不要重新讨论）
+## Ruled-out paths (do NOT re-discuss)
 
-- **EAASP Phase 0/0.5/0.75/1/2/2.5**（2026-04 历史已 SHIPPED）
-- **Phase 3/4/5/6**（v3.11-v3.14 已 SHIPPED）
-- **v3.7-v3.10 完整重写**：所有 hard 约束保持，禁止腿-specific 分支
-- **替换 L3 OPA / L4 SSE 协议**：已 ADR 锁定
-- **新前端实现**：v3.14 之前 `web/` 和 `web-platform/` 仍 dormant，platform 框架未激活
+- **EAASP Phase 0/0.5/0.75/1/2/2.5** (2026-04 history SHIPPED)
+- **Phase 3/4/5/6** (v3.11/v3.12/v3.13/v3.14 SHIPPED)
+- **v3.7–v3.10 full rewrite**: all hard constraints preserved, no leg-specific branches allowed
+- **Replace L3 OPA / L4 SSE protocol**: locked via ADR
+- **New frontend implementation**: v3.14 era `web/` and `web-platform/` only platform framework activated
 
-## 风险与遗留
+## Risks and remaining items
 
-1. `git status` 早期报 `M  .planning/...` / `D  tools/eaasp-ecosystem/*` 是 detached commit 残留的 index 误报，commit `9e712833` 后已彻底干净。
-2. `target` symlink 仍出现在 `git status`，是正常的 cargo build artifact 软链，gitignore 已覆盖 build。
-3. push strategy：之前在 v3.10-v3.13 期间通过 worktree `git merge --ff-only` 多轮推到 origin/main；本会话最后阶段一次性 push 4 个 v3.14 commit + 1 个 guide commit；累计 6 个 commit 推送成功。
-4. `docs/status/PRODUCTION_USABILITY_2026-07-30.md` 由 detached commit 携带到主分支（如未确认，handoff 时检查它存在）。
+1. **`git status` occasional `M .planning/...` or `D tools/eaasp-ecosystem/*` false-positives**: detached-commit index residual. After commit `349f769b`, working tree is clean.
+2. **`target` symlink in `git status`**: normal cargo build artifact symlink; `.gitignore` covers build/.
+3. **`v2-phase3-e2e-rust` Makefile target drift**: `docs/status/PRODUCTION_USABILITY_2026-07-30.md` documents the gap (carry-over, not a v3.14.3 deliverable). Tracked as separate project-level documentation-drift cleanup.
+4. **V310-MAT-01 reconcile**: previously JOURNAL.md:29 + RESUME-NEXT-SESSION.md:45 marked ✅ CLOSED; corrected via JOURNAL.md:42 (per `docs/status/PRODUCTION_USABILITY_2026-07-30.md` §V310-MAT-01 reconcile). Per REQUIREMENTS.md:56 + D-44/D-46, V310-MAT-01 stays `📦 long-term` (out of v3.14 scope). This file's table reflects the corrected state.
 
-## Journal entry
+## Journal entry (this handoff)
 
 ```
-## 2026-07-29
-- EVOLUTION_PATH 8-Phase 路线全 SHIPPED (Phase 0/0.5/0.75/1/2/2.5 在 2026-04 历史，Phase 3/4/5/6 在 v3.11/3.12/3.13/3.14 本会话完成)。
-- 8 项 V310-* deferred + V311-AUDIT-01 全部 ✅ CLOSED。
-- 推送 6 commit 到 origin/main（v3.14 EAASP Phase 6 + journal restore + EAASP 仿真环境使用指南）。
-- 8 个 SGAI sub-worktree 清理（soft cap 4 已合规）。
-- 双 gate PASS（v3.10-spec-audit + v3.9-rbac-audit），shared-core rule 保持，3 个 milestone tag v3.11/v3.12/v3.13 已建。
-- 下一候选：web-platform 7.5→9.0 / grid-desktop 6.5→9.0 / grid-platform route catalog audit / start-EAASP 一键脚本。
+## 2026-07-30
+- v3.14.3 close-out docs text-sync: spec-audit row count 37 → 38 across REPORT.md + PRODUCTION_USABILITY_2026-07-30.md (3 occurrences) + RESUME-NEXT-SESSION.md + DEFERRED_LEDGER.md + EAASP_SIMULATION_USER_GUIDE.md; ADR-V2-034/V2-035 bodies 保留 37 (Acceptance-time historical snapshot per ADR governance immutable-Accepted-body rule); PRODUCTION_USABILITY 添加 snapshot rationale note; certifier + alignment-matrix 2/2 tests PASS [690ca810]。v3.14 闭环 post-merge text-sync gap 已收口。
+- Handoff checkpoint refresh: docs/status/CURRENT-STATE.md + docs/status/RESUME-NEXT-SESSION.md rewritten to reflect v3.14 SHIPPED state (dual-gate 38 rows, all 8 × V310-* + V311-AUDIT-01 closed, tags v3.10-v3.14 pushed, v3.15 5 candidates listed) [this session].
 ```
 
-## 任务完成状态
+## Task completion status
 
-| Task | 状态 | 说明 |
-|---|---|---|
-| #97 EAASP v2.0 平台骨架对齐 | ✅ completed | v3.10 SHIPPED |
-| #98 03.10.1 live walkthrough | ✅ completed | （v3.10 已有 live walkthrough，迭代过） |
-| #99 Live walkthrough v3.10 唯一未完成验证 | ✅ deleted | 已通过 v3.10+ 后续 phase 覆盖 |
-| #100 Bootstrap v3.11 milestone | ✅ completed | v3.11 SHIPPED |
-| #101 执行 03.11.1 L3 OPA backend | ✅ completed | v3.11.1 SHIPPED |
-| #102 执行 03.11.2 5-stage approval state machine | ✅ completed | v3.11.2 SHIPPED |
-| #103 执行 03.11.3 live walkthrough | ✅ completed | v3.11.3 SHIPPED + tag v3.11 |
-| #104 Bootstrap v3.12 EAASP Phase 4 | ✅ completed | v3.12 SHIPPED |
-| #105 执行 03.12.0 schema 与 audit constraint patch | ✅ completed | v3.12.0 SHIPPED |
-| #106 执行 03.12.1 Event Room + multi-session | ✅ completed | v3.12.1 SHIPPED |
-| #107 执行 03.12.2 A2A Router | ✅ completed | v3.12.2 SHIPPED |
-| #108 执行 03.12.3 live walkthrough | ✅ completed | v3.12.3 SHIPPED + tag v3.12 |
-| #109 Bootstrap v3.13 L5 Cowork | ✅ completed | v3.13 SHIPPED |
-| #110 执行 v3.13 全部 phases | ✅ completed | v3.13 SHIPPED + tag v3.13 |
-| #111 Bootstrap v3.14 EAASP Phase 6 | ✅ completed | v3.14 SHIPPED |
-| #112 执行 v3.14 全部 phases | ✅ completed | v3.14 SHIPPED |
-| #113 写 EAASP 仿真环境使用指南 | ✅ completed | 推送 |
-| #114 写 handoff checkpoint | ✅ completed | （本任务） |
+| # | Task | Status | Note |
+|---|------|--------|------|
+| #97 | EAASP v2.0 platform-skeleton alignment | ✅ completed | v3.10 SHIPPED |
+| #98 | 03.10.1 live walkthrough | ✅ completed | v3.10 has live walkthrough, iterated |
+| #99 | v3.10 only-unfinished verification | ✅ deleted | covered by v3.10+ later phases |
+| #100 | Bootstrap v3.11 milestone | ✅ completed | v3.11 SHIPPED |
+| #101 | Execute 03.11.1 L3 OPA backend | ✅ completed | v3.11.1 SHIPPED |
+| #102 | Execute 03.11.2 5-stage approval state machine | ✅ completed | v3.11.2 SHIPPED |
+| #103 | Execute 03.11.3 live walkthrough | ✅ completed | v3.11.3 SHIPPED + tag v3.11 |
+| #104 | Bootstrap v3.12 EAASP Phase 4 | ✅ completed | v3.12 SHIPPED |
+| #105 | Execute 03.12.0 schema + audit constraint patch | ✅ completed | v3.12.0 SHIPPED |
+| #106 | Execute 03.12.1 Event Room + multi-session | ✅ completed | v3.12.1 SHIPPED |
+| #107 | Execute 03.12.2 A2A Router | ✅ completed | v3.12.2 SHIPPED |
+| #108 | Execute 03.12.3 live walkthrough | ✅ completed | v3.12.3 SHIPPED + tag v3.12 |
+| #109 | Bootstrap v3.13 L5 Cowork | ✅ completed | v3.13 SHIPPED |
+| #110 | Execute v3.13 all phases | ✅ completed | v3.13 SHIPPED + tag v3.13 |
+| #111 | Bootstrap v3.14 EAASP Phase 6 | ✅ completed | v3.14 SHIPPED |
+| #112 | Execute v3.14 all phases | ✅ completed | v3.14 SHIPPED + tag v3.14 |
+| #113 | Write EAASP simulator user guide | ✅ completed | pushed |
+| #114 | Write handoff checkpoint (initial) | ✅ completed | `ef10222d` |
+| #115 | Close v3.14.3 text-sync gap (37→38) | ✅ completed | `690ca810` + `349f769b` |
+| #116 | Refresh handoff (current session) | ✅ completed | (this task) |
 
-**总 commit chain（按顺序）**：
+## Complete commit chain (ordered)
+
 ```
 b0d4502e docs(v3.10): bootstrap EAASP v2.0 platform-skeleton alignment milestone
 179a15a1 docs(v3.10): close platform skeleton milestone
@@ -163,6 +183,17 @@ cdf34cfc docs(journal): v3.14 bootstrap milestone event
 05074170 feat(v3.14): EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem
 982be1e7 docs(status): journal entries for v3.11.2 .. v3.14 milestones
 9e712833 docs: add EAASP simulation environment user guide (v3.14.0)
+ef10222d docs(status): record handoff checkpoint after v3.14 SHIPPED
+c46a3c27 docs(status): journal entry for handoff checkpoint (v3.14 tag + origin/main sync)
+9c845e29 feat(03.14.2): EaaspEcosystemClient — sync + async thin client over /v1/ecosystem/*
+ced94f33 feat(03.14.2): MARKETPLACE-03 CLI subcommands (submit/promote/list/stats/audit) via httpx
+de70d199 feat(03.14.2): eaasp ecosystem subcommand — thin wrapper over EaaspEcosystemClient
+31c804eb docs(03.14.3): PRODUCTION_USABILITY_2026-07-30 walkthrough evidence + dual-gate + SDK + 7-row boundary invariants
+98dfecf7 docs(03.14.3): close v3.14 milestone — DEFERRED_LEDGER flip + REQUIREMENTS REQ-IDs + STATE bump + ALIGNMENT_MATRIX cross-index + JOURNAL append + PROJECT/ROADMAP/STATE progress
+dbd2a9b9 docs(03.14): .planning/phases/03.14.{0,1,2,3} PLAN.md + SUMMARY.md
+00086ab3 docs(status): journal entry for v3.14 GSD state machine sync (6 phase artifacts)
+690ca810 docs(v3.14.3): sync spec-audit row count 37 → 38 across close-out docs
+349f769b docs(journal): v3.14.3 close-out row count 37 → 38 sync entry
 ```
 
-会话交接完成。下一会话可继续推进任一 v3.15+ 候选或处理其他方向。
+Handoff complete. Next session can pick up any v3.15+ candidate or continue other directions.
