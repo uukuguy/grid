@@ -124,8 +124,18 @@ async def event_engine_app_client(
     )
     async with application.router.lifespan_context(application):
         transport = httpx.ASGITransport(app=application)
+
+        async def _inject_scope_header(request: httpx.Request) -> None:
+            if "X-Session-Scope" not in request.headers and request.url.path in (
+                "/v1/sessions/create",
+                "/v1/intents/dispatch",
+            ):
+                request.headers["X-Session-Scope"] = "*"
+
         async with httpx.AsyncClient(
-            transport=transport, base_url="http://testserver"
+            transport=transport,
+            base_url="http://testserver",
+            event_hooks={"request": [_inject_scope_header]},
         ) as client:
             yield client
 

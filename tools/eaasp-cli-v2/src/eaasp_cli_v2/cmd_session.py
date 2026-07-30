@@ -10,8 +10,9 @@ import typer
 from rich.console import Console
 
 from . import main as _main
+from .client import CliError
 from .config import CliConfig
-from .output import print_json, print_panel, print_table
+from .output import print_error, print_json, print_panel, print_table
 
 app = typer.Typer(help="Session lifecycle commands")
 
@@ -215,13 +216,23 @@ def create(
     if user_id:
         body["user_id"] = user_id
 
-    # D8 / L3-04 RBAC: forward X-Session-Scope header. L3's validate
-    # endpoint hard-requires it. Resolution precedence:
-    #   1. EAASP_SESSION_SCOPE env var (explicit override)
-    #   2. "*" wildcard (last-resort fallback; L4 also warns + falls back
-    #      server-side, so the request will succeed but operators should
-    #      set the env var in production).
-    session_scope = os.environ.get("EAASP_SESSION_SCOPE", "*")
+    # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028): forward X-Session-Scope
+    # header. L3's validate endpoint hard-requires it, AND L4 binds the
+    # header value to the skill's registered access_scope (server-side
+    # ground truth). The CLI therefore REQUIRES the caller to set
+    # EAASP_SESSION_SCOPE explicitly — no wildcard default. This prevents
+    # the CLI from being a passive bypass vector.
+    session_scope = os.environ.get("EAASP_SESSION_SCOPE")
+    if not session_scope:
+        print_error(
+            CliError(
+                exit_code=2,
+                message="EAASP_SESSION_SCOPE env var is required (D8/L3-04 RBAC). "
+                "Set it to the skill's registered access_scope, e.g. "
+                "export EAASP_SESSION_SCOPE=org:eaasp-mvp",
+            )
+        )
+        raise typer.Exit(2)
 
     async def _do() -> Any:
         client = _main.make_client(cfg)

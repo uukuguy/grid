@@ -124,6 +124,13 @@ async def app_client(
     ``httpx.ASGITransport`` does not emit lifespan events, so we enter the
     FastAPI router lifespan context manually to hydrate ``app.state``.
     A stub L1 factory is injected so tests don't need a real gRPC runtime.
+
+    D8 / L3-04 RBAC: tests use the wildcard scope "*" by default. Tests
+    that exercise specific scope-mismatch / fail-closed behavior should
+    override the header per-request (e.g. via headers={...} kwargs). The
+    wildcard default here is acceptable because tests don't exercise real
+    cross-tenant logic; production traffic must always carry a concrete
+    X-Session-Scope value.
     """
     application = create_app(
         tmp_db_path,
@@ -132,7 +139,24 @@ async def app_client(
     )
     async with application.router.lifespan_context(application):
         transport = httpx.ASGITransport(app=application)
+
+        async def _maybe_inject_scope_header(request: httpx.Request) -> None:
+            # Tests can opt out of auto-injection by setting the
+            # ``_skip_scope_inject`` marker (e.g. via headers kwarg). When
+            # present, strip the marker and leave X-Session-Scope
+            # untouched (so tests can exercise fail-closed behavior).
+            if request.headers.pop("_skip_scope_inject", None) is not None:
+                request.headers.pop("X-Session-Scope", None)
+                return
+            if "X-Session-Scope" not in request.headers and request.url.path in (
+                "/v1/sessions/create",
+                "/v1/intents/dispatch",
+            ):
+                request.headers["X-Session-Scope"] = "*"
+
         async with httpx.AsyncClient(
-            transport=transport, base_url="http://testserver"
+            transport=transport,
+            base_url="http://testserver",
+            event_hooks={"request": [_maybe_inject_scope_header]},
         ) as client:
             yield client

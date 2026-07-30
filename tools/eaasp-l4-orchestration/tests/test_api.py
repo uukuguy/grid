@@ -3,12 +3,129 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import httpx
 import respx
 
 L2_DEFAULT = "http://127.0.0.1:18085"
 L3_DEFAULT = "http://127.0.0.1:18083"
+
+
+# ─── D8 / L3-04 RBAC: fail-closed X-Session-Scope enforcement ─────────────
+# Regression tests for the security review finding
+# (commit a6d75300 follow-up: broken-access-control-fail-open +
+# missing-auth-on-session-create).
+#
+# Invariants enforced:
+#   1. Missing X-Session-Scope → 403 missing_scope (NOT wildcard fallback)
+#   2. Caller scope must MATCH skill's registered access_scope (no
+#      impersonation of arbitrary scopes)
+#   3. Wildcard "*" is rejected when skill declares a non-wildcard scope
+
+
+@respx.mock
+async def test_create_session_missing_scope_header_403(
+    app_client: httpx.AsyncClient,
+) -> None:
+    """No X-Session-Scope header → 403 missing_scope (fail-closed).
+
+    Regression: prior implementation fell back to "*" wildcard when the
+    header was missing, which let any unauthenticated caller pass scope
+    checks. This test pins the new fail-closed behavior.
+    """
+    # Even with L2+L3 mocks succeeding, missing header must short-circuit.
+    respx.post(f"{L2_DEFAULT}/api/v1/memory/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    respx.post(url__regex=rf"{L3_DEFAULT}/v1/sessions/.*/validate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "session_id": "x",
+                "hooks_to_attach": [],
+                "managed_settings_version": 1,
+                "validated_at": "2026-04-12",
+                "runtime_tier": "strict",
+            },
+        )
+    )
+
+    resp = await app_client.post(
+        "/v1/sessions/create",
+        headers={"_skip_scope_inject": "1"},  # opt out of auto-injection
+        json={
+            "intent_text": "x",
+            "skill_id": "skill.test",
+            "runtime_pref": "strict",
+        },
+        # NO X-Session-Scope header (asserted below)
+    )
+    # The _skip_scope_inject marker is stripped by the test fixture
+    # before the request hits the ASGI app, so we don't assert on its
+    # presence in resp.request.headers (httpx preserves it client-side
+    # but it's gone server-side). The important invariant is that
+    # X-Session-Scope was NOT injected alongside it.
+    assert (
+        "X-Session-Scope" not in resp.request.headers
+    ), f"X-Session-Scope should not have been injected, got: {dict(resp.request.headers)}"
+    assert resp.status_code == 403, resp.text
+    detail = resp.json()["detail"]
+    assert detail["code"] == "missing_scope"
+    assert "X-Session-Scope" in detail["message"]
+
+
+@respx.mock
+async def test_create_session_scope_mismatch_403(
+    app_client: httpx.AsyncClient,
+) -> None:
+    """Caller scope that doesn't match the skill's registered scope → 403.
+
+    This test asserts the high-level invariant via the running service
+    stack (verified end-to-end in evidence-phase-3-4.md scenario 2):
+    sending X-Session-Scope=org:admin against a skill whose registered
+    access_scope is org:eaasp-verify-2026-07-30 returns 403 scope_mismatch.
+
+    For the in-process unit test we verify the helper function logic
+    directly via _resolve_skill_bound_scope below — testing the full
+    orchestrator path requires mocking L2 + L3 + skill_registry and is
+    exercised by the evidence-based run captured in
+    .grid/verify-2026-07-30/.
+    """
+    from eaasp_l4_orchestration.api import _resolve_skill_bound_scope
+    from eaasp_l4_orchestration.session_orchestrator import SessionOrchestrator
+
+    # Use a typed stub matching the orchestrator shape (skill_registry
+    # attribute with read_skill async method).
+    class _StubRegistry:
+        @staticmethod
+        async def read_skill(skill_id: str) -> dict[str, Any]:
+            return {"parsed_v2": {"access_scope": "org:eaasp-mvp"}}
+
+    class _StubOrchestrator(SessionOrchestrator):
+        def __init__(self) -> None:
+            # Skip real init; only need skill_registry attribute
+            self.skill_registry = _StubRegistry()
+
+    orch: SessionOrchestrator = _StubOrchestrator()
+
+    # Mismatch → None (handler raises 403)
+    result = await _resolve_skill_bound_scope(
+        orch, skill_id="skill.test", caller_scope="org:different",
+    )
+    assert result is None
+
+    # Match → returns the registered scope
+    result = await _resolve_skill_bound_scope(
+        orch, skill_id="skill.test", caller_scope="org:eaasp-mvp",
+    )
+    assert result == "org:eaasp-mvp"
+
+    # Wildcard caller for a non-public skill → None (no impersonation)
+    result = await _resolve_skill_bound_scope(
+        orch, skill_id="skill.test", caller_scope="*",
+    )
+    assert result is None
 
 
 async def test_health(app_client: httpx.AsyncClient) -> None:
@@ -37,9 +154,25 @@ async def test_create_session_happy_path(app_client: httpx.AsyncClient) -> None:
             },
         )
     )
+    # D8 / L3-04 RBAC: per-skill scope binding requires the orchestrator
+    # to read the skill from skill-registry. Mock that endpoint so the
+    # resolve_skill_bound_scope helper succeeds with scope="*".
+    respx.post("http://127.0.0.1:18081/tools/skill_read/invoke").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "meta": {"id": "skill.test"},
+                "frontmatter_yaml": "",
+                "prose": "",
+                "skill_dir": "/tmp",
+                "parsed_v2": {"access_scope": "*"},
+            },
+        )
+    )
 
     resp = await app_client.post(
         "/v1/sessions/create",
+        headers={"X-Session-Scope": "*"},
         json={
             "intent_text": "do the thing",
             "skill_id": "skill.test",

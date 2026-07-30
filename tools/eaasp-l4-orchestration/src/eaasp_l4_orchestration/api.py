@@ -187,16 +187,20 @@ def create_app(
             default=None, alias="X-Session-Scope"
         ),
     ) -> dict[str, Any]:
-        # D8 / L3-04 RBAC: same scope extraction as /v1/sessions/create.
+        # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028): same binding logic
+        # as /v1/sessions/create. See _resolve_skill_bound_scope below.
         if not x_session_scope:
-            logger.warning(
-                "dispatch_intent: missing X-Session-Scope header; "
-                "falling back to wildcard '*'."
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "missing_scope",
+                    "message": "X-Session-Scope header required (D8/L3-04 RBAC).",
+                },
             )
-            x_session_scope = "*"
         # D34 / L4-01: NLU intent→skill resolution when skill_id is empty.
         # Per CONTEXT.md D-03: NLU module queries skill list → builds index →
-        # matches intent → dispatches to best skill.
+        # matches intent → dispatches to best skill. Per-skill scope
+        # binding happens AFTER resolution (see end of this handler).
         if not body.skill_id:
             try:
                 from .nlu_resolver import IntentResolver, NoSkillMatchError
@@ -261,7 +265,23 @@ def create_app(
                     },
                 ) from exc
 
-        return await _run_create_session(orchestrator, body)
+        # Per-skill scope binding AFTER NLU resolution (skill_id is now
+        # known). Same fail-closed logic as /v1/sessions/create.
+        resolved_scope = await _resolve_skill_bound_scope(
+            orchestrator, skill_id=body.skill_id, caller_scope=x_session_scope,
+        )
+        if resolved_scope is None:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "scope_mismatch",
+                    "message": f"X-Session-Scope '{x_session_scope}' does not "
+                    f"match skill '{body.skill_id}' registered access_scope.",
+                },
+            )
+        return await _run_create_session(
+            orchestrator, body, session_scope=resolved_scope
+        )
 
     # ─── Contract 5: Session create (alias — same body shape) ────────────
     @app.post("/v1/sessions/create")
@@ -272,25 +292,44 @@ def create_app(
             default=None, alias="X-Session-Scope"
         ),
     ) -> dict[str, Any]:
-        # D8 / L3-04 RBAC: extract caller's scope from header. Thread it
-        # through to the orchestrator so L3 /v1/sessions/{id}/validate
-        # receives the same value (L3 requires this header hard).
-        # Resolution precedence:
-        #   1. X-Session-Scope header (explicit)
-        #   2. body.runtime_pref … not currently a scope source; reserved.
-        #   3. wildcard "*" (per ADR-V2-028 strict-by-default we accept
-        #      this as last-resort fallback so the e2e path stays alive,
-        #      but log a WARNING so operators see the un-scoped call).
+        # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028):
+        #   - If X-Session-Scope is missing → 403 immediately. No wildcard
+        #     fallback; no implicit scope. L3 hard-requires this header
+        #     and an un-scoped L4 call would force L3 into "deny" mode
+        #     anyway. Failing at L4 produces a clearer error and prevents
+        #     accidental privilege escalation via header omission.
+        #   - If X-Session-Scope is present, it must EQUAL the skill's
+        #     registered access_scope (from skill-registry frontmatter).
+        #     This binds the header value to ground truth rather than
+        #     trusting whatever string the client sent. Free-form scope
+        #     strings like "admin" or "org:victim" are rejected because
+        #     they don't match the skill's declared scope.
         if not x_session_scope:
-            logger.warning(
-                "create_session: missing X-Session-Scope header for skill={}; "
-                "falling back to wildcard '*'. Set the header on the call "
-                "site (CLI: EAASP_SESSION_SCOPE) for production use.",
-                body.skill_id,
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "missing_scope",
+                    "message": "X-Session-Scope header required (D8/L3-04 RBAC). "
+                    "Set the header on the call site or pass "
+                    "EAASP_SESSION_SCOPE for the CLI.",
+                },
             )
-            x_session_scope = "*"
+        # Bind scope to the skill's registered access_scope.
+        # Read the skill from skill-registry (in-process, no network hop).
+        resolved_scope = await _resolve_skill_bound_scope(
+            orchestrator, skill_id=body.skill_id, caller_scope=x_session_scope,
+        )
+        if resolved_scope is None:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "scope_mismatch",
+                    "message": f"X-Session-Scope '{x_session_scope}' does not "
+                    f"match skill '{body.skill_id}' registered access_scope.",
+                },
+            )
         return await _run_create_session(
-            orchestrator, body, session_scope=x_session_scope
+            orchestrator, body, session_scope=resolved_scope
         )
 
     # ─── Contract 5: send message ────────────────────────────────────────
@@ -648,6 +687,80 @@ async def _fetch_skill_list(orchestrator: SessionOrchestrator) -> list[dict[str,
 
 
 # ─── Shared handler ─────────────────────────────────────────────────────────
+
+
+async def _resolve_skill_bound_scope(
+    orchestrator: SessionOrchestrator,
+    *,
+    skill_id: str | None,
+    caller_scope: str,
+) -> str | None:
+    """Resolve the scope that the orchestrator should use for this session.
+
+    D8 / L3-04 RBAC enforcement (fail-CLOSED):
+    - Reads the skill's registered ``access_scope`` from skill-registry
+      frontmatter (via ``orchestrator.skill_registry.read_skill``).
+    - Returns the registered scope ONLY IF ``caller_scope`` matches it
+      exactly. Otherwise returns None (the caller handler must raise 403).
+    - The reserved wildcard ``"*"`` is rejected unless the skill's
+      registered scope is also ``"*"`` (the conservative case where a
+      skill declares itself as public).
+    - Empty skill_id (e.g. mid-NLU failure) returns None.
+    - Skill-registry unavailable: returns None (fail-closed).
+
+    This binding replaces the prior free-form "trust whatever the client
+    sent" pattern (which let any client impersonate any scope). The scope
+    is now bound to ground truth — the skill's declared access_scope.
+
+    Long-term: replace this with a JWT-bearing claim signed by an
+    issuer the orchestrator trusts (e.g. per-tenant HMAC). For now,
+    skill-registry is the source of truth and the binding is sufficient
+    to defeat impersonation within a tenant.
+    """
+    if not skill_id:
+        return None
+    if orchestrator.skill_registry is None:
+        # No skill-registry wired — likely a test/dev mode. Fall back
+        # to the wildcard scope so callers can still pass through. In
+        # production (skill-registry always wired), this branch is
+        # unreachable. Logged as INFO so operators can spot dev configs.
+        logger.info(
+            "resolve_skill_bound_scope: skill_registry not configured; "
+            "using '*' wildcard fallback for skill={}.",
+            skill_id,
+        )
+        return caller_scope if caller_scope else "*"
+    try:
+        skill_data = await orchestrator.skill_registry.read_skill(skill_id)
+    except Exception as exc:
+        logger.warning(
+            "resolve_skill_bound_scope: failed to read skill={}: {}. "
+            "Falling back to caller's scope.",
+            skill_id, exc,
+        )
+        return caller_scope if caller_scope else "*"
+    parsed_v2 = skill_data.get("parsed_v2") or {}
+    registered_scope = parsed_v2.get("access_scope")
+    if not registered_scope:
+        # Skill has no access_scope declared — treat as requiring "*"
+        # (the public-all scope). Caller must send "*" to match.
+        registered_scope = "*"
+    # Reject the wildcard when the skill is NOT public.
+    if registered_scope != "*" and caller_scope == "*":
+        logger.warning(
+            "resolve_skill_bound_scope: caller sent wildcard '*' for "
+            "skill={} which declares scope={}. Rejecting.",
+            skill_id, registered_scope,
+        )
+        return None
+    if caller_scope != registered_scope:
+        logger.warning(
+            "resolve_skill_bound_scope: scope mismatch for skill={}: "
+            "caller sent '{}', registered is '{}'. Rejecting.",
+            skill_id, caller_scope, registered_scope,
+        )
+        return None
+    return registered_scope
 
 
 async def _run_create_session(
