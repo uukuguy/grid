@@ -37,14 +37,20 @@ impl SkillStore {
                     git_commit    TEXT,
                     access_scope  TEXT,
                     PRIMARY KEY (id, version)
-                );
-                CREATE INDEX IF NOT EXISTS idx_skills_access_scope
-                    ON skills(access_scope);",
+                );",
             )?;
             Ok(())
         })
         .await
         .context("create skills table")?;
+        // Note: the `idx_skills_access_scope` index is intentionally NOT
+        // created here. Pre-existing databases (created before the
+        // `access_scope` column was added by the D11 / L2-06 migration)
+        // have the old schema without that column; running
+        // `CREATE INDEX ON skills(access_scope)` against them would fail
+        // with "no such column" before the migration can add the column.
+        // `migrate_add_access_scope()` below creates the index
+        // idempotently AFTER ensuring the column exists.
 
         let store = Self {
             db,
@@ -488,6 +494,25 @@ impl SkillStore {
             })
             .await
             .context("list skill versions")
+    }
+
+    /// Test-only escape hatch: run a closure against the underlying
+    /// SQLite connection. Used by integration tests under `tests/` to
+    /// verify schema state (column presence, index existence) without
+    /// exposing the raw connection on the public API. NOT for
+    /// production use.
+    #[doc(hidden)]
+    pub async fn _test_with_conn<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut rusqlite::Connection) -> tokio_rusqlite::Result<R>
+            + Send
+            + 'static,
+        R: Send + 'static,
+    {
+        match self.db.call(f).await {
+            Ok(v) => Ok(v),
+            Err(e) => Err(anyhow::anyhow!("test_with_conn failed: {e}")),
+        }
     }
 }
 

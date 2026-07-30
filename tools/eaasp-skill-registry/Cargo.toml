@@ -27,3 +27,5 @@ tokio = { workspace = true, features = ["test-util"] }
 reqwest = { workspace = true }
 tempfile = "3"
 tower = { workspace = true, features = ["util"] }
+rusqlite = { workspace = true }
+tokio-rusqlite = { workspace = true }
