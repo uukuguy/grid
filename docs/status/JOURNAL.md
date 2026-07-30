@@ -52,3 +52,4 @@
 - L4 fail-CLOSED X-Session-Scope binding(security review follow-up):删 wildcard fallback;加 `_resolve_skill_bound_scope` 严格按 skill 注册的 access_scope 校验 header(防止 free-form scope 冒充);CLI `EAASP_SESSION_SCOPE` 强制必填;3 个 regression tests + 283/284 tests 全 PASS(1 pre-existing 失败 unrelated);[3398d567]。
 - L4 round-2 fail-closed(security review round-2):删 skill_registry=None + read_skill 失败 + access_scope 未声明 三处 fail-open fallback;加 `EAASP_DEV_DISABLE_SCOPE_BINDING=1` 显式 dev passthrough;285/286 tests PASS(1 pre-existing);[bbc5d7df]。
 - EAASP 仿真环境验证 session 收口:CURRENT-STATE.md 加 Session 2026-07-30 段(14 services + 双 gate PASS + 4 bug fixes);RESUME-NEXT-SESSION.md 头部刷新 HEAD=5cf10bee / ahead origin/main 11 + next session's first 3 actions;服务栈全部 teardown(0 process);[5cf10bee]。
+- CLI session.run 转发 X-Session-Scope(原 round-1 漏了 run 路径,只在 create 上):service_client.stream_sse 加 headers kwarg + 转发;§6.3 真跑 session.run 返回 200 + 真 LLM streaming + 阈值校准结果(60°C/65°C/80°C);[d5a4963b]。
