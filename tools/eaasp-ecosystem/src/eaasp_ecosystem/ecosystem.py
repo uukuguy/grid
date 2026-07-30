@@ -60,7 +60,15 @@ import os
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+# Module-scope marketplace request models (see _marketplace_models.py).
+# Importing at module top so FastAPI's TypeAdapter resolves the
+# Annotated[SubmitSkillRequest] forward refs at construction time.
+from eaasp_ecosystem._marketplace_models import (
+    SubmitSkillRequest,
+    PromoteSkillRequest,
+)
+
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -457,21 +465,16 @@ def create_app(
 
     # ─── Marketplace endpoints (MARKETPLACE-01..05) ────────────
 
-    from pydantic import BaseModel as _BM
-
-    class SubmitSkillRequest(_BM):
-        name: str
-        summary: str
-        version: str
-        manifest: dict
-        scope: VisibilityScope = VisibilityScope.PRIVATE
-        tags: list[str] = []
-
-    class PromoteSkillRequest(_BM):
-        skill_id: str
-        from_stage: PromotionStage
-        to_stage: PromotionStage
-        rationale: str
+    # Pydantic 2.13 + FastAPI 0.141: defining the request models INSIDE
+    # this function (create_app) causes FastAPI's TypeAdapter to see a
+    # ForwardRef at request time → "is not fully defined" 500s. Earlier
+    # versions auto-resolved the local class. The models live at module
+    # scope (defined in ``_marketplace_models.py``) and imported at
+    # module level (see top of file) so FastAPI's TypeAdapter resolves
+    # the references cleanly. The local import here is a defensive
+    # no-op that documents the dependency.
+    # (No local import needed — SubmitSkillRequest / PromoteSkillRequest
+    # are imported at module top level.)
 
     @app.post(
         "/v1/ecosystem/marketplace/skills/submit",
@@ -484,7 +487,7 @@ def create_app(
         },
     )
     async def submit_skill(
-        req: SubmitSkillRequest,
+        req: SubmitSkillRequest = Body(...),  # type: ignore[assignment]
         principal: AuthenticatedPrincipal = Depends(_auth_dep),
     ) -> dict:
         """Submit a new skill to the marketplace (MARKETPLACE-01)."""

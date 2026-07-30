@@ -459,6 +459,22 @@ def run(
     cfg = CliConfig.from_env()
     console = Console()
 
+    # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028): forward X-Session-Scope
+    # header on the create call (and on subsequent message/stream calls).
+    # EAASP_SESSION_SCOPE env var is REQUIRED — no wildcard default.
+    session_scope = os.environ.get("EAASP_SESSION_SCOPE")
+    if not session_scope:
+        print_error(
+            CliError(
+                exit_code=2,
+                message="EAASP_SESSION_SCOPE env var is required (D8/L3-04 RBAC). "
+                "Set it to the skill's registered access_scope, e.g. "
+                "export EAASP_SESSION_SCOPE=org:eaasp-mvp",
+            )
+        )
+        raise typer.Exit(2)
+    scope_headers = {"X-Session-Scope": session_scope}
+
     async def _do() -> None:
         client = _main.make_client(cfg)
         try:
@@ -468,7 +484,12 @@ def run(
                 "skill_id": skill,
                 "runtime_pref": runtime,
             }
-            result = await client.call("POST", f"{cfg.l4_url}/v1/sessions/create", json=create_body)
+            result = await client.call(
+                "POST",
+                f"{cfg.l4_url}/v1/sessions/create",
+                json=create_body,
+                headers=scope_headers,
+            )
             session_id = result.get("session_id") if isinstance(result, dict) else str(result)
             if not session_id:
                 console.print("[bold red]ERROR: no session_id in response[/bold red]")
@@ -481,6 +502,7 @@ def run(
                     "POST",
                     f"{cfg.l4_url}/v1/sessions/{session_id}/message",
                     json={"content": message},
+                    headers=scope_headers,
                 )
                 print_json(resp)
             else:
@@ -489,6 +511,7 @@ def run(
                 async for msg in client.stream_sse(
                     f"{cfg.l4_url}/v1/sessions/{session_id}/message/stream",
                     json_body={"content": message},
+                    headers=scope_headers,
                 ):
                     event = msg.get("event", "chunk")
                     data = msg.get("data", {})

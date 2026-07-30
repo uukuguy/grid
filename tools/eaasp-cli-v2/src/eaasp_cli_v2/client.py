@@ -117,6 +117,7 @@ class ServiceClient:
         method: str = "POST",
         json_body: Any = None,
         params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Open an SSE stream and yield parsed ``{event, data}`` dicts.
 
@@ -129,7 +130,7 @@ class ServiceClient:
         """
         try:
             async with self._client.stream(
-                method, url, json=json_body, params=params,
+                method, url, json=json_body, params=params, headers=headers,
                 timeout=httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=10.0),
             ) as response:
                 if response.status_code >= 400:
