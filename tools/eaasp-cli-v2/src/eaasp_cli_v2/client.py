@@ -69,10 +69,18 @@ class ServiceClient:
         *,
         json: Any = None,
         params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Any:
-        """Execute an HTTP request and project failures into ``CliError``."""
+        """Execute an HTTP request and project failures into ``CliError``.
+
+        ``headers`` is forwarded as request headers; used by ``session``
+        commands to attach ``X-Session-Scope`` (D8 / L3-04 RBAC — L3
+        hard-requires this header on /v1/sessions/{id}/validate).
+        """
         try:
-            response = await self._client.request(method, url, json=json, params=params)
+            response = await self._client.request(
+                method, url, json=json, params=params, headers=headers
+            )
         except (httpx.ConnectError, httpx.TimeoutException) as exc:
             raise CliError(
                 3,

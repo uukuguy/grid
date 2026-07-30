@@ -215,10 +215,23 @@ def create(
     if user_id:
         body["user_id"] = user_id
 
+    # D8 / L3-04 RBAC: forward X-Session-Scope header. L3's validate
+    # endpoint hard-requires it. Resolution precedence:
+    #   1. EAASP_SESSION_SCOPE env var (explicit override)
+    #   2. "*" wildcard (last-resort fallback; L4 also warns + falls back
+    #      server-side, so the request will succeed but operators should
+    #      set the env var in production).
+    session_scope = os.environ.get("EAASP_SESSION_SCOPE", "*")
+
     async def _do() -> Any:
         client = _main.make_client(cfg)
         try:
-            return await client.call("POST", f"{cfg.l4_url}/v1/sessions/create", json=body)
+            return await client.call(
+                "POST",
+                f"{cfg.l4_url}/v1/sessions/create",
+                json=body,
+                headers={"X-Session-Scope": session_scope},
+            )
         finally:
             await client.aclose()
 

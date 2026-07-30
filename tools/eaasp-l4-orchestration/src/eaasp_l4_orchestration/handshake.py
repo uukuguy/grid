@@ -113,12 +113,18 @@ class L3Client:
         skill_id: str | None,
         runtime_tier: str | None,
         agent_id: str | None = None,
+        session_scope: str = "*",
     ) -> dict[str, Any]:
         """Call ``POST /v1/sessions/{session_id}/validate``.
 
         Returns the raw L3 response dict:
         ``{session_id, hooks_to_attach, managed_settings_version,
           validated_at, runtime_tier}``.
+
+        D8 / L3-04 RBAC: forwards the caller's ``X-Session-Scope``
+        header (L3's ``/v1/sessions/{id}/validate`` endpoint hard-
+        requires this header — see ``require_access_scope`` in
+        ``eaasp_l3_governance.api``).
         """
         body: dict[str, Any] = {
             "skill_id": skill_id,
@@ -126,9 +132,13 @@ class L3Client:
             "agent_id": agent_id,
         }
 
+        headers: dict[str, str] = {"X-Session-Scope": session_scope}
+
         try:
             resp = await self._client.post(
-                f"{self._base}/v1/sessions/{session_id}/validate", json=body
+                f"{self._base}/v1/sessions/{session_id}/validate",
+                json=body,
+                headers=headers,
             )
         except (httpx.ConnectError, httpx.TimeoutException) as exc:
             raise UpstreamError("l3", "unavailable", str(exc)) from exc

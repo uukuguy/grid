@@ -7,7 +7,7 @@ runtime_affinity:
   compatible:
     - grid-runtime
     - claude-code-runtime
-access_scope: "org:eaasp-mvp"
+access_scope: "org:eaasp-verify-2026-07-30"
 scoped_hooks:
   PreToolUse:
     - name: block_write_scada

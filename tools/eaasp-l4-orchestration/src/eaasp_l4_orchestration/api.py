@@ -24,7 +24,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Path, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
@@ -183,7 +183,17 @@ def create_app(
     async def dispatch_intent(
         body: IntentDispatchRequest,
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
+        x_session_scope: str | None = Header(
+            default=None, alias="X-Session-Scope"
+        ),
     ) -> dict[str, Any]:
+        # D8 / L3-04 RBAC: same scope extraction as /v1/sessions/create.
+        if not x_session_scope:
+            logger.warning(
+                "dispatch_intent: missing X-Session-Scope header; "
+                "falling back to wildcard '*'."
+            )
+            x_session_scope = "*"
         # D34 / L4-01: NLU intent→skill resolution when skill_id is empty.
         # Per CONTEXT.md D-03: NLU module queries skill list → builds index →
         # matches intent → dispatches to best skill.
@@ -258,8 +268,30 @@ def create_app(
     async def create_session(
         body: IntentDispatchRequest,
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
+        x_session_scope: str | None = Header(
+            default=None, alias="X-Session-Scope"
+        ),
     ) -> dict[str, Any]:
-        return await _run_create_session(orchestrator, body)
+        # D8 / L3-04 RBAC: extract caller's scope from header. Thread it
+        # through to the orchestrator so L3 /v1/sessions/{id}/validate
+        # receives the same value (L3 requires this header hard).
+        # Resolution precedence:
+        #   1. X-Session-Scope header (explicit)
+        #   2. body.runtime_pref … not currently a scope source; reserved.
+        #   3. wildcard "*" (per ADR-V2-028 strict-by-default we accept
+        #      this as last-resort fallback so the e2e path stays alive,
+        #      but log a WARNING so operators see the un-scoped call).
+        if not x_session_scope:
+            logger.warning(
+                "create_session: missing X-Session-Scope header for skill={}; "
+                "falling back to wildcard '*'. Set the header on the call "
+                "site (CLI: EAASP_SESSION_SCOPE) for production use.",
+                body.skill_id,
+            )
+            x_session_scope = "*"
+        return await _run_create_session(
+            orchestrator, body, session_scope=x_session_scope
+        )
 
     # ─── Contract 5: send message ────────────────────────────────────────
     @app.post("/v1/sessions/{session_id}/message")
@@ -621,6 +653,8 @@ async def _fetch_skill_list(orchestrator: SessionOrchestrator) -> list[dict[str,
 async def _run_create_session(
     orchestrator: SessionOrchestrator,
     body: IntentDispatchRequest,
+    *,
+    session_scope: str = "*",
 ) -> dict[str, Any]:
     """Call orchestrator.create_session and map upstream errors to HTTP."""
     try:
@@ -630,6 +664,7 @@ async def _run_create_session(
             runtime_pref=body.runtime_pref,
             user_id=body.user_id,
             intent_id=body.intent_id,
+            session_scope=session_scope,
         )
     except ValidationError as exc:
         raise HTTPException(

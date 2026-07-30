@@ -117,6 +117,7 @@ class SessionOrchestrator:
         runtime_pref: str,
         user_id: str | None = None,
         intent_id: str | None = None,
+        session_scope: str = "*",
     ) -> dict[str, Any]:
         """Execute the three-way handshake and persist a new session."""
         session_id = f"sess_{uuid.uuid4().hex[:12]}"
@@ -129,11 +130,14 @@ class SessionOrchestrator:
         )
 
         # Step 2 — P1: PolicyContext from L3 validate.
+        # D8 / L3-04 RBAC: forward the caller's X-Session-Scope so L3's
+        # validate endpoint accepts the request. L3 hard-requires this header.
         validate_resp = await self.l3.validate_session(
             session_id=session_id,
             skill_id=skill_id,
             runtime_tier=runtime_pref,
             agent_id=user_id,
+            session_scope=session_scope,
         )
         policy_context = {
             "hooks": validate_resp.get("hooks_to_attach", []),
