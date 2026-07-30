@@ -154,6 +154,15 @@ async def app_client(
             ):
                 request.headers["X-Session-Scope"] = "*"
 
+        # D8 / L3-04 RBAC: tests run with the dev-mode scope-binding
+        # bypass so they don't need to wire a real skill-registry
+        # frontmatter fixture per test. Tests that exercise scope
+        # enforcement directly (test_create_session_*_403) override
+        # the bypass via the per-request event hook. Production must
+        # NEVER set this flag.
+        import os
+        os.environ["EAASP_DEV_DISABLE_SCOPE_BINDING"] = "1"
+
         async with httpx.AsyncClient(
             transport=transport,
             base_url="http://testserver",

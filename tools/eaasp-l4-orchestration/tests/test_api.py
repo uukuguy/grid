@@ -92,6 +92,12 @@ async def test_create_session_scope_mismatch_403(
     exercised by the evidence-based run captured in
     .grid/verify-2026-07-30/.
     """
+    # Ensure dev-mode scope-binding bypass is OFF so the helper enforces
+    # the binding (the test fixture sets this for app-level tests but we
+    # call the helper directly here).
+    import os
+    os.environ.pop("EAASP_DEV_DISABLE_SCOPE_BINDING", None)
+
     from eaasp_l4_orchestration.api import _resolve_skill_bound_scope
     from eaasp_l4_orchestration.session_orchestrator import SessionOrchestrator
 
@@ -126,6 +132,101 @@ async def test_create_session_scope_mismatch_403(
         orch, skill_id="skill.test", caller_scope="*",
     )
     assert result is None
+
+
+@respx.mock
+async def test_resolve_skill_bound_scope_fail_closed_paths() -> None:
+    """Commit security review round-2: fail-closed paths.
+
+    Three fail-closed paths must return None (handler raises 403):
+      1. skill_registry is None (no ground truth available)
+      2. skill_registry.read_skill raises (transient registry failure)
+      3. skill's parsed_v2 has no access_scope declared (configuration gap)
+
+    Prior commit (3398d567) had fallbacks in all three cases which the
+    review correctly flagged as fail-open-state-drift and
+    fail-open-default. This test pins the new strict behavior.
+    """
+    # Ensure dev-mode bypass is OFF
+    import os
+    os.environ.pop("EAASP_DEV_DISABLE_SCOPE_BINDING", None)
+
+    from eaasp_l4_orchestration.api import _resolve_skill_bound_scope
+    from eaasp_l4_orchestration.session_orchestrator import SessionOrchestrator
+
+    # Case 1: skill_registry None → fail-closed
+    class _StubOrchNoRegistry(SessionOrchestrator):
+        def __init__(self) -> None:
+            self.skill_registry = None
+
+    orch_no_reg = _StubOrchNoRegistry()
+    result = await _resolve_skill_bound_scope(
+        orch_no_reg, skill_id="skill.x", caller_scope="org:eaasp-mvp",
+    )
+    assert result is None, "skill_registry=None must fail-closed, not fall back"
+
+    # Case 2: read_skill raises → fail-closed
+    class _StubRegistryRaises:
+        @staticmethod
+        async def read_skill(skill_id: str) -> dict[str, Any]:
+            raise ConnectionError("skill-registry down")
+
+    class _StubOrchRaises(SessionOrchestrator):
+        def __init__(self) -> None:
+            self.skill_registry = _StubRegistryRaises()
+
+    orch_raises = _StubOrchRaises()
+    result = await _resolve_skill_bound_scope(
+        orch_raises, skill_id="skill.x", caller_scope="org:eaasp-mvp",
+    )
+    assert result is None, "registry exception must fail-closed, not fall back"
+
+    # Case 3: skill with no access_scope declared → fail-closed
+    class _StubRegistryNoScope:
+        @staticmethod
+        async def read_skill(skill_id: str) -> dict[str, Any]:
+            return {"parsed_v2": {}}  # no access_scope key
+
+    class _StubOrchNoScope(SessionOrchestrator):
+        def __init__(self) -> None:
+            self.skill_registry = _StubRegistryNoScope()
+
+    orch_no_scope = _StubOrchNoScope()
+    result = await _resolve_skill_bound_scope(
+        orch_no_scope, skill_id="skill.x", caller_scope="org:eaasp-mvp",
+    )
+    assert result is None, (
+        "skill with no declared access_scope must fail-closed, not "
+        "default to '*' (prev fail-open-default)"
+    )
+
+
+async def test_resolve_skill_bound_scope_dev_bypass_explicit() -> None:
+    """EAASP_DEV_DISABLE_SCOPE_BINDING=1 short-circuits to caller scope.
+
+    This is the only escape hatch from the strict fail-closed behavior,
+    intended for dev/test environments only. Production must NEVER set
+    this flag (logged WARNING when active).
+    """
+    import os
+
+    from eaasp_l4_orchestration.api import _resolve_skill_bound_scope
+    from eaasp_l4_orchestration.session_orchestrator import SessionOrchestrator
+
+    os.environ["EAASP_DEV_DISABLE_SCOPE_BINDING"] = "1"
+    try:
+        class _StubOrch(SessionOrchestrator):
+            def __init__(self) -> None:
+                self.skill_registry = None  # would normally fail-closed
+
+        orch = _StubOrch()
+        # Dev bypass → returns caller's scope (no ground-truth check)
+        result = await _resolve_skill_bound_scope(
+            orch, skill_id="skill.x", caller_scope="any-scope-at-all",
+        )
+        assert result == "any-scope-at-all"
+    finally:
+        os.environ.pop("EAASP_DEV_DISABLE_SCOPE_BINDING", None)
 
 
 async def test_health(app_client: httpx.AsyncClient) -> None:

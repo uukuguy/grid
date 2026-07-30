@@ -697,7 +697,8 @@ async def _resolve_skill_bound_scope(
 ) -> str | None:
     """Resolve the scope that the orchestrator should use for this session.
 
-    D8 / L3-04 RBAC enforcement (fail-CLOSED):
+    D8 / L3-04 RBAC enforcement (truly fail-CLOSED per ADR-V2-028 +
+    commit security review round-2):
     - Reads the skill's registered ``access_scope`` from skill-registry
       frontmatter (via ``orchestrator.skill_registry.read_skill``).
     - Returns the registered scope ONLY IF ``caller_scope`` matches it
@@ -706,7 +707,17 @@ async def _resolve_skill_bound_scope(
       registered scope is also ``"*"`` (the conservative case where a
       skill declares itself as public).
     - Empty skill_id (e.g. mid-NLU failure) returns None.
-    - Skill-registry unavailable: returns None (fail-closed).
+    - Skill-registry unavailable (None OR read_skill raises) returns
+      None — fail-CLOSED. Previously this had a "callers can pass
+      through" fallback which the security review flagged as a backdoor.
+    - Skill with no ``access_scope`` declared in frontmatter returns
+      None — fail-CLOSED. Previously this defaulted to "*"; the review
+      correctly identified that as a wildcard backdoor for any
+      undeclared skill (which is the default state of legacy skills
+      pre-D11).
+    - Explicit dev passthrough ONLY when ``EAASP_DEV_DISABLE_SCOPE_BINDING=1``
+      is set. This makes dev-mode behavior intentional + auditable
+      rather than structural.
 
     This binding replaces the prior free-form "trust whatever the client
     sent" pattern (which let any client impersonate any scope). The scope
@@ -719,32 +730,54 @@ async def _resolve_skill_bound_scope(
     """
     if not skill_id:
         return None
-    if orchestrator.skill_registry is None:
-        # No skill-registry wired — likely a test/dev mode. Fall back
-        # to the wildcard scope so callers can still pass through. In
-        # production (skill-registry always wired), this branch is
-        # unreachable. Logged as INFO so operators can spot dev configs.
-        logger.info(
-            "resolve_skill_bound_scope: skill_registry not configured; "
-            "using '*' wildcard fallback for skill={}.",
+    # EAASP_DEV_DISABLE_SCOPE_BINDING=1 explicitly disables the
+    # per-skill scope binding. This is for dev/test environments where
+    # the skill-registry may not be reachable OR skills may not have
+    # declared access_scope yet. Production must NEVER set this flag.
+    if os.environ.get("EAASP_DEV_DISABLE_SCOPE_BINDING") == "1":
+        logger.warning(
+            "EAASP_DEV_DISABLE_SCOPE_BINDING=1 set — skipping per-skill "
+            "scope binding for skill={}. DO NOT USE IN PRODUCTION.",
             skill_id,
         )
-        return caller_scope if caller_scope else "*"
+        return caller_scope or "*"
+    if orchestrator.skill_registry is None:
+        # Truly fail-closed: no skill-registry wired means we cannot
+        # bind the scope to ground truth. Refuse rather than trust
+        # the caller's claim.
+        logger.warning(
+            "resolve_skill_bound_scope: skill_registry not configured; "
+            "cannot bind scope for skill={}. Rejecting call (fail-closed).",
+            skill_id,
+        )
+        return None
     try:
         skill_data = await orchestrator.skill_registry.read_skill(skill_id)
     except Exception as exc:
+        # Truly fail-closed: registry errors must NOT silently downgrade
+        # to caller-trust mode. The security review caught this as
+        # fail-open-state-drift. Surface as None so handler returns 403.
         logger.warning(
             "resolve_skill_bound_scope: failed to read skill={}: {}. "
-            "Falling back to caller's scope.",
+            "Rejecting call (fail-closed).",
             skill_id, exc,
         )
-        return caller_scope if caller_scope else "*"
+        return None
     parsed_v2 = skill_data.get("parsed_v2") or {}
     registered_scope = parsed_v2.get("access_scope")
     if not registered_scope:
-        # Skill has no access_scope declared — treat as requiring "*"
-        # (the public-all scope). Caller must send "*" to match.
-        registered_scope = "*"
+        # Truly fail-closed: an undeclared access_scope is NOT a default
+        # to "*" — it's a configuration gap. The security review
+        # flagged the prior default-to-"*" as fail-open-default. Skill
+        # owners MUST declare access_scope explicitly. Operators can
+        # audit undeclared skills via skill-registry /admin.
+        logger.warning(
+            "resolve_skill_bound_scope: skill={} has no access_scope "
+            "declared in frontmatter. Rejecting call (fail-closed). "
+            "Skill owners must declare access_scope explicitly.",
+            skill_id,
+        )
+        return None
     # Reject the wildcard when the skill is NOT public.
     if registered_scope != "*" and caller_scope == "*":
         logger.warning(
