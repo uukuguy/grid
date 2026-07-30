@@ -1,31 +1,34 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-25T00:21:06.183Z",
+  "timestamp": "2026-07-30T00:00:00.000Z",
   "phase": null,
-  "phase_name": "v3.8 shipped; post-release fix complete",
+  "phase_name": "v3.14 SHIPPED — EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED (D-46 final phase)",
   "phase_dir": ".planning",
   "plan": null,
   "task": null,
   "total_tasks": null,
-  "status": "paused",
+  "status": "shipped",
   "completed_tasks": [
-    {"name": "Complete v3.8 multi-user milestone", "status": "done", "commit": "0a438e7e"},
-    {"name": "Fix ignored grid-cli output module", "status": "done", "commit": "ba4e3f20"},
-    {"name": "Push main and v3.8 tag", "status": "done", "commit": "ba4e3f20"},
-    {"name": "Verify Evaluation CI on fixed main", "status": "done", "commit": "ba4e3f20"}
+    {"name": "v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem SHIPPED", "status": "done", "commit": "05074170"},
+    {"name": "v3.14.2 SDK scaffolding (EaaspEcosystemClient + MARKETPLACE-03 CLI + ecosystem subcommand)", "status": "done", "commit": "9c845e29 + ced94f33 + de70d199"},
+    {"name": "v3.14.3 single-point live walkthrough + PRODUCTION_USABILITY_2026-07-30", "status": "done", "commit": "31c804eb"},
+    {"name": "v3.14 milestone close — STATE bump + DEFERRED_LEDGER V310-ECOSYSTEM-01 ✅ CLOSED + tag v3.14 force-push", "status": "done", "commit": "98dfecf7"},
+    {"name": "v3.14.3 close-out text-sync gap (37 → 38 spec rows across 5 files)", "status": "done", "commit": "690ca810"},
+    {"name": "docs/status/ handoff refresh (CURRENT-STATE.md + RESUME-NEXT-SESSION.md)", "status": "done", "commit": "df2922f7"},
+    {"name": "JOURNAL.md append — v3.14 final handoff refresh entry", "status": "done", "commit": "182ba76a"}
   ],
   "remaining_tasks": [
-    {"name": "Choose and start the next milestone", "status": "not_started"},
-    {"name": "Optionally rerun Release workflow after output-module fix", "status": "not_started"}
+    {"name": "Choose v3.15 milestone scope (data/integration axis per ADR-V2-024 §1)", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [],
   "decisions": [
-    {"decision": "v3.8 is shipped and archived", "rationale": "21/21 requirements, 10/10 integrations, and 5/5 UAT flows passed", "phase": "v3.8"},
-    {"decision": "Root output ignore rules are anchored", "rationale": "Generic output/ ignored crates/grid-cli/src/output and caused clean-checkout CI failure", "phase": "post-release fix"},
-    {"decision": "Do not alter the v3.8 tag after release", "rationale": "The tag is already pushed; the missing module was fixed on main in ba4e3f20", "phase": "post-release fix"}
+    {"decision": "v3.14 EAASP Phase 6 SHIPPED 2026-07-30; tag v3.14 force-push", "rationale": "4/4 phases complete, 23 REQ-IDs / 5 categories, 98 targeted tests PASS, dual-gate PASS (134 routes RBAC + 38 spec rows)", "phase": "v3.14"},
+    {"decision": "EVOLUTION_PATH §三 8-Phase 路线 declared ALL SHIPPED (D-46)", "rationale": "All 8 V310-* + V311-AUDIT-01 = 9 ✅ CLOSED. v3.14 = Phase 6 = final per roadmap", "phase": "v3.14"},
+    {"decision": "Canonical handoff lives in docs/status/, NOT .planning/", "rationale": "v3.14 close-out cascade (df2922f7) established docs/status/RESUME-NEXT-SESSION.md + docs/status/CURRENT-STATE.md as the authoritative resume baton. .planning/ files were the pre-v3.10 lightweight-memory template that referenced the GSD phase stack, which is no longer the active tracking surface.", "phase": "v3.14"},
+    {"decision": "This GSD Handoff/Continue-here/Resume file is a pointer-only rewrite, not a duplicate", "rationale": "User chose 'Refresh stale handoff files' but no duplication — the previous v3.8 content is preserved in git history at commit 0a438e7e (v3.8 archive). The .planning/ files are kept as templates; the actual resume content lives in docs/status/.", "phase": "v3.14"}
   ],
   "uncommitted_files": [],
-  "next_action": "Run /gsd-new-milestone to choose the next scope, or manually dispatch the Release workflow for ba4e3f20.",
-  "context_notes": "v3.8 was archived and tagged v3.8. The post-release CI failure was traced to a root .gitignore output/ rule accidentally ignoring crates/grid-cli/src/output/. The rule was changed to /output/ and /outputs/, the four source files were committed, cargo check and 575 grid-cli tests passed, and Evaluation CI run 30093483956 succeeded. Release workflow for the old v3.8 archive commit remains historically failed; no active servers or watchers are running."
+  "next_action": "Read docs/status/RESUME-NEXT-SESSION.md for the v3.15 candidate scope list (5 options per ADR-V2-024 §1 data/integration axis). Per ADR-V2-024 Open Item #3 priority axis, recommended: grid-server multi-user (data/integration axis).",
+  "context_notes": "v3.14 EAASP Phase 6 SHIPPED 2026-07-30. 4-phase ladder (03.14.0 Ontology + 03.14.1 Marketplace + 03.14.2 SDK + 03.14.3 walkthrough) closed the entire EVOLUTION_PATH 8-Phase roadmap (D-46). v3.15+ is the data/integration axis per ADR-V2-024 §1. Working tree clean; main ↔ origin/main sync; tag v3.14 pushed. The actual resume baton is docs/status/RESUME-NEXT-SESSION.md (df2922f7), not this file."
 }
