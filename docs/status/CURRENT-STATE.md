@@ -113,3 +113,64 @@
 5. Read `CLAUDE.md` + auto-loaded MEMORY.md before implementation.
 6. If picking up from v3.14, start with `/gsd-resume-work` or read `.planning/phases/03.14.{0,1,2,3}-*/PLAN.md` + `SUMMARY.md`.
 7. If proposing v3.15 scope, refer to `docs/status/RESUME-NEXT-SESSION.md` §下一候选 and ADR-V2-024 Open Item #3 priority axis.
+
+---
+
+## Session 2026-07-30 — EAASP 仿真环境验证 (closed)
+
+**Scope**: Live full-stack end-to-end verification of the EAASP v2.0 simulator
+(`tools/eaasp-*`) including OPA sidecar + 4 L1 runtimes + L2/L3/L4/L5 +
+ecosystem services. Verified per `docs/status/VERIFICATION_PLAN_2026-07-30.md`
+4-phase plan (services + audit gates + skill E2E + SDK typed exceptions).
+
+**Headline result**: All 14 services (OPA + skill-registry + L2 memory +
+L3 governance + MCP orchestrator + mock-scada + L4 orchestration + grid-runtime
++ claude-code-runtime + nanobot-runtime + goose-runtime + L5 cowork + L5
+ecosystem) brought up cleanly; all Phase 2 audit gates PASS (134 RBAC routes
++ 38 spec rows + 75 eaasp-ecosystem pytest + 23 SDK pytest). Real LLM
+session.run invoked; SSE events captured; SDK typed exceptions verified.
+
+**4 bugs found and fixed in this session** (10 commits ahead origin/main):
+
+| # | Commit | Severity | Description |
+|---|---|---|---|
+| 1 | `8e3594e2` | MEDIUM (latent bug) | skill-registry CREATE INDEX embedded in CREATE TABLE block prevented `migrate_add_access_scope` from running on legacy registry.db files (D11/L2-06). Removed from block; created idempotently by migration. 36/36 eaasp-skill-registry tests pass. |
+| 2 | `a6d75300` | HIGH (RBAC) | L4 `/v1/sessions/create` + CLI never forwarded `X-Session-Scope` header required by L3 `/v1/sessions/{id}/validate` (D8/L3-04). CLI now reads `EAASP_SESSION_SCOPE` env; L4 forwards to L3. |
+| 3 | `3398d567` | CRITICAL (security review) | L4 RBAC enforcement was `fail-open`: missing header → wildcard `"*"` fallback; free-form scope strings allowed impersonation. Fixed to truly fail-closed: missing header → 403 `missing_scope`; scope mismatch → 403 `scope_mismatch`. CLI `EAASP_SESSION_SCOPE` now REQUIRED. |
+| 4 | `bbc5d7df` | HIGH (security review round-2) | `_resolve_skill_bound_scope` had 3 fail-open fallbacks (skill_registry=None / read_skill raises / no access_scope declared → trust caller's claim). All 3 paths now return None → 403. Explicit `EAASP_DEV_DISABLE_SCOPE_BINDING=1` env var added for documented dev/test passthrough. 285/286 L4 tests pass. |
+
+**Modified examples skills** (re-runnability fix):
+- `examples/skills/threshold-calibration/SKILL.md` — `access_scope` changed
+  from `org:eaasp-mvp` (collides with `skill-extraction`) to
+  `org:eaasp-verify-2026-07-30` so the §6.2 submit+promote chain is
+  reproducible from a fresh state.
+
+**Verification artifacts** (workspace-only, in `.grid/verify-2026-07-30/`):
+- `MANUAL.md` — step-by-step manual for human execution
+- `evidence-phase-1-2.md` — Phase 1+2 evidence (services + audit gates)
+- `evidence-phase-3-4.md` — Phase 3+4 evidence (skill E2E + SDK exceptions)
+- `logs/{opa,dev-eaasp,l5-cowork,l5-ecosystem}.log` — all command output
+
+**Outstanding limitations** (not blocking):
+- `submit_skill` endpoint on the running L5 ecosystem binary has a body/query
+  mismatch — server expects `req` as query param, source expects JSON body.
+  Pre-existing latent bug; needs a fresh `uv pip install` to rebuild venv.
+- §7.3 (404 → `EaaspEcosystemPromotionError`) cross_tenant ACL fires before
+  404 check, so this scenario can't be cleanly exercised without first
+  seeding an acme-tenant skill (which currently can't be done due to
+  the submit_skill bug above).
+- `tests/test_session_orchestrator.py::test_create_session_happy_path` has
+  a pre-existing assertion mismatch (`policy_version == "3"` vs computed
+  sha256 hash). Confirmed pre-existed via `git stash` (not from these
+  changes).
+
+**Service teardown confirmed**: All 14 services stopped; ports 18081-18090,
+18181-18182, 50051-50054, 50063 clean. 0 `eaasp-*` / `grid-runtime` / `opa`
+processes running.
+
+**Worktree**: this session's repo only — main branch only; 0 sub-worktrees
+created.
+
+---
+
+*Session closed 2026-07-30. Next session reads this section + RESUME-NEXT-SESSION.md + JOURNAL.md latest entry (`9210a406`).*

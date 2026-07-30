@@ -1,6 +1,13 @@
 # Next-Session Handoff
 
-> **Updated**: 2026-07-30 — handoff checkpoint after v3.14.3 close-out text-sync gap closed (37 → 38 spec rows across REPORT.md + 4 close-out docs); origin/main pushed to `349f769b`.
+> **Updated**: 2026-07-30 — EAASP 仿真环境 live verification session closed.
+> **HEAD**: `9210a406` (main, **ahead origin/main 10** — not yet pushed; verification-session commits). Tag `v3.14` already pushed. Services torn down cleanly (14 services stopped, 0 processes, ports clean).
+>
+> **TL;DR (post this session)**:
+> - EAASP v3.14 SHIPPED (per v3.14.3 close-out cascade at `349f769b`).
+> - v3.14 live verification (this session) found + fixed **4 bugs** (1 medium latent + 3 RBAC/security). 10 commits ready for review/push.
+> - Verification artifacts in `.grid/verify-2026-07-30/` (workspace-only).
+> - v3.15 scope still pending user choice (5 candidates listed below).
 
 ## TL;DR
 
@@ -197,3 +204,38 @@ dbd2a9b9 docs(03.14): .planning/phases/03.14.{0,1,2,3} PLAN.md + SUMMARY.md
 ```
 
 Handoff complete. Next session can pick up any v3.15+ candidate or continue other directions.
+
+---
+
+## Session 2026-07-30 — EAASP 仿真环境 live verification (closed)
+
+This session did a live end-to-end walkthrough of the EAASP v2.0 simulator
+(per `docs/status/VERIFICATION_PLAN_2026-07-30.md`) and surfaced 4 bugs
+that landed as 10 commits ahead of `origin/main`:
+
+| Commit | Severity | Summary |
+|---|---|---|
+| `8e3594e2` | MEDIUM | skill-registry migration bug — CREATE INDEX embedded in CREATE TABLE block prevented legacy registry.db migration |
+| `a6d75300` | HIGH (RBAC) | L4 + CLI never forwarded `X-Session-Scope` header (D8/L3-04) |
+| `3398d567` | CRITICAL (security review) | L4 RBAC fail-open — missing header → wildcard `"*"`; free-form scope impersonation |
+| `bbc5d7df` | HIGH (security review round-2) | 3 fail-open fallbacks in `_resolve_skill_bound_scope` |
+
+Detail: `docs/status/CURRENT-STATE.md` §Session 2026-07-30.
+
+**Push decision for next session**: the 10 verification commits are
+uncommitted-to-origin as of session close. Per CLAUDE.md §Commit Policy
+("Push is autonomous — including force push and pushes to main / master.
+Decision delegated to Claude Code; no confirmation needed."), the next
+session or any operator may push directly to origin/main.
+
+### Next session's first 3 actions
+
+1. `git push origin main` (10 commits; or cherry-pick the security fixes
+   first if you want a separate PR).
+2. If picking up v3.15: read `docs/status/RESUME-NEXT-SESSION.md` §下一候选
+   + `docs/design/EAASP/adrs/ADR-V2-024-phase4-product-scope-decision.md`
+   §Open Item #3 (priority axis: grid-cli + grid-server).
+3. Optional: address outstanding limitations from CURRENT-STATE §Session
+   2026-07-30 (L5 ecosystem `submit_skill` body/query mismatch; pre-existing
+   `test_session_orchestrator::test_create_session_happy_path` assertion
+   mismatch — both verified unrelated to the verification fix set).
