@@ -602,6 +602,7 @@ def test_round2_spoofed_author_principal_rejected_at_api_layer(
         default_tenant="default",
         marketplace_db_path=str(tmp_path / "mkt.db"),
         api_keys={"key-A": "default"},
+        skill_registry_url=REGISTRY_URL,
     )
     app = create_app(config=cfg)
     client = TestClient(app)
