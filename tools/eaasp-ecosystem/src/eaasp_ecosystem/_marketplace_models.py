@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class VisibilityScope(str, Enum):
@@ -34,6 +34,13 @@ class PromotionStage(str, Enum):
 
 
 class SubmitSkillRequest(BaseModel):
+    # extra="forbid" enforces the round-2 fail-closed contract:
+    # client-supplied fields like ``author_principal`` MUST be rejected
+    # at the API layer (FastAPI 422) rather than silently dropped, so
+    # the caller knows their body was not honored. The server writes
+    # the author from the authenticated principal only.
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     summary: str
     version: str
