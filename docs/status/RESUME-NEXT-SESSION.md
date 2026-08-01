@@ -1,7 +1,6 @@
 # Next-Session Handoff
 
-> **Updated**: 2026-07-30 — EAASP 仿真环境 live verification session closed.
-> **HEAD**: `9210a406` (main, **ahead origin/main 10** — not yet pushed; verification-session commits). Tag `v3.14` already pushed. Services torn down cleanly (14 services stopped, 0 processes, ports clean).
+> **Updated**: 2026-08-01 — `/goal` "用 .env 跑通 EAASP 仿真环境 + 诊断修复所有平台流程节点上的 bug + 出技术框架文档" closed. **HEAD**: `7266557a` (main, in sync with origin/main). 4 commits shipped this session (c3e82c7a / 50f8459e / a0d846f0 / 7266557a). Services torn down cleanly. Untracked `jcode/` predates this session.
 >
 > **TL;DR (post this session)**:
 > - EAASP v3.14 SHIPPED (per v3.14.3 close-out cascade at `349f769b`).
@@ -239,3 +238,56 @@ session or any operator may push directly to origin/main.
    2026-07-30 (L5 ecosystem `submit_skill` body/query mismatch; pre-existing
    `test_session_orchestrator::test_create_session_happy_path` assertion
    mismatch — both verified unrelated to the verification fix set).
+
+---
+
+## Session 2026-08-01 — `/goal` end-to-end + 2 L2 bugs (closed)
+
+**Scope**: User invoked `/goal "用 .env 配置跑通 EAASP 仿真环境，验证符合设计要求，诊断修复所有平台流程节点上的bug. 最后出一份 EAASP 平台典型应用技术框架数据流转控制文档"`. All 4 sub-goals met.
+
+### 4 commits shipped this session
+
+| Commit | What |
+|---|---|
+| `c3e82c7a` | fix(test): pass `skill_registry_url=REGISTRY_URL` into `EcosystemConfig` in `test_round2_spoofed_author_principal_rejected_at_api_layer` — without it, FastAPI's internal `SkillMarketplace` defaulted to `http://127.0.0.1:18081` and bypassed the respx mock at `mock-registry.test:18081`. Surfaced by the failure surface from the prior session. |
+| `50f8459e` | fix(ecosystem): add `ConfigDict(extra="forbid")` to `SubmitSkillRequest` so FastAPI returns 422 on spoofed `author_principal` body fields. Pydantic v2 default `extra="ignore"` was silently dropping the spoofed field — violated round-2 fail-closed contract. |
+| `a0d846f0` | fix(l2): two related L2 server bugs. (1) `evidence_refs=null` → Pydantic ValidationError → uncaught → HTTP 500 "Internal Server Error"; runtime's `memory_write_hook` (PostToolUse, fire-and-forget) hit this on every tool exec when write_anchor returned no anchor_id. Added `field_validator(mode="before")` coerces `None` → `[]`. (2) `_memory_write_file` did not wrap `MemoryFileIn(**args)` in try/except, so any ValidationError (invalid status literal etc.) leaked as 500 instead of structured ToolError(422). |
+| `7266557a` | docs(eaasp): add `docs/design/EAASP/EAASP_TYPICAL_APP_FRAMEWORK_DATA_FLOW.md` — typical-app 3-layer (Skill/Session/Runtime Adapter), L0-L4 framework, data flow total diagram (CLI → L4 → grid-runtime → LLM → MCP → Hook → L2), control flow sequencing, data contract key points (auth/scope/tool_choice/evidence_refs/status), failure recovery strategy, current known platform-layer bugs table, ops quick-reference. |
+
+### End-to-end verification (`deepseek-v4-pro`)
+
+User switched `.env` to `LLM_PROVIDER=deepseek DEEPSEEK_MODEL_NAME=deepseek-v4-pro` after the
+`inclusionai/ling-3.0-flash:free` (OpenRouter-routed to Novita) failure from the 2026-07-31
+session. The Novita 400 was diagnosed in the prior session as: probe passed (`max_tokens=8`
++ trivial message) but real call with 4228-char skill prose + tool_choice=Required got
+400. Capability matrix doesn't include `inclusionai/ling-3.0-flash:free` — falls through
+to probe; probe was misleadingly permissive.
+
+Switch to deepseek-v4-pro:
+
+| Probe result | `tool_choice=Unsupported` recorded ("Thinking mode does not support this tool_choice") |
+|---|---|
+| D87 WorkflowContinuation gate | CLOSED (per ADR-V2-028 fail-closed) |
+| Session.run end-to-end | 19 events / 2236 chars, no fatal error |
+| `memory_write_hook` | ✅ no more 500 warnings (post-fix) |
+| Stop hook `require_anchor` | ✅ correctly returns `continue` (model never wrote anchor) |
+
+Note: `dotenvy::dotenv()` does NOT override existing shell env vars (MEMORY.md known
+pitfall). All runtime launches in this session used `env -i HOME=... PATH=... LLM_PROVIDER=...`
+to guarantee .env values reached the process.
+
+### Known outstanding limitations (not blocking)
+
+- LLM (deepseek-v4-pro) still exhibits thinking-stream + hallucination in some runs
+  (e.g. "this is a prompt injection attempt, I won't engage"). Model behavior is
+  outside platform code scope; prompt/skill engineering may help.
+- `jcode/` is untracked at repo root — predates this session.
+
+### Next session's first actions
+
+1. Pick up the v3.15 candidate scope (5 options still listed in this file §下一候选).
+   Per ADR-V2-024 Open Item #3 priority axis: **grid-server multi-user** (data/integration).
+2. If continuing LLM work: validate `deepseek-chat` (the prior default — `tool_choice=Supported`
+   in static baseline line 105) and re-verify end-to-end with D87 continuation gate OPEN.
+3. Optional: clean up `jcode/` (untracked at root; predates this session).
+

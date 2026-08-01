@@ -1,6 +1,6 @@
 # Current State
 
-> **Updated**: 2026-07-30 — v3.14 EAASP Phase 6 SHIPPED + text-sync gap closed + handoff checkpoint refresh
+> **Updated**: 2026-08-01 — `/goal` end-to-end + 2 L2 server bug fixes + typical-app framework doc; HEAD `7266557a` (main, synced with origin/main). 4 commits shipped this session (c3e82c7a / 50f8459e / a0d846f0 / 7266557a). Services torn down cleanly.
 
 ## Project Snapshot
 
