@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .anchors import AnchorIn, AnchorStore
 from .files import InvalidStatusTransition, MemoryFileIn, MemoryFileStore
@@ -189,7 +189,14 @@ class McpToolDispatcher:
         return out.model_dump()
 
     async def _memory_write_file(self, args: dict[str, Any]) -> dict[str, Any]:
-        memory = MemoryFileIn(**args)
+        # Wrap schema validation so Pydantic ValidationError surfaces as a
+        # structured ToolError (HTTP 422 invalid_arg) instead of leaking as
+        # an uncaught exception → HTTP 500. This matches the contract every
+        # other dispatcher in this module already follows (see _memory_list).
+        try:
+            memory = MemoryFileIn(**args)
+        except ValidationError as exc:
+            raise ToolError("invalid_arg", str(exc)) from exc
         try:
             out = await self.files.write(memory)
         except InvalidStatusTransition as exc:

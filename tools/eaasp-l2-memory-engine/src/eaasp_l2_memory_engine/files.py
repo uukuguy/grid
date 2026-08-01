@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .db import get_shared_connection, get_write_lock, pack_embedding
 
@@ -31,6 +31,22 @@ class MemoryFileIn(BaseModel):
     content: str
     evidence_refs: list[str] = Field(default_factory=list)
     status: MemoryStatus = "agent_suggested"
+
+    @field_validator("evidence_refs", mode="before")
+    @classmethod
+    def _coerce_null_evidence_refs(cls, v: object) -> object:
+        """Coerce JSON ``null`` to ``[]`` for evidence_refs.
+
+        OpenAI-compat clients sometimes serialize ``None`` / absent optional
+        list fields as JSON ``null``. Without this coercion, Pydantic raises
+        a ValidationError → uncaught → surfaces as HTTP 500 from the L2
+        tool facade (the runtime hook then logs "Internal Server Error").
+        Coercing to ``[]`` matches the documented default and makes the
+        schema reject-by-contract instead.
+        """
+        if v is None:
+            return []
+        return v
 
 
 class MemoryFileOut(BaseModel):
