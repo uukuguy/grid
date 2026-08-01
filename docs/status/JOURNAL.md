@@ -28,6 +28,7 @@
 - v3.15.3c 业务流评估器已 SHIPPED: flow_evaluator.py (达成率 + 中断点热力 + 跨层优化建议) + 15/15 tests PASS [098fb1f1]。L4 business flow 模块 47/47 tests (timeline 23 + sse 9 + evaluator 15)。L2 migration + api.py SSE 路由 + live walkthrough 为下批。
 - v3.15.4a L2 memory_engine business_key migration 已 SHIPPED: memory_files + anchors 加 business_key 列 (idempotent ALTER) [2b3f2680]。端到端验证 init_db OK + 两张表 business_key 列均存在。L2/L3/L4 schema 现已就位, timeline aggregator 可读三源数据。
 - v3.15.4b L4 业务流 REST + SSE 路由已 SHIPPED: flow_api.py (timeline / summary / events/stream / evaluation 4 个 endpoint) + 8/8 tests PASS [a80f8cc9]。L4 business flow 模块累计 55/55 tests。L2/L3 reader 接线 + live walkthrough + tag v3.15 为下批。
+- v3.15.4d eaasp flow CLI 子命令已 SHIPPED: cmd_flow.py (timeline / summary / watch / evaluate) + 8/8 tests PASS [05e3577f]。v3.15 累计 101 tests PASS。L4 服务端 L2/L3 reader 注入 + live walkthrough + tag v3.15 为下批。
 - v3.11.3 single-point live walkthrough 已 SHIPPED，SSE/OPA/audit 完整证据 PRODUCTION_USABILITY_2026-07-27，tag v3.11 已建立 [c3d1d789]。
 - v3.12 milestone bootstrap 已 commit (EAASP Phase 4 A2A Router + Event Room + multi-session) [ba99b851]。
 - v3.12.0 audit.py CHECK constraint patch 已 SHIPPED，V311-AUDIT-01 已 CLOSED [c8a5d391]。
