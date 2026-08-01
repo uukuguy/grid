@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 import typer
 
-from . import cmd_memory, cmd_policy, cmd_session, cmd_skill
+from . import cmd_flow, cmd_memory, cmd_policy, cmd_session, cmd_skill
 from .client import CliError, ServiceClient
 from .config import CliConfig
 from .output import print_error
@@ -22,6 +22,7 @@ app.add_typer(cmd_session.app, name="session", help="Session lifecycle commands"
 app.add_typer(cmd_memory.app, name="memory", help="L2 memory engine queries")
 app.add_typer(cmd_skill.app, name="skill", help="Skill registry commands")
 app.add_typer(cmd_policy.app, name="policy", help="L3 policy management")
+app.add_typer(cmd_flow.app, name="flow", help="Business flow timeline / summary / watch / evaluate")
 
 
 # ─── Client factory injection ─────────────────────────────────────────────
