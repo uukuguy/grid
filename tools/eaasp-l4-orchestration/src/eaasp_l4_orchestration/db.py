@@ -154,6 +154,28 @@ _V2_FTS_BACKFILL = """
 INSERT INTO session_events_fts(session_events_fts) VALUES('rebuild');
 """
 
+# v3.15 — V315-BUSINESS-FLOW-01 (OBSTACK §3.4). Add ``business_key``
+# column to the two cross-flow tables: the L4 sessions table is the
+# primary attach point (every session *should* carry its business-key),
+# and event_room_events extends the same binding into the multi-session
+# coordination stream so timeline aggregation (flow_timeline.py) can
+# JOIN across sessions without a synthetic key derivation.
+#
+# Idempotent migration following the _V2_COLUMNS pattern: SQLite
+# silently fails on duplicate column names, wrapped in try/except.
+_V315_BUSINESS_KEY_COLUMNS = [
+    "ALTER TABLE sessions ADD COLUMN business_key TEXT",
+    "ALTER TABLE event_room_events ADD COLUMN business_key TEXT",
+]
+
+# v3.15 — V315-BUSINESS-FLOW-01 — supporting indices for the new
+# business_key columns. Created AFTER the ALTER so legacy DBs that
+# pre-date v3.15 still get them on first init_db after upgrade.
+_V315_BUSINESS_KEY_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_sessions_business_key ON sessions(business_key) WHERE business_key IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_event_room_events_business_key ON event_room_events(business_key) WHERE business_key IS NOT NULL",
+]
+
 
 async def init_db(path: str) -> None:
     """Create schema if absent. Ensures the parent directory exists."""
@@ -169,12 +191,20 @@ async def init_db(path: str) -> None:
                 await db.execute(stmt)
             except Exception:
                 pass  # Column already exists
+        # v3.15 migration — business_key cross-flow binding (OBSTACK §3.4).
+        for stmt in _V315_BUSINESS_KEY_COLUMNS:
+            try:
+                await db.execute(stmt)
+            except Exception:
+                pass  # Column already exists
         await db.commit()
         # FTS5 + trigger + indices
         await db.executescript(_V2_FTS)
         await db.executescript(_V2_FTS_TRIGGER)
         await db.executescript(_V2_INDEX)
         await db.executescript(_V2_EVENT_ID_INDEX)
+        # v3.15 indices on business_key columns (partial; only when populated).
+        await db.executescript(";\n".join(_V315_BUSINESS_KEY_INDEXES))
         await db.commit()
         # Backfill FTS5 for pre-migration rows (Phase 0.5 → Phase 1).
         await db.executescript(_V2_FTS_BACKFILL)
