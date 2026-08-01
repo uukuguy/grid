@@ -80,3 +80,6 @@
 
 ## 2026-08-01 (OBSTACK 重构 — 2/5)
 - 19:51 OBSTACK-2 commit: OBSTACK_DESIGN.md 追加 3 章 —— §0 Goal 实现 Status(4 维度 × 子项状态表 + 闭环判据 + v3.15.5 close gate 6 件事)、§4.4 Component Inventory(file-level 视角)、§9 Changelog(文档自身修订记录);1 file / +123 lines;不动 §1–§8 / §5 编号完整保留(grep heading 验证连续),不动 code/tests;权威文档从此自带"实现状态"维度,不必重读 git log + task list 就能查 OBSTACK 进度[b5a1246a]。
+
+## 2026-08-01 (OBSTACK 重构 — 3/5)
+- 19:59 OBSTACK-3 commit: `docs/design/EAASP/OBSTACK_INDEX.md` 创建(62 行 5 张表:9 个 OBSTACK_DESIGN.md 章节定位 + 4 个工作过程文档职责边界 + 3 个关联 ADR V2-024/V2-029/V2-034 + Goal 闭环快照镜像 §0 + 何时更新 rule);`ls adrs/ADR-V2-024,029,034` 全 hit;`wc -l` 50 行 target 略超过(9 章节表占位置);权威文档保持纯(pure what & why),入口由索引承载(where to jump)[13b418c7]。
