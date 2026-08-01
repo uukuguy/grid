@@ -89,3 +89,7 @@
 
 ## 2026-08-01 (OBSTACK 重构 — 收尾 / 5-commit 总登记)
 - 20:18 OBSTACK-5 commit: 5-commit 重构总登记落定。**改了什么**:OBSTACK_DESIGN.md §9 Changelog 增 3 行(OBSTACK-3 INDEX + OBSTACK-4 status back-links + OBSTACK-5 自身)+ §0 元信息"最近一次 update"刷到 OBSTACK-5。**整体作用**:把之前 5 个 mid-step journal(OBSTACK-1/2/3/4 + 本节)与权威文档 §9 一次性对齐,§0+§4.4+§9 三章 + OBSTACK_INDEX 形成完整 OBSTACK 文档体系,读者从此不再需要交叉查 git log + task list 也能查 OBSTACK 实现状态。**怎么用**:OBSTACK_DESIGN.md §0 看当前进展,§4.4 找代码位置,OBSTACK_INDEX.md 跳转权威/工作/ADR 三类文档,OBSTACK_DESIGN.md §9 看文档本身怎么改。**未做的事**:0 代码改动 / 0 test 改动 / §1–§8 不动。**5-commit 链**:`af0f21f6`(rename)→`b5a1246a`(§0+§4.4+§9)→`13b418c7`(INDEX)→`52964e8e`(status back-links)→本 commit(Changelog 收尾)。
+
+## 2026-08-01 (OBSTACK 闭环 — /goal pickup)
+- 20:?? /goal `OBSTACK 平台级 Observe/Trace/Evaluate/Optimize 闭环`激活。session 初审计:§0.2 闭环率 Observe 1/5 / Trace 3/5 / Evaluate 5/6 / Optimize 1/4。规划:Task #67 (L0 proto) → #69 (L4 schema) → #68 (#64 Rust) → #65/#66 (L2/L4 obs) → #71 (OPT 执行器) → #70 (SLA tests) → #72 (walkthrough + tag)。
+- L0 proto 加 BusinessKey message + 13 request/event message 加 `BusinessKey business_key = 100;` 字段(common.proto + runtime.proto 7 + hook.proto 3);field 100 在所有 message 保留,向后兼容(proto3 optional 缺省 = empty 不破现有 wire);`protoc --proto_path=proto --descriptor_set_out=/dev/null ...` 3 file syntax-check PASS;runtime 7 个不受影响(空字段 = 无 OBSTACK 关联)[76a3b147]。
