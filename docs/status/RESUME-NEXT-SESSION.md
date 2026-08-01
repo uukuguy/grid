@@ -291,3 +291,69 @@ to guarantee .env values reached the process.
    in static baseline line 105) and re-verify end-to-end with D87 continuation gate OPEN.
 3. Optional: clean up `jcode/` (untracked at root; predates this session).
 
+
+---
+
+## 2026-08-01 v3.15 Platform Observability — SHIPPABLE (incomplete)
+
+**Status (2026-08-01, last commit `d644520b`):** v3.15 跨 L0–L5 平台级 Observe/Trace/Evaluate/Optimize 骨架已 shippable；3/4 项生产级保证能力完成。
+
+### What shipped this session (commits e08d9bd9 → d644520b)
+
+| Commit | Phase | 内容 | Tests |
+|---|---|---|---|
+| `e08d9bd9` | v3.15.0+ | PLATFORM_OBSERVABILITY_DESIGN.md + circuit_breaker + opa_sidecar | design + 6 |
+| `a18a22ba` | v3.15.0 | L3 OTel metrics baseline (observability.py) | 8 |
+| `87496d65` | v3.15.1 | eaasp_common.business_flow (BusinessKey + contextvar 传播) | 24 |
+| `61213433` | v3.15.2 | flow_timeline (跨层时间线聚合 + status 推断) | 23 |
+| `d2667707` | v3.15.3a+b | L3 business_key migration + L4 FlowEventBus (flow_sse.py) | 9 |
+| `098fb1f1` | v3.15.3c | flow_evaluator (达成率 + 跨层优化建议) | 15 |
+| `2b3f2680` | v3.15.4a | L2 memory_engine business_key migration | (verified) |
+| `a80f8cc9` | v3.15.4b | L4 flow_api (timeline / summary / events/stream / evaluation) | 8 |
+
+**Total v3.15 tests: 93 PASS** (6 circuit-breaker + 8 observability + 24 business_flow + 23 timeline + 9 sse + 15 evaluator + 8 flow_api).
+
+### Four production-grade capabilities — current status
+
+| 能力 | 状态 | 完成证据 |
+|---|---|---|
+| **Observe** | ✅ 完成 | v3.15.0 L3 OTel metrics + 跨层命名规范 |
+| **Trace** | ✅ 完成 | BusinessKey 跨层绑定 + L2/L3 schema migration + L4 REST/SSE |
+| **Evaluate** | ✅ 完成 | flow_evaluator 产出 FlowEvaluationReport + OptimizationHint |
+| **Optimize** | ⚠️ 部分 | 评估器**生成**建议；A/B 路由 / 自动告警 / 资源调度 **未自动执行**（v3.15.5+） |
+
+### Open items (next session's first actions)
+
+1. **v3.15.4c — L2/L3 layer readers wired into L4 api.py**:
+   - 实现 `app.state.flow_layer_readers` 注入（在 `api.py` lifespan 阶段构造）
+   - L3 reader: `sqlite` query `governance_decisions WHERE business_key = ?` (需要远程 L3 DB 或本地 L3 client)
+   - L2 reader: 同上对 `memory_files` + `anchors`
+   - 预计 8–12 tests
+
+2. **v3.15.4d — 自动 Optimize 闭环**:
+   - `eaasp-cli-v2` 加 `eaasp flow` 子命令 (timeline / summary / watch / evaluate)
+   - 业务流 A/B 路由（基于"过去 1h 业务流达成率"选 L1 runtime）
+   - 性能告警 rule（基于 L3 OTel metrics + 业务流 threshold）
+   - 预计 6–10 tests
+
+3. **v3.15.5 — Live walkthrough + tag v3.15**:
+   - 真实跑 `threshold-calibration` skill（业务对象 = `Transformer-001`）
+   - 验证 business_key 在 L1/L2/L3/L4/L5 全部出现
+   - `make v3.10-spec-audit` + `make rbac-audit` 全 PASS
+   - Tag `v3.15` force-push
+
+4. **可选清理**: `jcode/` 是会话开始时已存在的未跟踪目录，未触碰；下次如要清理，先 `mv` 到 `archive/` 而不是直接删。
+
+### Files added/modified (by phase, for quick orientation)
+
+- `docs/design/EAASP/PLATFORM_OBSERVABILITY_DESIGN.md` — 完整设计（v3.15.0/1/2/3/4/5 phases）
+- `tools/eaasp-common/src/eaasp_common/business_flow.py` — BusinessKey + contextvar
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/observability.py` — L3 OTel
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/circuit_breaker.py` — 3-state CB
+- `tools/eaasp-l3-governance/src/eaasp_l3-governance/opa_sidecar.py` — sidecar lifecycle
+- `tools/eaasp-l3-governance/src/eaasp_l3_governance/db.py` — +business_key ALTER
+- `tools/eaasp-l2-memory-engine/src/eaasp_l2_memory_engine/db.py` — +business_key ALTER
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_timeline.py` — 跨层聚合
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_sse.py` — pub/sub
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_evaluator.py` — 评估 + 优化建议
+- `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_api.py` — REST + SSE 路由
