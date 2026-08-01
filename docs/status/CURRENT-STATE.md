@@ -9,6 +9,7 @@
 - Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem). v3.14 is the **final phase** per D-46; v3.15+ moves to the data/integration axis per ADR-V2-024.
 - Project route: managed (lightweight-memory + GSD state machine, both maintained)
 - Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
+- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (Observe/Trace/Evaluate/Optimize 跨 L0–L5 平台级技术栈;§0 Goal Status + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引
 - Active work package: **none — milestone boundary** (v3.14 SHIPPED + closed; awaiting v3.15 scope selection)
 
 ## Current Architecture

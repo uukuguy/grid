@@ -76,6 +76,8 @@ Both commits pushed to origin/main. `git status -sb` → clean.
 | `docs/design/EAASP/adrs/ADR-V2-029-engine-data-integration-boundary.md` | Crate-level dual-axis enforcement |
 | `docs/design/EAASP/adrs/ADR-V2-034-opa-backend-deployment-topology.md` | OPA sidecar topology (bodies retain 37-row snapshot) |
 | `docs/design/EAASP/adrs/ADR-V2-035-a2a-router-conflict-detection.md` | A2A Router conflict detection |
+| `docs/design/EAASP/OBSTACK_DESIGN.md` | **Authority** for v3.15 platform observability (Observe/Trace/Evaluate/Optimize stack) — §0 status + §4.4 inventory drive goal alignment |
+| `docs/design/EAASP/OBSTACK_INDEX.md` | Companion topic index (9 sections + 4 status docs + 3 ADRs + Goal snapshot) |
 | `.planning/STATE.md` | GSD milestone state |
 | `.planning/ROADMAP.md` | Canonical milestone worklist |
 | `.planning/phases/03.14.{0,1,2,3}-*/` | v3.14 phase artifacts (6 files: 4 SUMMARY + 2 PLAN) |
