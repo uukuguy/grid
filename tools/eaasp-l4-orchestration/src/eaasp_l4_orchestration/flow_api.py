@@ -1,6 +1,6 @@
 """Business Flow REST + SSE API — v3.15.4b.
 
-Per PLATFORM_OBSERVABILITY_DESIGN.md §3.5 / §3.6. Three endpoints:
+Per OBSTACK_DESIGN.md §3.5 / §3.6. Three endpoints:
 
 - ``GET  /v1/business-flows/{key}/timeline`` — full cross-layer timeline
   (JSON array of ``BusinessFlowEvent``)

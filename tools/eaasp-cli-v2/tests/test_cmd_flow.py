@@ -1,6 +1,6 @@
 """CLI tests for ``eaasp flow``.
 
-Per PLATFORM_OBSERVABILITY_DESIGN.md §3.5 / §3.6. Exercises the
+Per OBSTACK_DESIGN.md §3.5 / §3.6. Exercises the
 ``timeline`` / ``summary`` / ``evaluate`` subcommands end-to-end
 via the project's ``install_mock`` fixture (httpx MockTransport
 plugged into the existing ``ServiceClient`` factory). The ``watch``

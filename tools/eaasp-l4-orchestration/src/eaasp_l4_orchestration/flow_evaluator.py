@@ -1,6 +1,6 @@
 """Business Flow Evaluator — production-grade evaluate/optimize capability.
 
-Per v3.15.4 (PLATFORM_OBSERVABILITY_DESIGN.md §3.7). Computes the
+Per v3.15.4 (OBSTACK_DESIGN.md §3.7). Computes the
 "evaluate" half of the four production-grade capabilities: business
 flow completion rate, layer-failure heatmap, and cross-layer
 optimization suggestions.

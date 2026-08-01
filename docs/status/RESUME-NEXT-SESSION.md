@@ -302,7 +302,7 @@ to guarantee .env values reached the process.
 
 | Commit | Phase | 内容 | Tests |
 |---|---|---|---|
-| `e08d9bd9` | v3.15.0+ | PLATFORM_OBSERVABILITY_DESIGN.md + circuit_breaker + opa_sidecar | design + 6 |
+| `e08d9bd9` | v3.15.0+ | OBSTACK_DESIGN.md + circuit_breaker + opa_sidecar | design + 6 |
 | `a18a22ba` | v3.15.0 | L3 OTel metrics baseline (observability.py) | 8 |
 | `87496d65` | v3.15.1 | eaasp_common.business_flow (BusinessKey + contextvar 传播) | 24 |
 | `61213433` | v3.15.2 | flow_timeline (跨层时间线聚合 + status 推断) | 23 |
@@ -346,7 +346,7 @@ to guarantee .env values reached the process.
 
 ### Files added/modified (by phase, for quick orientation)
 
-- `docs/design/EAASP/PLATFORM_OBSERVABILITY_DESIGN.md` — 完整设计（v3.15.0/1/2/3/4/5 phases）
+- `docs/design/EAASP/OBSTACK_DESIGN.md` — 完整设计（v3.15.0/1/2/3/4/5 phases）
 - `tools/eaasp-common/src/eaasp_common/business_flow.py` — BusinessKey + contextvar
 - `tools/eaasp-l3-governance/src/eaasp_l3_governance/observability.py` — L3 OTel
 - `tools/eaasp-l3-governance/src/eaasp_l3_governance/circuit_breaker.py` — 3-state CB

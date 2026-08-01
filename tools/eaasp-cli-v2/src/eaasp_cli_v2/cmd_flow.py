@@ -1,6 +1,6 @@
 """``eaasp flow`` subcommand — v3.15.4d business-flow access.
 
-Per PLATFORM_OBSERVABILITY_DESIGN.md §3.5 / §3.6. Provides the
+Per OBSTACK_DESIGN.md §3.5 / §3.6. Provides the
 end-user CLI surface for the cross-layer business-flow module:
 
 - ``eaasp flow timeline --key <key>`` — print the cross-layer timeline

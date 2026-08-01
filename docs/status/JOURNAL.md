@@ -20,7 +20,7 @@
 - v3.11.2 5-stage approval state machine + 5 governance.approval.* SSE events 已 SHIPPED，V310-APPROVAL-01 已 CLOSED [c92513ca]。
 
 ## 2026-08-01
-- v3.15 platform observability 设计文档 + L3 OPA sidecar/circuit-breaker 底座已提交 [e08d9bd9]。原 PHASE_3_5_DESIGN.md 范围过窄(L3 OPA)被替换为 PLATFORM_OBSERVABILITY_DESIGN.md(跨 L0–L5 平台级 observe/trace/evaluate/optimize)。v3.15.0–v3.15.4 phases 已 scope 但未实现。
+- v3.15 platform observability 设计文档 + L3 OPA sidecar/circuit-breaker 底座已提交 [e08d9bd9]。原 PHASE_3_5_DESIGN.md 范围过窄(L3 OPA)被替换为 OBSTACK_DESIGN.md(跨 L0–L5 平台级 observe/trace/evaluate/optimize)。v3.15.0–v3.15.4 phases 已 scope 但未实现。
 - v3.15.0 L3 OTel metrics baseline 已 SHIPPED: observability.py (no-op 默认 + stdout/otlp 可选) + 8 tests PASS [a18a22ba]。L1/L2/L4 同模式接入待补。
 - v3.15.1 BusinessFlow 核心已 SHIPPED: eaasp_common.business_flow (BusinessKey + 序列化/反序列化 + contextvar 传播) + 24/24 tests PASS [87496d65]。设计文档重排为业务流为主线, v3.15.1-4 重排, 业务流 vertical cross-layer binding 是核心。
 - v3.15.2 业务流时间线聚合已 SHIPPED: flow_timeline.py (BusinessFlowEvent + Summary + LayerReader + status 推断) + 23/23 tests PASS [61213433]。L4 REST 路由 + L2/L3 reader 接线为 v3.15.3。

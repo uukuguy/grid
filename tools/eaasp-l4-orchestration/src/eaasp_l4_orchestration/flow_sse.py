@@ -1,6 +1,6 @@
 """Business Flow SSE — continuous cross-layer event subscription.
 
-Per v3.15.3 (PLATFORM_OBSERVABILITY_DESIGN.md §3.6). Provides:
+Per v3.15.3 (OBSTACK_DESIGN.md §3.6). Provides:
 
 - ``FlowPublisher`` — in-process pub/sub that the L4 cross-layer
   instrumentation calls when a new event lands for a business flow.

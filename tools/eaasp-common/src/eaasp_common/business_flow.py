@@ -1,6 +1,6 @@
 """EAASP Business Flow — vertical cross-layer business-context binding.
 
-Per v3.15.1 design (PLATFORM_OBSERVABILITY_DESIGN.md §3.1 / §3.4). The
+Per v3.15.1 design (OBSTACK_DESIGN.md §3.1 / §3.4). The
 business flow is the **logical spine** of platform observability: a
 single end-to-end business request binds together every cross-layer
 event (LLM call, tool call, governance decision, memory write, SSE

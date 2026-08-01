@@ -1,6 +1,6 @@
 """Tests for observability.py — v3.15.0 platform metrics baseline for L3.
 
-Per PLATFORM_OBSERVABILITY_DESIGN.md §3.2. Covers:
+Per OBSTACK_DESIGN.md §3.2. Covers:
 - No-op mode (default) — module imports without OTel
 - get_meter() / get_tracer() return no-op handles
 - record_opa_decision() does not raise in no-op mode

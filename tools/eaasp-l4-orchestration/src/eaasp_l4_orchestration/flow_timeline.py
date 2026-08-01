@@ -1,6 +1,6 @@
 """Business Flow Timeline — vertical cross-layer aggregation.
 
-Per v3.15.2 (PLATFORM_OBSERVABILITY_DESIGN.md §3.5). Given a
+Per v3.15.2 (OBSTACK_DESIGN.md §3.5). Given a
 ``BusinessKey``, walk every cross-layer table and assemble a single
 chronological timeline of events, plus a summary that surfaces the
 business-flow status (running / succeeded / failed / aborted) and

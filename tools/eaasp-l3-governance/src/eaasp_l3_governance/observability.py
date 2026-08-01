@@ -1,6 +1,6 @@
 """EAASP L3 governance observability — OpenTelemetry metrics + tracing.
 
-Per v3.15.0 (PLATFORM_OBSERVABILITY_DESIGN.md §3.2 / §3.3). Provides:
+Per v3.15.0 (OBSTACK_DESIGN.md §3.2 / §3.3). Provides:
 
 1. **Metrics** — OTel ``Counter`` and ``Histogram`` for the 5 key indicator
    families defined in the design:
@@ -212,7 +212,7 @@ def get_tracer() -> Any:
 # ─── L3-specific metric helpers ─────────────────────────────────────────────
 # These wrap ``get_meter()`` so call sites read like L3-domain operations
 # rather than raw OTel calls. The metric NAMES are part of the platform
-# contract per PLATFORM_OBSERVABILITY_DESIGN.md §3.2 — DO NOT rename
+# contract per OBSTACK_DESIGN.md §3.2 — DO NOT rename
 # without a coordinated update across L1/L2/L4.
 
 _LABELS_DECISION = ("decision", "risk_level", "mode")
