@@ -10,6 +10,60 @@
 
 ---
 
+## 0. Goal 实现 Status（持续更新对齐 goal 的硬抓手）
+
+> 本节是唯一与"goal 闭环进度"绑定的视图，更新本节 = 更新 goal 状态。
+> 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
+> 最近一次 update: 2026-08-01, OBSTACK-2 commit。
+
+### 0.1 4 大维度 × 子项状态
+
+| 维度 | 子项 | 状态 | Commit / Task |
+|---|---|---|---|
+| **Observe** | L1 Rust `observability/` 镜像 | 🚧 planned | #64 pending |
+| **Observe** | L2 memory_engine observability.py | 🚧 planned | #65 pending |
+| **Observe** | L3 governance observability.py (OTel metrics + tracer) | ✅ shipped | `a18a22ba` |
+| **Observe** | L4 orchestration observability.py | 🚧 planned | #66 pending |
+| **Observe** | L0 proto BusinessKey message + 21 RPC 全字段挂载 | 🚧 planned | #67 pending |
+| **Trace** | L1 Rust `business_flow.rs` (Rust 镜像 + tracing::Span) | 🚧 planned | #68 pending |
+| **Trace** | common `BusinessFlow` 核心 (Python) | ✅ shipped | `87496d65` (24/24 tests) |
+| **Trace** | L2 memory_files + anchors `business_key` 列 | ✅ shipped | `2b3f2680` |
+| **Trace** | L3 governance_decisions + telemetry_events `business_key` 列 | ✅ shipped | `d2667707` |
+| **Trace** | L4 sessions + event_room_events `business_key` 列 | 🚧 planned | #69 pending |
+| **Trace** | 5 层 metadata 注入 + 跨进程 contextvar 透传 | 🚧 partial (L3 已接, L1/L2/L4/L5 未接) | #52 in_progress |
+| **Evaluate** | 业务流时间线聚合 `flow_timeline.py` | ✅ shipped | `61213433` (23/23 tests) |
+| **Evaluate** | 业务流持续订阅 `flow_sse.py` (FlowEventBus) | ✅ shipped | `d2667707` (9/9 tests) |
+| **Evaluate** | 业务流 REST + SSE API (`flow_api.py`) | ✅ shipped | `a80f8cc9` (8/8 tests) |
+| **Evaluate** | 业务流评估器 `flow_evaluator.py` | ✅ shipped | `098fb1f1` (15/15 tests) |
+| **Evaluate** | `eaasp flow` CLI (timeline/summary/watch/evaluate 4 verbs) | ✅ shipped | `05e3577f` (8/8 tests) |
+| **Evaluate** | 4 SLA 基线测试 (L1/L2/L3/L4) + 回归保护 | 🚧 planned | #70 pending |
+| **Optimize** | 评估器生成 `OptimizationHint` (纯函数输出) | ✅ shipped | `098fb1f1` |
+| **Optimize** | A/B 路由 (L4 入口按达成率选 L1 runtime) | ❌ not_started | #71 pending |
+| **Optimize** | 告警触发 (达成率跌破 90%) | ❌ not_started | #71 pending |
+| **Optimize** | 资源调度 (L3 OPA timeout → docker-compose scale) | ❌ not_started | #71 pending |
+| **Verify** | v3.15.5 live walkthrough (threshold-calibration skill) | ❌ not_started | #72 pending |
+| **Verify** | `make v3.10-spec-audit` + `make rbac-audit` dual-gate | 🚧 pending | #72 pending |
+| **Verify** | tag `v3.15` force-push | 🚧 pending | #72 pending |
+
+### 0.2 Goal 闭环判据
+
+- **Observe 闭环**：5 层 (L0/L1/L2/L3/L4) 全部有 observability 模块 — 当前 **1/5 = 20%**
+- **Trace 闭环**：L0 proto + 21 RPC 字段 + 5 层 metadata 注入 + L1 Rust + L4 schema — 当前 **3/5 = 60% (Python 3 层 ✅, L0 + L1 Rust 未)**
+- **Evaluate 闭环**：timeline + 评估器 + SLA 基线 — 当前 **5/6 = 83%**（仅 SLA 缺）
+- **Optimize 闭环**：hint 生成 + A/B + 告警 + 调度 — 当前 **1/4 = 25%**（仅 hint 生成）
+- **总判定**: 完成 0.25–0.83 不等;Optimize 闭环与 Observe 闭环是 goal true sealer
+
+### 0.3 Milestone Close Gate（v3.15.5 必通才能 close v3.15 + tag v3.15）
+
+1. 4 大维度全部 COMPLETE（§0.1 全 ✅）
+2. `make v3.10-spec-audit` PASS（含 OBSTACK_DESIGN.md + OBSTACK_INDEX.md 双引用）
+3. `make rbac-audit` PASS（保留现有 134 路由 + 业务流路由增量）
+4. 真跑 threshold-calibration skill 到 production，6 层 business_key 都有事件
+5. `docs/status/PRODUCTION_USABILITY_2026-08-XX.md` walkthrough 证据落地
+6. tag `v3.15` force-push + 4 个 deferred item 登记到 `DEFERRED_LEDGER.md`（虽未实现但不阻塞 close）
+
+---
+
 ## 1. Context / 背景
 
 ### 1.1 关键设计原则（v3.15 第二次方向校准 — 2026-08-01）
@@ -322,6 +376,59 @@ Per L3 已有 [a18a22ba] commit：默认 no-op，stdout/otlp 可选，命名规�
 - **不**需要新 ADR — 全部在 ADR-V2-024（双轴）+ ADR-V2-034（OPA 拓扑）框架下
 - v3.15.5 收口时记 `V315-BUSINESS-FLOW-01` / `V315-OBSERVABILITY-01` / `V315-SLA-01` / `V315-OPT-01` 4 个 deferred items
 
+### 4.4 Component Inventory（goal-实现对齐的视角）
+
+> 每个 file 一个条目,impl/partial/planned 让"OBSTACK 哪部分真在哪"一目了然。本节与 §0.1 状态表**冗余编码是故意**的,§0.1 看进度,§4.4 看代码位置。
+
+#### Observe
+
+| Layer | File | State | Lines |
+|---|---|---|---|
+| L3 | `tools/eaasp-l3-governance/src/eaasp_l3_governance/observability.py` | **impl** | Counter/Histogram/UpDownCounter + Tracer + stdout/otlp 可选,no-op 默认 |
+| L1 | `crates/grid-runtime/src/observability/` | **planned** | #64 |
+| L2 | `tools/eaasp-l2-memory-engine/src/eaasp_l2_memory_engine/observability.py` | **planned** | #65 |
+| L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/observability.py` | **planned** | #66 |
+| L0 | `proto/eaasp/runtime/v2/common.proto` (`BusinessKey` message + 21 RPC field) | **planned** | #67 |
+
+#### Trace (Business Flow)
+
+| Layer | File | State | Lines |
+|---|---|---|---|
+| common | `tools/eaasp-common/src/eaasp_common/business_flow.py` | **impl** | `BusinessKey` dataclass + serialize/parse + contextvar 传播 |
+| L3 schema | `tools/eaasp-l3-governance/src/eaasp_l3_governance/db.py` (`_add_business_key_column`) | **impl** | governance_decisions + telemetry_events |
+| L2 schema | `tools/eaasp-l2-memory-engine/src/eaasp_l2_memory_engine/db.py` (`_add_business_key_column`) | **impl** | memory_files + anchors |
+| L4 schema | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/db.py` (sessions + event_room_events) | **planned** | #69 |
+| L1 Rust | `crates/grid-runtime/src/business_flow.rs` | **planned** | #68 |
+
+#### Evaluate
+
+| Layer | File | State | Lines |
+|---|---|---|---|
+| L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_timeline.py` | **impl** | BusinessFlowEvent + Summary + LayerReader + assemble_* |
+| L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_sse.py` | **impl** | FlowPublisher + FlowEventBus + subscribe_to_business_flow |
+| L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_api.py` | **impl** | 4 REST endpoints (timeline/summary/events-stream/evaluate) |
+| L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_evaluator.py` | **impl** | `evaluate_business_flows` + `OptimizationHint` 生成 |
+| CLI | `tools/eaasp-cli-v2/src/eaasp_cli_v2/cmd_flow.py` | **impl** | `eaasp flow` subcommand (4 verbs) |
+| Test | `tests/business_flow/test_*.py` (timeline_e2e/interrupted/sse_subscribe/evaluator) | **planned** | #70 |
+| Test | `tests/platform_sla/test_{grid_runtime_llm,l2_memory,l3_opa,l4_orchestration}.py` (4 SLA) | **planned** | #70 |
+
+#### Optimize
+
+| File | State | Notes |
+|---|---|---|
+| `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_evaluator.py` (hint 生成) | **impl** | pure-function,无副作用 |
+| `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/ab_router.py` (A/B 路由) | **planned** | #71; 替换 L4 select_runtime 路径 |
+| `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/alert_manager.py` (告警触发) | **planned** | #71; 订阅 evaluator 周期输出 |
+| `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/resource_scheduler.py` (资源调度) | **planned** | #71; 接 L3 OPA metrics 超阈值 scale |
+
+#### Verify & Authority
+
+| File | Role | State |
+|---|---|---|
+| `docs/design/EAASP/OBSTACK_DESIGN.md` | **权威架构文档 (this file)** | impl,持续更新中 |
+| `docs/design/EAASP/OBSTACK_INDEX.md` | 50 行主题索引 | **planned** (#75/OBSTACK-3) |
+| `docs/status/PRODUCTION_USABILITY_2026-08-XX.md` | v3.15 walkthrough evidence | **planned** (#72) |
+
 ---
 
 ## 5. Verification / 验证
@@ -388,3 +495,19 @@ v3.15 是**第一个跨层业务流 milestone**——把之前各层独立做的
 - 2026-08-01: 初稿聚焦 L3 OPA，被用户纠正为"应更技术视角"
 - 2026-08-01: 修订为"跨 L0–L5 平台级"，v3.15.0 metrics 底座 SHIPPED [a18a22ba]
 - 2026-08-01: 用户再次纠正"应是纵向业务流绑定，不是各层散装"，当前版本增 §3.1 业务流概念 + 重排 v3.15.1-4
+
+---
+
+## 9. Changelog（OBSTACK_DESIGN.md 自身修订记录）
+
+> append-only,与工作过程文档（JOURNAL）平行但不同:
+> - JOURNAL = "何时发生"（commit / milestone close）
+> - 本节 = "权威文档本身长什么样"的修订（章节增删 / 视角重排 / 元信息更新）
+
+| Date | Commit | Change |
+|---|---|---|
+| 2026-08-01 | `e08d9bd9` | 初稿：聚焦 L3 OPA，后被用户纠正 |
+| 2026-08-01 | `b1c423ec` | 跨 L0–L5 平台级重排,v3.15.0 metrics 底座 SHIPPED |
+| 2026-08-01 | `87496d65` | 重排为业务流主线 (§3.1 + v3.15.1–4 重排) |
+| 2026-08-01 | `af0f21f6` | rename: `PLATFORM_OBSERVABILITY_DESIGN.md` → `OBSTACK_DESIGN.md` (+12 refs) |
+| 2026-08-01 | (this commit, OBSTACK-2) | 新增 §0 Goal Status + §4.4 Component Inventory + §9 Changelog 3 章,§1–§8 不动 |
