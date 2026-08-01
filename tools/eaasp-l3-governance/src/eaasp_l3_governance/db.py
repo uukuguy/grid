@@ -165,6 +165,34 @@ async def init_db(path: str) -> None:
         # defensively.
         await _create_governance_decisions_indexes(path)
 
+    # v3.15.1 — V315-BUSINESS-FLOW-01 — add ``business_key`` column to
+    # ``governance_decisions`` and ``telemetry_events`` so the L3 ledger
+    # can be joined into the cross-layer business-flow timeline (see
+    # ``eaasp-l4-orchestration/flow_timeline.py``). The column is
+    # nullable for backwards compatibility (events that pre-date the
+    # business-flow design have no business key).
+    await _add_business_key_column(path, "governance_decisions")
+    await _add_business_key_column(path, "telemetry_events")
+
+
+async def _add_business_key_column(path: str, table: str) -> None:
+    """Idempotent ALTER TABLE ADD COLUMN for the v3.15.1 business_key.
+
+    Mirrors the pattern used by the v3.11.2 ``stage`` column add
+    (PRAGMA table_info probe + conditional ALTER). Older databases
+    that lack the column get it; freshly-created databases (where
+    the inline SCHEMA already includes the column) are no-ops.
+    """
+    async with aiosqlite.connect(path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(f"PRAGMA table_info({table})")
+        columns = [row[1] async for row in cur]
+        if "business_key" not in columns:
+            await db.execute(
+                f"ALTER TABLE {table} ADD COLUMN business_key TEXT"
+            )
+            await db.commit()
+
 
 async def migrate_decision_await_human(path: str) -> bool:
     """Idempotently widen the CHECK constraint on governance_decisions.decision.
