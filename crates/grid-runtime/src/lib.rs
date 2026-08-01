@@ -8,6 +8,7 @@
 //!
 //! - `contract` — RuntimeContract trait + Rust-native types (P1-P5 priority blocks)
 //! - `session_payload` — `SessionPayload::trim_for_budget()` helper
+//! - `business_flow` — `BusinessKey` + per-task propagation (v3.15 OBSTACK)
 //! - `harness` — GridHarness: impl RuntimeContract via grid-engine
 //! - `service` — gRPC service mapping to v2 RuntimeService
 //! - `telemetry` — EAASP telemetry event collection and conversion
@@ -19,6 +20,7 @@
 //! v2 collapses v1's `common`/`runtime` split into one flat package and
 //! introduces the 5-block structured SessionPayload (P1-P5) per spec §8.6.
 
+pub mod business_flow;
 pub mod config;
 pub mod contract;
 pub mod harness;
