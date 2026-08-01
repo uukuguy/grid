@@ -77,3 +77,6 @@
 
 ## 2026-08-01 (OBSTACK 重构 — 1/5)
 - 19:35 OBSTACK-1 commit: `git mv` PLATFORM_OBSERVABILITY_DESIGN.md → OBSTACK_DESIGN.md,12 处字符串引用同步替换(8 Python 文件 + 2 status doc);rename detection 100%,`grep PLATFORM_OBSERVABILITY_DESIGN` 0 残留,`grep OBSTACK_DESIGN` 13 hits(1 file + 12 refs);12 files / 13 ins 13 del;不动 §1–§8 内容也不动代码 logic,纯 rename + propagation,为 OBSTACK-2/3/4/5 提供稳定基线[af0f21f6]。
+
+## 2026-08-01 (OBSTACK 重构 — 2/5)
+- 19:51 OBSTACK-2 commit: OBSTACK_DESIGN.md 追加 3 章 —— §0 Goal 实现 Status(4 维度 × 子项状态表 + 闭环判据 + v3.15.5 close gate 6 件事)、§4.4 Component Inventory(file-level 视角)、§9 Changelog(文档自身修订记录);1 file / +123 lines;不动 §1–§8 / §5 编号完整保留(grep heading 验证连续),不动 code/tests;权威文档从此自带"实现状态"维度,不必重读 git log + task list 就能查 OBSTACK 进度[b5a1246a]。
