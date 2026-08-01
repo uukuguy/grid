@@ -18,6 +18,9 @@
 ## 2026-07-28
 - v3.14 EAASP Phase 6 — Ontology/Marketplace/SDK bootstrap (EVO final phase) on main [b878e7b2]
 - v3.11.2 5-stage approval state machine + 5 governance.approval.* SSE events 已 SHIPPED，V310-APPROVAL-01 已 CLOSED [c92513ca]。
+
+## 2026-08-01
+- v3.15 platform observability 设计文档 + L3 OPA sidecar/circuit-breaker 底座已提交 [e08d9bd9]。原 PHASE_3_5_DESIGN.md 范围过窄(L3 OPA)被替换为 PLATFORM_OBSERVABILITY_DESIGN.md(跨 L0–L5 平台级 observe/trace/evaluate/optimize)。v3.15.0–v3.15.4 phases 已 scope 但未实现。
 - v3.11.3 single-point live walkthrough 已 SHIPPED，SSE/OPA/audit 完整证据 PRODUCTION_USABILITY_2026-07-27，tag v3.11 已建立 [c3d1d789]。
 - v3.12 milestone bootstrap 已 commit (EAASP Phase 4 A2A Router + Event Room + multi-session) [ba99b851]。
 - v3.12.0 audit.py CHECK constraint patch 已 SHIPPED，V311-AUDIT-01 已 CLOSED [c8a5d391]。
