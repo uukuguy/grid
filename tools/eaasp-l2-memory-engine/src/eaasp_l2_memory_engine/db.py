@@ -207,6 +207,32 @@ async def init_db(path: str) -> None:
         db.row_factory = aiosqlite.Row
         await apply_embedding_migration(db)
 
+    # v3.15.1 — V315-BUSINESS-FLOW-01 — add ``business_key`` column to
+    # ``memory_files`` and ``anchors`` so the L2 ledger can be joined
+    # into the cross-layer business-flow timeline (see
+    # ``eaasp-l4-orchestration/flow_timeline.py``). The column is
+    # nullable for backwards compatibility (writes that pre-date the
+    # business-flow design carry NULL).
+    await _add_business_key_column(path, "memory_files")
+    await _add_business_key_column(path, "anchors")
+
+
+async def _add_business_key_column(path: str, table: str) -> None:
+    """Idempotent ALTER TABLE ADD COLUMN for the v3.15.1 business_key.
+
+    Mirrors the L3 governance pattern (PRAGMA table_info probe +
+    conditional ALTER). Existing rows keep NULL.
+    """
+    async with aiosqlite.connect(path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(f"PRAGMA table_info({table})")
+        columns = [row[1] async for row in cur]
+        if "business_key" not in columns:
+            await db.execute(
+                f"ALTER TABLE {table} ADD COLUMN business_key TEXT"
+            )
+            await db.commit()
+
 
 async def connect(path: str) -> aiosqlite.Connection:
     """Open a connection with row factory set."""
