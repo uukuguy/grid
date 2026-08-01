@@ -25,6 +25,7 @@
 - v3.15.1 BusinessFlow 核心已 SHIPPED: eaasp_common.business_flow (BusinessKey + 序列化/反序列化 + contextvar 传播) + 24/24 tests PASS [87496d65]。设计文档重排为业务流为主线, v3.15.1-4 重排, 业务流 vertical cross-layer binding 是核心。
 - v3.15.2 业务流时间线聚合已 SHIPPED: flow_timeline.py (BusinessFlowEvent + Summary + LayerReader + status 推断) + 23/23 tests PASS [61213433]。L4 REST 路由 + L2/L3 reader 接线为 v3.15.3。
 - v3.15.3a L3 business_key migration + L4 FlowEventBus 已 SHIPPED: L3 governance_decisions/telemetry_events 加 business_key 列 (idempotent ALTER), L4 flow_sse.py (跨层 pub/sub) + 9/9 tests PASS [d2667707]。L2 migration + api.py SSE 路由 + 评估器为下批。
+- v3.15.3c 业务流评估器已 SHIPPED: flow_evaluator.py (达成率 + 中断点热力 + 跨层优化建议) + 15/15 tests PASS [098fb1f1]。L4 business flow 模块 47/47 tests (timeline 23 + sse 9 + evaluator 15)。L2 migration + api.py SSE 路由 + live walkthrough 为下批。
 - v3.11.3 single-point live walkthrough 已 SHIPPED，SSE/OPA/audit 完整证据 PRODUCTION_USABILITY_2026-07-27，tag v3.11 已建立 [c3d1d789]。
 - v3.12 milestone bootstrap 已 commit (EAASP Phase 4 A2A Router + Event Room + multi-session) [ba99b851]。
 - v3.12.0 audit.py CHECK constraint patch 已 SHIPPED，V311-AUDIT-01 已 CLOSED [c8a5d391]。
