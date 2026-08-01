@@ -83,3 +83,6 @@
 
 ## 2026-08-01 (OBSTACK 重构 — 3/5)
 - 19:59 OBSTACK-3 commit: `docs/design/EAASP/OBSTACK_INDEX.md` 创建(62 行 5 张表:9 个 OBSTACK_DESIGN.md 章节定位 + 4 个工作过程文档职责边界 + 3 个关联 ADR V2-024/V2-029/V2-034 + Goal 闭环快照镜像 §0 + 何时更新 rule);`ls adrs/ADR-V2-024,029,034` 全 hit;`wc -l` 50 行 target 略超过(9 章节表占位置);权威文档保持纯(pure what & why),入口由索引承载(where to jump)[13b418c7]。
+
+## 2026-08-01 (OBSTACK 重构 — 4/5)
+- 20:12 OBSTACK-4 commit: status 三件套(其中 2 件)加 OBSTACK 主题权威文档回链 —— CURRENT-STATE.md L12 加 v3.15 主题域权威文档 bullet(1 行角色描述 + §0 §4.4 角度)+ RESUME-NEXT-SESSION.md L79-80 在 Key References 表加 2 行(OBSTACK_DESIGN 标 Authority,OBSTACK_INDEX 标 companion);2 files / 3 ins 0 del;JOURNAL.md 不用动(7 处 back-ref 已在 OBSTACK-1/2/3 journal 段);OBSTACK_INDEX.md 现在双向链:索引 → status docs + status docs → 索引[52964e8e]。
