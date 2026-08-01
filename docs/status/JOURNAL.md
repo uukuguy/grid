@@ -86,3 +86,6 @@
 
 ## 2026-08-01 (OBSTACK 重构 — 4/5)
 - 20:12 OBSTACK-4 commit: status 三件套(其中 2 件)加 OBSTACK 主题权威文档回链 —— CURRENT-STATE.md L12 加 v3.15 主题域权威文档 bullet(1 行角色描述 + §0 §4.4 角度)+ RESUME-NEXT-SESSION.md L79-80 在 Key References 表加 2 行(OBSTACK_DESIGN 标 Authority,OBSTACK_INDEX 标 companion);2 files / 3 ins 0 del;JOURNAL.md 不用动(7 处 back-ref 已在 OBSTACK-1/2/3 journal 段);OBSTACK_INDEX.md 现在双向链:索引 → status docs + status docs → 索引[52964e8e]。
+
+## 2026-08-01 (OBSTACK 重构 — 收尾 / 5-commit 总登记)
+- 20:18 OBSTACK-5 commit: 5-commit 重构总登记落定。**改了什么**:OBSTACK_DESIGN.md §9 Changelog 增 3 行(OBSTACK-3 INDEX + OBSTACK-4 status back-links + OBSTACK-5 自身)+ §0 元信息"最近一次 update"刷到 OBSTACK-5。**整体作用**:把之前 5 个 mid-step journal(OBSTACK-1/2/3/4 + 本节)与权威文档 §9 一次性对齐,§0+§4.4+§9 三章 + OBSTACK_INDEX 形成完整 OBSTACK 文档体系,读者从此不再需要交叉查 git log + task list 也能查 OBSTACK 实现状态。**怎么用**:OBSTACK_DESIGN.md §0 看当前进展,§4.4 找代码位置,OBSTACK_INDEX.md 跳转权威/工作/ADR 三类文档,OBSTACK_DESIGN.md §9 看文档本身怎么改。**未做的事**:0 代码改动 / 0 test 改动 / §1–§8 不动。**5-commit 链**:`af0f21f6`(rename)→`b5a1246a`(§0+§4.4+§9)→`13b418c7`(INDEX)→`52964e8e`(status back-links)→本 commit(Changelog 收尾)。

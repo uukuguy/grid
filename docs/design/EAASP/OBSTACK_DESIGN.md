@@ -14,7 +14,7 @@
 
 > 本节是唯一与"goal 闭环进度"绑定的视图，更新本节 = 更新 goal 状态。
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
-> 最近一次 update: 2026-08-01, OBSTACK-2 commit。
+> 最近一次 update: 2026-08-01, OBSTACK-5 commit (5/5 重构收尾)。
 
 ### 0.1 4 大维度 × 子项状态
 
@@ -510,4 +510,7 @@ v3.15 是**第一个跨层业务流 milestone**——把之前各层独立做的
 | 2026-08-01 | `b1c423ec` | 跨 L0–L5 平台级重排,v3.15.0 metrics 底座 SHIPPED |
 | 2026-08-01 | `87496d65` | 重排为业务流主线 (§3.1 + v3.15.1–4 重排) |
 | 2026-08-01 | `af0f21f6` | rename: `PLATFORM_OBSERVABILITY_DESIGN.md` → `OBSTACK_DESIGN.md` (+12 refs) |
-| 2026-08-01 | (this commit, OBSTACK-2) | 新增 §0 Goal Status + §4.4 Component Inventory + §9 Changelog 3 章,§1–§8 不动 |
+| 2026-08-01 | (OBSTACK-2) `b5a1246a` | 新增 §0 Goal Status + §4.4 Component Inventory + §9 Changelog 3 章,§1–§8 不动 |
+| 2026-08-01 | (OBSTACK-3) `13b418c7` | 新增 companion `OBSTACK_INDEX.md` (62 行 5 张表,主题入口) |
+| 2026-08-01 | (OBSTACK-4) `52964e8e` | status 三件套回链:CURRENT-STATE.md L12 主题域权威 bullet + RESUME-NEXT-SESSION.md Key References 双行 |
+| 2026-08-01 | (this commit, OBSTACK-5) | 收尾:JOURNAL 5-commit OBSTACK 重构总登记 + §9 Changelog 增 3 行 |
