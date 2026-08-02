@@ -55,6 +55,13 @@ chrono = { version = "0.4", features = ["serde"] }
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+# OBSTACK §3.3 — platform-level Metrics baseline (v3.15.0 L1 mirror).
+# OpenTelemetry provides the SDK for L1 / Rust runtimes; metrics follow
+# the same `<layer>.<entity>.<measurement>` naming contract as the
+# Python mirrors in tools/eaasp-{l2,l3,l4}-*/observability.py.
+opentelemetry = { version = "0.24", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.24", features = ["rt-tokio", "metrics", "trace"] }
 # Environment variables
 dotenvy = "0.15"
 # Concurrent collections
