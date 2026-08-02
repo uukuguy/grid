@@ -3308,6 +3308,7 @@ dependencies = [
  "grid-engine",
  "grid-sandbox",
  "grid-types",
+ "once_cell",
  "opentelemetry",
  "opentelemetry_sdk",
  "prost",
