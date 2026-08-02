@@ -14,9 +14,9 @@
 
 > 本节是唯一与"goal 闭环进度"绑定的视图，更新本节 = 更新 goal 状态。
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
-> 最近一次 update: 2026-08-02, V315-CLOSE-01 milestone 收尾 (22/23 = 95.7% 闭环率 — Observe 4/5 + Trace 5/5 ✅ + Evaluate 6/6 ✅ + Optimize 4/4 ✅ + Verify 3/3 ✅)。
+> 最近一次 update: 2026-08-02, V315-L1-OTEL-FULL-01 收尾 (**23/23 = 100% OBSTACK 闭环** — Observe 5/5 ✅ + Trace 5/5 ✅ + Evaluate 6/6 ✅ + Optimize 4/4 ✅ + Verify 3/3 ✅)。
 
-### 0.1 4 大维度 × 子项状态（2026-08-02 V315-CLOSE-01 milestone close）
+### 0.1 4 大维度 × 子项状态（2026-08-02 V315-L1-OTEL-FULL-01 — 23/23 = 100% OBSTACK 闭环）
 
 | 维度 | 子项 | 状态 | Commit / Test |
 |---|---|---|---|
@@ -24,7 +24,7 @@
 | **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
 | **Observe** | L3 governance observability.py (OTel metrics + tracer) | ✅ shipped | `a18a22ba` (8/8 tests) |
 | **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
-| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | 🚧 deferred | **V315-L1-OTEL-FULL-01** |
+| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ shipped | `e16686d4` (7/7 tests; PeriodicReader + InMemoryExporter + SdkMeterProvider) |
 | **Trace** | L0 proto BusinessKey message + 13 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |
 | **Trace** | L2 memory_files + anchors `business_key` column | ✅ shipped | `2b3f2680` |
@@ -47,25 +47,25 @@
 | **Verify** | `make rbac-audit` PASS (134 routes; + 4 business-flow routes mounted this session) | ✅ shipped | `a122fbf5` |
 | **Verify** | tag `v3.15` annotated push to origin/main | ✅ shipped | (post-V315-WALK-01, 2026-08-01) |
 
-### 0.2 Goal 闭环判据（2026-08-02 V315-CLOSE-01 milestone close）
+### 0.2 Goal 闭环判据（2026-08-02 V315-L1-OTEL-FULL-01 — OBSTACK 100%）
 
 | 维度 | sub-criterion | 闭环率 |
 |---|---|---|
-| Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **4/5 (80%)** — L3 + L2 + L4 + L1 Rust minimal-viable ✅；L1 OTel SDK full wiring deferred to V315-L1-OTEL-FULL-01 |
+| Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **5/5 (100%) ✅** — L1/L2/L3/L4 observability modules + L1 OTel SDK real wiring (PeriodicReader + SdkMeterProvider + InMemoryExporter, `e16686d4`) |
 | Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **5/5 (100%) ✅** — proto field 100, 4 schema migrations, Rust `business_flow.rs` mirror, `tokio::task_local!` propagation |
 | Evaluate | timeline + 评估器 + SLA baselines + 4 slave tests | **6/6 (100%) ✅** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines + `eaasp flow` aggregator |
 | Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15) |
 | Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + V315-WALK-01 REST walkthrough evidence in `docs/status/PRODUCTION_USABILITY_2026-08-02-walk.md` + tag `v3.15` annotated push |
 
-**总判定: 22/23 = 95.7%** — goal "OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环" **达到 95+ bar**。剩余 1 sub-criterion is V315-L1-OTEL-FULL-01 (L1 OTel SDK full wiring for real Counter / Histogram / UpDownCounter handles — not blocking; the tracing::debug! mirror satisfies observability integration tests).
+**总判定: 23/23 = 100%** — OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅
 
 ### 0.3 Milestone Close Gate（v3.15.5 必通才能 close v3.15 + tag v3.15）
 
-1. 5 大维度: Observe 4/5 + Trace 5/5 + Evaluate 6/6 + Optimize 4/4 + Verify 3/3 = **22/23 = 95.7% ✅**
-2. `make v3.10-spec-audit` PASS（38 rows; includes `OBSTACK_DESIGN.md` + `OBSTACK_INDEX.md` references; spec audit refreshed post v3.15.4a/4b L0 proto attach）
-3. `make rbac-audit` PASS（134 routes; 4 business-flow routes added in v3.15.4b + L4 mount fix this session）
-4. `scripts/v315-walk-services.sh` boots 5 services + REST walkthrough against business_key wire format (CLI path deferred due to pre-existing circular-import bug; REST path is sufficient evidence — equivalent surface to `eaasp flow`)
-5. `docs/status/PRODUCTION_USABILITY_2026-08-02-walk.md` walkthrough 证据落地（188 lines; boot script + 4 health probes + openapi spec + business_key round-trip + dual-gate）
+1. 5 大维度: Observe 5/5 + Trace 5/5 + Evaluate 6/6 + Optimize 4/4 + Verify 3/3 = **23/23 = 100% ✅**
+2. `make v3.10-spec-audit` PASS（38 rows; OBSTACK_DESIGN.md + OBSTACK_INDEX.md dual-referenced; post v3.15.4a/4b + L0 proto attach + L1 OTel SDK full wiring `e16686d4`）
+3. `make rbac-audit` PASS（134 routes; 4 business-flow routes + L4 api.py mount fix `e6403c6e`）
+4. `scripts/v315-walk-services.sh` boots 5 services + REST walkthrough evidence `PRODUCTION_USABILITY_2026-08-02-walk.md` (188 lines; boot script + 4 health probes + openapi spec + business_key round-trip)
+5. L1 OTel SDK full wiring `e16686d4` — 7/7 observability tests + 85/85 grid-runtime total; record_* now lands in real Counter / Histogram / UpDownCounter handles
 6. tag `v3.15` annotated push to origin/main
 6. tag `v3.15` force-push + 4 个 deferred item 登记到 `DEFERRED_LEDGER.md`（虽未实现但不阻塞 close）
 
@@ -528,3 +528,5 @@ v3.15 是**第一个跨层业务流 milestone**——把之前各层独立做的
 | 2026-08-02 | (V315-OPT-03) | resource_scheduler.py dry-run scale-up action selector + 8 tests (Optimize 3/4 → 4/4 ✅) |
 | 2026-08-02 | (V315-WALK-01) `665435b3` | REST walkthrough(5 services boot + business_key round-trip) + dual-gate PASS (Verify 2/3 → 3/3 ✅) |
 | 2026-08-02 | (this commit, V315-CLOSE-01) | OBSTACK milestone close — §0.1 4 维度状态表 rewrite(全 ✅ 标识) + §0.2 22/23 = 95.7% 闭环率登记 + §0.3 milestone close gate 6 项全 PASS 登记 + §0 元信息刷到 V315-CLOSE-01。L4 api.py flow_api router mount fix shipped 中途 |
+| 2026-08-02 | `e16686d4` (V315-L1-OTEL-FULL-01) | L1 Rust observability 真实 SDK wiring (PeriodicReader + SdkMeterProvider + InMemoryExporter + OnceCell<Arc<Handles>>) — 7/7 observability tests + 85/85 grid-runtime total。Observe 4/5 → 5/5 ✅ |
+| 2026-08-02 | (this commit, V315-L1-OTEL-FULL-01 doc-close) | OBSTACK §0 header + §0.1 + §0.2 + §0.3 + §9 Changelog 5 处刷新记录 23/23 = 100% 闭环达成。**OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅** |
