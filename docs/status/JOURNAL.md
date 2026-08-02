@@ -127,3 +127,6 @@
 
 ## 2026-08-02 (Handoff refresh — v3.15 100% closed baton)
 - 20:54 Handoff doc refresh: (361 → 重写 100+ 行,v3.14-era stale 替换) +  (TL;DR 刷新到 v3.15 100% closed)。17-commit chain 收尾,working tree clean,main pushed (HEAD 80240092),v3.15 tag 仍 annotated push 在 origin/main。Next-session baton 清晰:v3.15 closed at 100% (23/23);v3.16+ scope 7 候选 (per ADR-V2-024 priority axis 推荐 grid-server multi-user)。无 autonomous 推进 — user 决定下一个 milestone[80240092]。
+
+## 2026-08-03 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 1/6)
+- 00:18 V315-BUSINESS-FLOW-02 L4 LayerReader wiring: 新 `flow_readers.py` (346 行) 装 5 真 LayerReader (read_l4_sessions + read_l4_event_room_events + read_l4_session_events + read_l3_governance_decisions + read_l3_telemetry_events + read_l2_memory_files) + `build_default_layer_readers` factory;`api.py` lifespan 开 L4/L3/L2 DB 连接 + 注册到 `app.state.flow_layer_readers` + graceful degrade 当 L2/L3 文件不在;新 11 单测 (`test_flow_readers.py`) + 1 端到端集成测 (`test_flow_api.py` `test_timeline_aggregates_across_all_layers_via_real_readers`);**252 targeted tests PASS** (1 预存 session_orchestrator 测试失败与 OBSTACK 无关,git stash 验证)。`/v1/business-flows/{key}/timeline` 从永远 `{events: [], count: 0}` 改为真能聚合跨 L2/L3/L4 数据 — 之前 v3.15.5 walkthrough 的 empty-payload gap 关闭。
