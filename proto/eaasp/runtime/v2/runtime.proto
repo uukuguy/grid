@@ -80,6 +80,7 @@ service RuntimeService {
 
 message InitializeRequest {
   SessionPayload payload = 1;
+  BusinessKey business_key = 100;
 }
 
 message InitializeResponse {
@@ -90,6 +91,7 @@ message InitializeResponse {
 message SendRequest {
   string session_id = 1;
   UserMessage message = 2;
+  BusinessKey business_key = 100;
 }
 
 message UserMessage {
@@ -110,6 +112,7 @@ message SendResponse {
 message LoadSkillRequest {
   string session_id = 1;
   SkillInstructions skill = 2;
+  BusinessKey business_key = 100;
 }
 
 message LoadSkillResponse {
@@ -122,6 +125,7 @@ message ToolCallEvent {
   string tool_name = 2;
   string tool_id = 3;
   string input_json = 4;
+  BusinessKey business_key = 100;
 }
 
 message ToolCallAck {
@@ -136,6 +140,7 @@ message ToolResultEvent {
   string tool_id = 3;
   string output = 4;
   bool is_error = 5;
+  BusinessKey business_key = 100;
 }
 
 message ToolResultAck {
@@ -146,6 +151,7 @@ message ToolResultAck {
 message StopEvent {
   string session_id = 1;
   string reason = 2;
+  BusinessKey business_key = 100;
 }
 
 message StopAck {
@@ -164,6 +170,7 @@ message StateResponse {
 message ConnectMCPRequest {
   string session_id = 1;
   repeated McpServerConfig servers = 2;
+  BusinessKey business_key = 100;
 }
 
 message ConnectMCPResponse {
@@ -184,11 +191,13 @@ message McpServerConfig {
 message DisconnectMcpRequest {
   string session_id = 1;
   string server_name = 2;
+  BusinessKey business_key = 100;
 }
 
 message TelemetryRequest {
   string session_id = 1;
   repeated TelemetryEvent events = 2;
+  BusinessKey business_key = 100;
 }
 
 message TelemetryEvent {
@@ -266,4 +275,5 @@ message EventStreamEntry {
   HookEventType event_type = 3;
   string payload_json = 4;
   string timestamp = 5;                 // ISO 8601
+  BusinessKey business_key = 100;
 }

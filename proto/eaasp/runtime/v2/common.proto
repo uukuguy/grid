@@ -157,3 +157,27 @@ message RuntimeError {
   string message = 2;
   map<string, string> details = 3;
 }
+
+// ============================================================
+// OBSTACK — Business Flow Cross-Layer Binding (v3.15)
+// ============================================================
+//
+// Per docs/design/EAASP/OBSTACK_DESIGN.md §3.4. A BusinessKey
+// is a `(session_id, skill_id, business_object_id)` triple that
+// identifies one end-to-end business request across L0–L5.
+//
+// Wire format (identical to `X-Business-Key` HTTP/gRPC header):
+//   "<session_id>|<skill_id>|<business_object_id>"
+//
+// Cross-layer propagation rule (per OBSTACK §3.1 / §3.4):
+// - All request/event messages that carry session_id MUST also
+//   carry an optional BusinessKey field (field 100).
+//
+// Re-introduced in v3.15 partial-ship after the v3.15.0 proto
+// revert (10ab9d47). Rust callers add `..Default::default()` to
+// struct literal sites; no struct field changes.
+message BusinessKey {
+  string session_id = 1;
+  string skill_id = 2;
+  string business_object_id = 3;
+}
