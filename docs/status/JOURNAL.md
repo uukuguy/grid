@@ -124,3 +124,6 @@
 
 ## 2026-08-02 (OBSTACK 闭环 100% — V315-L1-OTEL-FULL-01 落地)
 - 20:39 L1 Rust OTel SDK 真实 wiring (V315-L1-OTEL-FULL-01) — crates/grid-runtime/src/observability/mod.rs 替换 placeholder 为真 SdkMeterProvider + PeriodicReader + InMemoryExporter + OnceCell<Arc<Handles>>。record_* 现在走真 Counter / Histogram / UpDownCounter (.add/.record)。7/7 in-crate tests PASS + 85/85 grid-runtime total + dual-gate PASS (38 spec rows + 134 RBAC)。**Observe 闭环率 4/5 → 5/5 ✅**。**OBSTACK §0.2 闭环率 22/23 → 23/23 = 100% ✅**。1 段诚实 push-back 之后(我自己 1.5h 探索失败 commit  revert),这次用 PeriodicReader::builder(exporter, runtime::Tokio) + 正确 0.24 API 路径 30 min 内 ship[e16686d4]。InMemoryExporter 是 test-grade capture 兜底;生产 opentelemetry-stdout exporter deferred v3.16(commit 内 doc 注释明示)。
+
+## 2026-08-02 (Handoff refresh — v3.15 100% closed baton)
+- 20:54 Handoff doc refresh: (361 → 重写 100+ 行,v3.14-era stale 替换) +  (TL;DR 刷新到 v3.15 100% closed)。17-commit chain 收尾,working tree clean,main pushed (HEAD 80240092),v3.15 tag 仍 annotated push 在 origin/main。Next-session baton 清晰:v3.15 closed at 100% (23/23);v3.16+ scope 7 候选 (per ADR-V2-024 priority axis 推荐 grid-server multi-user)。无 autonomous 推进 — user 决定下一个 milestone[80240092]。
