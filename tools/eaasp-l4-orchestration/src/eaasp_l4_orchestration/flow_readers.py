@@ -23,6 +23,7 @@ logic DRY across layers.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 import aiosqlite
@@ -30,6 +31,34 @@ import aiosqlite
 from eaasp_common.business_flow import BusinessKey
 
 from .flow_timeline import BusinessFlowEvent, _row_to_event
+
+
+def _to_epoch_ms(raw: Any) -> int:
+    """Best-effort convert L3 string timestamps (datetime('now')) to ms.
+
+    L3 stores ``ts TEXT DEFAULT (datetime('now'))`` which is
+    ``"YYYY-MM-DD HH:MM:SS"`` in UTC. L4 stores epoch-ms. The timeline
+    aggregator sorts by ts (ms), so L3 strings need conversion.
+    Falls back to int(time.time() * 1000) for any unparseable input.
+    """
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    if not isinstance(raw, str) or not raw:
+        import time
+        return int(time.time() * 1000)
+    # Common formats: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+    raw = raw.replace("T", " ").rstrip("Z")
+    # Truncate subsecond precision if present.
+    if "." in raw:
+        raw = raw.split(".", 1)[0]
+    try:
+        dt = datetime.datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").replace(
+            tzinfo=datetime.timezone.utc,
+        )
+        return int(dt.timestamp() * 1000)
+    except (TypeError, ValueError):
+        import time
+        return int(time.time() * 1000)
 
 
 # ─── L4 readers (live in L4's own DB) ───────────────────────────────────────
@@ -160,28 +189,35 @@ async def read_l3_governance_decisions(
     Each row is one OPA / policy-engine decision (allow/approve/deny/
     gate_request/await_human per v3.12 CHECK widening). Mapped to
     ``governance.decision`` event_type for the timeline.
+
+    Note: the L3 ledger stores the timestamp in a ``ts`` TEXT column
+    (datetime('now') string), not a ``created_at`` epoch-ms integer —
+    which is the opposite convention from L4. We convert via
+    ``_to_epoch_ms`` so the timeline aggregator's ``ORDER BY ts`` sort
+    produces a meaningful chronological order across layers.
     """
     wire = key.to_header()
     events: list[BusinessFlowEvent] = []
     async with conn.execute(
         """
         SELECT decision_id, session_id, hook_id, tool_name, risk_level,
-               decision, approver, rationale, stage, created_at
+               decision, approver, rationale, stage, ts
           FROM governance_decisions
          WHERE business_key = ?
-         ORDER BY created_at
+         ORDER BY ts
         """,
         (wire,),
     ) as cur:
         async for row in cur:
             d = dict(row)
+            d["ts"] = _to_epoch_ms(d.get("ts"))
             events.append(
                 _row_to_event(
                     d,
                     layer="L3",
                     component="governance",
                     event_type_field="decision",
-                    ts_field="created_at",
+                    ts_field="ts",
                     payload_field="payload",
                 ),
             )
@@ -194,31 +230,40 @@ async def read_l3_telemetry_events(
     """Read ``telemetry_events`` rows tagged with ``business_key``.
 
     L3 telemetry is the async-write sink for skill-usage counters
-    and request metrics. Each row becomes a ``telemetry.<event_type>``
-    timeline event.
+    and request metrics. The schema is:
+      event_id, session_id, agent_id, hook_id, phase, payload_json,
+      received_at (TEXT datetime('now')), tiebreaker, business_key
+
+    There is no ``event_type`` column — the closest semantic signal
+    is ``phase`` (PreToolUse / PostToolUse / Stop / etc.). Each row
+    becomes a ``telemetry.<phase>`` timeline event. Timestamp
+    converted via ``_to_epoch_ms`` so the cross-layer sort works.
     """
     wire = key.to_header()
     events: list[BusinessFlowEvent] = []
     async with conn.execute(
         """
-        SELECT event_type, payload_json, created_at, source, tiebreaker
+        SELECT event_id, session_id, agent_id, hook_id, phase,
+               payload_json, received_at, tiebreaker
           FROM telemetry_events
          WHERE business_key = ?
-         ORDER BY created_at, tiebreaker
+         ORDER BY received_at, tiebreaker
         """,
         (wire,),
     ) as cur:
         async for row in cur:
             d = dict(row)
-            et = d.get("event_type") or "telemetry.unknown"
-            # Prefix to keep distinct from session events.
-            d["event_type"] = f"telemetry.{et}" if not et.startswith("telemetry.") else et
+            d["received_at"] = _to_epoch_ms(d.get("received_at"))
+            phase = d.get("phase") or "telemetry"
+            d["event_type"] = f"telemetry.{phase}"
             events.append(
                 _row_to_event(
                     d,
                     layer="L3",
                     component="telemetry",
-                    ts_field="created_at",
+                    event_type_field="event_type",
+                    ts_field="received_at",
+                    payload_field="payload_json",
                 ),
             )
     return events
