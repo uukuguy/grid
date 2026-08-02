@@ -42,22 +42,23 @@
 | **Optimize** | `ab_router.py` (A/B runtime selection by completion_rate) | ✅ shipped | V315-OPT-01 (10/10 tests) |
 | **Optimize** | `alert_manager.py` (fan-out hints to sinks) | ✅ shipped | V315-OPT-02 (7/7 tests) |
 | **Optimize** | `resource_scheduler.py` (dry-run scale-up action selector) | ✅ shipped | V315-OPT-03 (8/8 tests) |
-| **Verify** | v3.15 live walkthrough via REST (5 services boot + business_key round-trip) | ✅ shipped | `665435b3` |
+| **Verify** | v3.15.5 live instance demo — real LLM-driven handshake + 14-event timeline + 5-dimension end-to-end exercise | ✅ shipped | `84cc0680` (V315-OBSTACK-DEMO, `scripts/v315-obstack-demo.sh` + `docs/status/PRODUCTION_USABILITY_2026-08-02-obstack-demo.md`) |
+| **Verify** | v3.15 live walkthrough via REST (5 services boot + business_key round-trip) | ✅ shipped | `665435b3` (superseded by V315-OBSTACK-DEMO 2026-08-02) |
 | **Verify** | `make v3.10-spec-audit` PASS (38 rows; OBSTACK_DESIGN.md + OBSTACK_INDEX.md dual-referenced) | ✅ shipped | `a122fbf5` |
 | **Verify** | `make rbac-audit` PASS (134 routes; + 4 business-flow routes mounted this session) | ✅ shipped | `a122fbf5` |
 | **Verify** | tag `v3.15` annotated push to origin/main | ✅ shipped | (post-V315-WALK-01, 2026-08-01) |
 
-### 0.2 Goal 闭环判据（2026-08-02 V315-L1-OTEL-FULL-01 — OBSTACK 100%）
+### 0.2 Goal 闭环判据（2026-08-02 V315-L1-OTEL-FULL-01 + V315-OBSTACK-DEMO — OBSTACK 100% end-to-end verified）
 
 | 维度 | sub-criterion | 闭环率 |
 |---|---|---|
 | Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **5/5 (100%) ✅** — L1/L2/L3/L4 observability modules + L1 OTel SDK real wiring (PeriodicReader + SdkMeterProvider + InMemoryExporter, `e16686d4`) |
-| Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **5/5 (100%) ✅** — proto field 100, 4 schema migrations, Rust `business_flow.rs` mirror, `tokio::task_local!` propagation |
-| Evaluate | timeline + 评估器 + SLA baselines + 4 slave tests | **6/6 (100%) ✅** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines + `eaasp flow` aggregator |
-| Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15) |
-| Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + V315-WALK-01 REST walkthrough evidence in `docs/status/PRODUCTION_USABILITY_2026-08-02-walk.md` + tag `v3.15` annotated push |
+| Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **5/5 (100%) ✅** — proto field 100, 4 schema migrations, Rust `business_flow.rs` mirror, `tokio::task_local!` propagation; **5 LayerReaders wired at L4 boot** (`flow_readers.py`, 43bc632d) so `/v1/business-flows/{key}/timeline` returns real data, not empty payloads |
+| Evaluate | timeline + 评估器 + SLA baselines + 4 slave tests | **6/6 (100%) ✅** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines + `eaasp flow` aggregator; **V315-OBSTACK-DEMO captures real evaluator output on real flow data** |
+| Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15); **V315-OBSTACK-DEMO exercises all 3 executors on a live summary** |
+| Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅ upgraded** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + **V315-OBSTACK-DEMO real LLM-driven instance demo** in `docs/status/PRODUCTION_USABILITY_2026-08-02-obstack-demo.md` (14-event timeline, dual-gate PASS, all 5 dimensions exercised) + tag `v3.15` annotated push |
 
-**总判定: 23/23 = 100%** — OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅
+**总判定: 23/23 = 100%** — OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅ + **V315-BUSINESS-FLOW-02 (commits 1-5) closes the ingestion chain** that the prior v3.15.5 walkthrough left at "empty wire-format payloads".
 
 ### 0.3 Milestone Close Gate（v3.15.5 必通才能 close v3.15 + tag v3.15）
 
