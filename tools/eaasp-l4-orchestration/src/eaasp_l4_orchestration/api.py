@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field, ValidationError
 from starlette.responses import JSONResponse
 
 from .db import init_db
+from . import flow_api as _flow_api
 from .event_backend_sqlite import SqliteWalBackend
 from .event_engine import EventEngine
 from .event_models import Event, EventMetadata
@@ -169,6 +170,12 @@ def create_app(
         ),
         lifespan=lifespan,
     )
+
+    # OBSTACK §3.5 — business-flow REST + SSE endpoints
+    # (`/v1/business-flows/{key}/{timeline,summary,events-stream,evaluation}`).
+    # Mount the flow_api router on the live app so the v3.15.5 walkthrough
+    # can hit these via curl / `eaasp flow` CLI.
+    app.include_router(_flow_api.router)
 
     def get_orchestrator() -> SessionOrchestrator:
         return app.state.orchestrator  # type: ignore[no-any-return]
