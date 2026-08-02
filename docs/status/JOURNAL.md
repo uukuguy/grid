@@ -106,3 +106,14 @@
 ## 2026-08-01 (OBSTACK 收尾 / V315-OPT-01 ab_router 落地)
 - 14:26 L4 api.py 真 bug fix: v3.15.4b commit (a80f8cc9) 的 flow_api router 从未被 mount 进 FastAPI app → v3.15.4d `eaasp flow` CLI 真打 server 时全 404。本次 walkthrough rehearsal 用 `curl /openapi.json` 才暴露。一行 `app.include_router(_flow_api.router)` 修正。
 - 14:26 V315-OPT-01 ab_router 落地 (10/10 tests PASS):OBSTACK §3.7 "A/B 路由" — `choose_runtime(business_object_id, summaries)` 按 business_object_id 分组业务流 + 按 runtime_id 算 completion_rate + 选最高 + 平手字母序 + min_sample_size guard + 无信号/未知对象 ID fallback 到 "grid-runtime"。FlowMeta companion type 携带 business_object_id / runtime_id (不在 BusinessFlowSummary aggregate 顶层,但在 sessions 表的列里)。threshold override 通过。\n- 包含 1 真 bug fix + 1 production executor + 10 tests + 1 walkthrough boot script(`scripts/v315-walk-services.sh`) — 推进 OBSTACK 闭环率 18/23 → 19/23 (Optimize 1/4 → 2/4)。[f76be767 — V315-OPT-01 ab_router][~`api.py include_router fix + boot script 上一 commit`]
+
+## 2026-08-01 (OBSTACK 收尾 / Optimize 2/4 → 4/4 ✅)
+- 14:37 V315-OPT-02 alert_manager (7/7 tests PASS):OBSTACK §3.7 "自动告警" 落地 — `fire_alerts(report, sinks, severity_threshold)` 把 evaluator hint 按 severity 过滤 ("info"/"warn"/"critical" 默认 = "warn")广播到 N sinks;AlertSink Protocol + InMemorySink test impl;empty sinks 是 noop;多个 sink 各自分发。**Optimize 2/4 → 3/4**。
+- 14:37 V315-OPT-03 resource_scheduler (8/8 tests PASS):OBSTACK §3.7 "跨层联合优化" — `reconcile_actions(report)` 把 hint 转成 (layer, action, metric, dry_run=True) ResourceAction 结构;(l3 governance.decision.duration / opa.infra_unavailable / l2 memory.write.failures / l4 session.timeout) → scale-up;其他 warn → noop (intent recorded);critical 默认 scale-up 可通过 escalate_critical=False 改 noop;**dry-run 模式**:部署执行(deploy/k8s) deferred 到 v3.16 跟 ops 评审,本模块只定"做什么"不定"怎么做"。**Optimize 3/4 → 4/4 ✅ 全 ship**。
+- 3 executor + 25 tests + 0 regression。OBSTACK §0.2 闭环率:
+  Optimize 1/4 → 4/4 ✅
+  Trace 5/5 ✅
+  Evaluate 6/6 ✅
+  Observe 4/5 (L1 SDK 全 wiring deferred V315-L1-OTEL-FULL-01)
+  Verify 2/3 (live walkthrough LLM LLM key deferred V315-WALK-01)
+  = **21/23 = 91.3%** (vs 18/23 = 78% 起点, vs 19/23 = 83% after ab_router)
