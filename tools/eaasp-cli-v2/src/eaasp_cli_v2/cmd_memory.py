@@ -6,9 +6,27 @@ from typing import Any, Optional
 
 import typer
 
-from . import main as _main
+# V315-CLI-IMPORT-FIX-01: deferred-import pattern (mirrors cmd_flow.py:35-45).
+# The top-level ``from . import main as _main`` causes a circular import
+# because ``main.py`` imports every ``cmd_*`` module at module load
+# time to register them on the typer app. The two helpers below perform
+# the lookup lazily, at command invocation time, by which point the
+# package is fully initialised.
 from .config import CliConfig
 from .output import print_json, print_table
+
+
+def _make_client(cfg: CliConfig) -> Any:
+    from . import main as _main
+
+    return _main.make_client(cfg)
+
+
+def _run_async(coro: Any) -> Any:
+    from . import main as _main
+
+    return _main.run_async(coro)
+
 
 app = typer.Typer(help="L2 memory engine queries")
 
@@ -29,7 +47,7 @@ def search(
         body["category"] = category
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST", f"{cfg.l2_url}/api/v1/memory/search", json=body
@@ -37,7 +55,7 @@ def search(
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     raw_hits: list[Any] = []
     if isinstance(result, dict):
         raw_hits = result.get("hits", []) or []
@@ -69,7 +87,7 @@ def read(memory_id: str = typer.Argument(...)) -> None:
     cfg = CliConfig.from_env()
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -79,7 +97,7 @@ def read(memory_id: str = typer.Argument(...)) -> None:
         finally:
             await client.aclose()
 
-    print_json(_main.run_async(_do()))
+    print_json(_run_async(_do()))
 
 
 @app.command("list")
@@ -94,7 +112,7 @@ def list_cmd(
         args["scope"] = scope
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -104,7 +122,7 @@ def list_cmd(
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     rows: list[Any] = []
     if isinstance(result, dict):
         rows = result.get("items") or result.get("memories") or result.get("files") or []

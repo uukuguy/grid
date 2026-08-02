@@ -8,9 +8,24 @@ from typing import Any
 
 import typer
 
-from . import main as _main
+# V315-CLI-IMPORT-FIX-01: deferred-import pattern (mirrors cmd_flow.py:35-45).
+# ``main.py`` imports every cmd_* module at module load time; a top-level
+# ``from . import main as _main`` here causes a circular import.
 from .config import CliConfig
 from .output import print_json, print_table
+
+
+def _make_client(cfg: CliConfig) -> Any:
+    from . import main as _main
+
+    return _main.make_client(cfg)
+
+
+def _run_async(coro: Any) -> Any:
+    from . import main as _main
+
+    return _main.run_async(coro)
+
 
 app = typer.Typer(help="L3 policy management")
 
@@ -27,7 +42,7 @@ def deploy(
     body = json.loads(config_path.read_text(encoding="utf-8"))
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "PUT",
@@ -37,7 +52,7 @@ def deploy(
         finally:
             await client.aclose()
 
-    print_json(_main.run_async(_do()))
+    print_json(_run_async(_do()))
 
 
 @app.command("list")
@@ -46,13 +61,13 @@ def list_cmd() -> None:
     cfg = CliConfig.from_env()
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call("GET", f"{cfg.l3_url}/v1/policies/versions")
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     rows = result.get("versions", []) if isinstance(result, dict) else (result if isinstance(result, list) else [])
     print_table("Policy versions", rows, ["version", "created_at", "hook_count"])
 
@@ -66,7 +81,7 @@ def mode(
     cfg = CliConfig.from_env()
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "PUT",
@@ -76,4 +91,4 @@ def mode(
         finally:
             await client.aclose()
 
-    print_json(_main.run_async(_do()))
+    print_json(_run_async(_do()))

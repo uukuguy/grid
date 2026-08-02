@@ -9,10 +9,25 @@ from typing import Any, Optional
 import typer
 from rich.console import Console
 
-from . import main as _main
+# V315-CLI-IMPORT-FIX-01: deferred-import pattern (mirrors cmd_flow.py:35-45).
+# ``main.py`` imports every cmd_* module at module load time; a top-level
+# ``from . import main as _main`` here causes a circular import.
 from .client import CliError
 from .config import CliConfig
 from .output import print_error, print_json, print_panel, print_table
+
+
+def _make_client(cfg: CliConfig) -> Any:
+    from . import main as _main
+
+    return _main.make_client(cfg)
+
+
+def _run_async(coro: Any) -> Any:
+    from . import main as _main
+
+    return _main.run_async(coro)
+
 
 app = typer.Typer(help="Session lifecycle commands")
 
@@ -235,7 +250,7 @@ def create(
         raise typer.Exit(2)
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -246,7 +261,7 @@ def create(
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     row = result if isinstance(result, dict) else {"value": result}
     print_table(
         "Session created",
@@ -264,7 +279,7 @@ def list_cmd(
     cfg = CliConfig.from_env()
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             params: dict[str, Any] = {"limit": limit}
             if status is not None:
@@ -273,7 +288,7 @@ def list_cmd(
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     rows = result.get("sessions", []) if isinstance(result, dict) else []
     print_table(
         "Sessions",
@@ -288,13 +303,13 @@ def close(session_id: str = typer.Argument(...)) -> None:
     cfg = CliConfig.from_env()
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call("POST", f"{cfg.l4_url}/v1/sessions/{session_id}/close")
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     row = result if isinstance(result, dict) else {"value": result}
     print_table(
         "Session closed",
@@ -312,7 +327,7 @@ def show(
     cfg = CliConfig.from_env()
 
     async def _do() -> tuple[Any, Any]:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             safe_limit = max(1, min(limit, 500))
             meta = await client.call("GET", f"{cfg.l4_url}/v1/sessions/{session_id}")
@@ -325,7 +340,7 @@ def show(
         finally:
             await client.aclose()
 
-    meta, events = _main.run_async(_do())
+    meta, events = _run_async(_do())
 
     meta_row = meta if isinstance(meta, dict) else {"value": meta}
     print_table("Session", [meta_row], ["session_id", "status", "created_at"])
@@ -378,7 +393,7 @@ def send(
     if not stream:
         # Legacy non-streaming path.
         async def _do_sync() -> Any:
-            client = _main.make_client(cfg)
+            client = _make_client(cfg)
             try:
                 return await client.call(
                     "POST",
@@ -388,7 +403,7 @@ def send(
             finally:
                 await client.aclose()
 
-        result = _main.run_async(_do_sync())
+        result = _run_async(_do_sync())
         print_json(result)
         return
 
@@ -397,7 +412,7 @@ def send(
     err_console = Console(stderr=True)
 
     async def _do_stream() -> None:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         debug_chunks = bool(os.environ.get("EAASP_DEBUG_CHUNKS"))
         try:
             async for msg in client.stream_sse(
@@ -430,7 +445,7 @@ def send(
         finally:
             await client.aclose()
 
-    _main.run_async(_do_stream())
+    _run_async(_do_stream())
 
 
 @app.command("run")
@@ -476,7 +491,7 @@ def run(
     scope_headers = {"X-Session-Scope": session_scope}
 
     async def _do() -> None:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             # Step 1: create session
             create_body: dict[str, Any] = {
@@ -540,7 +555,7 @@ def run(
         finally:
             await client.aclose()
 
-    _main.run_async(_do())
+    _run_async(_do())
 
 
 # ── Phase 1: session events command ──────────────────────────────────────────
@@ -565,7 +580,7 @@ _EVENT_COLORS: dict[str, str] = {
 
 async def _fetch_events(cfg: CliConfig, session_id: str, limit: int = 500) -> dict[str, Any]:
     """Fetch events from L4 API."""
-    client = _main.make_client(cfg)
+    client = _make_client(cfg)
     try:
         return await client.call(
             "GET",
@@ -632,7 +647,7 @@ def events_cmd(
         err_console = Console(stderr=True)
 
         async def _do_follow() -> None:
-            client = _main.make_client(cfg)
+            client = _make_client(cfg)
             try:
                 url = f"{cfg.l4_url}/v1/sessions/{session_id}/events/stream"
                 async for msg in client.stream_sse(url, method="GET", params={"from": from_seq}):
@@ -654,11 +669,11 @@ def events_cmd(
             finally:
                 await client.aclose()
 
-        _main.run_async(_do_follow())
+        _run_async(_do_follow())
         return
 
     # ── One-shot mode (original behavior) ────────────────────────────────
-    result = _main.run_async(_fetch_events(cfg, session_id, limit=limit))
+    result = _run_async(_fetch_events(cfg, session_id, limit=limit))
 
     if format_ == "json":
         import json as _json

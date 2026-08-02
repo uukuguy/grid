@@ -13,9 +13,24 @@ from typing import Any, Optional
 
 import typer
 
-from . import main as _main
+# V315-CLI-IMPORT-FIX-01: deferred-import pattern (mirrors cmd_flow.py:35-45).
+# ``main.py`` imports every cmd_* module at module load time; a top-level
+# ``from . import main as _main`` here causes a circular import.
 from .config import CliConfig
 from .output import print_json, print_table
+
+
+def _make_client(cfg: CliConfig) -> Any:
+    from . import main as _main
+
+    return _main.make_client(cfg)
+
+
+def _run_async(coro: Any) -> Any:
+    from . import main as _main
+
+    return _main.run_async(coro)
+
 
 app = typer.Typer(help="Skill registry commands")
 
@@ -39,7 +54,7 @@ def list_cmd(
         body["scope"] = scope
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -49,7 +64,7 @@ def list_cmd(
         finally:
             await client.aclose()
 
-    result = _main.run_async(_do())
+    result = _run_async(_do())
     rows: list[Any] = result if isinstance(result, list) else (
         result.get("results", []) if isinstance(result, dict) else []
     )
@@ -94,7 +109,7 @@ def submit(
         body["author"] = str(meta["author"])
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -104,7 +119,7 @@ def submit(
         finally:
             await client.aclose()
 
-    print_json(_main.run_async(_do()))
+    print_json(_run_async(_do()))
 
 
 @app.command("promote")
@@ -120,7 +135,7 @@ def promote(
     body = {"id": skill_id, "version": version, "target_status": target_status}
 
     async def _do() -> Any:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             return await client.call(
                 "POST",
@@ -130,7 +145,7 @@ def promote(
         finally:
             await client.aclose()
 
-    print_json(_main.run_async(_do()))
+    print_json(_run_async(_do()))
 
 
 @app.command("run")
@@ -139,7 +154,7 @@ def run(skill_id: str = typer.Argument(...)) -> None:
     cfg = CliConfig.from_env()
 
     async def _do() -> tuple[Any, Any]:
-        client = _main.make_client(cfg)
+        client = _make_client(cfg)
         try:
             created = await client.call(
                 "POST",
@@ -160,7 +175,7 @@ def run(skill_id: str = typer.Argument(...)) -> None:
         finally:
             await client.aclose()
 
-    created, sent = _main.run_async(_do())
+    created, sent = _run_async(_do())
     row = created if isinstance(created, dict) else {"value": created}
     print_table("Session created", [row], ["session_id", "status", "created_at"])
     print_json(sent)
