@@ -133,3 +133,6 @@
 
 ## 2026-08-03 (OBSTACK instance demo — V315-CLI-IMPORT-FIX-01 commit 4/6)
 - 00:48 CLI circular-import fix: 4 个 cmd_*.py (cmd_memory / cmd_policy / cmd_skill / cmd_session) 改用 cmd_flow.py:35-45 的 deferred-import helper 模式 (`_make_client` + `_run_async` 在函数体内 `from . import main as _main`);~35 个 call site 重写;新 test_cli_imports.py 9 个回归测全 PASS (两个 import 顺序 + 5 subcommand 群组注册)。`eaasp session run` 等被 circular 阻断的子命令现在可达。3 个预存 cmd_memory / cmd_skill / cmd_session 测试失败 git stash 验证与本 fix 无关(EAASP_SESSION_SCOPE env + mem_1 表输出差异)。
+
+## 2026-08-03 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 2/6)
+- 01:05 L4 SessionOrchestrator business_key 持久化:`create_session(..., business_key=None)` 加参数;INSERT 加 business_key 列(列已在 v3.15.1 migration 加好,无新 schema);`/v1/sessions/create` + `/v1/intents/dispatch` 端点抽 `X-Business-Key` header(mirror `X-Session-Scope` 模式);新 `GET /v1/business-flows/{key}/sessions` 端点返匹配 session_ids(读 lifespan-wired `app.state.l4_db_conn`)。97 targeted tests PASS(2 新 test_api.py + 2 新 test_flow_api.py,1 预存 session_orchestrator 测试失败 git stash 验证无关)。Commit 1 的 LayerReader 现在有真实 business_key tag 数据可聚合 — `/timeline` 真能返非空 events。
