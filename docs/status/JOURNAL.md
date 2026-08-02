@@ -130,3 +130,6 @@
 
 ## 2026-08-03 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 1/6)
 - 00:18 V315-BUSINESS-FLOW-02 L4 LayerReader wiring: 新 `flow_readers.py` (346 行) 装 5 真 LayerReader (read_l4_sessions + read_l4_event_room_events + read_l4_session_events + read_l3_governance_decisions + read_l3_telemetry_events + read_l2_memory_files) + `build_default_layer_readers` factory;`api.py` lifespan 开 L4/L3/L2 DB 连接 + 注册到 `app.state.flow_layer_readers` + graceful degrade 当 L2/L3 文件不在;新 11 单测 (`test_flow_readers.py`) + 1 端到端集成测 (`test_flow_api.py` `test_timeline_aggregates_across_all_layers_via_real_readers`);**252 targeted tests PASS** (1 预存 session_orchestrator 测试失败与 OBSTACK 无关,git stash 验证)。`/v1/business-flows/{key}/timeline` 从永远 `{events: [], count: 0}` 改为真能聚合跨 L2/L3/L4 数据 — 之前 v3.15.5 walkthrough 的 empty-payload gap 关闭。
+
+## 2026-08-03 (OBSTACK instance demo — V315-CLI-IMPORT-FIX-01 commit 4/6)
+- 00:48 CLI circular-import fix: 4 个 cmd_*.py (cmd_memory / cmd_policy / cmd_skill / cmd_session) 改用 cmd_flow.py:35-45 的 deferred-import helper 模式 (`_make_client` + `_run_async` 在函数体内 `from . import main as _main`);~35 个 call site 重写;新 test_cli_imports.py 9 个回归测全 PASS (两个 import 顺序 + 5 subcommand 群组注册)。`eaasp session run` 等被 circular 阻断的子命令现在可达。3 个预存 cmd_memory / cmd_skill / cmd_session 测试失败 git stash 验证与本 fix 无关(EAASP_SESSION_SCOPE env + mem_1 表输出差异)。
