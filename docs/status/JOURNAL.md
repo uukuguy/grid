@@ -136,3 +136,6 @@
 
 ## 2026-08-03 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 2/6)
 - 01:05 L4 SessionOrchestrator business_key 持久化:`create_session(..., business_key=None)` 加参数;INSERT 加 business_key 列(列已在 v3.15.1 migration 加好,无新 schema);`/v1/sessions/create` + `/v1/intents/dispatch` 端点抽 `X-Business-Key` header(mirror `X-Session-Scope` 模式);新 `GET /v1/business-flows/{key}/sessions` 端点返匹配 session_ids(读 lifespan-wired `app.state.l4_db_conn`)。97 targeted tests PASS(2 新 test_api.py + 2 新 test_flow_api.py,1 预存 session_orchestrator 测试失败 git stash 验证无关)。Commit 1 的 LayerReader 现在有真实 business_key tag 数据可聚合 — `/timeline` 真能返非空 events。
+
+## 2026-08-03 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 3/6)
+- 01:54 L3 evaluate business_key 入口:`EvaluateRequest` 加 `business_key` 字段;`/v1/evaluate` 抽 `X-Business-Key` header (header 优先 over body);`evaluate_gate` + `evaluate_with_opa` + `AuditStore.record_governance_decision` 都加 `business_key` kwarg;INSERT 加 business_key 列(列已在 v3.15.1 migration 加好,无新 schema);`GovernanceDecisionOut` pydantic 模型加字段;test_audit_governance.py column list 加列(ALTER 末尾追加);test_audit_await_human_migration.py 在 legacy migration 后跑 `init_db` 加 business_key 列。50 targeted tests PASS(2 新 test_api.py + audit + policy_engine)。
