@@ -1,6 +1,16 @@
 # Current State
 
-> **Updated**: 2026-08-01 — `/goal` end-to-end + 2 L2 server bug fixes + typical-app framework doc; HEAD `7266557a` (main, synced with origin/main). 4 commits shipped this session (c3e82c7a / 50f8459e / a0d846f0 / 7266557a). Services torn down cleanly.
+> **Updated**: 2026-08-02 — **OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅ 100%** (23/23). **HEAD**: `1a1304a5` (main, in sync with origin/main). 17 commits shipped this handoff session. Working tree clean. Tag `v3.15` annotated pushed.
+
+## Project Snapshot
+
+- Project: Grid — agent runtime stack (engine-axis: `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge`) + Grid independent product (`grid-server` / `grid-platform` / `grid-cli` / `grid-eval` / `web/` / `web-platform/` / `grid-desktop`) + co-located EAASP v2.0 simulator reference (`tools/eaasp-*/`, no upstream EAASP project).
+- Current branch: `main`
+- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED + OBSTACK 100% closed** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability). v3.15 = the **final OBSTACK milestone** per the 8-Phase roadmap (D-46); v3.16+ moves to the data/integration axis per ADR-V2-024.
+- Project route: managed (lightweight-memory + GSD state machine, both maintained)
+- Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
+- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (538 lines; §0 Goal Status 100% closed + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引
+- Active work package: **none — milestone boundary** (v3.15 SHIPPED 100%; awaiting v3.16 scope selection)
 
 ## Project Snapshot
 
