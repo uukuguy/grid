@@ -242,6 +242,9 @@ def create_app(
         x_session_scope: str | None = Header(
             default=None, alias="X-Session-Scope"
         ),
+        x_business_key: str | None = Header(
+            default=None, alias="X-Business-Key"
+        ),
     ) -> dict[str, Any]:
         # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028): same binding logic
         # as /v1/sessions/create. See _resolve_skill_bound_scope below.
@@ -336,7 +339,8 @@ def create_app(
                 },
             )
         return await _run_create_session(
-            orchestrator, body, session_scope=resolved_scope
+            orchestrator, body, session_scope=resolved_scope,
+            business_key=x_business_key,
         )
 
     # ─── Contract 5: Session create (alias — same body shape) ────────────
@@ -346,6 +350,9 @@ def create_app(
         orchestrator: SessionOrchestrator = Depends(get_orchestrator),
         x_session_scope: str | None = Header(
             default=None, alias="X-Session-Scope"
+        ),
+        x_business_key: str | None = Header(
+            default=None, alias="X-Business-Key"
         ),
     ) -> dict[str, Any]:
         # D8 / L3-04 RBAC (fail-CLOSED per ADR-V2-028):
@@ -385,7 +392,8 @@ def create_app(
                 },
             )
         return await _run_create_session(
-            orchestrator, body, session_scope=resolved_scope
+            orchestrator, body, session_scope=resolved_scope,
+            business_key=x_business_key,
         )
 
     # ─── Contract 5: send message ────────────────────────────────────────
@@ -857,6 +865,7 @@ async def _run_create_session(
     body: IntentDispatchRequest,
     *,
     session_scope: str = "*",
+    business_key: str | None = None,
 ) -> dict[str, Any]:
     """Call orchestrator.create_session and map upstream errors to HTTP."""
     try:
@@ -867,6 +876,7 @@ async def _run_create_session(
             user_id=body.user_id,
             intent_id=body.intent_id,
             session_scope=session_scope,
+            business_key=business_key,
         )
     except ValidationError as exc:
         raise HTTPException(

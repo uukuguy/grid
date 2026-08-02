@@ -316,3 +316,91 @@ def test_timeline_aggregates_across_all_layers_via_real_readers() -> None:
                 os.unlink(p)
             except OSError:
                 pass
+
+
+# ─── V315-BUSINESS-FLOW-02 commit 2 — /sessions endpoint ────────────────────
+
+
+def test_business_flow_sessions_endpoint_returns_matching_sessions() -> None:
+    """The new /v1/business-flows/{key}/sessions endpoint returns the
+    list of L4 sessions tagged with the same business_key.
+    """
+    import aiosqlite
+    import asyncio
+    import tempfile
+
+    from eaasp_l4_orchestration.flow_api import router as flow_router
+    from fastapi import FastAPI
+
+    async def _seed() -> str:
+        path = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
+        conn = await aiosqlite.connect(path)
+        conn.row_factory = aiosqlite.Row
+        await conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY, intent_id TEXT, skill_id TEXT,
+                runtime_id TEXT, user_id TEXT, status TEXT NOT NULL,
+                payload_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+                closed_at INTEGER, business_key TEXT
+            );
+            """
+        )
+        wire = "sess_a|skill_x|object_z"
+        await conn.execute(
+            "INSERT INTO sessions VALUES ('sess_a','i','skill_x','rt','u','active','{}',1000,NULL,?)",
+            (wire,),
+        )
+        await conn.execute(
+            "INSERT INTO sessions VALUES ('sess_b','i','skill_x','rt','u','closed','{}',1100,1200,?)",
+            (wire,),
+        )
+        await conn.execute(
+            "INSERT INTO sessions VALUES ('sess_c','i','skill_x','rt','u','created','{}',900,NULL,?)",
+            ("different|key|other",),
+        )
+        await conn.commit()
+        await conn.close()
+        return path
+
+    async def _run() -> dict:
+        path = await _seed()
+        try:
+            conn = await aiosqlite.connect(path)
+            conn.row_factory = aiosqlite.Row
+            app = FastAPI()
+            app.state.l4_db_conn = conn
+            app.include_router(flow_router)
+            with TestClient(app) as client:
+                key = BusinessKey(
+                    session_id="sess_a", skill_id="skill_x",
+                    business_object_id="object_z",
+                ).to_header()
+                resp = client.get(f"/v1/business-flows/{key}/sessions")
+                assert resp.status_code == 200, resp.text
+                return resp.json()
+        finally:
+            import os
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+    body = asyncio.run(_run())
+    assert body["count"] == 2
+    session_ids = {s["session_id"] for s in body["session_ids"]}
+    assert session_ids == {"sess_a", "sess_b"}
+
+
+def test_business_flow_sessions_endpoint_no_l4_conn_returns_empty() -> None:
+    """When app.state.l4_db_conn is None, return empty list (defensive)."""
+    app = _build_app()
+    client = TestClient(app)
+    key = BusinessKey(
+        session_id="sess_x", skill_id="skill_y", business_object_id="z",
+    ).to_header()
+    resp = client.get(f"/v1/business-flows/{key}/sessions")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 0
+    assert body["session_ids"] == []

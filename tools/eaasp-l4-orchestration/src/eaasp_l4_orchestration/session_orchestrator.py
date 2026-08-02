@@ -118,8 +118,20 @@ class SessionOrchestrator:
         user_id: str | None = None,
         intent_id: str | None = None,
         session_scope: str = "*",
+        business_key: str | None = None,
     ) -> dict[str, Any]:
-        """Execute the three-way handshake and persist a new session."""
+        """Execute the three-way handshake and persist a new session.
+
+        ``business_key`` (V315-BUSINESS-FLOW-02) is the optional wire-format
+        ``"session|skill|object"`` key that tags this session to a
+        cross-layer business flow. When set, it is persisted to the
+        ``sessions.business_key`` column (added by
+        ``_V315_BUSINESS_KEY_COLUMNS`` in ``db.py``) so the timeline
+        aggregator can join L2/L3/L4 rows into a single flow view.
+        When ``None``, the row's ``business_key`` column is NULL
+        (backward compatible — pre-v3.15.5 sessions had no concept of
+        business flow).
+        """
         session_id = f"sess_{uuid.uuid4().hex[:12]}"
         created_at = int(time.time())
 
@@ -256,8 +268,8 @@ class SessionOrchestrator:
                     """
                     INSERT INTO sessions
                         (session_id, intent_id, skill_id, runtime_id, user_id,
-                         status, payload_json, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                         status, payload_json, created_at, business_key)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         session_id,
@@ -268,6 +280,7 @@ class SessionOrchestrator:
                         "created",
                         json.dumps(payload, sort_keys=True),
                         created_at,
+                        business_key,
                     ),
                 )
                 await db.execute(

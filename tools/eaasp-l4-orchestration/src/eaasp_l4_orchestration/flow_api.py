@@ -198,4 +198,58 @@ async def get_business_flow_evaluation(
     }
 
 
+@router.get(f"/{{{_KEY_PATH_PARAM}}}/sessions")
+async def get_sessions_for_business_flow(
+    request: Request,
+    key: str = Path(..., description="Wire-encoded business key: session\\|skill\\|object"),
+) -> dict[str, Any]:
+    """Return the list of session_ids tagged with this business key.
+
+    V315-BUSINESS-FLOW-02: enables callers to correlate a timeline
+    back to its constituent sessions. Reads directly from the L4
+    ``sessions`` table via the lifespan-wired ``l4_db_conn`` (so the
+    route works even when LayerReader aggregation is skipped).
+    """
+    import aiosqlite
+
+    business_key = _decode_key(key)
+    wire = business_key.to_header()
+    conn = getattr(request.app.state, "l4_db_conn", None)
+    if conn is None:
+        # No DB wired (e.g. test app without lifespan). Return empty.
+        return {
+            "business_key": wire,
+            "session_ids": [],
+            "count": 0,
+        }
+    try:
+        cur = await conn.execute(
+            "SELECT session_id, status, created_at FROM sessions "
+            "WHERE business_key = ? ORDER BY created_at",
+            (wire,),
+        )
+        rows = await cur.fetchall()
+    except aiosqlite.OperationalError:
+        # Column missing on a pre-migration DB; return empty so the
+        # endpoint stays useful (timeline readers still surface events).
+        return {
+            "business_key": wire,
+            "session_ids": [],
+            "count": 0,
+        }
+    session_ids = [
+        {
+            "session_id": r["session_id"],
+            "status": r["status"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    return {
+        "business_key": wire,
+        "session_ids": session_ids,
+        "count": len(session_ids),
+    }
+
+
 __all__ = ["router"]

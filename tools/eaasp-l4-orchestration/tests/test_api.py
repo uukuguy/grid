@@ -722,3 +722,152 @@ def test_loguru_initialized_in_lifespan():
         if isinstance(node, ast.ImportFrom) and node.module == "loguru":
             has_loguru = True
     assert has_loguru, "loguru import not found"
+
+
+# ─── V315-BUSINESS-FLOW-02 commit 2 — X-Business-Key header persistence ────
+
+
+@respx.mock
+async def test_create_session_persists_business_key_header(
+    app_client: httpx.AsyncClient,
+) -> None:
+    """When ``X-Business-Key`` is set on ``/v1/sessions/create``, the value
+    is persisted to ``sessions.business_key`` so the timeline aggregator
+    can join L2/L3/L4 events to this session.
+    """
+    import sqlite3
+
+    respx.post(f"{L2_DEFAULT}/api/v1/memory/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    respx.post(url__regex=rf"{L3_DEFAULT}/v1/sessions/.*/validate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "session_id": "placeholder",
+                "hooks_to_attach": [],
+                "managed_settings_version": 1,
+                "validated_at": "2026-08-03 00:00:00",
+                "runtime_tier": "strict",
+            },
+        )
+    )
+    respx.post("http://127.0.0.1:18081/tools/skill_read/invoke").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "meta": {"id": "threshold-calibration"},
+                "frontmatter_yaml": "",
+                "prose": "",
+                "skill_dir": "/tmp",
+                "parsed_v2": {"access_scope": "*"},
+            },
+        )
+    )
+    resp = await app_client.post(
+        "/v1/sessions/create",
+        json={
+            "intent_text": "calibrate Transformer-1",
+            "skill_id": "threshold-calibration",
+            "runtime_pref": "grid-runtime",
+            "user_id": "demo",
+            "intent_id": "demo-intent-001",
+        },
+        headers={
+            "X-Session-Scope": "*",
+            "X-Business-Key": "sess_demo|threshold-calibration|Transformer-1",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    session_id = resp.json()["session_id"]
+    # Confirm by reading the L4 DB directly via the tmpfile pattern
+    # used by conftest.py:tmp_db_path.
+    import tempfile
+    from pathlib import Path
+
+    db_files = list(Path(tempfile.gettempdir()).glob("tmp*.db"))
+    target = None
+    for db in db_files:
+        try:
+            conn = sqlite3.connect(str(db))
+            cur = conn.execute(
+                "SELECT business_key FROM sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row is not None:
+                target = row
+                break
+        except sqlite3.DatabaseError:
+            continue
+    assert target is not None, f"Session {session_id} not found in any tmp DB"
+    assert target[0] == "sess_demo|threshold-calibration|Transformer-1"
+
+
+@respx.mock
+async def test_create_session_without_business_key_persists_null(
+    app_client: httpx.AsyncClient,
+) -> None:
+    """Backward compat: missing X-Business-Key still works (NULL persisted)."""
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    respx.post(f"{L2_DEFAULT}/api/v1/memory/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    respx.post(url__regex=rf"{L3_DEFAULT}/v1/sessions/.*/validate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "session_id": "placeholder",
+                "hooks_to_attach": [],
+                "managed_settings_version": 1,
+                "validated_at": "2026-08-03 00:00:00",
+                "runtime_tier": "strict",
+            },
+        )
+    )
+    respx.post("http://127.0.0.1:18081/tools/skill_read/invoke").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "meta": {"id": "threshold-calibration"},
+                "frontmatter_yaml": "",
+                "prose": "",
+                "skill_dir": "/tmp",
+                "parsed_v2": {"access_scope": "*"},
+            },
+        )
+    )
+    resp = await app_client.post(
+        "/v1/sessions/create",
+        json={
+            "intent_text": "no business key",
+            "skill_id": "threshold-calibration",
+            "runtime_pref": "grid-runtime",
+            "user_id": "demo",
+        },
+        headers={"X-Session-Scope": "*"},
+    )
+    assert resp.status_code == 200, resp.text
+    session_id = resp.json()["session_id"]
+    db_files = list(Path(tempfile.gettempdir()).glob("tmp*.db"))
+    target = None
+    for db in db_files:
+        try:
+            conn = sqlite3.connect(str(db))
+            cur = conn.execute(
+                "SELECT business_key FROM sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row is not None:
+                target = row
+                break
+        except sqlite3.DatabaseError:
+            continue
+    assert target is not None
+    assert target[0] is None  # NULL when no X-Business-Key header
