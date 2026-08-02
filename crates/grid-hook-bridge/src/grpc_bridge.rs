@@ -49,6 +49,7 @@ impl HookBridge for GrpcHookBridge {
             input_json: serde_json::to_string(input)?,
             output: String::new(),
             is_error: false,
+            ..Default::default()
         };
         let response = self.client.clone().evaluate_hook(request).await?;
         Ok(Self::to_native_decision(response.into_inner()))
@@ -70,6 +71,7 @@ impl HookBridge for GrpcHookBridge {
             input_json: String::new(),
             output: output.into(),
             is_error,
+            ..Default::default()
         };
         let response = self.client.clone().evaluate_hook(request).await?;
         Ok(Self::to_native_decision(response.into_inner()))
@@ -84,6 +86,7 @@ impl HookBridge for GrpcHookBridge {
             input_json: String::new(),
             output: String::new(),
             is_error: false,
+            ..Default::default()
         };
         let response = self.client.clone().evaluate_hook(request).await?;
         let decision = response.into_inner();

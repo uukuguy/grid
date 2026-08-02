@@ -421,6 +421,7 @@ async fn verify_initialize(client: &mut RuntimeServiceClient<Channel>) -> Method
         let resp = client
             .initialize(proto::InitializeRequest {
                 payload: Some(payload.clone()),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -458,6 +459,7 @@ async fn verify_send(
                     message_type: "text".into(),
                     metadata: Default::default(),
                 }),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?
@@ -501,6 +503,7 @@ async fn verify_load_skill(
                     dependencies: vec![],
                     required_tools: vec![],
                 }),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -524,6 +527,7 @@ async fn verify_on_tool_call(
                 tool_name: "bash".into(),
                 tool_id: "t-cert-1".into(),
                 input_json: r#"{"command":"echo hello"}"#.into(),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -545,6 +549,7 @@ async fn verify_on_tool_result(
                 tool_id: "t-cert-1".into(),
                 output: "hello".into(),
                 is_error: false,
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -563,6 +568,7 @@ async fn verify_on_stop(
             .on_stop(proto::StopEvent {
                 session_id: session_id.into(),
                 reason: "done".into(),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -588,6 +594,7 @@ async fn verify_connect_mcp(
                     url: String::new(),
                     env: Default::default(),
                 }],
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -606,6 +613,7 @@ async fn verify_disconnect_mcp(
             .disconnect_mcp(proto::DisconnectMcpRequest {
                 session_id: session_id.into(),
                 server_name: "certifier-test-mcp".into(),
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -622,6 +630,7 @@ async fn verify_emit_telemetry(
             .emit_telemetry(proto::TelemetryRequest {
                 session_id: session_id.into(),
                 events: vec![],
+                ..Default::default()
             })
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -734,6 +743,7 @@ async fn verify_emit_event(
             event_type: proto::HookEventType::PreToolUse as i32,
             payload_json: "{}".into(),
             timestamp: chrono::Utc::now().to_rfc3339(),
+            ..Default::default()
         })
         .await;
     let duration_ms = start.elapsed().as_millis() as u64;

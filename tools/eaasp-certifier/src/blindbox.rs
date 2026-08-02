@@ -113,6 +113,7 @@ async fn execute_single(
                 allow_trim_p5: true,
                 ..Default::default()
             }),
+            ..Default::default()
         }))
         .await?;
 
@@ -127,6 +128,7 @@ async fn execute_single(
                 message_type: "text".into(),
                 metadata: Default::default(),
             }),
+            ..Default::default()
         }))
         .await?
         .into_inner();
