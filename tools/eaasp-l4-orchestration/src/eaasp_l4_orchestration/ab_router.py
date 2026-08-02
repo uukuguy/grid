@@ -4,28 +4,25 @@ Per OBSTACK_DESIGN.md §3.7 "业务流 A/B 路由":
   - L4 入口根据"过去 1h 业务流达成率"选 L1 runtime
   - 不只单层 metrics，是业务流整体效果
 
-This module is a thin wrapper around ``flow_evaluator.evaluate_business_flows``
-that produces a runtime selection. The router:
+This module wraps ``flow_evaluator.evaluate_business_flows`` to
+pick an L1 runtime based on recent business-flow completion
+rates. The router:
 
-  - Reads recent summaries from a pluggable ``SummarySource`` (default
-    in-memory; production callers wire ``L4 flow SSE bus`` subscriptions).
-  - Computes completion rate per ``(business_object_id, runtime_id)`` pair
-    in the lookback window.
-  - For each new session that carries a business_object_id, picks
-    the runtime with the highest completion rate. Tie-break:
-    alphabetical runtime_id. Unknown business_object_id → default
-    ``"grid-runtime"`` (Tier 1 Harness — preserves existing behavior).
+  - Reads summaries + a parallel ``run_map`` that attaches
+    ``business_object_id`` and ``runtime_id`` to each summary
+    (because the timeline aggregate shape
+    ``BusinessFlowSummary`` does not retain those fields — they
+    live in the source-table columns the aggregator rolled up).
+  - Computes per-(business_object_id, runtime_id) completion rate.
+  - For a new business_object_id, picks the runtime with the
+    highest completion rate. Tie-break: alphabetical. Unknown
+    business_object_id / empty summaries → default
+    ``"grid-runtime"`` (Tier 1 Harness — preserves existing
+    behavior).
 
-The module is intentionally dependency-free and synchronous so that
-``create_l1_client`` callers in ``session_orchestrator`` can call
-``choose_runtime(business_object_id)`` cheaply.
-
-Failure modes:
-
-  - ``SummarySource`` returns empty data → default ``"grid-runtime"``
-    and log a ``tracing::info!``.
-  - Summary evaluation finds the same completion_rate for 2+ runtimes
-    → alphabetical first.
+The router is intentionally dependency-free and synchronous
+so that ``create_l1_client`` callers in ``session_orchestrator``
+can call ``choose_runtime(...)`` cheaply.
 
 Stateless by design (within a process); the L4 server's flow_sse
 bus re-evaluates and calls the router on each new session.
@@ -35,7 +32,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .flow_evaluator import (
     FlowEvaluationReport,
@@ -43,15 +40,12 @@ from .flow_evaluator import (
 )
 from .flow_timeline import BusinessFlowSummary
 
-FlowSummaryLike = BusinessFlowSummary
-
 # Default runtime when the router has no signal. Keeps grid-runtime's
 # Tier 1 Harness guarantee intact (per ADR-V2-024 engine 接入面).
 DEFAULT_RUNTIME_ID = "grid-runtime"
 
 # Default evaluator thresholds — same DEFENSIVE set used by
-# flow_evaluator.ensure_no_hints_overrides so the two paths stay
-# in lockstep.
+# flow_evaluator.DEFAULT_THRESHOLDS so the two paths stay in lockstep.
 _DEFAULT_THRESHOLDS = {
     "completion_rate_warn": 0.90,
     "completion_rate_critical": 0.75,
@@ -61,13 +55,26 @@ _DEFAULT_THRESHOLDS = {
 
 
 @dataclass(frozen=True)
+class FlowMeta:
+    """Per-flow identity that ``BusinessFlowSummary`` itself doesn't
+    retain — sourced from the schema columns the timeline rolled up.
+
+    ``business_object_id`` is the wire-format portion of the
+    BusinessKey triple ((session|skill|object)); ``runtime_id`` is
+    the runtime that handled the session.
+    """
+
+    business_object_id: str
+    runtime_id: str = DEFAULT_RUNTIME_ID
+
+
+@dataclass(frozen=True)
 class RouterDecision:
     """The router's pick for one incoming session.
 
     Attributes:
       runtime_id:        the runtime to use for this session.
-      reason:            short human-readable summary ("highest completion rate"
-                         / "default — no signal").
+      reason:            short human-readable summary.
       sample_size:       number of business flows the decision was based
                          on (0 when no signal).
       completion_rates:  map of runtime_id → completion_rate observed
@@ -82,43 +89,49 @@ class RouterDecision:
 
 def choose_runtime(
     business_object_id: str | None,
-    summaries: Iterable[FlowSummaryLike],
+    summaries: Iterable[tuple[BusinessFlowSummary, FlowMeta]],
     *,
-    thresholds: dict[str, float] | None = None,
+    thresholds: Mapping[str, float] | None = None,
 ) -> RouterDecision:
     """Pick a runtime_id based on recent business-flow completion rates.
 
     Args:
       business_object_id: triple that ties this session to recent
         flows. ``None`` → no signal, default runtime.
-      summaries: feed of FlowSummaryLike records spanning the
-        lookback window (e.g. 1h per OBSTACK §3.7).
+      summaries: iterable of ``(summary, meta)`` pairs spanning
+        the lookback window. The summary drives completion_rate;
+        the meta drives the per-runtime grouping.
       thresholds: optional override of the evaluator thresholds
         (mirrors ``evaluate_business_flows``).
-
-    Returns a ``RouterDecision`` containing the pick + the rationale
-    so callers can log it without re-evaluating.
     """
-    threshold_set = thresholds or _DEFAULT_THRESHOLDS
-    summaries_list = list(summaries)
-    if not summaries_list or not business_object_id:
+    threshold_set = dict(thresholds) if thresholds else _DEFAULT_THRESHOLDS
+    pairs = list(summaries)
+    if not pairs or not business_object_id:
         return RouterDecision(
             runtime_id=DEFAULT_RUNTIME_ID,
             reason=(
                 "no signal — empty summaries or missing business_object_id; "
-                "defaulting to {DEFAULT_RUNTIME_ID}"
+                f"defaulting to {DEFAULT_RUNTIME_ID}"
             ),
             sample_size=0,
             completion_rates={},
         )
 
+    plain_summaries = [s for s, _meta in pairs]
+
+    # Single call to the real evaluator — drives the OptimizationHint
+    # set the Optimize executor surfaces in production. We pass
+    # plain_summaries (the FlowSummaryLike shape), not the (s,meta)
+    # tuple, so the existing evaluator signature stays intact.
     report: FlowEvaluationReport = evaluate_business_flows(
-        summaries_list,
+        plain_summaries,
         thresholds=threshold_set,
     )
 
-    # Filter summaries that match the requested business_object_id.
-    relevant = [s for s in summaries_list if _matches(s, business_object_id)]
+    # Filter to this business_object_id, then group by runtime_id.
+    relevant = [
+        (s, m) for s, m in pairs if m.business_object_id == business_object_id
+    ]
     if not relevant:
         return RouterDecision(
             runtime_id=DEFAULT_RUNTIME_ID,
@@ -130,13 +143,15 @@ def choose_runtime(
             completion_rates={},
         )
 
-    # Group by runtime_id; compute per-runtime completion rate.
     per_runtime_total: dict[str, int] = defaultdict(int)
     per_runtime_succeeded: dict[str, int] = defaultdict(int)
-    for s in relevant:
-        rid = _runtime_id_of(s) or DEFAULT_RUNTIME_ID
+    for s, m in relevant:
+        rid = m.runtime_id or DEFAULT_RUNTIME_ID
         per_runtime_total[rid] += 1
-        if _status_of(s) == "succeeded":
+        # "succeeded" / "aborted" both count as "completed";
+        # "running" / "unknown" count as in-progress (not yet
+        # scored); "failed" counts as failure.
+        if s.status == "succeeded":
             per_runtime_succeeded[rid] += 1
 
     completion_rates: dict[str, float] = {
@@ -144,14 +159,11 @@ def choose_runtime(
         for rid in per_runtime_total
     }
 
-    # Pick highest completion rate; tie-break alphabetical.
     best_rid, best_rate = sorted(
         completion_rates.items(),
         key=lambda kv: (-kv[1], kv[0]),
     )[0]
 
-    # Min-sample guard: with < min_sample_size flows the rate is noisy;
-    # fall back to default.
     if per_runtime_total[best_rid] < int(threshold_set["min_sample_size"]):
         return RouterDecision(
             runtime_id=DEFAULT_RUNTIME_ID,
@@ -177,29 +189,7 @@ def choose_runtime(
     )
 
 
-def _matches(summary: FlowSummaryLike, business_object_id: str) -> bool:
-    """Return True iff this summary is for the requested business object.
-
-    Currently we accept any summary whose ``business_object_id`` field
-    matches. If the summary object lacks that attribute, fall back
-    to matching by prefix (first session_id token — same caveat as
-    Python ``BusinessKey.matches``).
-    """
-    obj_id = getattr(summary, "business_object_id", None)
-    if obj_id:
-        return obj_id == business_object_id
-    # Fallback: pull from raw session_id if FlowSummaryLike is a dict.
-    sid = getattr(summary, "session_id", "")
-    return sid.startswith(business_object_id.split("|")[0])
-
-
-def _runtime_id_of(summary: FlowSummaryLike) -> str | None:
-    rid = getattr(summary, "runtime_id", None)
-    if rid:
-        return rid
-    # Last-resort fallback: pull from any structured source attached.
-    return None
-
-
-def _status_of(summary: FlowSummaryLike) -> str | None:
-    return getattr(summary, "status", None)
+# Sentinel alias kept so external imports keep compiling. Older
+# callers (and tests) referred to ``FlowSummaryLike`` as a single
+# shape; new code should use ``tuple[BusinessFlowSummary, FlowMeta]``.
+FlowSummaryLike = tuple[BusinessFlowSummary, FlowMeta]
