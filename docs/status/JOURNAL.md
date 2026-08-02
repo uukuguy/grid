@@ -117,3 +117,7 @@
   Observe 4/5 (L1 SDK 全 wiring deferred V315-L1-OTEL-FULL-01)
   Verify 2/3 (live walkthrough LLM LLM key deferred V315-WALK-01)
   = **21/23 = 91.3%** (vs 18/23 = 78% 起点, vs 19/23 = 83% after ab_router)
+
+## 2026-08-02 (OBSTACK milestone close — V315-CLOSE-01)
+- 14:54 Milestone close: 22/23 = 95.7% 闭环率 shipped。维度:Observe 4/5 + Trace 5/5 ✅ + Evaluate 6/6 ✅ + Optimize 4/4 ✅ + Verify 3/3 ✅。5 commit chain 收尾:V315-L0-PROTO-01 (proto field 100 + 15 struct literal fix, 1351107c + 85cd4951) + V315-OPT-01 ab_router (10 tests, f76be767) + V315-OPT-02 alert_manager (7 tests) + V315-OPT-03 resource_scheduler (8 tests) + V315-WALK-01 REST walkthrough evidence (665435b3) + L4 api.py flow_api router mount fix bug (this commit 因 v3.15.4b 880f8cc9 的 mount 缺失,business_key 真打 server 时全 404) + OBSTACK_DESIGN.md §0 milestone close rewrite (24 行 sub-item 表 + 5 维度 22/23 闭环率 + §0.3 milestone close gate 6 项全 ✅ + §9 Changelog 7 行) + tag v3.15 force-push。`dual-gate PASS`(make v3.10-spec-audit 38 rows + make rbac-audit 134 routes)。
+- 唯一 deferred 是 V315-L1-OTEL-FULL-01(L1 OTel SDK 全接 Counter/Histogram/UpDownCounter handles —— 探索过一轮发现 ManualReader + Arc<ManualReader> + Resource 字段 opaque 链路会撞 crate boundary;sub-PR 范围),不阻塞 95+ bar。
