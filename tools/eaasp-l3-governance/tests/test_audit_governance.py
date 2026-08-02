@@ -38,6 +38,10 @@ async def test_governance_decisions_schema_has_nine_columns_and_checks(
         # v3.11.2 — added ``stage`` column for the 5-stage approval
         # chain; sits between rationale and ts (NULL default for
         # backwards compatibility with v3.11.0 / v3.11.1 rows).
+        # v3.15.5 — V315-BUSINESS-FLOW-02 added ``business_key`` column
+        # for cross-layer business-flow binding; added via idempotent
+        # ALTER TABLE so it appears at the END of the column list
+        # (after ts), NULL default for pre-v3.15.5 rows.
         assert cols == [
             "decision_id",
             "session_id",
@@ -49,6 +53,7 @@ async def test_governance_decisions_schema_has_nine_columns_and_checks(
             "rationale",
             "stage",
             "ts",
+            "business_key",
         ]
     finally:
         await db.close()

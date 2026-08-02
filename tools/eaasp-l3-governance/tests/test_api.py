@@ -218,3 +218,153 @@ async def test_skill_usage_rejects_missing_scope_header(app: AsyncClient) -> Non
     assert resp.status_code == 403
     body = resp.json()
     assert body["detail"]["error"] == "forbidden"
+
+
+# ─── V315-BUSINESS-FLOW-02 commit 3 — X-Business-Key ingestion ───────────────
+
+
+async def test_evaluate_persists_business_key_header(app: AsyncClient) -> None:
+    """When ``X-Business-Key`` is set on ``/v1/evaluate``, the decision
+    row carries it into ``governance_decisions.business_key``.
+
+    Setup: register a session principal + deploy a managed-hooks version
+    with one matching hook so the evaluate handler reaches Step 4.
+    """
+    # Register session principal (v3.11.1 in-process store).
+    from eaasp_l3_governance.api import register_session_principal
+
+    await register_session_principal(
+        "sess_bk1",
+        access_scope="*",
+        tenant_id="tenant-bk1",
+        principal="user-bk1",
+    )
+    # Deploy a managed-hooks version with a matching hook so evaluate
+    # resolves it.
+    resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={
+            "version": "v-bk-1",
+            "hooks": [
+                {
+                    "hook_id": "PreToolUse:scada_read",
+                    "phase": "PreToolUse",
+                    "tool_name": "scada_read",
+                    "risk_level": "read",
+                    "action_preview": "scada read",
+                    "access_scope": "*",
+                },
+            ],
+        },
+        headers={"X-Session-Scope": "*"},
+    )
+    assert resp.status_code == 200, resp.text
+    # Trigger evaluate with X-Business-Key header.
+    resp = await app.post(
+        "/v1/evaluate",
+        json={
+            "session_id": "sess_bk1",
+            "hook_id": "PreToolUse:scada_read",
+            "tool_name": "scada_read",
+            "risk_level": "read",
+            "action_preview": "scada read",
+        },
+        headers={
+            "X-Session-Scope": "*",
+            "X-Business-Key": "sess_bk1|threshold-calibration|Transformer-bk1",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    decision_id = resp.json()["decision_id"]
+    # Verify via direct DB read (cleaner than wiring an HTTP lookup).
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    db_files = list(Path(tempfile.gettempdir()).glob("tmp*.db"))
+    target = None
+    for db in db_files:
+        try:
+            conn = sqlite3.connect(str(db))
+            cur = conn.execute(
+                "SELECT business_key FROM governance_decisions "
+                "WHERE decision_id = ?",
+                (decision_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row is not None:
+                target = row
+                break
+        except sqlite3.DatabaseError:
+            continue
+    assert target is not None, f"Decision {decision_id} not found in any tmp DB"
+    assert target[0] == "sess_bk1|threshold-calibration|Transformer-bk1"
+
+
+async def test_evaluate_without_business_key_persists_null(
+    app: AsyncClient,
+) -> None:
+    """Backward compat: missing X-Business-Key still succeeds (NULL)."""
+    from eaasp_l3_governance.api import register_session_principal
+
+    await register_session_principal(
+        "sess_bk2",
+        access_scope="*",
+        tenant_id="tenant-bk2",
+        principal="user-bk2",
+    )
+    resp = await app.put(
+        "/v1/policies/managed-hooks",
+        json={
+            "version": "v-bk-2",
+            "hooks": [
+                {
+                    "hook_id": "PreToolUse:scada_read",
+                    "phase": "PreToolUse",
+                    "tool_name": "scada_read",
+                    "risk_level": "read",
+                    "action_preview": "scada read",
+                    "access_scope": "*",
+                },
+            ],
+        },
+        headers={"X-Session-Scope": "*"},
+    )
+    assert resp.status_code == 200, resp.text
+    resp = await app.post(
+        "/v1/evaluate",
+        json={
+            "session_id": "sess_bk2",
+            "hook_id": "PreToolUse:scada_read",
+            "tool_name": "scada_read",
+            "risk_level": "read",
+            "action_preview": "scada read",
+        },
+        headers={"X-Session-Scope": "*"},
+    )
+    assert resp.status_code == 200, resp.text
+    decision_id = resp.json()["decision_id"]
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    db_files = list(Path(tempfile.gettempdir()).glob("tmp*.db"))
+    target = None
+    for db in db_files:
+        try:
+            conn = sqlite3.connect(str(db))
+            cur = conn.execute(
+                "SELECT business_key FROM governance_decisions "
+                "WHERE decision_id = ?",
+                (decision_id,),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row is not None:
+                target = row
+                break
+        except sqlite3.DatabaseError:
+            continue
+    assert target is not None, f"Decision {decision_id} not found in any tmp DB"
+    assert target[0] is None

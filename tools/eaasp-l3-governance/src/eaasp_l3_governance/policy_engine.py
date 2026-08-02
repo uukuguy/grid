@@ -342,6 +342,8 @@ class PolicyEngine:
         tool_name: str,
         risk_level: str,
         action_preview: str,
+        *,
+        business_key: str | None = None,
     ) -> GateDecision:
         """Return a ``GateDecision`` and persist it in the audit ledger.
 
@@ -421,6 +423,7 @@ class PolicyEngine:
             decision=decision,
             approver=None,
             rationale=rationale,
+            business_key=business_key,
         )
         return GateDecision(
             decision_id=decision_id,
@@ -456,6 +459,7 @@ class PolicyEngine:
         principal_scope: str | None = None,
         principal_id: str | None = None,
         tenant_id: str | None = None,
+        business_key: str | None = None,
     ) -> GateDecision:
         """Evaluate via OPA and persist the (possibly synthesized) decision.
 
@@ -539,6 +543,7 @@ class PolicyEngine:
             decision=decision,
             approver=None,
             rationale=rationale,
+            business_key=business_key,
         )
         if opa_result.infra_unavailable:
             logger.warning(

@@ -60,6 +60,12 @@ class EvaluateRequest(BaseModel):
     action_preview: str = Field(..., min_length=1)
     agent_id: str | None = None
     skill_id: str | None = None
+    # V315-BUSINESS-FLOW-02 commit 3/6 — cross-layer business-flow binding.
+    # Wire-format ``"session|skill|object"`` (same as the L4 X-Business-Key
+    # header). When set, the decision is tagged into the L3 ledger so
+    # the cross-layer timeline aggregator can JOIN it with L2/L4 rows.
+    # Optional — pre-v3.15.5 callers may not supply this.
+    business_key: str | None = None
 
 
 # D23 / L3-01 — valid loguru levels
@@ -373,6 +379,9 @@ def create_app(db_path: str) -> FastAPI:
     async def evaluate(
         body: EvaluateRequest,
         caller_scope: str = Depends(require_access_scope),
+        x_business_key: str | None = Header(
+            default=None, alias="X-Business-Key"
+        ),
     ) -> dict[str, Any]:
         """Evaluate a governance gate decision.
 
@@ -481,6 +490,11 @@ def create_app(db_path: str) -> FastAPI:
             )
 
         # ── Step 4: route to OPA or in-process, passing principal forward
+        # V315-BUSINESS-FLOW-02 commit 3 — forward business_key (header
+        # takes precedence over body field, mirroring the L4 pattern).
+        # Body field is still accepted for callers that prefer JSON; if
+        # both are set, header wins (consistent with REST conventions).
+        effective_business_key = x_business_key or body.business_key
         if policy.opa_enabled:
             decision = await policy.evaluate_with_opa(
                 session_id=body.session_id,
@@ -493,6 +507,7 @@ def create_app(db_path: str) -> FastAPI:
                 principal_scope=caller_scope,
                 principal_id=principal["principal"],
                 tenant_id=principal["tenant_id"],
+                business_key=effective_business_key,
             )
             backend_kind = "opa"
         else:
@@ -502,6 +517,7 @@ def create_app(db_path: str) -> FastAPI:
                 tool_name=body.tool_name,
                 risk_level=body.risk_level,
                 action_preview=body.action_preview,
+                business_key=effective_business_key,
             )
             backend_kind = "in_process"
 

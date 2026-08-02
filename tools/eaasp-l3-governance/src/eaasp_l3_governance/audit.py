@@ -73,6 +73,10 @@ class GovernanceDecisionOut(BaseModel):
     approver: str | None
     rationale: str
     stage: str | None = None
+    # V315-BUSINESS-FLOW-02 commit 3/6 — cross-layer business-flow binding.
+    # Optional (NULL for pre-v3.15.5 decisions) — present so timeline
+    # readers can JOIN L3 rows into the cross-layer flow view.
+    business_key: str | None = None
     ts: str
 
 
@@ -255,6 +259,8 @@ class AuditStore:
         approver: str | None,
         rationale: str,
         stage: str | None = None,
+        *,
+        business_key: str | None = None,
     ) -> GovernanceDecisionOut:
         """Append-only insert into ``governance_decisions``.
 
@@ -312,8 +318,9 @@ class AuditStore:
                     """
                     INSERT INTO governance_decisions
                         (decision_id, session_id, hook_id, tool_name,
-                         risk_level, decision, approver, rationale, stage)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         risk_level, decision, approver, rationale, stage,
+                         business_key)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         decision_id,
@@ -325,12 +332,14 @@ class AuditStore:
                         approver,
                         rationale,
                         stage,
+                        business_key,
                     ),
                 )
                 cur = await db.execute(
                     """
                     SELECT decision_id, session_id, hook_id, tool_name,
-                           risk_level, decision, approver, rationale, stage, ts
+                           risk_level, decision, approver, rationale, stage,
+                           business_key, ts
                     FROM governance_decisions WHERE decision_id = ?
                     """,
                     (decision_id,),
@@ -355,7 +364,8 @@ class AuditStore:
             cur = await db.execute(
                 """
                 SELECT decision_id, session_id, hook_id, tool_name,
-                       risk_level, decision, approver, rationale, stage, ts
+                       risk_level, decision, approver, rationale, stage,
+                       business_key, ts
                 FROM governance_decisions WHERE decision_id = ?
                 """,
                 (decision_id,),
@@ -428,6 +438,7 @@ def _row_to_governance(row: Any) -> GovernanceDecisionOut:
         approver=row["approver"],
         rationale=row["rationale"],
         stage=row["stage"],
+        business_key=row["business_key"],
         ts=row["ts"],
     )
 

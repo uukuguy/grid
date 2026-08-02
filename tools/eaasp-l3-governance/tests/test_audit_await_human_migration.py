@@ -350,6 +350,13 @@ async def test_migrated_legacy_db_accepts_await_human_via_audit_store(
 
     await migrate_decision_await_human(db_path)
 
+    # v3.15.5 — V315-BUSINESS-FLOW-02 — production brings DB to current
+    # state via init_db() which adds business_key idempotently. The legacy
+    # v3.11.x schema here only has 9 columns, so we run init_db after the
+    # migration to layer on the v3.15.x business_key column without
+    # touching the migrated decision CHECK constraint.
+    await init_db(db_path)
+
     audit_store = AuditStore(db_path)
     out = await audit_store.record_governance_decision(
         decision_id="gd_v3120_e2e",
