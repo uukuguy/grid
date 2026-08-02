@@ -154,12 +154,61 @@ def create_app(
             mcp_resolver=app.state.mcp_resolver,
             event_engine=event_engine,
         )
+
+        # v3.15.5 — OBSTACK §3.5 LayerReader wiring (V315-BUSINESS-FLOW-02).
+        # Open connections to L4 / L3 / L2 databases and build the
+        # ``app.state.flow_layer_readers`` dict that ``flow_api.py`` consumes.
+        # Each reader is a small async wrapper that injects the connection
+        # into the standalone functions in ``flow_readers.py``.
+        from .flow_readers import build_default_layer_readers
+        from .db import connect as l4_connect
+
+        app.state.l4_db_conn = await l4_connect(db_path)
+
+        # L3 cross-DB connect: graceful degrade when the L3 file is
+        # not present (e.g. dev mode with only L4 running). The reader
+        # returns an empty list in that case so the timeline aggregator
+        # never raises.
+        l3_db_path = os.environ.get("EAASP_L3_DB_PATH", "./data/governance.db")
+        if os.path.exists(l3_db_path):
+            app.state.l3_db_conn = await l4_connect(l3_db_path)
+        else:
+            app.state.l3_db_conn = None
+
+        # L2 cross-DB connect: same graceful degrade. Default path
+        # matches L2's own main.py default.
+        l2_db_path = (
+            os.environ.get("EAASP_L2_DB_PATH")
+            or os.environ.get("L2_DB_PATH")
+            or "./data/dev-l2.db"
+        )
+        if os.path.exists(l2_db_path):
+            app.state.l2_db_conn = await l4_connect(l2_db_path)
+        else:
+            app.state.l2_db_conn = None
+
+        app.state.flow_layer_readers = build_default_layer_readers(
+            l4_conn=app.state.l4_db_conn,
+            l3_conn=app.state.l3_db_conn,
+            l2_conn=app.state.l2_db_conn,
+        )
+
         try:
             yield
         finally:
             await event_engine.stop()
             if owned_client:
                 await client.aclose()
+            # Close the cross-layer DB connections that the L4 lifespan
+            # opened. The SessionEventStream / EventEngine own their own
+            # DB handles so they close via their own lifecycle.
+            for attr in ("l4_db_conn", "l3_db_conn", "l2_db_conn"):
+                conn = getattr(app.state, attr, None)
+                if conn is not None:
+                    try:
+                        await conn.close()
+                    except Exception:
+                        pass
 
     app = FastAPI(
         title="EAASP L4 Orchestration",
