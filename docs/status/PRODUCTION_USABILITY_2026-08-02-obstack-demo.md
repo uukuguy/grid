@@ -14,6 +14,17 @@
 > must succeed.
 >
 > **Run**: `bash scripts/v315-obstack-demo.sh 2>&1 | tee .logs/v315-obstack-demo/run.log`
+>
+> **Idempotency (V315-OBSTACK-DEMO-idempotent-01, 2026-08-03)**: the
+> demo is now safe to re-run without manual `find data -name "*.db*"
+> -delete` wipes. Each run generates a unique `RUN_ID` (date + PID),
+> exports `V315_DEMO_DATA_DIR=data/v315-demo-${RUN_ID}`, embeds the
+> RUN_ID in the `X-Business-Key` header, and points every service at
+> its own SQLite file inside that directory. Verified: two
+> consecutive runs (RUN_IDs `20260803-103238-72749` and
+> `20260803-103902-77018`) each produced 14 non-empty timeline events
+> in isolated data dirs — no cross-run pollution. To pin a fixed
+> RUN_ID for replay/debug, set `RUN_ID=foo bash scripts/v315-obstack-demo.sh`.
 
 ## TL;DR
 
