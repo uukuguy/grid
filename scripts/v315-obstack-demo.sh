@@ -31,11 +31,31 @@ cd "$ROOT"
 # boot order doesn't preload threshold-calibration into it).
 export EAASP_DEV_DISABLE_SCOPE_BINDING=1
 
-LOGDIR=".logs/v315-obstack-demo"
-mkdir -p "$LOGDIR"
-KEY="demo-sess|threshold-calibration|Transformer-sla-1785652837"
+# V315-OBSTACK-DEMO-idempotent-01: each demo run gets its own RUN_ID
+# (timestamp + PID) so:
+#   1. Every service writes its SQLite files into a fresh directory
+#      ($V315_DEMO_DATA_DIR), avoiding cross-run pollution.
+#   2. The business_key embeds the RUN_ID so timeline queries always
+#      return ONLY this run's events (no accumulation across runs).
+#   3. Logs land in a per-run subdirectory so multiple demos can
+#      coexist on the same host without overwriting each other.
+#
+# Override with `RUN_ID=foo bash scripts/v315-obstack-demo.sh` to
+# pin the suffix (useful for debugging or replaying a fixed scenario).
+RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)-$$}"
+export V315_DEMO_DATA_DIR="data/v315-demo-${RUN_ID}"
+export LOGDIR_OVERRIDE=".logs/v315-walk/${RUN_ID}"   # so v315-walk-services.sh puts its logs here too
+LOGDIR=".logs/v315-obstack-demo/${RUN_ID}"
+mkdir -p "$V315_DEMO_DATA_DIR" "$LOGDIR"
+
+KEY="demo-sess-${RUN_ID}|threshold-calibration|Transformer-sla-${RUN_ID}"
 ENCODED=$(printf '%s' "$KEY" | python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.stdin.read()))")
 SCOPE="*"
+
+echo "=== RUN_ID: $RUN_ID ==="
+echo "    data dir:  $V315_DEMO_DATA_DIR"
+echo "    log dir:   $LOGDIR"
+echo "    KEY:       $KEY"
 
 # ─── 0. Boot: 5 services + grid-runtime ───────────────────────────────────
 echo "=== 0. Boot services ==="
@@ -183,12 +203,12 @@ head -10 "$LOGDIR/sse.log" 2>/dev/null || true
 echo ""
 echo "=== 9. Observe dimension ==="
 OTEL_EVENTS=$(grep -cE 'session initialized|policy_context metadata|Materialized|hook_vars resolved|capability probe|Scoped hook registered|Scoped Stop hook' \
-  "$ROOT/.logs/v315-walk/grid-runtime.log" 2>/dev/null || echo 0)
+  "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
 echo "  grid-runtime lifecycle events captured (OTel-eligible records): $OTEL_EVENTS"
 echo "  (V315-L1-OTEL-FULL-01: record_*() now lands in real Counter/Histogram/UpDownCounter via SdkMeterProvider)"
 echo "  (evidence via grid-runtime log + the 7/7 in-crate observability tests in crates/grid-runtime/src/observability/mod.rs)"
 
-L4_METRICS=$(grep -cE 'l4\.|flow\.|session\.|room\.|event\.' "$ROOT/.logs/v315-walk/l4.log" 2>/dev/null || echo 0)
+L4_METRICS=$(grep -cE 'l4\.|flow\.|session\.|room\.|event\.' "$ROOT/$LOGDIR_OVERRIDE/l4.log" 2>/dev/null || echo 0)
 echo "  L4 observability log records: $L4_METRICS (l4.* metric names per OBSTACK §3.3)"
 
 # ─── 10. Optimize executors (programmatic) ────────────────────────────────
@@ -208,7 +228,10 @@ key = parse_business_key_header("$KEY")
 import aiosqlite
 
 async def main():
-    l4 = await aiosqlite.connect("$ROOT/data/orchestration.db")
+    # V315-OBSTACK-DEMO-idempotent-01: read the per-run L4 DB so
+    # Optimize executes against the same isolated data directory that
+    # the rest of the demo just populated.
+    l4 = await aiosqlite.connect("$ROOT/$V315_DEMO_DATA_DIR/l4.db")
     l4.row_factory = aiosqlite.Row
     readers = build_default_layer_readers(l4_conn=l4, l3_conn=None, l2_conn=None)
     summary = await assemble_business_flow_summary(key, layer_readers=readers)

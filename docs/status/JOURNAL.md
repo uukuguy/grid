@@ -145,3 +145,6 @@
 
 ## 2026-08-02 (OBSTACK instance demo — V315-BUSINESS-FLOW-02 commit 6/6 + OBSTACK §0 doc delta)
 - 19:20 OBSTACK_DESIGN.md §0.1 + §0.2 doc delta:V315-WALK-01 (`665435b3`) 标记 superseded by V315-OBSTACK-DEMO (`84cc0680`);Verify sub-row 从 "REST walkthrough 空 payload" 升到 "real LLM-driven instance demo"(14-event timeline, dual-gate PASS, 5 维度全跑);§0.2 总判定补充 V315-BUSINESS-FLOW-02 commits 1-5 (43bc632d / 7f395cf2 / fd7c14cd / cfdeb54c) 关闭 ingestion chain。OBSTACK 100% closure 现在 end-to-end verified,不只是单测 + wire-format-tested。
+
+## 2026-08-03 (OBSTACK demo idempotency — V315-OBSTACK-DEMO-idempotent-01 commit 7/9)
+- 10:34 OBSTACK demo 脚本 idempotency 修复(清技术债):v315-walk-services.sh 加 `V315_DEMO_DATA_DIR` envvar 支持(每个 demo run 用独立 SQLite 目录);v315-obstack-demo.sh 顶部生成 `RUN_ID="$(date +%Y%m%d-%H%M%S)-$$"`,导出 `V315_DEMO_DATA_DIR="data/v315-demo-${RUN_ID}"`,KEY 嵌入 RUN_ID(防跨次污染),LOGDIR 也按 RUN_ID 分目录;Optimize step 的 Python 内嵌用 `$V315_DEMO_DATA_DIR/l4.db`(不是写死 `data/orchestration.db`)。第一次跑 demo(`RUN_ID=20260803-103238-72749`):14 events + 90 秒完成 + dual-gate PASS — **不需要手工 wipe**,脚本 idempotent。
