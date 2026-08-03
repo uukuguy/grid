@@ -157,3 +157,6 @@
 
 ## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 1/4)
 - 04:30 V315-OBSTACK-DEMO Phase C.0 commit 1/4: 新 L4 `GET /v1/business-flows/list` 端点(返所有 distinct business_flow + 摘要 + limit/business_object_id/status 过滤)。前端 dashboard 入口第一步 — 运营者打开 `/flows` 不需要先有 business_key 也能看到全貌。3 个新单测全 PASS。Pre-existing 4 fail(test_flow_readers L3 schema 列名错) git stash 验证无关本批。
+
+## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 2/4)
+- 04:55 Phase C.0 commit 2/4:`web/src/api/flows.ts` (flowsApi 5 个方法) + `web/src/atoms/flows.ts` (4 个 atom) + TabId union 加 "flows"。下一 commit (C.3) 加 NavRail + FlowsPage + vite proxy 把 /v1/business-flows 转到 L4:18084。
