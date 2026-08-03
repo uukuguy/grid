@@ -163,3 +163,6 @@
 
 ## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 3/4)
 - 05:25 Phase C.0 commit 3/4:TabBar 加 "Business Flows" tab + `Flows.tsx` 列表页(2 列布局,左 list 右 detail placeholder) + `BusinessFlowCard.tsx`(业务键 / 状态 pill / 4 项 stat grid)+ `FlowsDetail.tsx`(C.4 真实渲染前的占位)+ `App.tsx` 接 tab + `flowsApi` 改用绝对 URL 直打 L4(:18084)。下一 commit (C.4) 把 detail 面板真渲染 timeline + summary + sessions + evaluation。
+
+## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 4/4 MVP 完成)
+- 05:55 Phase C.0 commit 4/4:`FlowsDetail.tsx` 真渲染 4 个 panel(Summary / Sessions / Timeline / Evaluation),每 panel 独立 loading/error state 并行 fetch。新 `flows.test.ts` 5 个 atom 单测全 PASS。**Phase C.0 MVP 完整** — 运营者打开 web "Business Flows" tab → 看所有业务流 → 点一个 → 看 timeline / sessions / evaluation。Phase C.1-C.5 (过滤 / Optimize / L5 Cowork / 告警 / 统计) 是后续 polish。
