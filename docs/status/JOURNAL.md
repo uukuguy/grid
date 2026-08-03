@@ -166,3 +166,6 @@
 
 ## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 4/4 MVP 完成)
 - 05:55 Phase C.0 commit 4/4:`FlowsDetail.tsx` 真渲染 4 个 panel(Summary / Sessions / Timeline / Evaluation),每 panel 独立 loading/error state 并行 fetch。新 `flows.test.ts` 5 个 atom 单测全 PASS。**Phase C.0 MVP 完整** — 运营者打开 web "Business Flows" tab → 看所有业务流 → 点一个 → 看 timeline / sessions / evaluation。Phase C.1-C.5 (过滤 / Optimize / L5 Cowork / 告警 / 统计) 是后续 polish。
+
+## 2026-08-03 (OBSTACK Phase C.5 — 多维过滤 commit 6/8)
+- 21:30 Phase C.5 commit 6/8:`flowsFilterAtom` (business_object_id + statuses + window) + FlowsPage 过滤栏(文本搜索 / 3 状态 checkbox / 时间窗 select / Reset) + 4 个 atom 单测。**35/35 web 测试 PASS**。100 业务流的部署现在能在 3 次点击内 triage 到"最近 1h 失败的 Transformer"。Phase C.5.1 (URL hash 持久化) 待评估,默认 Jotai atom 状态。
