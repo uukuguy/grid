@@ -1,6 +1,17 @@
 import { atom } from "jotai";
 
-export type TabId = "chat" | "tasks" | "schedule" | "tools" | "debug" | "memory" | "mcp" | "collaboration";
+// OBSTACK Phase C.0 — add "flows" tab for the global observability
+// dashboard (OBSTACK_HANDBOOK.md Ch14.3 Phase C.0).
+export type TabId =
+  | "chat"
+  | "tasks"
+  | "schedule"
+  | "tools"
+  | "debug"
+  | "memory"
+  | "mcp"
+  | "collaboration"
+  | "flows";
 export const activeTabAtom = atom<TabId>("chat");
 export const sidebarOpenAtom = atom(false);
 
