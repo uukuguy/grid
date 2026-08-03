@@ -89,7 +89,22 @@ export interface EvaluationResponse {
   report: EvaluationReport;
 }
 
-// ─── API surface ─────────────────────────────────────────────────────────
+// ─── Direct L4 access (bypasses grid-server proxy) ─────────────────────
+//
+// OBSTACK endpoints live on L4 (:18084), not on grid-server (:3001).
+// Calling them directly avoids a future "grid-server must proxy /v1/
+// business-flows/* to L4" requirement and keeps the wiring simple.
+// Override with VITE_L4_BASE_URL in deployment.
+//
+// This is the Phase C.0 convention; Phase D (multi-tenant) will move
+// the gateway responsibility into grid-server and re-route via the
+// tenant-aware JWT — at that point the absolute URL goes away.
+
+const L4_BASE_URL =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as { env?: Record<string, string> }).env
+      ?.VITE_L4_BASE_URL) ||
+  "http://127.0.0.1:18084";
 
 function encodeBusinessKey(key: string): string {
   // /v1/business-flows/{key}/... requires the path segment URL-encoded
@@ -103,6 +118,23 @@ export interface FlowListParams {
   status?: string;
 }
 
+async function l4Fetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = api.getToken();
+  const headers = new Headers(init.headers ?? {});
+  if (!headers.has("Content-Type") && init.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const resp = await fetch(`${L4_BASE_URL}${path}`, { ...init, headers });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`L4 ${resp.status}: ${text || resp.statusText}`);
+  }
+  return resp.json() as Promise<T>;
+}
+
 export const flowsApi = {
   async list(params?: FlowListParams): Promise<BusinessFlowListResponse> {
     const search = new URLSearchParams();
@@ -112,35 +144,35 @@ export const flowsApi = {
     }
     if (params?.status) search.set("status", params.status);
     const qs = search.toString();
-    return api.request<BusinessFlowListResponse>(
+    return l4Fetch<BusinessFlowListResponse>(
       `/v1/business-flows/list${qs ? `?${qs}` : ""}`,
       { method: "GET" },
     );
   },
 
   async timeline(key: string): Promise<TimelineResponse> {
-    return api.request<TimelineResponse>(
+    return l4Fetch<TimelineResponse>(
       `/v1/business-flows/${encodeBusinessKey(key)}/timeline`,
       { method: "GET" },
     );
   },
 
   async summary(key: string): Promise<SummaryResponse> {
-    return api.request<SummaryResponse>(
+    return l4Fetch<SummaryResponse>(
       `/v1/business-flows/${encodeBusinessKey(key)}/summary`,
       { method: "GET" },
     );
   },
 
   async sessions(key: string): Promise<SessionsResponse> {
-    return api.request<SessionsResponse>(
+    return l4Fetch<SessionsResponse>(
       `/v1/business-flows/${encodeBusinessKey(key)}/sessions`,
       { method: "GET" },
     );
   },
 
   async evaluation(key: string): Promise<EvaluationResponse> {
-    return api.request<EvaluationResponse>(
+    return l4Fetch<EvaluationResponse>(
       `/v1/business-flows/${encodeBusinessKey(key)}/evaluation`,
       { method: "GET" },
     );

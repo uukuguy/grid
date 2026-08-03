@@ -1,7 +1,7 @@
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
 import { activeTabAtom, type TabId } from "@/atoms/ui";
-import { Server, ListTodo, Calendar, Users } from "lucide-react";
+import { Server, ListTodo, Calendar, Users, Activity } from "lucide-react";
 
 const tabs: { id: TabId; label: string; icon?: React.ComponentType<{ className?: string }> }[] = [
   { id: "chat", label: "Chat" },
@@ -12,6 +12,10 @@ const tabs: { id: TabId; label: string; icon?: React.ComponentType<{ className?:
   { id: "debug", label: "Debug" },
   { id: "mcp", label: "MCP", icon: Server },
   { id: "collaboration", label: "Collab", icon: Users },
+  // OBSTACK Phase C.0 — entry point to the global observability
+  // dashboard. Lets operators see every business flow's status at a
+  // glance without running `eaasp flow timeline --key ...` first.
+  { id: "flows", label: "Business Flows", icon: Activity },
 ];
 
 export function TabBar() {

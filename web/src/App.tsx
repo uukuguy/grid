@@ -11,6 +11,7 @@ import Memory from "./pages/Memory";
 import Debug from "./pages/Debug";
 import McpWorkbench from "./pages/McpWorkbench";
 import Collaboration from "./pages/Collaboration";
+import Flows from "./pages/Flows";
 
 export default function App() {
   const [activeTab] = useAtom(activeTabAtom);
@@ -26,6 +27,7 @@ export default function App() {
         {activeTab === "debug" && <Debug />}
         {activeTab === "mcp" && <McpWorkbench />}
         {activeTab === "collaboration" && <Collaboration />}
+        {activeTab === "flows" && <Flows />}
       </AppLayout>
       <ToastContainer />
     </ErrorBoundary>
