@@ -160,3 +160,6 @@
 
 ## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 2/4)
 - 04:55 Phase C.0 commit 2/4:`web/src/api/flows.ts` (flowsApi 5 个方法) + `web/src/atoms/flows.ts` (4 个 atom) + TabId union 加 "flows"。下一 commit (C.3) 加 NavRail + FlowsPage + vite proxy 把 /v1/business-flows 转到 L4:18084。
+
+## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 3/4)
+- 05:25 Phase C.0 commit 3/4:TabBar 加 "Business Flows" tab + `Flows.tsx` 列表页(2 列布局,左 list 右 detail placeholder) + `BusinessFlowCard.tsx`(业务键 / 状态 pill / 4 项 stat grid)+ `FlowsDetail.tsx`(C.4 真实渲染前的占位)+ `App.tsx` 接 tab + `flowsApi` 改用绝对 URL 直打 L4(:18084)。下一 commit (C.4) 把 detail 面板真渲染 timeline + summary + sessions + evaluation。
