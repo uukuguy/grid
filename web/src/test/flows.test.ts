@@ -12,6 +12,7 @@ import {
   flowsTotalAtom,
   selectedFlowKeyAtom,
   selectedFlowSummaryAtom,
+  flowsFilterAtom,
 } from "../atoms/flows";
 import type { BusinessFlowSummary } from "../api/flows";
 
@@ -67,5 +68,91 @@ describe("flows atoms (Phase C.0)", () => {
     };
     store.set(selectedFlowSummaryAtom, summary);
     expect(store.get(selectedFlowSummaryAtom)).toEqual(summary);
+  });
+
+  it("flowsFilterAtom defaults to all-statuses + 24h window + empty query", () => {
+    const store = createStore();
+    const f = store.get(flowsFilterAtom);
+    expect(f.business_object_id).toBe("");
+    expect(f.statuses).toEqual(["failed", "active", "closed"]);
+    expect(f.window).toBe("24h");
+  });
+
+  it("flowsFilterAtom — toggling status narrows / widens the list", () => {
+    const store = createStore();
+    const flows: BusinessFlowSummary[] = [
+      { ...SAMPLE, business_key: "k1", status: "failed" },
+      { ...SAMPLE, business_key: "k2", status: "active" },
+      { ...SAMPLE, business_key: "k3", status: "closed" },
+    ];
+    store.set(flowsListAtom, flows);
+    store.set(flowsTotalAtom, 3);
+
+    // Helper — empty statuses means "no status filter applied".
+    const applyStatusFilter = (all: BusinessFlowSummary[], statuses: string[]) =>
+      statuses.length === 0
+        ? all
+        : all.filter((f) => statuses.includes(f.status));
+
+    // Default filter = all 3 statuses → see all 3.
+    let visible = applyStatusFilter(flows, store.get(flowsFilterAtom).statuses);
+    expect(visible.map((f) => f.business_key).sort()).toEqual(["k1", "k2", "k3"]);
+
+    // Narrow to only "failed" → see 1.
+    store.set(flowsFilterAtom, { ...store.get(flowsFilterAtom), statuses: ["failed"] });
+    visible = applyStatusFilter(flows, store.get(flowsFilterAtom).statuses);
+    expect(visible.map((f) => f.business_key)).toEqual(["k1"]);
+
+    // Empty statuses = show all (caller-side "no filter").
+    store.set(flowsFilterAtom, { ...store.get(flowsFilterAtom), statuses: [] });
+    visible = applyStatusFilter(flows, store.get(flowsFilterAtom).statuses);
+    expect(visible.map((f) => f.business_key).sort()).toEqual(["k1", "k2", "k3"]);
+  });
+
+  it("flowsFilterAtom — window=1h filters out older flows", () => {
+    const store = createStore();
+    const now = Math.floor(Date.now() / 1000);
+    const flows: BusinessFlowSummary[] = [
+      { ...SAMPLE, business_key: "fresh", last_started_at: now - 60 },         // 1 min ago
+      { ...SAMPLE, business_key: "old",   last_started_at: now - 60 * 60 * 3 }, // 3h ago
+    ];
+    store.set(flowsListAtom, flows);
+
+    // 1h window → only "fresh"
+    store.set(flowsFilterAtom, { ...store.get(flowsFilterAtom), window: "1h" });
+    const cutoff1h = now - 60 * 60;
+    const visible1h = flows.filter(
+      (f) => f.last_started_at !== null && f.last_started_at >= cutoff1h,
+    );
+    expect(visible1h.map((f) => f.business_key)).toEqual(["fresh"]);
+
+    // "all" window → both
+    store.set(flowsFilterAtom, { ...store.get(flowsFilterAtom), window: "all" });
+    const visibleAll = flows; // no filtering
+    expect(visibleAll.map((f) => f.business_key).sort()).toEqual(["fresh", "old"]);
+  });
+
+  it("flowsFilterAtom — business_object_id exact match", () => {
+    const store = createStore();
+    const flows: BusinessFlowSummary[] = [
+      { ...SAMPLE, business_key: "k1|threshold-calibration|Transformer-A",
+        business_object_id: "Transformer-A" },
+      { ...SAMPLE, business_key: "k2|threshold-calibration|Transformer-B",
+        business_object_id: "Transformer-B" },
+    ];
+    store.set(flowsListAtom, flows);
+
+    // Helper — empty query means "no filter applied".
+    const applyObjectFilter = (all: BusinessFlowSummary[], q: string) =>
+      q === "" ? all : all.filter((f) => f.business_object_id === q);
+
+    // No filter — see both
+    let visible = applyObjectFilter(flows, store.get(flowsFilterAtom).business_object_id);
+    expect(visible).toHaveLength(2);
+
+    // Exact match on Transformer-A
+    store.set(flowsFilterAtom, { ...store.get(flowsFilterAtom), business_object_id: "Transformer-A" });
+    visible = applyObjectFilter(flows, store.get(flowsFilterAtom).business_object_id);
+    expect(visible.map((f) => f.business_key)).toEqual(["k1|threshold-calibration|Transformer-A"]);
   });
 });

@@ -114,7 +114,13 @@ function encodeBusinessKey(key: string): string {
 
 export interface FlowListParams {
   limit?: number;
+  /** Exact match on the third pipe-segment of business_key. */
   business_object_id?: string;
+  /**
+   * Single status to push to the server (L4 endpoint accepts one).
+   * For multi-status filtering, set this to the FIRST selected status
+   * and let the client-side filter handle the rest.
+   */
   status?: string;
 }
 
