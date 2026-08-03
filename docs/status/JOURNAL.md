@@ -151,3 +151,6 @@
 
 ## 2026-08-03 (OBSTACK demo idempotency — V315-OBSTACK-DEMO-idempotent-01 commit 8/9)
 - 10:40 第二次跑 demo (`RUN_ID=20260803-103902-77018`) 验证 idempotency:timeline = 14 events + dual-gate PASS,**跟第一次完全独立,不累积**(`data/v315-demo-20260803-103902-77018/` 是全新目录)。walkthrough doc 加 idempotency note 说明 RUN_ID 机制。
+
+## 2026-08-03 (OBSTACK 手册 — OBSTACK_HANDBOOK.md 完整版 ship)
+- 02:50 OBSTACK_HANDBOOK.md 写完:1736 行 / 15 章(Ch0 EAASP 概览 + Ch1-Ch14 各维度详解 + Refs)。调性:中文 + 必要英文术语 + 真实数字 + ASCII 图 + 关键 ADR 引用。Ch14 反盲盒核心定位 + 路线图 Phase C 入口先行 → A/B 填数据 → D/E 深度补全。后续 Phase C (Dashboard) 落地时,本手册 Ch8/Ch10/Ch14 是开发入口。
