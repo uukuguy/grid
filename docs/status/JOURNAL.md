@@ -154,3 +154,6 @@
 
 ## 2026-08-03 (OBSTACK 手册 — OBSTACK_HANDBOOK.md 完整版 ship)
 - 02:50 OBSTACK_HANDBOOK.md 写完:1736 行 / 15 章(Ch0 EAASP 概览 + Ch1-Ch14 各维度详解 + Refs)。调性:中文 + 必要英文术语 + 真实数字 + ASCII 图 + 关键 ADR 引用。Ch14 反盲盒核心定位 + 路线图 Phase C 入口先行 → A/B 填数据 → D/E 深度补全。后续 Phase C (Dashboard) 落地时,本手册 Ch8/Ch10/Ch14 是开发入口。
+
+## 2026-08-03 (OBSTACK Phase C.0 — dashboard 入口 commit 1/4)
+- 04:30 V315-OBSTACK-DEMO Phase C.0 commit 1/4: 新 L4 `GET /v1/business-flows/list` 端点(返所有 distinct business_flow + 摘要 + limit/business_object_id/status 过滤)。前端 dashboard 入口第一步 — 运营者打开 `/flows` 不需要先有 business_key 也能看到全貌。3 个新单测全 PASS。Pre-existing 4 fail(test_flow_readers L3 schema 列名错) git stash 验证无关本批。
