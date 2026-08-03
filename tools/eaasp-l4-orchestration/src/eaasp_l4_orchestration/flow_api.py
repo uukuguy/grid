@@ -36,7 +36,7 @@ import json
 import logging
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 
 from eaasp_common.business_flow import (
@@ -250,6 +250,116 @@ async def get_sessions_for_business_flow(
         "session_ids": session_ids,
         "count": len(session_ids),
     }
+
+
+@router.get("/list")
+async def list_business_flows(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=200),
+    business_object_id: str | None = Query(
+        default=None,
+        description="Optional filter — match the third pipe-segment of business_key",
+    ),
+    status: str | None = Query(
+        default=None,
+        description="Optional filter — session status (created/active/closed/failed)",
+    ),
+) -> dict[str, Any]:
+    """List all distinct business flows across the L4 sessions table.
+
+    Phase C.0 — V315-OBSTACK-DEMO Phase C.0 (dashboard 入口):
+    Phase C 路线图第一步 — 让运营者打开浏览器就能看到所有业务流,
+    不需要先有 business_key 也不用 `eaasp flow` CLI。
+
+    返回每个 distinct business_key 的摘要(最近一次 session 的状态 +
+    event_count + duration)。多租户升级路径:加 ``tenant_id`` 参数即可,
+    当前 schema 不变。
+    """
+    import aiosqlite
+
+    conn = getattr(request.app.state, "l4_db_conn", None)
+    if conn is None:
+        # No DB wired (e.g. test app without lifespan). Return empty.
+        return {"flows": [], "total": 0}
+
+    # Build WHERE clauses dynamically (parameterized).
+    where_clauses: list[str] = ["business_key IS NOT NULL"]
+    params: list[Any] = []
+    # Note: business_object_id filter is applied in Python (after the
+    # SQL fetch) because SQLite's INSTR() doesn't accept a 3rd arg for
+    # the second-separator offset. Dataset is bounded by ``limit`` <= 200
+    # so the Python-side filter is fast enough for dashboard use.
+    if status is not None:
+        where_clauses.append("status = ?")
+        params.append(status)
+
+    where_sql = " AND ".join(where_clauses)
+    sql = (
+        "SELECT business_key, "
+        "COUNT(*) AS session_count, "
+        "MAX(created_at) AS last_started_at, "
+        "MAX(closed_at) AS last_completed_at, "
+        "SUM(CASE WHEN status IN ('closed', 'failed') THEN 1 ELSE 0 END) AS finished_count, "
+        "SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count "
+        f"FROM sessions WHERE {where_sql} "
+        "GROUP BY business_key "
+        "ORDER BY last_started_at DESC "
+        "LIMIT ?"
+    )
+    params.append(limit)
+
+    try:
+        cur = await conn.execute(sql, tuple(params))
+        rows = await cur.fetchall()
+    except aiosqlite.OperationalError:
+        # Column missing on a pre-migration DB; return empty so the
+        # endpoint stays useful (timeline readers still surface events).
+        return {"flows": [], "total": 0}
+
+    flows: list[dict[str, Any]] = []
+    for r in rows:
+        bk = r["business_key"]
+        last_started = r["last_started_at"]
+        last_completed = r["last_completed_at"]
+        # Parse the wire format (session|skill|object) once per row.
+        parts = bk.split("|", 2) if bk else ["", "", ""]
+        row_object_id = parts[2] if len(parts) >= 3 else ""
+
+        # Python-side filter on business_object_id (avoids the SQLite
+        # INSTR 3-arg limitation; dataset is bounded by ``limit`` <= 200
+        # so this is fast enough for the dashboard use case).
+        if business_object_id is not None and row_object_id != business_object_id:
+            continue
+
+        flows.append({
+            "business_key": bk,
+            "business_object_id": row_object_id,
+            "skill_id": parts[1] if len(parts) >= 2 else "",
+            "session_id": parts[0] if len(parts) >= 1 else "",
+            "session_count": r["session_count"],
+            "finished_count": r["finished_count"],
+            "failed_count": r["failed_count"],
+            "last_started_at": last_started,
+            "last_completed_at": last_completed,
+            "last_duration_ms": (
+                (last_completed - last_started) * 1000
+                if last_started is not None and last_completed is not None
+                else None
+            ),
+            # Per-row status: dominant status across all sessions for
+            # this business_key (simplified — clients can drill into
+            # /sessions for exact per-session status).
+            "status": (
+                "failed" if r["failed_count"] > 0
+                else "closed" if r["finished_count"] > 0
+                else "active"
+            ),
+        })
+
+    # Total = sum of session_count across rows (not row count) — gives
+    # operators the absolute number of business-flow instances seen.
+    total_sessions = sum(f["session_count"] for f in flows)
+    return {"flows": flows, "total": total_sessions}
 
 
 __all__ = ["router"]
