@@ -178,3 +178,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.2 — App-mount jsdom 真验证 commit 11)
 - 10:38 Phase C.0.2 commit 11:`web/src/test/app-mount.test.tsx` (NEW, 111 行) — jsdom 测试真把 React App mount 起来,点 "Business Flows" tab,确认 flowsApi 真发请求。2/2 tests pass。Test 还发现一个真 bug:`MessageList.tsx:11` 调 `scrollIntoView`,jsdom 没实现 → test 里 stub 掉。真浏览器有 native scrollIntoView,production 不受影响。**37/37 web 测试全 PASS**(之前 commit 数字不准,fix 一下)。
+
+## 2026-08-04 (OBSTACK Phase C.0.3 — grid-server auth disable commit 13)
+- 11:05 Phase C.0.3 commit 13:用户坚持 `make v315-e2e` 真跑 — 之前 commit 只 curl index.html 假装通过。真跑暴露根因:grid-server 默认 api_key 模式,无 token `/api/v1/config` 返 401 → ws/manager reconnect 循环 → 浏览器看到 "Connection Lost"。修法:`GRID_AUTH_MODE=none` env var 起 grid-server (dev only)。v315-web-dev.sh + v315-web-e2e.sh 都改用此 env var + reap :3001 端口 + 真 e2e exit 0。
