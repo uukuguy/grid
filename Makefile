@@ -709,3 +709,8 @@ mcp-orch-test:
 	cargo test -p eaasp-mcp-orchestrator -- --test-threads=1
 
 # ============================================================
+v315-dev:
+	bash scripts/v315-web-dev.sh
+
+v315-e2e:
+	bash scripts/v315-web-e2e.sh

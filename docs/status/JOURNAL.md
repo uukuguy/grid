@@ -172,3 +172,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.1 — web 真能跑通调试 fix commit 9/8)
 - 10:05 Phase C.0.1 commit 9/8:之前 Phase C.0 commit 没真在浏览器验证过 — 用户报告 localhost:5180 连不上。根因:vite 默认 `host: "localhost"` 解析到 IPv6 ::1,IPv4 连拒。修法:web/vite.config.ts 显式 `host: "127.0.0.1"` + `strictPort: true` + proxy 也改 IPv4。同时新增 `scripts/v315-web-dev.sh` (clean boot + reap + stop) 和 `scripts/v315-web-e2e.sh` (5 步 e2e 验证脚本,以后跑就能确认 Phase C.0 端到端 work)。e2e 真跑通:L4 + web 双 UP,4 个 OBSTACK REST 端点全返 200,timeline 显示 5 个 L4 事件。
+
+## 2026-08-04 (OBSTACK Phase C.0.1 — Connection Lost 根因修 commit 10)
+- 10:26 用户报告浏览器 "Connection Lost / WebSocket disconnected" — 真根因:`main.tsx` await `initConfig()` 阻塞渲染;grid-server :3001 需要 auth token 返 401;渲染失败 → ws/manager 进入 reconnect 循环。修法:`main.tsx` 立刻渲染,`initConfig()` 背景运行(fallback config 已经够 Phase C.0 用,因 flowsApi 直接打 L4,不走 grid-server proxy)。顺带 Makefile 加 `v315-dev` + `v315-e2e` target。
