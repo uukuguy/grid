@@ -157,10 +157,10 @@ export const removeToastAtom = atom(null, (get, set, id: string) => {
 
 // ── WebSocket Connection Status ──
 
-export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
+export type ConnectionStatus = "connected" | "reconnecting" | "disconnected" | "connecting";
 
 /** Current WebSocket connection status */
-export const connectionStatusAtom = atom<ConnectionStatus>("disconnected");
+export const connectionStatusAtom = atom<ConnectionStatus>("connecting");
 
 /** Current reconnect attempt count (0 when connected) */
 export const reconnectAttemptAtom = atom<number>(0);

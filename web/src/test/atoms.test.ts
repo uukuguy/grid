@@ -54,9 +54,14 @@ describe("UI atoms", () => {
     expect(store.get(sidebarOpenAtom)).toBe(false);
   });
 
-  it("connectionStatusAtom defaults to disconnected", () => {
+  it("connectionStatusAtom defaults to 'connecting'", () => {
+    // Phase D.1 — the indicator should not start in the "Disconnected"
+    // state, otherwise operators see a red dot briefly on every page
+    // load even when wsManager is about to connect. "connecting"
+    // matches the WS standard (WebSocket.CONNECTING) and is also
+    // more accurate (the manager has not yet finished a handshake).
     const store = createStore();
-    expect(store.get(connectionStatusAtom)).toBe("disconnected");
+    expect(store.get(connectionStatusAtom)).toBe("connecting");
   });
 
   it("addToastAtom adds a toast", () => {

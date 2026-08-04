@@ -15,6 +15,15 @@ const STATUS_CONFIG = {
     dotClass: "bg-red-500",
     label: "Disconnected",
   },
+  // Phase D.1 — `connecting` is the default before wsManager has
+  // connected. Without this entry, the indicator briefly flashes
+  // "Disconnected" on every page load — see wsManager's enabled →
+  // setEnabled call. The connecting state mirrors the WS standard
+  // (WebSocket.CONNECTING).
+  connecting: {
+    dotClass: "bg-blue-500 animate-pulse",
+    label: "Connecting…",
+  },
 } as const;
 
 export function ConnectionStatus() {
