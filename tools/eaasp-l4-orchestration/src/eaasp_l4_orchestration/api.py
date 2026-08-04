@@ -25,6 +25,7 @@ from typing import Annotated, Any
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
@@ -218,6 +219,27 @@ def create_app(
             "+ Event stream (MVP)"
         ),
         lifespan=lifespan,
+    )
+
+    # OBSTACK Phase C.0.4 — CORS for the dashboard.
+    #
+    # The Phase C.0 web dashboard (port 5180 via vite) fetches
+    # /v1/business-flows/* directly from L4 (port 18084) because
+    # grid-server (port 3001) does not proxy these endpoints. Without
+    # this middleware the browser blocks the cross-origin fetch with
+    # "Failed to fetch" — which is what the first browser e2e
+    # caught (commit f71a8c93 fixed the WS reconnect loop; this fixes
+    # the cross-origin fetch).
+    #
+    # Phase D (multi-tenant) re-routes through grid-server with JWT
+    # auth; at that point CORS becomes a non-issue because the
+    # browser hits the same origin as the React bundle.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],          # dev mode — vite dev :5180 → L4 :18084
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # OBSTACK §3.5 — business-flow REST + SSE endpoints

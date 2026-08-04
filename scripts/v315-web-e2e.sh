@@ -155,7 +155,7 @@ done
 
 # ─── Step 4: mock-browser test (jsdom React mount + click) ────────
 echo ""
-echo "=== step 4: mock-browser mount + click ==="
+echo "=== step 4: jsdom mock-browser mount + click ==="
 cd "$ROOT/web"
 TEST_OUTPUT=$(timeout 60 npx vitest run src/test/app-mount.test.tsx --environment jsdom \
   --reporter=verbose 2>&1 | tail -25)
@@ -167,6 +167,20 @@ else
   fail "app-mount test failed"
 fi
 cd "$ROOT"
+
+# ─── Step 4b: REAL browser test (Playwright + Chromium) ───────────
+echo ""
+echo "=== step 4b: real-browser e2e (Playwright + Chromium) ==="
+if [ ! -x "$ROOT/web/node_modules/.bin/playwright" ] && ! command -v playwright >/dev/null 2>&1; then
+  echo "  playwright not installed — skipping (install: npx playwright install chromium)"
+else
+  BROWSER_OUTPUT=$(timeout 60 node "$ROOT/scripts/v315-browser-e2e.mjs" 2>&1 | tail -30)
+  echo "$BROWSER_OUTPUT" | tail -15
+  if ! echo "$BROWSER_OUTPUT" | grep -qE 'ALL CHECKS PASSED'; then
+    fail "real-browser e2e failed (see output above)"
+  fi
+  echo "  browser-e2e PASS ✓"
+fi
 
 # ─── Step 5: flowsApi direct simulation ───────────────────────────
 echo ""
