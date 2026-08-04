@@ -74,6 +74,11 @@ help:
 	@echo "  make verify-runtime   Print runtime verification checklist"
 	@echo "  make verify-3.7.2  Phase 3.7.2 closure check (vitest + playwright + tsc + build + UI-SPEC grep)"
 	@echo ""
+	@echo "grid-web product (OBSTACK Phase C.0.6):"
+	@echo "  make grid-web       Boot the OBSTACK dashboard (L4 + grid-server + web dev)"
+	@echo "  make grid-web-stop  Tear down all grid-web processes"
+	@echo "  make grid-web-e2e   End-to-end smoke: HTTP + jsdom + real browser"
+	@echo ""
 	@echo "Full target list:"
 	@echo "  make help-full     Show every target with its command"
 	@echo "  cat Makefile       Source of truth (~600 lines)"
@@ -249,6 +254,40 @@ web-install:
 # 清理 web/ 构建产物 + node_modules (full reset)
 web-clean:
 	cd web && rm -rf node_modules dist .vite test-results playwright-report
+
+# OBSTACK Phase C.0.6 — grid-web product interface.
+#
+# grid-web is the OBSTACK dashboard. The product entry-points are:
+#
+#   make grid-web          Boot the full OBSTACK stack: L4 backend
+#                           (18084) + grid-server :3001 (auth disabled
+#                           in dev) + web/ Vite dev server (5180) +
+#                           L4_ENV=dev gates CORS. Open
+#                           http://localhost:5180 → click "Business
+#                           Flows" tab.
+#   make grid-web-stop     Tear down all of the above (reap PIDs).
+#   make grid-web-e2e      Run the full end-to-end smoke: HTTP probes
+#                           on every OBSTACK REST endpoint + jsdom
+#                           React mount test + a real Chromium browser
+#                           test (Playwright) that verifies default
+#                           tab, no Connection Lost toast, 5 cards
+#                           rendered, click → detail panel mounts.
+#
+# These wrap the lower-level scripts/v315-web-dev.sh +
+# scripts/v315-web-e2e.sh + scripts/v315-browser-e2e.mjs. Use them
+# for the product lifecycle ("do I have a working OBSTACK dashboard
+# right now?"); use the v315-* scripts for debug / iteration.
+
+.PHONY: grid-web grid-web-stop grid-web-e2e
+
+grid-web:
+	GRID_AUTH_MODE=none L4_ENV=dev bash scripts/v315-web-dev.sh
+
+grid-web-stop:
+	bash scripts/v315-web-dev.sh stop
+
+grid-web-e2e:
+	bash scripts/v315-web-e2e.sh
 
 # S7 web dashboard walkthrough (Phase 3.7.2)
 #   Runs CLI scenario S3 (hook governance) end-to-end through web/.
