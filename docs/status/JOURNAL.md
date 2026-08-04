@@ -193,3 +193,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.5 — Tab-aware WS lifecycle commit 17)
 - 14:25 用户反馈"切其它tab,仍然 Connection Lost"。commit 15 默认 tab=flows 只阻止了初始重连循环,但 wsManager 是 module-level singleton,点 Chat tab 触发 SessionBar.switchSession() → connect() → grid-server /ws 404 → 5 次重连 → toast。修法:ws/manager 加 enabled flag + setEnabled() + onEnabledChange();App.tsx 用 TAB_METADATA.requiresWebSocket + activeTab useEffect 控制 wsManager 启停;ws.onerror 失败 1 次后放弃并自动 disable(避免无谓 retry)。web 40/40 测试 + 真浏览器 e2e + tab-switch e2e 全过 — Connection Lost toast = FALSE。
+
+## 2026-08-04 (OBSTACK Phase C.0.6 — grid-web 正式命令接口 commit 18)
+- 15:10 用户反馈"grid-web 应该是一个正式产品,有正规的用户命令接口"。之前 OBSTACK dashboard 启动只能靠 `scripts/v315-web-dev.sh`,不在 help 里,不是产品入口。新 3 个正式 Make 目标:`make grid-web`(启 L4 + grid-server + web dev,3 个端口 UP)/ `make grid-web-stop`(清场)/ `make grid-web-e2e`(HTTP + jsdom + 真浏览器 e2e)。`make help` 加 "grid-web product (OBSTACK Phase C.0.6)" 块。底层 v315-* 脚本保留作 debug / iteration 用。
