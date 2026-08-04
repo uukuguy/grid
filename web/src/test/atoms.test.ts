@@ -5,6 +5,8 @@ import {
   activeTabAtom,
   sidebarOpenAtom,
   connectionStatusAtom,
+  TAB_METADATA,
+  type TabId,
 } from "../atoms/ui";
 import {
   sessionsAtom,
@@ -19,9 +21,32 @@ import {
 } from "../atoms/session";
 
 describe("UI atoms", () => {
-  it("activeTabAtom defaults to chat", () => {
+  it("activeTabAtom defaults to 'flows' (OBSTACK Phase C.0.3)", () => {
+    // Phase C.0.3 changed the default from "chat" to "flows" because
+    // chat auto-connects to grid-server /ws which 404s today. Operators
+    // should land on the dashboard; chat is opt-in.
     const store = createStore();
-    expect(store.get(activeTabAtom)).toBe("chat");
+    expect(store.get(activeTabAtom)).toBe("flows");
+  });
+
+  it("TAB_METADATA declares per-tab resource requirements", () => {
+    // Flows tab is the new entry point — must NOT require WS or grid-server.
+    expect(TAB_METADATA.flows.requiresWebSocket).toBe(false);
+    expect(TAB_METADATA.flows.requiresGridServer).toBe(false);
+
+    // Chat tab needs both WS + grid-server.
+    expect(TAB_METADATA.chat.requiresWebSocket).toBe(true);
+    expect(TAB_METADATA.chat.requiresGridServer).toBe(true);
+
+    // Verify every TabId has a metadata entry (catches typos at startup).
+    const tabIds: TabId[] = [
+      "chat", "tasks", "schedule", "tools", "debug",
+      "memory", "mcp", "collaboration", "flows",
+    ];
+    for (const id of tabIds) {
+      expect(TAB_METADATA[id]).toBeDefined();
+      expect(TAB_METADATA[id].label.length).toBeGreaterThan(0);
+    }
   });
 
   it("sidebarOpenAtom defaults to false", () => {

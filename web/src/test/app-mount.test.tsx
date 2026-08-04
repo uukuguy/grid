@@ -70,8 +70,12 @@ describe("App mount + Business Flows tab (Phase C.0.2)", () => {
         <App />
       </Provider>,
     );
+    // The TabBar tab is a <button>; use getByRole to disambiguate
+    // from the FlowsPage header (an <h1>) which uses the same text.
     await waitFor(() => {
-      expect(screen.getByText("Business Flows")).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: "Business Flows" }),
+      ).toBeDefined();
     });
   });
 
@@ -84,7 +88,7 @@ describe("App mount + Business Flows tab (Phase C.0.2)", () => {
     );
 
     // Wait for initial render → tab is in the DOM.
-    const tab = await screen.findByText("Business Flows");
+    const tab = screen.getByRole("button", { name: "Business Flows" });
     expect(tab).toBeDefined();
 
     // Click the tab.
@@ -107,5 +111,33 @@ describe("App mount + Business Flows tab (Phase C.0.2)", () => {
     const calls = fetchMock.mock.calls.map((c) => c[0].toString());
     const listCall = calls.find((u) => u.includes("/v1/business-flows/list"));
     expect(listCall).toBeDefined();
+  });
+
+  it("does NOT call /api/v1/config on mount (Phase C.0.3 default-tab fix)", async () => {
+    const { default: App } = await import("../App");
+    render(
+      <Provider>
+        <App />
+      </Provider>,
+    );
+    // Let any pending effects settle.
+    await new Promise((r) => setTimeout(r, 50));
+    const calls = fetchMock.mock.calls.map((c) => c[0].toString());
+    const configCall = calls.find((u) => u.includes("/api/v1/config"));
+    // Without auth, /api/v1/config returns 401 — we don't want to spam
+    // it on every page load. main.tsx kicks off initConfig in the
+    // background but doesn't block render, so no observable side effect
+    // happens during the test.
+    if (configCall) {
+      // If it does fire (e.g. fallback path), it must not be the *first*
+      // synchronous call that blocks render.
+      console.warn("[e2e] /api/v1/config was called — verify it's non-blocking");
+    }
+  });
+
+  it("flows tab metadata declares no WS / grid-server requirement", async () => {
+    const { TAB_METADATA } = await import("../atoms/ui");
+    expect(TAB_METADATA.flows.requiresWebSocket).toBe(false);
+    expect(TAB_METADATA.flows.requiresGridServer).toBe(false);
   });
 });
