@@ -202,3 +202,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.8 — 抑制 WS 失败 toast commit 21)
 - 18:00 用户反馈带截图显示"Connection Lost" toast 仍在浏览器弹 — 之前的 C.0.5 commit 减少了 WS attempts 但 toast 本身没修。根因:Chat.tsx 的 onDisconnect handler 无条件弹 toast。修法:wsManager.DisconnectHandler 加 reason 参数 ("server_unavailable" / "gave_up" / "server_disconnected");Chat.tsx 在 "gave_up" + "server_unavailable" 时不弹 toast(因为已知 dev 限制,grid-server 没 /ws)。Phase D grid-server 加 /ws 后会真 server_disconnected → toast 正常弹。40/40 tests pass + 真浏览器 Chat click 后 toasts: []。
+
+## 2026-08-04 (OBSTACK Phase D.0 — grid-web 端到端可跑 commit 22)
+- 20:00 用户反馈"所有任务包括 chat 都执行不了 — Disconnected"。真根因 3 层:wsManager 连 ws://...:3001/ws(已废路径,grid-server Phase A.1 删了)— 改连 /v1/sessions/{id}/stream(真端点);flowsFilterAtom window 默认 "24h" 隐藏老 demo seed 数据 — 改 "all" 让初次加载可见所有;v315-web-dev.sh 没 reap 老 L4 导致新 L4 没绑 5180/5180 — 加 reap 步骤。40/40 tests + 真浏览器 + tab-by-tab e2e 全过,3 个 flows 渲染 + click 真 mount detail panel + 0 JS errors + 0 Connection Lost toast。
