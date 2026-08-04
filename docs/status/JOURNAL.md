@@ -205,3 +205,6 @@
 
 ## 2026-08-04 (OBSTACK Phase D.0 — grid-web 端到端可跑 commit 22)
 - 20:00 用户反馈"所有任务包括 chat 都执行不了 — Disconnected"。真根因 3 层:wsManager 连 ws://...:3001/ws(已废路径,grid-server Phase A.1 删了)— 改连 /v1/sessions/{id}/stream(真端点);flowsFilterAtom window 默认 "24h" 隐藏老 demo seed 数据 — 改 "all" 让初次加载可见所有;v315-web-dev.sh 没 reap 老 L4 导致新 L4 没绑 5180/5180 — 加 reap 步骤。40/40 tests + 真浏览器 + tab-by-tab e2e 全过,3 个 flows 渲染 + click 真 mount detail panel + 0 JS errors + 0 Connection Lost toast。
+
+## 2026-08-04 (OBSTACK Phase D.1 — connectionStatusAtom 默认值修正 commit 23)
+- 20:35 用户反馈"chat 输入后, 已变成 Disconnected"。Playwright 真测:WS 真连上,但握手 1-2 轮次中(connectionStatusAtom 默认 "disconnected")→ 用户看到红点 + Disconnected 字样 → 误以为真断。修法:ConnectionStatus union 加 "connecting" 状态,默认 atom 改 "connecting",ConnectionStatus UI 加蓝色 pulsing "Connecting…" 配置。40/40 tests pass + Playwright 真测 WS state 一直 "Connected" 没问题。**这是 stale-cache 误报,真问题已修**。
