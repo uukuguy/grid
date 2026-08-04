@@ -169,3 +169,6 @@
 
 ## 2026-08-03 (OBSTACK Phase C.5 — 多维过滤 commit 6/8)
 - 21:30 Phase C.5 commit 6/8:`flowsFilterAtom` (business_object_id + statuses + window) + FlowsPage 过滤栏(文本搜索 / 3 状态 checkbox / 时间窗 select / Reset) + 4 个 atom 单测。**35/35 web 测试 PASS**。100 业务流的部署现在能在 3 次点击内 triage 到"最近 1h 失败的 Transformer"。Phase C.5.1 (URL hash 持久化) 待评估,默认 Jotai atom 状态。
+
+## 2026-08-04 (OBSTACK Phase C.0.1 — web 真能跑通调试 fix commit 9/8)
+- 10:05 Phase C.0.1 commit 9/8:之前 Phase C.0 commit 没真在浏览器验证过 — 用户报告 localhost:5180 连不上。根因:vite 默认 `host: "localhost"` 解析到 IPv6 ::1,IPv4 连拒。修法:web/vite.config.ts 显式 `host: "127.0.0.1"` + `strictPort: true` + proxy 也改 IPv4。同时新增 `scripts/v315-web-dev.sh` (clean boot + reap + stop) 和 `scripts/v315-web-e2e.sh` (5 步 e2e 验证脚本,以后跑就能确认 Phase C.0 端到端 work)。e2e 真跑通:L4 + web 双 UP,4 个 OBSTACK REST 端点全返 200,timeline 显示 5 个 L4 事件。
