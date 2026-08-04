@@ -184,3 +184,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.3 — 默认 tab + TAB_METADATA commit 14)
 - 11:35 用户反馈"默认 tab 应该是可配置的,不是必须指定某个"。按用户建议做两件事:(1) `activeTabAtom` 默认读 `VITE_DEFAULT_TAB` env var(降级到 "flows"); (2) 新 `TAB_METADATA` map — 每个 TabId 声明 `requiresWebSocket` / `requiresGridServer`,Phase D 加 `requiresAuth`。原根因 = 默认 tab 是 "chat" → ChatTab mount → wsManager.connect() → grid-server 没 /ws → 404 → reconnect 循环 → "Connection Lost"。40/40 web 测试 PASS(从 37 → 40,加 3 新测试)。
+
+## 2026-08-04 (OBSTACK Phase C.0.4 — 真浏览器 e2e commit 15)
+- 13:00 用户反馈"请把浏览器调试正确再交付" — 用 Playwright + Chromium 真开浏览器到 127.0.0.1:5180 写真测试。两个真 bug 被 jsdom 测漏:(1) L4 无 CORS middleware → 浏览器跨域 fetch 拦 → "Failed to fetch";(2) playwright selector `[aria-label^="..."]` 匹配外层 section 不是 button → click 不响。修法:加 CORSMiddleware (allow_origins=["*"]) + selector 改 `button[aria-label^="..."]`。新 `scripts/v315-browser-e2e.mjs` 写真浏览器:验证默认 tab=flows + 0 WS attempts + 5 cards 渲染 + click 卡 mount detail panel + 0 JS 错误。`make v315-e2e` 现在串 jsdom + 真浏览器两层验证,真 exit 0。
