@@ -18,6 +18,17 @@ class WsManager {
   private intentionalDisconnect = false;
   private currentSessionId: string | null = null;
 
+  // OBSTACK Phase C.0.5 — disabled by default. Caller (App.tsx)
+  // enables WS only when the active tab requires it (per TAB_METADATA).
+  // When false, connect() is a no-op and disconnect() is also a no-op.
+  // This is what stops the "Connection Lost" cycle from running when
+  // the user is on the Business Flows dashboard (which doesn't need WS)
+  // and tabs that don't require WS are active.
+  private enabled = false;
+  /** Subscribe to enable/disable events so consumers (e.g. Chat's
+   *  WsEventBridge) can react if needed. */
+  private enabledHandlers: Set<(enabled: boolean) => void> = new Set();
+
   constructor() {}
 
   /**
@@ -61,6 +72,10 @@ class WsManager {
   }
 
   connect(sessionId?: string | null) {
+    // OBSTACK Phase C.0.5 — no-op when disabled.
+    if (!this.enabled) {
+      return;
+    }
     if (sessionId !== undefined) {
       this.currentSessionId = sessionId ?? null;
     }
@@ -108,6 +123,22 @@ class WsManager {
 
     this.ws.onerror = (err) => {
       console.error("[WS] Error:", err);
+      // OBSTACK Phase C.0.5 — if the WS server is unreachable (404,
+      // refused, etc.), stop retrying. Otherwise the user sees the
+      // "Connection Lost / WebSocket disconnected. Attempting to
+      // reconnect..." toast forever even though the underlying
+      // problem (grid-server doesn't expose /ws today) won't fix
+      // itself. Disable the manager and the user can switch tabs
+      // without seeing the loop.
+      //
+      // Phase D (multi-tenant) adds grid-server /ws — at that point
+      // removing this disable gives the user a normal retry loop
+      // until the server comes back.
+      if (this.reconnectAttempts >= 1) {
+        console.warn("[WS] Giving up after repeated failures; disabling until next enable().");
+        this.intentionalDisconnect = true;
+        this.setEnabled(false);
+      }
     };
   }
 
@@ -128,10 +159,17 @@ class WsManager {
     this.ws?.close();
     this.ws = null;
 
-    // Reset reconnect state and connect fresh
+    // Reset reconnect state and connect fresh — but only if WS is
+    // enabled (Phase C.0.5). When the active tab doesn't need WS, we
+    // still record the session id so a future enable() can pick up
+    // without losing the selection, but we don't trigger a connect.
     this.reconnectAttempts = 0;
     this.intentionalDisconnect = false;
-    this.connect(sessionId);
+    if (this.enabled) {
+      this.connect(sessionId);
+    } else {
+      this.statusChangeHandler?.("disconnected", 0);
+    }
   }
 
   disconnect() {
@@ -146,6 +184,46 @@ class WsManager {
     // Reset the attempt counter so the next connect() starts at attempt 1
     this.reconnectAttempts = 0;
     this.statusChangeHandler?.("disconnected", 0);
+  }
+
+  /**
+   * Enable / disable the manager. When `enabled` is false, `connect()`
+   * is a no-op, `switchSession()` is a no-op, and any in-flight
+   * reconnect attempts are cancelled.
+   *
+   * Phase C.0.5: App.tsx calls this based on the active tab's
+   * TAB_METADATA.requiresWebSocket. The default-tab change in
+   * commit b9006a15 stopped the *initial* Connection Lost cycle, but
+   * clicking Chat still triggered SessionBar → wsManager.switchSession
+   * → connect() → grid-server /ws → 404. With enabled=false set when
+   * the user lands on a non-WS tab (Business Flows by default), the
+   * "Connection Lost" cycle stops even when the user later clicks Chat
+   * before the Chat component is ready — and resumes cleanly when the
+   * user clicks Chat.
+   */
+  setEnabled(enabled: boolean): void {
+    if (this.enabled === enabled) return;
+    this.enabled = enabled;
+    this.enabledHandlers.forEach((h) => h(enabled));
+    if (!enabled) {
+      // Cancel any in-flight reconnect attempts and close the socket.
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.intentionalDisconnect = true;
+      this.ws?.close();
+      this.ws = null;
+      this.reconnectAttempts = 0;
+      this.statusChangeHandler?.("disconnected", 0);
+    }
+  }
+
+  /** Subscribe to enable/disable transitions. Returns an unsubscribe
+   *  function so consumers (e.g. Chat's WsEventBridge) can react. */
+  onEnabledChange(handler: (enabled: boolean) => void): () => void {
+    this.enabledHandlers.add(handler);
+    return () => this.enabledHandlers.delete(handler);
   }
 
   send(msg: ClientMessage) {

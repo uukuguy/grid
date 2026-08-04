@@ -103,6 +103,12 @@ beforeEach(() => {
   wsManager.disconnect();
 });
 
+beforeEach(() => {
+  // OBSTACK Phase C.0.5 — wsManager is disabled by default. The reconnect
+  // tests below exercise connect()/disconnect() — enable it for them.
+  wsManager.setEnabled(true);
+});
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
