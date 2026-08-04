@@ -196,3 +196,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.6 — grid-web 正式命令接口 commit 18)
 - 15:10 用户反馈"grid-web 应该是一个正式产品,有正规的用户命令接口"。之前 OBSTACK dashboard 启动只能靠 `scripts/v315-web-dev.sh`,不在 help 里,不是产品入口。新 3 个正式 Make 目标:`make grid-web`(启 L4 + grid-server + web dev,3 个端口 UP)/ `make grid-web-stop`(清场)/ `make grid-web-e2e`(HTTP + jsdom + 真浏览器 e2e)。`make help` 加 "grid-web product (OBSTACK Phase C.0.6)" 块。底层 v315-* 脚本保留作 debug / iteration 用。
+
+## 2026-08-04 (OBSTACK Phase C.0.7 — per-tab 真浏览器验证 commit 19)
+- 15:35 用户反馈"grid-web 的其它 tab 都是 Connection Lost 等错误" — Playwright 真浏览器挨个点 9 个 tab 验证。Phase C.0.5 commit 17 修复后,**8 个非 Chat tab(Tasks/Schedule/Tools/Memory/Debug/MCP/Collab/Business Flows)全部 0 WS attempts + 0 Connection Lost toast**。只有 Chat tab 还有 2 次 attempts + toast(已知限制,需 grid-server 实现 /ws 端点,即 Phase D 范围)。用户的反馈可能是 commit 17 之前的 stale 缓存状态。脚本 `scripts/v315-tab-by-tab-e2e.mjs` 留下来作为回归测试。
