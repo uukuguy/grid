@@ -11,11 +11,19 @@ export default defineConfig({
     },
   },
   server: {
+    // OBSTACK Phase C.0.1 fix: explicit IPv4 bind.
+    //
+    // Default `host: "localhost"` resolves to ::1 first (IPv6). When
+    // the operator hits http://localhost:5180 in their browser the OS
+    // may prefer IPv4 and get ECONNREFUSED. Pin to 127.0.0.1 to bind
+    // IPv4 only — cross-platform stable for the Phase C.0 dashboard.
+    host: "127.0.0.1",
     port: 5180,
+    strictPort: true,
     proxy: {
-      "/api": "http://localhost:3001",
+      "/api": "http://127.0.0.1:3001",
       "/ws": {
-        target: "ws://localhost:3001",
+        target: "ws://127.0.0.1:3001",
         ws: true,
       },
     },
