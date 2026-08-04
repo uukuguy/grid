@@ -175,3 +175,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.1 — Connection Lost 根因修 commit 10)
 - 10:26 用户报告浏览器 "Connection Lost / WebSocket disconnected" — 真根因:`main.tsx` await `initConfig()` 阻塞渲染;grid-server :3001 需要 auth token 返 401;渲染失败 → ws/manager 进入 reconnect 循环。修法:`main.tsx` 立刻渲染,`initConfig()` 背景运行(fallback config 已经够 Phase C.0 用,因 flowsApi 直接打 L4,不走 grid-server proxy)。顺带 Makefile 加 `v315-dev` + `v315-e2e` target。
+
+## 2026-08-04 (OBSTACK Phase C.0.2 — App-mount jsdom 真验证 commit 11)
+- 10:38 Phase C.0.2 commit 11:`web/src/test/app-mount.test.tsx` (NEW, 111 行) — jsdom 测试真把 React App mount 起来,点 "Business Flows" tab,确认 flowsApi 真发请求。2/2 tests pass。Test 还发现一个真 bug:`MessageList.tsx:11` 调 `scrollIntoView`,jsdom 没实现 → test 里 stub 掉。真浏览器有 native scrollIntoView,production 不受影响。**37/37 web 测试全 PASS**(之前 commit 数字不准,fix 一下)。
