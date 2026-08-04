@@ -42,11 +42,12 @@ reap_port() {
 
 stop_all() {
   echo "[v315-web-dev] Stopping all services…"
-  for pidfile in "$LOGDIR"/{web,l4}.pid; do
+  for pidfile in "$LOGDIR"/{web,l4,grid-server}.pid; do
     [ -f "$pidfile" ] && kill -9 "$(cat "$pidfile")" 2>/dev/null || true
   done
   reap_port "$WEB_PORT"
   reap_port "$L4_PORT"
+  reap_port "3001"
   echo "[v315-web-dev] Done."
   exit 0
 }
@@ -58,6 +59,7 @@ fi
 # ─── Reap leftover ports ───────────────────────────────────────────────
 reap_port "$WEB_PORT"
 reap_port "$L4_PORT"
+reap_port "3001"
 sleep 2
 
 # ─── 1. Start L4 ─────────────────────────────────────────────────────
@@ -67,6 +69,22 @@ nohup "$ROOT/tools/eaasp-l4-orchestration/.venv/bin/python" \
   -m eaasp_l4_orchestration.main --port "$L4_PORT" \
   > "$LOGDIR/l4.log" 2>&1 &
 echo $! > "$LOGDIR/l4.pid"
+
+# ─── 1b. Start grid-server (with auth disabled for dev) ───────────
+# OBSTACK Phase C.0.1: grid-server requires auth on /api/* endpoints.
+# Disable auth in dev so the browser app doesn't see 401 and loop on
+# WS reconnect. Phase D (multi-tenant) re-introduces auth.
+if [ -x "$ROOT/target/debug/grid-server" ]; then
+  echo "[v315-web-dev] Starting grid-server on :$L4_PORT (auth disabled)"
+  export GRID_AUTH_MODE=none
+  nohup "$ROOT/target/debug/grid-server" \
+    > "$LOGDIR/grid-server.log" 2>&1 &
+  echo $! > "$LOGDIR/grid-server.pid"
+  sleep 4
+else
+  echo "[v315-web-dev] WARNING: target/debug/grid-server missing — web will 401 on /api/*"
+  echo "[v315-web-dev] (Phase C.0 dashboard still works because flowsApi hits L4 directly)"
+fi
 
 # ─── 2. Start web (must cwd=web!) ────────────────────────────────────
 echo "[v315-web-dev] Starting web dev on :$WEB_PORT (cwd=web)"
@@ -80,7 +98,7 @@ sleep 8
 
 echo ""
 echo "[v315-web-dev] Ready:"
-for port in "$WEB_PORT" "$L4_PORT"; do
+for port in "$WEB_PORT" "$L4_PORT" 3001; do
   if lsof -nP -iTCP:$port -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo "  :$port UP"
   else
