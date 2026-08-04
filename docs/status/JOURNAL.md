@@ -190,3 +190,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.4 — CORS 安全加固 commit 16)
 - 13:25 安全扫描发现 commit 15 的 CORS 真漏洞:`allow_origins=["*"]` + `allow_credentials=True` 是 CORS spec 禁止组合。修法:CORSMiddleware 用 `L4_ENV=dev` env var gate(默认不启用,production 永远不暴露 CORS);origin 改 explicit 白名单(`localhost:5180` + `127.0.0.1:5180`);`allow_credentials=False`(L4 是 header-based auth,不要 cookie);`allow_methods` 限制 GET/POST/OPTIONS;`allow_headers` 列 explicit (`Content-Type`/`X-Session-Scope`/`X-Business-Key`)。`v315-web-dev.sh` + `v315-web-e2e.sh` 自动 export `L4_ENV=dev`。e2e + browser e2e 仍 ALL PASSED。
+
+## 2026-08-04 (OBSTACK Phase C.0.5 — Tab-aware WS lifecycle commit 17)
+- 14:25 用户反馈"切其它tab,仍然 Connection Lost"。commit 15 默认 tab=flows 只阻止了初始重连循环,但 wsManager 是 module-level singleton,点 Chat tab 触发 SessionBar.switchSession() → connect() → grid-server /ws 404 → 5 次重连 → toast。修法:ws/manager 加 enabled flag + setEnabled() + onEnabledChange();App.tsx 用 TAB_METADATA.requiresWebSocket + activeTab useEffect 控制 wsManager 启停;ws.onerror 失败 1 次后放弃并自动 disable(避免无谓 retry)。web 40/40 测试 + 真浏览器 e2e + tab-switch e2e 全过 — Connection Lost toast = FALSE。
