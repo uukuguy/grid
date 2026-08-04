@@ -70,12 +70,16 @@ describe("flows atoms (Phase C.0)", () => {
     expect(store.get(selectedFlowSummaryAtom)).toEqual(summary);
   });
 
-  it("flowsFilterAtom defaults to all-statuses + 24h window + empty query", () => {
+  it("flowsFilterAtom defaults to all-statuses + all-window + empty query", () => {
     const store = createStore();
     const f = store.get(flowsFilterAtom);
     expect(f.business_object_id).toBe("");
     expect(f.statuses).toEqual(["failed", "active", "closed"]);
-    expect(f.window).toBe("24h");
+    // Phase C.0 default changed from "24h" to "all" so seed data from
+    // the OBSTACK demo (which uses fixed historical timestamps) is
+    // visible on first load. Operators narrow to 24h/7d/1h when
+    // investigating an incident.
+    expect(f.window).toBe("all");
   });
 
   it("flowsFilterAtom — toggling status narrows / widens the list", () => {

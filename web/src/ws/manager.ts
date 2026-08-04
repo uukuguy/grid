@@ -42,35 +42,48 @@ class WsManager {
    * cannot send custom HTTP headers, so the token travels as a query param).
    */
   private getUrl(sessionId?: string | null): string {
+    // OBSTACK Phase D.0 — grid-server's actual canonical WebSocket
+    // path is `/v1/sessions/{id}/stream`, NOT `/ws` (the `/ws` legacy
+    // path was removed in Phase A.1, per the comment in
+    // crates/grid-server/src/ws.rs). Hitting `/ws` returns 404 and the
+    // user sees "Disconnected" — the original symptom this whole
+    // Phase C.0 saga was trying to silence.
     let base: string;
     if (isConfigReady()) {
       try {
-        base = getWsUrl() + '/ws';
+        const proto = getWsUrl().replace(/^ws/, "http");
+        base = `${proto}/v1/sessions/`;
       } catch {
         const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-        base = `${proto}//${window.location.host}/ws`;
+        base = `${proto}//${window.location.host}/v1/sessions/`;
       }
     } else {
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      base = `${proto}//${window.location.host}/ws`;
+      base = `${proto}//${window.location.host}/v1/sessions/`;
     }
 
-    const params: string[] = [];
-
+    // Append the session id from caller or most recent switchSession.
     const sid = sessionId ?? this.currentSessionId;
-    if (sid) {
-      params.push(`session_id=${encodeURIComponent(sid)}`);
+    if (!sid) {
+      // No session yet — caller forgot to call switchSession first.
+      // Returning the bare /v1/sessions/ path will produce a routing
+      // 404 ("missing path parameter"), which the ws manager will
+      // surface as a one-shot toast on disconnect (legitimate case:
+      // operator hasn't started a session yet). Don't fabricate a
+      // placeholder; fail loudly.
+      throw new Error("[WS] cannot build URL: no currentSessionId");
     }
+    base = `${base}${encodeURIComponent(sid)}/stream`;
 
-    // Attach auth token for WebSocket connections when auth is enabled.
-    // Token from localStorage is the canonical source (set via auth flow or config init).
-    const token = localStorage.getItem('grid_token') ?? undefined;
+    // Phase D.0 — grid-server reads auth token from a query param
+    // (browsers can't send custom headers on a WebSocket upgrade).
+    const params: string[] = [];
+    const token = localStorage.getItem("grid_token") ?? undefined;
     if (token) {
       params.push(`token=${encodeURIComponent(token)}`);
     }
-
     if (params.length > 0) {
-      base += `?${params.join('&')}`;
+      base += `?${params.join("&")}`;
     }
     return base;
   }

@@ -42,6 +42,11 @@ export interface FlowsFilter {
 export const flowsFilterAtom = atom<FlowsFilter>({
   business_object_id: "",
   statuses: ["failed", "active", "closed"],
-  window: "24h",
+  // Phase C.0 default — show everything (no time filter). Operators can
+  // narrow to 24h/7d/1h when investigating a specific incident. Without
+  // "all", a fresh L4 with 24-hour-old seed data (from the OBSTACK
+  // demo) would show "0 / N flows" because the seeded last_started_at
+  // timestamps fall outside the 24h cutoff.
+  window: "all",
 });
 

@@ -141,7 +141,9 @@ describe("wsManager reconnect (REQ-WEB-05, D-05)", () => {
     await advanceAndClose(40_000);
 
     for (const ws of MockWebSocket.instances) {
-      expect(ws.url).toContain("session_id=session-keep-me");
+      // Phase D.0 — session id is part of the URL path
+    // (/v1/sessions/{id}/stream), not a query param.
+    expect(ws.url).toContain("/v1/sessions/session-keep-me/stream");
     }
   });
 
