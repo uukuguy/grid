@@ -199,3 +199,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.7 — per-tab 真浏览器验证 commit 19)
 - 15:35 用户反馈"grid-web 的其它 tab 都是 Connection Lost 等错误" — Playwright 真浏览器挨个点 9 个 tab 验证。Phase C.0.5 commit 17 修复后,**8 个非 Chat tab(Tasks/Schedule/Tools/Memory/Debug/MCP/Collab/Business Flows)全部 0 WS attempts + 0 Connection Lost toast**。只有 Chat tab 还有 2 次 attempts + toast(已知限制,需 grid-server 实现 /ws 端点,即 Phase D 范围)。用户的反馈可能是 commit 17 之前的 stale 缓存状态。脚本 `scripts/v315-tab-by-tab-e2e.mjs` 留下来作为回归测试。
+
+## 2026-08-04 (OBSTACK Phase C.0.8 — 抑制 WS 失败 toast commit 21)
+- 18:00 用户反馈带截图显示"Connection Lost" toast 仍在浏览器弹 — 之前的 C.0.5 commit 减少了 WS attempts 但 toast 本身没修。根因:Chat.tsx 的 onDisconnect handler 无条件弹 toast。修法:wsManager.DisconnectHandler 加 reason 参数 ("server_unavailable" / "gave_up" / "server_disconnected");Chat.tsx 在 "gave_up" + "server_unavailable" 时不弹 toast(因为已知 dev 限制,grid-server 没 /ws)。Phase D grid-server 加 /ws 后会真 server_disconnected → toast 正常弹。40/40 tests pass + 真浏览器 Chat click 后 toasts: []。
