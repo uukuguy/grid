@@ -187,3 +187,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.4 — 真浏览器 e2e commit 15)
 - 13:00 用户反馈"请把浏览器调试正确再交付" — 用 Playwright + Chromium 真开浏览器到 127.0.0.1:5180 写真测试。两个真 bug 被 jsdom 测漏:(1) L4 无 CORS middleware → 浏览器跨域 fetch 拦 → "Failed to fetch";(2) playwright selector `[aria-label^="..."]` 匹配外层 section 不是 button → click 不响。修法:加 CORSMiddleware (allow_origins=["*"]) + selector 改 `button[aria-label^="..."]`。新 `scripts/v315-browser-e2e.mjs` 写真浏览器:验证默认 tab=flows + 0 WS attempts + 5 cards 渲染 + click 卡 mount detail panel + 0 JS 错误。`make v315-e2e` 现在串 jsdom + 真浏览器两层验证,真 exit 0。
+
+## 2026-08-04 (OBSTACK Phase C.0.4 — CORS 安全加固 commit 16)
+- 13:25 安全扫描发现 commit 15 的 CORS 真漏洞:`allow_origins=["*"]` + `allow_credentials=True` 是 CORS spec 禁止组合。修法:CORSMiddleware 用 `L4_ENV=dev` env var gate(默认不启用,production 永远不暴露 CORS);origin 改 explicit 白名单(`localhost:5180` + `127.0.0.1:5180`);`allow_credentials=False`(L4 是 header-based auth,不要 cookie);`allow_methods` 限制 GET/POST/OPTIONS;`allow_headers` 列 explicit (`Content-Type`/`X-Session-Scope`/`X-Business-Key`)。`v315-web-dev.sh` + `v315-web-e2e.sh` 自动 export `L4_ENV=dev`。e2e + browser e2e 仍 ALL PASSED。
