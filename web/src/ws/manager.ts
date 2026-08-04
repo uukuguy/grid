@@ -3,7 +3,11 @@ import { isConfigReady, getWsUrl } from "../config";
 import type { ConnectionStatus } from "@/atoms/ui";
 
 type MessageHandler = (msg: ServerMessage) => void;
-type DisconnectHandler = () => void;
+// OBSTACK Phase C.0.8 — disconnect reason so consumers can suppress
+// the toast when we already gave up (server unavailable) vs. the user
+// genuinely losing a working connection.
+export type DisconnectReason = "server_unavailable" | "gave_up" | "server_disconnected";
+type DisconnectHandler = (reason: DisconnectReason) => void;
 type StatusChangeHandler = (status: ConnectionStatus, attempt?: number) => void;
 
 class WsManager {
@@ -115,7 +119,11 @@ class WsManager {
     this.ws.onclose = () => {
       console.log("[WS] Disconnected");
       if (!this.intentionalDisconnect) {
-        this.disconnectHandler?.();
+        // OBSTACK Phase C.0.8 — pass a reason so consumers (Chat's
+        // WsEventBridge) can suppress toasts when the disconnect was
+        // caused by our own give-up logic (Phase C.0.5 / commit 17),
+        // not by a transient server outage the user should see.
+        this.disconnectHandler?.("server_unavailable");
         this.statusChangeHandler?.("disconnected", 0);
       }
       this.scheduleReconnect();
@@ -138,6 +146,10 @@ class WsManager {
         console.warn("[WS] Giving up after repeated failures; disabling until next enable().");
         this.intentionalDisconnect = true;
         this.setEnabled(false);
+        // C.0.8 — surface the give-up to the disconnect handler so
+        // consumers can suppress the toast (the user doesn't need to
+        // see "Connection Lost" if we already gave up).
+        this.disconnectHandler?.("gave_up");
       }
     };
   }

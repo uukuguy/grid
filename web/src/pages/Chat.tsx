@@ -54,7 +54,17 @@ function WsEventBridge() {
     wsManager.onMessage((msg) => {
       handleWsEvent(msg, store.set, store.get);
     });
-    wsManager.onDisconnect(() => {
+    // OBSTACK Phase C.0.8 — only surface the "Connection Lost" toast
+    // when the server actually dropped the connection, not when we
+    // ourselves gave up (404 / refused / handshake failed). When the
+    // give-up path fires (grid-server doesn't expose /ws today),
+    // the user has already seen the give-up message in the console
+    // and we're now in "auto-retry disabled" mode — no point alarming
+    // them with a toast that would loop otherwise.
+    wsManager.onDisconnect((reason) => {
+      if (reason === "gave_up" || reason === "server_unavailable") {
+        return;
+      }
       store.set(addToastAtom, {
         type: "warning",
         title: "Connection Lost",
