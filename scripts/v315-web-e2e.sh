@@ -44,7 +44,8 @@ fail() {
 # ─── Step 1: Ensure services up ────────────────────────────────────
 if ! lsof -nP -iTCP:$L4_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
   echo "[e2e] L4 not up — starting"
-  EAASP_DEV_DISABLE_SCOPE_BINDING=1 \
+  # OBSTACK Phase C.0.4 — gate CORS on dev-only env.
+  EAASP_DEV_DISABLE_SCOPE_BINDING=1 L4_ENV=dev \
     nohup "$ROOT/tools/eaasp-l4-orchestration/.venv/bin/python" \
       -m eaasp_l4_orchestration.main --port "$L4_PORT" \
       > "$LOGDIR/l4.log" 2>&1 &

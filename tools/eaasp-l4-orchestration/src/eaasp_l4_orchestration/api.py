@@ -231,16 +231,38 @@ def create_app(
     # caught (commit f71a8c93 fixed the WS reconnect loop; this fixes
     # the cross-origin fetch).
     #
-    # Phase D (multi-tenant) re-routes through grid-server with JWT
-    # auth; at that point CORS becomes a non-issue because the
-    # browser hits the same origin as the React bundle.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],          # dev mode — vite dev :5180 → L4 :18084
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # Security notes:
+    #   - Gated on `L4_ENV=dev` so production runs (where the React
+    #     bundle is served from the same origin as L4, via grid-server
+    #     or a reverse proxy) never expose CORS.
+    #   - Explicit origin allowlist, NOT wildcard — wildcard + cred=
+    #     True is forbidden by the CORS spec and triggers browser
+    #     preflight failure anyway.
+    #   - `allow_credentials=False`: L4 auth is header-based
+    #     (X-Session-Scope, X-Business-Key), not cookie-based, so
+    #     credentials are never sent.
+    #   - `allow_headers` is the explicit list L4 actually reads;
+    #     deny any future default-open by listing only what's used.
+    #
+    # Phase D (multi-tenant) re-routes through grid-server with JWT;
+    # at that point CORS becomes a non-issue (browser hits the same
+    # origin as the React bundle) and this gate stays as a defensive
+    # default-off.
+    if os.environ.get("L4_ENV", "").lower() == "dev":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[
+                "http://localhost:5180",
+                "http://127.0.0.1:5180",
+            ],
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Session-Scope",
+                "X-Business-Key",
+            ],
+        )
 
     # OBSTACK §3.5 — business-flow REST + SSE endpoints
     # (`/v1/business-flows/{key}/{timeline,summary,events-stream,evaluation}`).

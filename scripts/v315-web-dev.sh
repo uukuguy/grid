@@ -65,6 +65,12 @@ sleep 2
 # ─── 1. Start L4 ─────────────────────────────────────────────────────
 echo "[v315-web-dev] Starting L4 on :$L4_PORT"
 export EAASP_DEV_DISABLE_SCOPE_BINDING=1
+# OBSTACK Phase C.0.4 — gate the CORS middleware on `L4_ENV=dev`.
+# Production never sets this env var, so CORS stays off and the
+# browser hits the same origin as the React bundle (no cross-origin
+# fetch needed). The dev script sets it so the dashboard's flowsApi
+# can reach L4 directly from the vite dev server (port 5180 → 18084).
+export L4_ENV=dev
 nohup "$ROOT/tools/eaasp-l4-orchestration/.venv/bin/python" \
   -m eaasp_l4_orchestration.main --port "$L4_PORT" \
   > "$LOGDIR/l4.log" 2>&1 &
