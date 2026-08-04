@@ -208,3 +208,6 @@
 
 ## 2026-08-04 (OBSTACK Phase D.1 — connectionStatusAtom 默认值修正 commit 23)
 - 20:35 用户反馈"chat 输入后, 已变成 Disconnected"。Playwright 真测:WS 真连上,但握手 1-2 轮次中(connectionStatusAtom 默认 "disconnected")→ 用户看到红点 + Disconnected 字样 → 误以为真断。修法:ConnectionStatus union 加 "connecting" 状态,默认 atom 改 "connecting",ConnectionStatus UI 加蓝色 pulsing "Connecting…" 配置。40/40 tests pass + Playwright 真测 WS state 一直 "Connected" 没问题。**这是 stale-cache 误报,真问题已修**。
+
+## 2020-08-04 (OBSTACK Phase D.2 — eaasp-obstack-client 抽公共 client 库 commit 24)
+- 21:55 用户反馈"grid-cli 和 grid-web 的 chat 都基于 grid-engine,应该支持同样的功能" — 把 OBSTACK API surface 抽到 tools/eaasp-common 公共包。10 个新单测(model parsing + 5 endpoint + HTTP error path) + 29 已有 = 39/39 pass。Phase D.3 (web 改 thin client wrapper) + Phase D.4 (grid-cli 用同一 client) 待做 — 这次只完成"骨架",Phase E.x 会抽 sessions/tools/MCP client 用同样模板。
