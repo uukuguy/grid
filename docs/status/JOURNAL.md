@@ -181,3 +181,6 @@
 
 ## 2026-08-04 (OBSTACK Phase C.0.3 — grid-server auth disable commit 13)
 - 11:05 Phase C.0.3 commit 13:用户坚持 `make v315-e2e` 真跑 — 之前 commit 只 curl index.html 假装通过。真跑暴露根因:grid-server 默认 api_key 模式,无 token `/api/v1/config` 返 401 → ws/manager reconnect 循环 → 浏览器看到 "Connection Lost"。修法:`GRID_AUTH_MODE=none` env var 起 grid-server (dev only)。v315-web-dev.sh + v315-web-e2e.sh 都改用此 env var + reap :3001 端口 + 真 e2e exit 0。
+
+## 2026-08-04 (OBSTACK Phase C.0.3 — 默认 tab + TAB_METADATA commit 14)
+- 11:35 用户反馈"默认 tab 应该是可配置的,不是必须指定某个"。按用户建议做两件事:(1) `activeTabAtom` 默认读 `VITE_DEFAULT_TAB` env var(降级到 "flows"); (2) 新 `TAB_METADATA` map — 每个 TabId 声明 `requiresWebSocket` / `requiresGridServer`,Phase D 加 `requiresAuth`。原根因 = 默认 tab 是 "chat" → ChatTab mount → wsManager.connect() → grid-server 没 /ws → 404 → reconnect 循环 → "Connection Lost"。40/40 web 测试 PASS(从 37 → 40,加 3 新测试)。
