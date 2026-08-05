@@ -11,6 +11,7 @@ import {
 } from "@/atoms/session";
 import { addToastAtom } from "@/atoms/ui";
 import { wsManager } from "@/ws/manager";
+import { sessionsClient } from "@/api/sessions";
 import { useEffect, useCallback, useRef } from "react";
 
 /** Truncate a session ID to the first 8 characters */
@@ -60,11 +61,16 @@ export function SessionBar() {
   const handleCreate = useCallback(async () => {
     if (isStreaming) return;
     try {
-      const res = await fetch("/api/v1/sessions/start", { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { session_id: string };
+      // OBSTACK Phase E.1 — route through the shared sessions client so the
+      // web UI and eaasp-cli-v2 stay in lockstep (same surface as the
+      // Python ``SessionsClient``). The default client targets grid-server
+      // :3001 via the same base-URL config the rest of the UI uses.
+      const resp = await sessionsClient.start_session({
+        agent_id: "threshold-calibration",
+        input: {},
+      });
       const info: SessionInfo = {
-        id: data.session_id,
+        id: resp.session_id,
         createdAt: new Date().toISOString(),
       };
       setSessions((prev) => [...prev, info]);
@@ -104,9 +110,10 @@ export function SessionBar() {
       }
 
       try {
-        await fetch(`/api/v1/sessions/${encodeURIComponent(id)}/stop`, {
-          method: "DELETE",
-        });
+        // OBSTACK Phase E.1 — best-effort DELETE through the shared client.
+        // Failure here is intentionally swallowed (the UI removes the
+        // session optimistically; server-side cleanup is eventually-consistent).
+        await sessionsClient.stop_session(id);
       } catch {
         // Best-effort — still remove from UI
       }
@@ -181,8 +188,15 @@ export function SessionBar() {
 // ── API Helpers ──
 
 async function fetchActiveSessions(): Promise<string[]> {
-  const res = await fetch("/api/v1/sessions/active");
-  if (!res.ok) return [];
-  const data = (await res.json()) as { sessions: string[]; count: number; max: number };
-  return data.sessions ?? [];
+  // OBSTACK Phase E.1 — route through the shared sessions client so the
+  // web client and eaasp-cli-v2 stay in lockstep (same surface as the
+  // Python ``SessionsClient``). The default client targets grid-server
+  // :3001 via the same base-URL config the rest of the UI uses.
+  try {
+    const data = await sessionsClient.list_active();
+    return data.sessions.map((s) => s.id);
+  } catch {
+    // Network / 4xx / 5xx → fall back to single-session mode (existing UX).
+    return [];
+  }
 }

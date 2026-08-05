@@ -220,3 +220,12 @@
 
 ## 2020-08-05 (OBSTACK Phase E.1 commit 1/2 — eaasp-sessions-client 抽出 commit 27)
 - 12:45 Phase E.1 抽出 eaasp-sessions-client 公共包(sessions_models.py + sessions_client.py + 7 个新测试 + web/src/api/sessions.ts TS 镜像)— 17/17 eaasp-common tests pass + 40/40 web tests pass + typecheck clean。客户端 surface:list_active/get_session/list_executions/start_session/stop_session/kill_session/resume_session。Phase E.1 commit 2/2 待做:web SessionBar/SessionControls 改用 sessionsClient + eaasp-cli-v2 cmd_session 改用 SessionsClient。
+
+## 2026-08-05 (OBSTACK Phase E.1 commit 2/2 — wire web/SessionBar/SessionControls/Chat/Tools/Memory through eaasp-sessions-client)
+- 09:50 SessionBar.tsx 全面改用 sessionsClient(start_session/stop_session/list_active),测过:无回归。
+- 09:50 SessionControls.tsx(kill/resume)+ Chat.tsx + Tools.tsx + Memory.tsx 改用 sessionsClient,5 个 web/ 站点的 raw fetch 全部走 shared client,web/cli Python 端 surface 一致。
+- 09:50 修 1 个真 wire-shape bug:eaasp-common sessions_client.list_executions 之前把 server 返的 JSON array 当 dict 包成 `{"data": [...]}`,会丢 array 形状(web 和 cli caller 都打不开)。现在 bypass `_request` 走 raw http_getter,保留 list 形状 + 一致地 wraps non-2xx 为 SessionsClientError。Always emit `?limit=` in URL(matches ObstackClient.list_business_flows 模式)。
+- 09:50 TS mirror sessions.ts list_executions 改返 `Promise<unknown>`(从 `Record<string, unknown>`)对齐 Python `Any` 形状,web caller narrow via Array.isArray。
+- 09:50 test_sessions_client.py 加 3 个 test:raw list passthrough + limit query string + 500 error wraps to SessionsClientError。10/10 PASS。
+- 09:50 web typecheck 0 errors;40/40 vitest PASS;test mocks 的 URL assertion 改用 absolute URL `http://127.0.0.1:3001/api/v1/sessions/.../kill`(match app-mount.test.tsx precedent)。
+- 09:50 不动 cmd_session.py(scope 错误):它打 L4 orchestration :18084 的 `/v1/sessions/{create,message,events,...}` 不是 grid-server 的 `/api/v1/sessions/*`。两套 surface 故意分离,不可合并。

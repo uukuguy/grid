@@ -13,6 +13,7 @@ import {
   connectionStatusAtom,
   reconnectAttemptAtom,
 } from "@/atoms/ui";
+import { sessionsClient } from "@/api/sessions";
 
 export default function Chat() {
   return (
@@ -34,14 +35,20 @@ function WsEventBridge() {
   // When session is established, load execution history from API
   useEffect(() => {
     if (!sessionId) return;
-    fetch(`/api/v1/sessions/${sessionId}/executions?limit=100`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data: ToolExecutionRecord[]) => {
+    // OBSTACK Phase E.1 — route through the shared sessions client
+    // (same surface as the Python ``SessionsClient``). The wire
+    // shape is a top-level JSON array (``Json<Vec<ToolExecution>>``
+    // per ``crates/grid-server/src/api/executions.rs``), so we
+    // narrow ``unknown`` -> array via Array.isArray.
+    sessionsClient
+      .list_executions(sessionId, { limit: 100 })
+      .then((data: unknown) => {
         if (!Array.isArray(data) || data.length === 0) return;
+        const records = data as ToolExecutionRecord[];
         store.set(executionRecordsAtom, (prev) => {
           // Merge: keep any newer real-time records, backfill with DB history
           const existingIds = new Set(prev.map((e) => e.id));
-          const newRecords = data.filter((e) => !existingIds.has(e.id));
+          const newRecords = records.filter((e) => !existingIds.has(e.id));
           // Prepend history (older), append real-time (newer)
           return [...newRecords, ...prev];
         });

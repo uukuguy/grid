@@ -101,7 +101,12 @@ describe("SessionControls (REQ-WEB-03, D-02, UI-SPEC §9.1)", () => {
     });
 
     const lastFetch = (globalThis as any).__lastFetch;
-    expect(lastFetch.url).toBe("/api/v1/sessions/session-abc/kill");
+    // OBSTACK Phase E.1 — route now goes through ``sessionsClient``,
+    // which builds the absolute URL ``${baseUrl}${path}``. The base
+    // URL defaults to ``http://127.0.0.1:3001`` (grid-server) per
+    // ``web/src/api/sessions.ts``. Assert the URL ends with the path
+    // (matches the ``app-mount.test.tsx`` fetch-mock precedent).
+    expect(lastFetch.url).toBe("http://127.0.0.1:3001/api/v1/sessions/session-abc/kill");
     expect(lastFetch.init.method).toBe("POST");
   });
 
@@ -126,7 +131,8 @@ describe("SessionControls (REQ-WEB-03, D-02, UI-SPEC §9.1)", () => {
     });
 
     const lastFetch = (globalThis as any).__lastFetch;
-    expect(lastFetch.url).toBe("/api/v1/sessions/session-xyz/resume");
+    // OBSTACK Phase E.1 — absolute URL via shared sessions client.
+    expect(lastFetch.url).toBe("http://127.0.0.1:3001/api/v1/sessions/session-xyz/resume");
     expect(lastFetch.init.method).toBe("POST");
   });
 

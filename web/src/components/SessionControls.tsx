@@ -8,6 +8,7 @@ import {
   stoppedByUserAtom,
 } from "@/atoms/session";
 import { addToastAtom, connectionStatusAtom } from "@/atoms/ui";
+import { sessionsClient } from "@/api/sessions";
 
 /** Truncate a session ID for aria-labels. */
 function truncateId(id: string): string {
@@ -45,21 +46,13 @@ export function SessionControls() {
     setStoppedByUser(true);
     setIsStopping(true);
     try {
-      const res = await fetch(
-        `/api/v1/sessions/${encodeURIComponent(sessionId)}/kill`,
-        { method: "POST" },
-      );
-      if (!res.ok) {
-        // Rollback optimistic state
-        setStoppedByUser(false);
-        addToast({
-          type: "error",
-          title: "Failed to stop",
-          message: "Try again, or refresh the page.",
-        });
-      }
+      // OBSTACK Phase E.1 — route kill through the shared sessions client
+      // (same surface as the Python ``SessionsClient``). The client throws
+      // ``SessionsClientError`` on non-2xx; we translate that to the same
+      // rollback + toast UX as the legacy fetch path.
+      await sessionsClient.kill_session(sessionId);
     } catch {
-      // Network/parse failure — rollback
+      // Network/parse failure — rollback (legacy behavior preserved).
       setStoppedByUser(false);
       addToast({
         type: "error",
@@ -77,19 +70,9 @@ export function SessionControls() {
     setStoppedByUser(false);
     setIsResuming(true);
     try {
-      const res = await fetch(
-        `/api/v1/sessions/${encodeURIComponent(sessionId)}/resume`,
-        { method: "POST" },
-      );
-      if (!res.ok) {
-        // Rollback optimistic state
-        setStoppedByUser(true);
-        addToast({
-          type: "error",
-          title: "Failed to resume",
-          message: "Try again, or refresh the page.",
-        });
-      }
+      // OBSTACK Phase E.1 — route resume through the shared sessions client
+      // (same surface as the Python ``SessionsClient``).
+      await sessionsClient.resume_session(sessionId);
     } catch {
       setStoppedByUser(true);
       addToast({

@@ -4,6 +4,7 @@ import { ExecutionList } from "@/components/tools/ExecutionList";
 import { executionRecordsAtom } from "@/atoms/debug";
 import { sessionIdAtom } from "@/atoms/session";
 import type { ToolExecutionRecord } from "@/atoms/debug";
+import { sessionsClient } from "@/api/sessions";
 
 export default function Tools() {
   const sessionId = useAtomValue(sessionIdAtom);
@@ -12,10 +13,15 @@ export default function Tools() {
 
   const refresh = useCallback(() => {
     if (!sessionId) return;
-    fetch(`/api/v1/sessions/${sessionId}/executions?limit=100`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data: ToolExecutionRecord[]) => {
-        if (Array.isArray(data)) setExecutions(data);
+    // OBSTACK Phase E.1 — route through the shared sessions client
+    // (same surface as the Python ``SessionsClient``). The wire
+    // shape is a top-level JSON array (``Json<Vec<ToolExecution>>``
+    // per ``crates/grid-server/src/api/executions.rs``).
+    sessionsClient
+      .list_executions(sessionId, { limit: 100 })
+      .then((data: unknown) => {
+        const records = Array.isArray(data) ? (data as ToolExecutionRecord[]) : [];
+        setExecutions(records);
       })
       .catch(() => {/* ignore */});
   }, [sessionId, setExecutions]);

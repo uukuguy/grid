@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { Database } from "lucide-react";
 import { sessionIdAtom, recentlyAddedMemoryIdsAtom } from "@/atoms/session";
 import { cn } from "@/lib/utils";
+import { sessionsClient } from "@/api/sessions";
 
 interface MemoryBlock {
   id: string;
@@ -34,12 +35,6 @@ interface PersistentMemory {
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: Array<{ type: string; text?: string }>;
-}
-
-interface ActiveSessionsResponse {
-  sessions: string[];
-  count: number;
-  max: number;
 }
 
 type MemoryViewType = "working" | "session" | "persistent" | "timeline";
@@ -77,9 +72,13 @@ export default function Memory() {
 
   const fetchAvailableSessions = async () => {
     try {
-      const res = await fetch("/api/v1/sessions/active");
-      const data: ActiveSessionsResponse = await res.json();
-      setAvailableSessions(data.sessions || []);
+      // OBSTACK Phase E.1 — route through the shared sessions client so
+      // the web client and eaasp-cli-v2 stay in lockstep (same surface
+      // as the Python ``SessionsClient``). The client returns typed
+      // ``SessionInfo`` rows; we project to the legacy ``string[]``
+      // shape this page already uses.
+      const data = await sessionsClient.list_active();
+      setAvailableSessions(data.sessions.map((s) => s.id));
     } catch (error) {
       console.error("Failed to fetch active sessions:", error);
     }
@@ -89,9 +88,12 @@ export default function Memory() {
     if (!sessionId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/sessions/${sessionId}`);
-      const data = await res.json();
-      setSessionMessages(data.messages || []);
+      // OBSTACK Phase E.1 — see ``fetchAvailableSessions``. ``get_session``
+      // returns the same wire shape the legacy fetch consumed; the client
+      // adds typed fields, but the messages array sits at ``messages``
+      // (legacy contract preserved).
+      const data = await sessionsClient.get_session(sessionId);
+      setSessionMessages((data as unknown as { messages?: ChatMessage[] }).messages ?? []);
     } catch (error) {
       console.error("Failed to fetch session messages:", error);
     } finally {

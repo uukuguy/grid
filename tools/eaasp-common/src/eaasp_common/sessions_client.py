@@ -74,22 +74,56 @@ class SessionsClient:
 
     def list_executions(
         self, session_id: str, params: ListExecutionsParams | None = None
-    ) -> dict[str, Any]:
-        """GET /api/v1/sessions/{id}/executions — raw dict for now.
+    ) -> Any:
+        """GET /api/v1/sessions/{id}/executions — raw wire format.
 
-        Phase E.1 keeps this as a raw dict because the executions
-        payload includes heterogeneous tool-call records whose
-        schema we haven't yet frozen into a typed model. A future
-        commit will add a ``ToolExecution`` model when we standardize
-        the shape.
+        Phase E.1 keeps this as a passthrough return because the
+        grid-server endpoint returns a top-level JSON array
+        (``Json<Vec<ToolExecution>>`` — see
+        ``crates/grid-server/src/api/executions.rs``). A future
+        commit will add a typed ``ToolExecution`` model when we
+        standardize the shape; callers should treat the return as
+        ``list[dict[str, Any]]`` for now.
+
+        Note: this method intentionally bypasses ``self._get``'s
+        dict-shape contract and returns ``Any`` so the raw list
+        doesn't get wrapped in ``{"data": [...]}`` by the fallback
+        branch in ``self._request``.
         """
         search: dict[str, str] = {}
         if params is not None:
             search["limit"] = str(params.limit)
-        return self._get(
-            f"/api/v1/sessions/{session_id}/executions",
-            search=search,
-        )
+        else:
+            # OBSTACK Phase E.1 (commit 2/2) — match the ObstackClient
+            # ``list_business_flows`` pattern: when the caller omits
+            # ``params``, materialize a default so the URL always
+            # carries ``?limit=N``. The web client (which goes through
+            # the TS mirror that ALWAYS passes ``{limit:100}``) also
+            # benefits — the wire shape is deterministic either way.
+            search["limit"] = str(ListExecutionsParams().limit)
+        url = self.base_url + f"/api/v1/sessions/{session_id}/executions"
+        if search:
+            url += "?" + urllib.parse.urlencode(search)
+        # Use the raw http_getter so we keep the wire shape (a list,
+        # not a dict). The shared ``_request`` path wraps non-dict
+        # payloads in ``{"data": ...}`` which would lose the array
+        # shape callers expect.
+        try:
+            result: Any = self._http_getter("GET", url, {}, None)
+        except SessionsClientError:
+            raise  # don't double-wrap
+        except Exception as e:
+            status = getattr(e, "code", 0) or 0
+            raise SessionsClientError(
+                status,
+                f"transport error from {url}: {e}",
+            ) from e
+        if _iscoroutine(result):
+            import asyncio
+
+            resolved = asyncio.run(result)
+            return resolved
+        return result
 
     # ─── Lifecycle ─────────────────────────────────────
     def start_session(self, req: StartSessionRequest) -> StartSessionResponse:

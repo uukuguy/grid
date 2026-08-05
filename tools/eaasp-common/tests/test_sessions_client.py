@@ -118,6 +118,51 @@ def test_start_session_sends_body_to_right_path() -> None:
     assert resp.session_id == "s-new"
 
 
+# ─── list_executions: wire-shape passthrough (Phase E.1 commit 2/2) ─────────
+
+
+def test_list_executions_returns_raw_list_passthrough() -> None:
+    """GET /api/v1/sessions/{id}/executions returns a TOP-LEVEL JSON array
+    (``Json<Vec<ToolExecution>>`` per ``crates/grid-server/src/api/executions.rs``).
+
+    The Python client must pass the raw list through unchanged so callers
+    see ``[ToolExecution, ...]`` — not the dict-wrapped ``{"data": [...]}``
+    shape the default ``_request`` fallback would otherwise produce.
+    """
+    expected = [
+        {"id": "e1", "tool": "Bash", "session_id": "s1"},
+        {"id": "e2", "tool": "Read", "session_id": "s1"},
+    ]
+
+    def getter(method, url, headers, json_body):
+        assert method == "GET"
+        assert url == "http://x/api/v1/sessions/s1/executions?limit=100"
+        return expected
+
+    c = SessionsClient("http://x", http_getter=getter)
+    result = c.list_executions("s1")
+    # The raw list must come back unchanged — not wrapped in {"data": ...}.
+    assert isinstance(result, list)
+    assert result == expected
+    assert result[0]["tool"] == "Bash"
+
+
+def test_list_executions_preserves_pagination_query_string() -> None:
+    """Custom limit param drives the URL query string."""
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["url"] = url
+        return []
+
+    c = SessionsClient("http://x", http_getter=getter)
+    c.list_executions("s1", ListExecutionsParams(limit=25))
+    assert "limit=25" in captured["url"]
+
+
+# ─── Error path ────────────────────────────────────────
+
+
 # ─── Error path ────────────────────────────────────────
 
 
@@ -140,3 +185,19 @@ def test_raises_sessions_client_error_on_non_2xx() -> None:
     with pytest.raises(SessionsClientError) as exc:
         c.list_active()
     assert exc.value.status == 404
+
+
+def test_raises_sessions_client_error_on_list_executions() -> None:
+    """list_executions must also map non-2xx via the same error contract."""
+    def getter(method, url, headers, json_body):
+        import http.client
+        import urllib.error
+        msg = http.client.HTTPMessage()
+        for k, v in headers.items():
+            msg[k] = v
+        raise urllib.error.HTTPError(url, 500, "Server Error", msg, None)
+
+    c = SessionsClient("http://x", http_getter=getter)
+    with pytest.raises(SessionsClientError) as exc:
+        c.list_executions("s1")
+    assert exc.value.status == 500

@@ -43,11 +43,16 @@ export class SessionsClient {
   async list_executions(
     id: string,
     params?: ListExecutionsParams,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<unknown> {
+    // OBSTACK Phase E.1 — pass through the wire shape (a top-level
+    // JSON array of ToolExecution records) rather than coercing it
+    // to ``Record<string, unknown>``. The Python
+    // ``SessionsClient.list_executions`` mirror returns ``Any`` for
+    // the same reason (see ``sessions_client.py``).
     const search: string[] = [];
     if (params) search.push(`limit=${params.limit}`);
     const qs = search.length > 0 ? `?${search.join("&")}` : "";
-    return this.fetch<Record<string, unknown>>(
+    return this.fetch<unknown>(
       `/api/v1/sessions/${encodeURIComponent(id)}/executions${qs}`,
     );
   }
