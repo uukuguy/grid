@@ -211,3 +211,6 @@
 
 ## 2020-08-04 (OBSTACK Phase D.2 — eaasp-obstack-client 抽公共 client 库 commit 24)
 - 21:55 用户反馈"grid-cli 和 grid-web 的 chat 都基于 grid-engine,应该支持同样的功能" — 把 OBSTACK API surface 抽到 tools/eaasp-common 公共包。10 个新单测(model parsing + 5 endpoint + HTTP error path) + 29 已有 = 39/39 pass。Phase D.3 (web 改 thin client wrapper) + Phase D.4 (grid-cli 用同一 client) 待做 — 这次只完成"骨架",Phase E.x 会抽 sessions/tools/MCP client 用同样模板。
+
+## 2020-08-05 (OBSTACK Phase D.3 — web ObstackClient wrapper commit 25)
+- 09:50 Phase D.3:web/src/api/flows.ts 重构成 ObstackClient 类(5 个方法 list_business_flows/get_timeline/get_summary/get_sessions/get_evaluation)与 Python 客户端 1:1 镜像。新文件 web/src/api/obstack_types.ts 与 tools/eaasp-common/.../obstack_models.py 类型一一对应。保留 `flowsApi` 兼容 shim 不破坏现有调用方。40/40 vitest pass + 真浏览器 e2e ALL CHECKS PASSED + 3 个 business flows 渲染 + click 真 mount detail panel。Phase D.4(grid-cli 用同一 client)待做。
