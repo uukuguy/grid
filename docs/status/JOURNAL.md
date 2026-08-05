@@ -217,3 +217,6 @@
 
 ## 2020-08-05 (OBSTACK Phase D.4 — grid-cli eaasp flow 用 client commit 26)
 - 11:15 Phase D.4:cmd_flow.py 改用 eaasp-obstack-client(同 web/ObstackClient 同一 Python 客户端)— 满足"web 和 cli 表面一致"原则。8 个 cmd_flow 单测全过 + 真 L4 e2e(/v1/business-flows/{key}/summary 200 OK)。客户端接口(sync 兼容 / async 兼容 / inject 钩子)在 conftest 修了 + 测试 fixture 加 window_seconds 字段匹配真 L4 响应。Phase E.x(extract sessions/tools/MCP client 同样模式)待做。
+
+## 2020-08-05 (OBSTACK Phase E.1 commit 1/2 — eaasp-sessions-client 抽出 commit 27)
+- 12:45 Phase E.1 抽出 eaasp-sessions-client 公共包(sessions_models.py + sessions_client.py + 7 个新测试 + web/src/api/sessions.ts TS 镜像)— 17/17 eaasp-common tests pass + 40/40 web tests pass + typecheck clean。客户端 surface:list_active/get_session/list_executions/start_session/stop_session/kill_session/resume_session。Phase E.1 commit 2/2 待做:web SessionBar/SessionControls 改用 sessionsClient + eaasp-cli-v2 cmd_session 改用 SessionsClient。
