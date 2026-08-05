@@ -31,19 +31,37 @@ from .obstack_models import (
     TimelineEvent,
     TimelineResponse,
 )
+from .sessions_client import (
+    SessionsClient,
+    SessionsClientError,
+)
+from .sessions_models import (
+    ActiveSessionsResponse,
+    ListExecutionsParams,
+    SessionInfo,
+    StartSessionRequest,
+    StartSessionResponse,
+)
 
 __all__ = [
+    "ActiveSessionsResponse",
     "BusinessFlowListResponse",
     "BusinessFlowSummary",
     "BusinessKey",
     "EvaluationReport",
     "EvaluationResponse",
     "FlowListParams",
+    "ListExecutionsParams",
     "OptimizationHint",
     "ObstackClient",
     "ObstackClientError",
+    "SessionInfo",
     "SessionRef",
+    "SessionsClient",
+    "SessionsClientError",
     "SessionsResponse",
+    "StartSessionRequest",
+    "StartSessionResponse",
     "SummaryBlock",
     "SummaryResponse",
     "TimelineEvent",
