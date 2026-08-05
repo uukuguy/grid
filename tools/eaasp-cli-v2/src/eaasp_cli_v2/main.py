@@ -31,6 +31,12 @@ app.add_typer(cmd_flow.app, name="flow", help="Business flow timeline / summary 
 _ClientFactory = Callable[[CliConfig], ServiceClient]
 _client_factory: _ClientFactory = ServiceClient.from_config
 
+# Phase D.4 — ObstackClient (shared with web) also accepts an
+# injectable http_getter. Tests use the same MockTransport via
+# ``_obstack_http_getter``; production leaves it None and the client
+# falls back to its built-in urllib transport.
+_obstack_http_getter: "Any | None" = None
+
 
 def set_client_factory(factory: _ClientFactory) -> None:
     """Install a ServiceClient factory (used by tests)."""

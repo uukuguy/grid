@@ -170,12 +170,24 @@ class ObstackClient:
         headers: dict[str, str] = {}
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
-        # Phase D.2 — wrap injected getter in the same try/except the
-        # default transport uses, so callers don't need to repeat
-        # HTTPError handling in their test fakes. Tests use raising
-        # getters to assert ObstackClientError propagation.
+        # Phase D.4 — accept either a sync callable (urllib-style) or
+        # an async callable (httpx-style). The CLI runs these in an
+        # asyncio loop and would otherwise crash on the awaited dict
+        # from a sync return; tests may want the async form to mirror
+        # the production httpx path. Normalize both shapes to a
+        # resolved dict.
         try:
-            return self._http_getter(url, headers=headers)
+            result = self._http_getter(url, headers=headers)
+            if _iscoroutine(result):
+                # The transport returned a coroutine; it must be awaited
+                # in an event loop. The CLI runs us inside asyncio.run
+                # already, so we resolve via a fresh loop. Tests that
+                # accidentally return a coroutine from a sync stub will
+                # see this branch and fail loudly instead of producing
+                # a half-built response.
+                import asyncio
+                result = asyncio.run(result)
+            return result
         except ObstackClientError:
             raise  # don't double-wrap
         except Exception as e:
@@ -206,6 +218,19 @@ except ImportError:
 # sprinkling `if _asyncio is not None` everywhere.
 asyncio = _asyncio
 httpx = _httpx
+
+
+def _iscoroutine(value: Any) -> bool:
+    """True if value is an unevaluated coroutine.
+
+    Phase D.4 — the ObstackClient's _get must work whether the
+    http_getter returns a parsed dict (sync, urllib-style) or a
+    coroutine that resolves to one (async, httpx-style). Detecting
+    a coroutine is the cheapest cross-version check.
+    """
+    return hasattr(value, "__await__") or (
+        _asyncio is not None and _asyncio.iscoroutine(value)
+    )
 
 
 def iter_summary_over_window(

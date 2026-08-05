@@ -133,10 +133,17 @@ def test_evaluate(runner: CliRunner, install_mock) -> None:
             {
                 "business_key": "s1",
                 "report": {
+                    # Phase D.4 — EvaluationReport requires window_seconds
+                    # (and the rest of the fields). Without it the new
+                    # client (which validates via dataclass __init__) fails
+                    # with KeyError. Mirror the real L4 response shape.
+                    "window_seconds": 3600,
                     "total_flows": 1,
+                    "status_counts": {"closed": 1},
                     "completion_rate": 0.0,
+                    "interruption_heatmap": {},
                     "hints": [
-                        {"severity": "info", "metric": "sample_size", "recommendation": "x"}
+                        {"layer": "L3", "metric": "sample_size", "severity": "info", "recommendation": "x", "evidence": {}}
                     ],
                 },
             },

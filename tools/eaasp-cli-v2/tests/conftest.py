@@ -25,7 +25,14 @@ def runner() -> CliRunner:
 def install_mock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[Handler], httpx.AsyncClient]:
-    """Install a MockTransport-backed httpx.AsyncClient into the CLI factory slot."""
+    """Install a MockTransport-backed httpx.AsyncClient into the CLI factory slot.
+
+    Phase D.4 — also seed ``cli_main._obstack_http_getter`` with a
+    function that delegates to the same MockTransport. That way,
+    tests for ``cmd_flow`` (which switched to the shared
+    ``eaasp_common.ObstackClient``) get the same fake response
+    the legacy ``ServiceClient`` tests get.
+    """
 
     def _install(handler: Handler) -> httpx.AsyncClient:
         transport = httpx.MockTransport(handler)
@@ -35,6 +42,26 @@ def install_mock(
             "_client_factory",
             lambda cfg: ServiceClient.from_httpx(mock_client),
         )
+
+        # Mirror the transport into a plain-callable HTTP getter
+        # that the new ObstackClient (which uses urllib, not httpx)
+        # can consume. ObstackClient expects a parsed dict back, so
+        # we use the httpx Response's .json() method (parses the
+        # body and returns a dict).
+        def _obstack_getter(url: str, headers: dict[str, str]) -> Any:
+            req = httpx.Request("GET", url, headers=headers)
+            resp = handler(req)
+            # Raise on non-2xx (matches urllib's HTTPError behavior that
+            # ObstackClient already converts to ObstackClientError).
+            if resp.status_code >= 400:
+                import urllib.error
+                raise urllib.error.HTTPError(
+                    url, resp.status_code, resp.reason_phrase, dict(resp.headers), None,
+                )
+            return resp.json()
+
+        monkeypatch.setattr(cli_main, "_obstack_http_getter", _obstack_getter)
+
         return mock_client
 
     return _install

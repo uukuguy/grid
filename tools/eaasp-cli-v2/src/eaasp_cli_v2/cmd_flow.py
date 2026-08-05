@@ -8,10 +8,11 @@ end-user CLI surface for the cross-layer business-flow module:
 - ``eaasp flow watch --key <key>`` — SSE subscribe; print each new event
 - ``eaasp flow evaluate --key <key>`` — single-flow evaluation report
 
-The CLI is a thin wrapper over the L4 REST API (see
-``eaasp-l4-orchestration/flow_api.py``). The wire format for the
-business key is the same ``"session|skill|object"`` format used by
-the ``X-Business-Key`` header.
+Phase D.4 — this subcommand now uses the shared eaasp-obstack-client
+(tools/eaasp-common/eaasp_common/obstack_client.py) instead of
+hand-rolled URL composition. The 1:1 mirror with the web's
+ObstackClient (web/src/api/obstack_types.ts) means CLI and web are
+guaranteed to use the same wire format / query semantics.
 
 Implementation follows the existing CLI command pattern (sync
 ``typer`` entrypoint wraps an ``async def _do()`` that uses
@@ -26,6 +27,8 @@ from typing import Any
 
 import httpx
 import typer
+
+from eaasp_common import ObstackClient
 
 from .client import CliError
 from .config import CliConfig
@@ -79,21 +82,67 @@ def _format_event_row(ev: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _fetch_timeline(cfg: CliConfig, key: str) -> list[dict[str, Any]]:
-    from . import main as _main
+    """Phase D.4 — use the shared eaasp-obstack-client instead of
+    hand-rolled URL composition.
 
-    client = _main.make_client(cfg)
-    url = f"{cfg.l4_url.rstrip('/')}/v1/business-flows/{key}/timeline"
-    body = await client.call("GET", url)
-    return list(body.get("events", []))
+    The client is sync; we run it in a worker thread so the asyncio
+    loop isn't blocked. The install_mock fixture can also inject a
+    custom ``_obstack_http_getter`` on ``cli_main`` to intercept the
+    network call (the ObstackClient accepts an injectable
+    http_getter for tests).
+    """
+    from . import main as _main
+    from eaasp_common import ObstackClient as _ObstackClient
+    import asyncio
+    getter = getattr(_main, "_obstack_http_getter", None)
+    client = _ObstackClient(
+        base_url=cfg.l4_url,
+        auth_token=None,
+        http_getter=getter,
+    )
+    resp = await asyncio.to_thread(client.get_timeline, key)
+    return [
+        {
+            "ts": ev.ts,
+            "layer": ev.layer,
+            "component": ev.component,
+            "event_type": ev.event_type,
+            "payload": ev.payload,
+            "duration_ms": ev.duration_ms,
+            "error": ev.error,
+        }
+        for ev in resp.events
+    ]
 
 
 async def _fetch_json(cfg: CliConfig, key: str, sub: str) -> Any:
+    """Phase D.4 — same shared client; the ``sub`` segment picks
+    which endpoint the dispatcher returns. Sync client called via
+    asyncio.to_thread (the client itself is sync; we keep the CLI
+    async-shape so existing handlers stay ``async def``).
+    """
     from . import main as _main
-
-    client = _main.make_client(cfg)
-    url = f"{cfg.l4_url.rstrip('/')}/v1/business-flows/{key}/{sub}"
-    body = await client.call("GET", url)
-    return body
+    from eaasp_common import ObstackClient as _ObstackClient
+    import asyncio
+    getter = getattr(_main, "_obstack_http_getter", None)
+    client = _ObstackClient(
+        base_url=cfg.l4_url,
+        auth_token=None,
+        http_getter=getter,
+    )
+    if sub == "summary":
+        resp = await asyncio.to_thread(client.get_summary, key)
+        return {"summary": resp.summary.__dict__}
+    if sub == "evaluation":
+        resp = await asyncio.to_thread(client.get_evaluation, key)
+        return {"report": resp.report.__dict__}
+    if sub == "sessions":
+        resp = await asyncio.to_thread(client.get_sessions, key)
+        return {
+            "session_ids": [s.__dict__ for s in resp.session_ids],
+            "count": resp.count,
+        }
+    raise ValueError(f"unsupported sub: {sub}")
 
 
 @app.command("timeline")
