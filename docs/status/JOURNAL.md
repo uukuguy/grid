@@ -214,3 +214,6 @@
 
 ## 2020-08-05 (OBSTACK Phase D.3 — web ObstackClient wrapper commit 25)
 - 09:50 Phase D.3:web/src/api/flows.ts 重构成 ObstackClient 类(5 个方法 list_business_flows/get_timeline/get_summary/get_sessions/get_evaluation)与 Python 客户端 1:1 镜像。新文件 web/src/api/obstack_types.ts 与 tools/eaasp-common/.../obstack_models.py 类型一一对应。保留 `flowsApi` 兼容 shim 不破坏现有调用方。40/40 vitest pass + 真浏览器 e2e ALL CHECKS PASSED + 3 个 business flows 渲染 + click 真 mount detail panel。Phase D.4(grid-cli 用同一 client)待做。
+
+## 2020-08-05 (OBSTACK Phase D.4 — grid-cli eaasp flow 用 client commit 26)
+- 11:15 Phase D.4:cmd_flow.py 改用 eaasp-obstack-client(同 web/ObstackClient 同一 Python 客户端)— 满足"web 和 cli 表面一致"原则。8 个 cmd_flow 单测全过 + 真 L4 e2e(/v1/business-flows/{key}/summary 200 OK)。客户端接口(sync 兼容 / async 兼容 / inject 钩子)在 conftest 修了 + 测试 fixture 加 window_seconds 字段匹配真 L4 响应。Phase E.x(extract sessions/tools/MCP client 同样模式)待做。
