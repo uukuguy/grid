@@ -53,6 +53,20 @@ from .sessions_models import (
     StartSessionRequest,
     StartSessionResponse,
 )
+from .tasks_client import (
+    TasksClient,
+    TasksClientError,
+)
+from .tasks_models import (
+    AgentTask,
+    AgentTaskConfig,
+    AgentTaskDetail,
+    CreateScheduledTaskRequest,
+    ScheduledTask,
+    ScheduledTaskListResponse,
+    SubmitTaskRequest,
+    TaskExecution,
+)
 
 __all__ = [
     "ActiveSessionsResponse",

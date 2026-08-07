@@ -238,3 +238,6 @@
 - 09:50 server (registration) Endpoint 仍走 direct fetch(client surface 等真有 second caller 时再加)。
 - 09:50 ToolInvoker.tsx 删掉 inline interface Tool/Server 改成 import from api/mcp.ts,wire-shape 一致。
 - 09:50 web typecheck 0 errors;40/40 vitest PASS。
+
+## 2026-08-07 (OBSTACK Phase E.3 commit 1/2 — eaasp-tasks-client extraction)
+- 09:50 Phase E.3 commit 1/2 抽出 eaasp-tasks-client:TasksClient + 8 model dataclasses (AgentTask/AgentTaskDetail/TaskExecution/SubmitTaskRequest/AgentTaskConfig/ScheduledTask/ScheduledTaskListResponse/CreateScheduledTaskRequest) + 16 tests + TS mirror。Pattern 跟 E.1 (sessions) / E.2 (mcp) / D.4 (obstack) 同:web + cli 共享同 client surface。一个 client domain 把 /api/v1/tasks (agent) + /api/v1/scheduler/tasks (cron) 一起装下,跟 E.1 cmd_session vs sessions 的反模式区分(那边是 L4 vs grid-server,surfaces 故意分离)。验证 80/80 eaasp-common tests pass + 0 web typecheck errors。Commit 2/2 待做:web Tasks.tsx + Schedule.tsx 改用 tasksClient。
