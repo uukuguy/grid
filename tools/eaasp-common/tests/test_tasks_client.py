@@ -336,3 +336,103 @@ def test_raises_tasks_client_error_on_non_2xx_cancel() -> None:
     with pytest.raises(TasksClientError) as exc:
         c.cancel_task("missing")
     assert exc.value.status == 404
+
+
+# ─── Auth + path-encoding guarantees (security review) ────────────
+
+
+def test_auth_token_reaches_get_array_path() -> None:
+    """Security fix: ``_get_array`` (used by list_tasks +
+    list_scheduled_executions) used to drop the ``Authorization``
+    header. Capture the headers on the wire and assert Bearer
+    is present.
+    """
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["headers"] = headers
+        return []
+
+    c = TasksClient("http://x", auth_token="SECRET", http_getter=getter)
+    c.list_tasks()
+    assert captured["headers"] == {"Authorization": "Bearer SECRET"}
+
+
+def test_auth_token_reaches_post_path() -> None:
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["headers"] = headers
+        return {"id": "t-new", "status": "pending"}
+
+    c = TasksClient("http://x", auth_token="SECRET", http_getter=getter)
+    c.submit_task(SubmitTaskRequest(prompt="x"))
+    assert captured["headers"] == {"Authorization": "Bearer SECRET"}
+
+
+def test_auth_token_reaches_delete_path() -> None:
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["headers"] = headers
+        return None
+
+    c = TasksClient("http://x", auth_token="SECRET", http_getter=getter)
+    c.cancel_task("t-1")
+    assert captured["headers"] == {"Authorization": "Bearer SECRET"}
+
+
+def test_path_injection_in_get_task_encodes_segment() -> None:
+    """Security fix: ``f"/api/v1/tasks/{task_id}"`` used to
+    forward raw input; the server receives a path segment,
+    so a ``task_id`` containing ``/`` or ``?`` could
+    restructure the URL. Percent-encode with ``safe=""``.
+    """
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["url"] = url
+        return {"task": {"id": "x", "status": "running"}, "executions": []}
+
+    c = TasksClient("http://x", http_getter=getter)
+    c.get_task("../admin/users?force=1")
+    # The unreserved chars (letters / digits) survive; the
+    # path-breaking chars (``,``/``/``?``/``=``) get
+    # percent-encoded so they cannot restructure the URL.
+    assert "%2F" in captured["url"]  # ``/`` → %2F
+    assert "%3F" in captured["url"]  # ``?`` → %3F
+    assert "%3D" in captured["url"]  # ``=`` → %3D
+    # No literal ``?`` followed by ``force=`` (would mean an
+    # attacker-supplied query string leaked through).
+    assert "force=1" not in captured["url"]
+
+
+def test_path_injection_in_run_scheduled_task_encodes_segment() -> None:
+    """``task_id`` is path-encoded but the literal ``/run``
+    suffix stays as a real separator (not part of ``task_id``).
+
+    The URL ``sch%2F..%2Frestart/run`` proves the path-breaking
+    ``/`` characters were percent-encoded — those are the
+    characters RFC 3986 reserves as path separators and the
+    ones that enable ``..``-style traversal / query-string
+    smuggling. Dots and letters stay literal (RFC 3986
+    unreserved chars); that's expected and safe.
+    """
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["url"] = url
+        return {"id": "e", "task_id": "x", "started_at": "t", "status": "running"}
+
+    c = TasksClient("http://x", http_getter=getter)
+    c.run_scheduled_task("sch/../restart")
+    # Exactly two percent-encoded slashes (the two ``/`` in
+    # ``sch/../restart``); no encoded ``/`` separates
+    # ``sch`` from the method suffix.
+    assert captured["url"].count("%2F") == 2
+    # The literal ``/run`` suffix is the method's own segment
+    # separator — not part of the encoded task_id segment.
+    assert captured["url"].endswith("/run")
+    # The encoded segment is followed immediately by the method
+    # suffix (no double-slash, no encoded prefix before run).
+    assert captured["url"].endswith("..%2Frestart/run")

@@ -152,8 +152,17 @@ class McpClient:
         payloads in ``{"data": ...}`` and lose the array shape.
         """
         url = self.base_url + path
+        # Security fix (HIGH-severity auth-bypass flagged on commit
+        # 822a4a90): build the Bearer header here too — the raw
+        # http_getter doesn't share ``_request``'s auth header
+        # injection. Without this, ``list_servers`` /
+        # ``list_tools`` / ``list_executions`` dropped the
+        # Authorization header even when ``auth_token`` was set.
+        headers: dict[str, str] = {}
+        if self.auth_token:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
         try:
-            result: Any = self._http_getter("GET", url, {}, None)
+            result: Any = self._http_getter("GET", url, headers, None)
         except McpClientError:
             raise
         except Exception as e:

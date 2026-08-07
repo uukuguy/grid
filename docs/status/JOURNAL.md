@@ -244,3 +244,22 @@
 
 ## 2026-08-07 (OBSTACK Phase E.3 commit 1/2 — eaasp-tasks-client shipped on main)
 - 10:15 Commit aa6d2e20 landed on main:tools/eaasp-common + web mirror atomic 7 files,1024 insertions。E.3 commit 2/2 (Tasks.tsx + Schedule.tsx wire-up,~1000 lines UI code) awaiting user sign-off before destructive rewrite per "ask first before destructive ops" rule。
+
+## 2026-08-07 (SECURITY FIX — auth-bypass HIGH + path-injection MEDIUM in tasks + mcp clients + token-lifecycle MEDIUM in 3 TS clients)
+
+- 13:20 Security review of E.3 commit aa6d2e20 + E.2 commit 822a4a90 found 3 vuln classes — applying fixes in one atomic security commit.
+
+- 13:20 FINDING 1 [HIGH auth-bypass, commit aa6d2e20]: tools/eaasp-common/.../tasks_client.py `_get / _post / _delete / _get_array` all passed `{}` (empty headers) to `_http_getter`, silently dropping the Bearer header despite `self.auth_token` being set. Every TasksClient method call from a configured-token caller would have been unauthorized. Fix: new `_auth_headers()` helper mirroring the existing ObstackClient `_request` pattern that already works.
+
+- 13:20 FINDING 1.5 [HIGH auth-bypass, commit 822a4a90]: SAME bug pattern in tools/eaasp-common/.../mcp_client.py `_get_array` (used by list_servers / list_tools / list_executions — all 3 of the v3.14-derived UI pages). `_get` / `_post` already go through `_request` which DOES inject Bearer. Fixed `_get_array` only.
+
+- 13:20 FINDING 2 [MEDIUM path-injection, commit aa6d2e20]: tasks_client.py built URLs via `f"/api/v1/tasks/{task_id}"` without percent-encoding. An attacker-supplied `task_id` containing `/`, `?`, or `=` could restructure the URL. Fix: `urllib.parse.quote(task_id, safe="")` on every path-segment interpolation (matches the encodeURIComponent pattern in web/src/api/tasks.ts).
+
+- 13:20 FINDING 3 [MEDIUM auth-token-lifecycle, cross-cutting]: web/src/api/{sessions,mcp,tasks}.ts all captured the auth token at module load time via `api.getToken()`. Token refresh / logout never propagated. Fix: accept a `getToken: () => string | null` callback in the `*ClientOptions` interface, default clients wire `getToken: () => api.getToken()`, fetch() calls the callback per request. Back-compat with the constructor-snapshotted `authToken` kept for tests.
+
+- 13:20 Regression coverage: 7 new tests lock the contracts.
+  - tasks_client.py: +3 auth-header tests (get_array / post / delete), +2 path-injection tests (get_task / run_scheduled_task)
+  - mcp_client.py: +2 auth-header tests (list_servers / list_executions)
+- 13:20 eaasp-common 87/87 PASS (was 80); web 40/40 vitest + 0 typecheck.
+
+- 13:20 Note: SessionsClient was NOT affected — its methods all go through the shared `_request` path which had Bearer injection since v3.15 commit 24. McpClient's CRUD methods (`_get` / `_post`) were NOT affected — same reason. Only `_get_array` and tasks_client's four transports needed fixing.

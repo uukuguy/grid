@@ -30,10 +30,16 @@ export type {
 export class TasksClient {
   private baseUrl: string;
   private authToken: string | null;
+  private getToken: (() => string | null) | null;
 
   constructor(options: TasksClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
+    // Security fix: accept either an ``authToken`` (snapshotted
+    // at construction time — kept for back-compat) or a
+    // ``getToken`` callback (refresh-aware). When both are
+    // supplied the callback wins so token refresh propagates.
     this.authToken = options.authToken ?? null;
+    this.getToken = options.getToken ?? null;
   }
 
   // ─── Agent tasks /api/v1/tasks ──────────────────────────
@@ -132,8 +138,15 @@ export class TasksClient {
     extra: { allow204?: boolean } = {},
   ): Promise<T> {
     const headers = new Headers(init.headers ?? {});
-    if (this.authToken) {
-      headers.set("Authorization", `Bearer ${this.authToken}`);
+    // Security fix (MEDIUM-severity auth-token-lifecycle): read
+    // the token FRESH per request from the ``getToken`` callback
+    // (or fall back to the constructor-time value when no
+    // callback was supplied). The pre-fix pattern captured the
+    // token at module load — logout / token refresh never
+    // propagated to the client.
+    const token = this.getToken ? this.getToken() : this.authToken;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -156,16 +169,16 @@ export class TasksClient {
   }
 }
 
-// Phase E.3 — the default client reuses the existing ``api`` singleton
-// (which already knows the auth token). Same base URL default as the
-// other clients (``http://127.0.0.1:3001`` — grid-server).
-const authToken = api.getToken();
-
+// Phase E.3 — the default client reuses the existing ``api``
+// singleton for the auth token. The token is read fresh per
+// request (via ``getToken`` callback) so logout / refresh
+// propagates without re-creating the client. Same base URL
+// default as the other clients (``http://127.0.0.1:3001``).
 export const tasksClient = new TasksClient({
   baseUrl:
     (typeof import.meta !== "undefined" &&
       (import.meta as { env?: Record<string, string> }).env
         ?.VITE_TASKS_BASE_URL) ||
     "http://127.0.0.1:3001",
-  authToken: authToken ?? undefined,
+  getToken: () => api.getToken(),
 });

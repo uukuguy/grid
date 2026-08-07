@@ -26,10 +26,15 @@ export type {
 export class SessionsClient {
   private baseUrl: string;
   private authToken: string | null;
+  private getToken: (() => string | null) | null;
 
   constructor(options: SessionsClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
+    // Security fix (MEDIUM auth-token-lifecycle): refresh-aware
+    // ``getToken`` callback when supplied; falls back to the
+    // constructor-snapshotted ``authToken`` for back-compat.
     this.authToken = options.authToken ?? null;
+    this.getToken = options.getToken ?? null;
   }
 
   async list_active(): Promise<ActiveSessionsResponse> {
@@ -95,8 +100,13 @@ export class SessionsClient {
     extra: { allow204?: boolean } = {},
   ): Promise<T> {
     const headers = new Headers(init.headers ?? {});
-    if (this.authToken) {
-      headers.set("Authorization", `Bearer ${this.authToken}`);
+    // Security fix (MEDIUM auth-token-lifecycle): read the
+    // token fresh per request via the ``getToken`` callback;
+    // falls back to the snapshotted ``authToken``. Logout /
+    // refresh now propagates without re-creating the client.
+    const token = this.getToken ? this.getToken() : this.authToken;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -117,21 +127,16 @@ export class SessionsClient {
 }
 
 // Phase E.1 — the default client reuses the existing `api`
-// singleton (which already knows the auth token). The default base
-// URL is read from the same config flow as the rest of the UI; we
-// fall back to localhost:3001 (grid-server) until /api/v1/config
-// reports a real base URL.
-//
-// Future (Phase D): the base URL can also be supplied via
-// VITE_SESSIONS_BASE_URL for deployments where grid-server sits
-// behind a separate gateway.
-const authToken = api.getToken();
-
+// singleton. The token is read fresh per request (via
+// ``getToken`` callback) so logout / refresh propagates
+// without re-creating the client. Default base URL falls back
+// to localhost:3001 (grid-server) until /api/v1/config reports
+// a real base URL.
 export const sessionsClient = new SessionsClient({
   baseUrl:
     (typeof import.meta !== "undefined" &&
       (import.meta as { env?: Record<string, string> }).env
         ?.VITE_SESSIONS_BASE_URL) ||
     "http://127.0.0.1:3001",
-  authToken: authToken ?? undefined,
+  getToken: () => api.getToken(),
 });

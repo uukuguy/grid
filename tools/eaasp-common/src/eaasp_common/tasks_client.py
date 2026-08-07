@@ -28,6 +28,7 @@ Phase E.3 is intentionally narrow at the API surface:
 from __future__ import annotations
 
 import json
+from urllib.parse import quote
 from typing import Any
 
 from .obstack_client import _iscoroutine
@@ -84,7 +85,7 @@ class TasksClient:
 
     def get_task(self, task_id: str) -> AgentTaskDetail:
         """GET /api/v1/tasks/{id} — { task, executions }."""
-        body = self._get(f"/api/v1/tasks/{task_id}")
+        body = self._get(f"/api/v1/tasks/{quote(task_id, safe='')}")
         task = AgentTask(**body["task"])
         executions = [TaskExecution(**row) for row in body.get("executions", [])]
         return AgentTaskDetail(task=task, executions=executions)
@@ -113,7 +114,7 @@ class TasksClient:
         is moved to ``failed`` / terminal state on the server
         side). Matches the legacy UI behavior verbatim.
         """
-        self._delete(f"/api/v1/tasks/{task_id}")
+        self._delete(f"/api/v1/tasks/{quote(task_id, safe='')}")
 
     # ─── Scheduler / cron tasks /api/v1/scheduler/tasks ──────
     def list_scheduled_tasks(self) -> ScheduledTaskListResponse:
@@ -139,7 +140,7 @@ class TasksClient:
         list_business_flows pattern).
         """
         body = self._get_array(
-            f"/api/v1/scheduler/tasks/{task_id}/executions?limit={limit}"
+            f"/api/v1/scheduler/tasks/{quote(task_id, safe='')}/executions?limit={limit}"
         )
         return [TaskExecution(**row) for row in body]
 
@@ -164,7 +165,7 @@ class TasksClient:
         Returns the new execution row. The Schedule.tsx UI
         prepends this onto the existing executions list.
         """
-        body = self._post(f"/api/v1/scheduler/tasks/{task_id}/run")
+        body = self._post(f"/api/v1/scheduler/tasks/{quote(task_id, safe='')}/run")
         return TaskExecution(**body)
 
     def delete_scheduled_task(self, task_id: str) -> None:
@@ -174,13 +175,27 @@ class TasksClient:
         task surface and is graceful — D-08 semantics). The
         scheduler delete is the real "remove the schedule" call.
         """
-        self._delete(f"/api/v1/scheduler/tasks/{task_id}")
+        self._delete(f"/api/v1/scheduler/tasks/{quote(task_id, safe='')}")
 
     # ─── Internals ──────────────────────────────────────────
+    def _auth_headers(self) -> dict[str, str]:
+        """Build the Bearer auth header dict. Mirrors the
+        ``ObstackClient`` pattern that already works. Returning
+        ``{}`` (the pre-fix behavior) silently dropped the
+        ``Authorization`` header on every E.3 method call,
+        making the ``auth_token`` argument a no-op — flagged as
+        HIGH-severity auth-bypass in security review of
+        commit aa6d2e20.
+        """
+        if self.auth_token:
+            return {"Authorization": f"Bearer {self.auth_token}"}
+        return {}
+
     def _get(self, path: str) -> Any:
         url = self.base_url + path
+        headers = self._auth_headers()
         try:
-            result = self._http_getter("GET", url, {}, None)
+            result = self._http_getter("GET", url, headers, None)
         except TasksClientError:
             raise
         except Exception as e:
@@ -197,8 +212,9 @@ class TasksClient:
 
     def _post(self, path: str, json_data: "dict | None" = None) -> Any:
         url = self.base_url + path
+        headers = self._auth_headers()
         try:
-            result = self._http_getter("POST", url, {}, json_data)
+            result = self._http_getter("POST", url, headers, json_data)
         except TasksClientError:
             raise
         except Exception as e:
@@ -215,8 +231,9 @@ class TasksClient:
 
     def _delete(self, path: str) -> None:
         url = self.base_url + path
+        headers = self._auth_headers()
         try:
-            self._http_getter("DELETE", url, {}, None)
+            self._http_getter("DELETE", url, headers, None)
         except TasksClientError:
             raise
         except Exception as e:
@@ -234,8 +251,9 @@ class TasksClient:
         ``{"data": [...]}`` and lose the array shape.
         """
         url = self.base_url + path
+        headers = self._auth_headers()
         try:
-            result: Any = self._http_getter("GET", url, {}, None)
+            result: Any = self._http_getter("GET", url, headers, None)
         except TasksClientError:
             raise
         except Exception as e:

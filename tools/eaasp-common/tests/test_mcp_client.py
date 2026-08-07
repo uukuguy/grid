@@ -274,3 +274,34 @@ def test_raises_mcp_client_error_on_lifecycle_call() -> None:
     with pytest.raises(McpClientError) as exc:
         c.start_server("s1")
     assert exc.value.status == 500
+
+
+# ─── Auth-bypass regression (security fix for commit 822a4a90) ──────
+
+
+def test_auth_token_reaches_list_servers() -> None:
+    """Security fix: ``_get_array`` used to drop the Bearer header
+    on ``list_servers`` / ``list_tools`` / ``list_executions``.
+    Capture the headers on the wire and assert Bearer is set.
+    """
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["headers"] = headers
+        return []
+
+    c = McpClient("http://x", auth_token="SECRET", http_getter=getter)
+    c.list_servers()
+    assert captured["headers"] == {"Authorization": "Bearer SECRET"}
+
+
+def test_auth_token_reaches_list_executions() -> None:
+    captured: dict = {}
+
+    def getter(method, url, headers, json_body):
+        captured["headers"] = headers
+        return []
+
+    c = McpClient("http://x", auth_token="SECRET", http_getter=getter)
+    c.list_executions("s1")
+    assert captured["headers"] == {"Authorization": "Bearer SECRET"}

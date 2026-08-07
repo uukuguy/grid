@@ -25,10 +25,15 @@ export type {
 export class McpClient {
   private baseUrl: string;
   private authToken: string | null;
+  private getToken: (() => string | null) | null;
 
   constructor(options: McpClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
+    // Security fix (MEDIUM auth-token-lifecycle): refresh-aware
+    // ``getToken`` callback when supplied; falls back to the
+    // constructor-snapshotted ``authToken`` for back-compat.
     this.authToken = options.authToken ?? null;
+    this.getToken = options.getToken ?? null;
   }
 
   // ─── Server CRUD + lifecycle ────────────────────────────
@@ -105,8 +110,13 @@ export class McpClient {
     init: RequestInit = {},
   ): Promise<T> {
     const headers = new Headers(init.headers ?? {});
-    if (this.authToken) {
-      headers.set("Authorization", `Bearer ${this.authToken}`);
+    // Security fix (MEDIUM auth-token-lifecycle): read the
+    // token fresh per request via the ``getToken`` callback;
+    // falls back to the snapshotted ``authToken``. Logout /
+    // refresh now propagates without re-creating the client.
+    const token = this.getToken ? this.getToken() : this.authToken;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -130,17 +140,15 @@ export class McpClient {
 }
 
 // Phase E.2 — the default client reuses the existing `api`
-// singleton (which already knows the auth token). The default
-// base URL is ``http://127.0.0.1:3001`` — matches the
-// eaasp-sessions-client default, so the two client families land
-// on the same grid-server backend.
-const authToken = api.getToken();
-
+// singleton for the auth token. The token is read fresh per
+// request (via ``getToken`` callback) so logout / refresh
+// propagates without re-creating the client. Same base URL
+// default as the other clients (``http://127.0.0.1:3001``).
 export const mcpClient = new McpClient({
   baseUrl:
     (typeof import.meta !== "undefined" &&
       (import.meta as { env?: Record<string, string> }).env
         ?.VITE_MCP_BASE_URL) ||
     "http://127.0.0.1:3001",
-  authToken: authToken ?? undefined,
+  getToken: () => api.getToken(),
 });

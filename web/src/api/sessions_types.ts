@@ -28,5 +28,11 @@ export interface ListExecutionsParams {
 
 export interface SessionsClientOptions {
   baseUrl: string;
-  authToken?: string;
+  /** Snapshotted auth token (refresh-invisible). Prefer
+   *  ``getToken`` when the caller owns its own auth state. */
+  authToken?: string | null;
+  /** Per-request token getter — LOGOUT / refresh propagate
+   *  without re-creating the client. Wins over ``authToken``
+   *  when both are supplied. */
+  getToken?: () => string | null;
 }
