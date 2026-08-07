@@ -229,3 +229,6 @@
 - 09:50 test_sessions_client.py 加 3 个 test:raw list passthrough + limit query string + 500 error wraps to SessionsClientError。10/10 PASS。
 - 09:50 web typecheck 0 errors;40/40 vitest PASS;test mocks 的 URL assertion 改用 absolute URL `http://127.0.0.1:3001/api/v1/sessions/.../kill`(match app-mount.test.tsx precedent)。
 - 09:50 不动 cmd_session.py(scope 错误):它打 L4 orchestration :18084 的 `/v1/sessions/{create,message,events,...}` 不是 grid-server 的 `/api/v1/sessions/*`。两套 surface 故意分离,不可合并。
+
+## 2026-08-07 (OBSTACK Phase E.2 commit 1/2 — eaasp-mcp-client extraction)
+- 09:50 Phase E.2 commit 1/2 抽出 eaasp-mcp-client:McpClient + McpServer/McpServerStatus/McpToolInfo/CallToolRequest/CallToolResponse models + 18 tests + TS mirror。Pattern 跟 E.1 (sessions) / D.4 (obstack) 同:web + cli 共享同一个 client surface,wire shape (Json<Vec<T>> top-level array) bypass _request dict contract 保留 array 形状。验证 64/64 eaasp-common tests pass + 0 web typecheck errors。Commit 2/2 待做:web ServerList.tsx + ToolInvoker.tsx 改用 mcpClient。
