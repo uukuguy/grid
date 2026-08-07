@@ -232,3 +232,9 @@
 
 ## 2026-08-07 (OBSTACK Phase E.2 commit 1/2 — eaasp-mcp-client extraction)
 - 09:50 Phase E.2 commit 1/2 抽出 eaasp-mcp-client:McpClient + McpServer/McpServerStatus/McpToolInfo/CallToolRequest/CallToolResponse models + 18 tests + TS mirror。Pattern 跟 E.1 (sessions) / D.4 (obstack) 同:web + cli 共享同一个 client surface,wire shape (Json<Vec<T>> top-level array) bypass _request dict contract 保留 array 形状。验证 64/64 eaasp-common tests pass + 0 web typecheck errors。Commit 2/2 待做:web ServerList.tsx + ToolInvoker.tsx 改用 mcpClient。
+
+## 2026-08-07 (OBSTACK Phase E.2 commit 2/2 — web/ServerList.tsx + ToolInvoker.tsx 改用 mcpClient)
+- 09:50 web 改用:ServerList.tsx 改用 mcpClient.list_servers / start_server / stop_server;ToolInvoker.tsx 改用 mcpClient.list_servers / list_tools / call_tool。ServerList.tsx 的 server registration (POST /api/v1/mcp/servers) 故意保留 raw fetch(E.2 commit 1/2 故意 scope narrow — 无 second caller 时不暴露在 shared client)。
+- 09:50 server (registration) Endpoint 仍走 direct fetch(client surface 等真有 second caller 时再加)。
+- 09:50 ToolInvoker.tsx 删掉 inline interface Tool/Server 改成 import from api/mcp.ts,wire-shape 一致。
+- 09:50 web typecheck 0 errors;40/40 vitest PASS。

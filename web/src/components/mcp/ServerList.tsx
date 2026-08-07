@@ -1,17 +1,5 @@
 import { useState, useEffect } from "react";
-
-interface McpServer {
-  id: string;
-  name: string;
-  source: string;
-  command: string;
-  args: string[];
-  transport: string; // "stdio" | "sse"
-  url?: string;      // SSE only
-  enabled: boolean;
-  runtime_status: string;
-  tool_count: number;
-}
+import { mcpClient, type McpServer } from "../../api/mcp";
 
 interface ServerFormData {
   name: string;
@@ -63,18 +51,19 @@ export function ServerList() {
 
   const loadServers = () => {
     setLoading(true);
-    fetch("/api/v1/mcp/servers")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
+    // OBSTACK Phase E.2 — route through the shared McpClient (same
+    // surface as the Python ``McpClient``). The default client
+    // targets grid-server :3001 via the same base-URL config the
+    // rest of the UI uses.
+    mcpClient
+      .list_servers()
+      .then((data: McpServer[]) => {
         setServers(Array.isArray(data) ? data : []);
         setError(null);
         setLoading(false);
       })
-      .catch((e) => {
-        setError(String(e));
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : String(e));
         setLoading(false);
       });
   };
@@ -82,16 +71,20 @@ export function ServerList() {
   useEffect(() => { loadServers(); }, []);
 
   const toggleServer = async (serverId: string, currentStatus: string) => {
-    const action = currentStatus === "running" ? "stop" : "start";
+    // OBSTACK Phase E.2 — start/stop lifecycle routed through the
+    // shared client. Returns the updated ``McpServerStatus``
+    // payload; we reload the list to pick up the new
+    // ``runtime_status`` (the status payload + the list row are
+    // denormalized — the source of truth is the list endpoint).
     try {
-      const res = await fetch(`/api/v1/mcp/servers/${serverId}/${action}`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Reload servers to get updated status
+      if (currentStatus === "running") {
+        await mcpClient.stop_server(serverId);
+      } else {
+        await mcpClient.start_server(serverId);
+      }
       loadServers();
-    } catch (e) {
-      setError(String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -123,6 +116,12 @@ export function ServerList() {
         payload.url = formData.url;
       }
 
+      // OBSTACK Phase E.2 (out of scope) — server registration
+      // (``POST /api/v1/mcp/servers``) is NOT exposed on the shared
+      // McpClient yet (E.2 commit 1/2 was intentionally narrow —
+      // the UI is the only consumer). Kept as a raw fetch for
+      // now; the client surface lands when we have a second
+      // caller (Python CLI or web) to share it with.
       const res = await fetch("/api/v1/mcp/servers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,7 +137,7 @@ export function ServerList() {
       setFormData({ name: "", transport: "stdio", command: "", args: "", url: "" });
       loadServers();
     } catch (err) {
-      setFormError(String(err));
+      setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +202,7 @@ export function ServerList() {
                 <div className="min-w-0">
                   <div className="flex items-center flex-wrap gap-1">
                     <span className="font-medium text-sm">{server.name}</span>
-                    <TransportBadge transport={server.transport ?? "stdio"} url={server.url} />
+                    <TransportBadge transport={server.transport ?? "stdio"} url={server.url ?? undefined} />
                   </div>
                   {server.transport !== "sse" && (
                     <div className="text-xs text-muted-foreground font-mono truncate mt-0.5">

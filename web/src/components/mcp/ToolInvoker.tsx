@@ -1,17 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSetAtom } from "jotai";
 import { addToastAtom } from "../../atoms/ui";
-
-interface Tool {
-  name: string;
-  description?: string;
-  input_schema: Record<string, unknown>;
-}
+import { mcpClient, type McpServer, type McpToolInfo } from "../../api/mcp";
 
 interface Server {
   id: string;
   name: string;
-  tools: Tool[];
+  tools: McpToolInfo[];
 }
 
 /** Validate a JSON string, returning null if valid or an error message. */
@@ -42,7 +37,7 @@ export function ToolInvoker() {
   const [servers, setServers] = useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>("");
   const [selectedTool, setSelectedTool] = useState<string>("");
-  const [serverTools, setServerTools] = useState<Tool[]>([]);
+  const [serverTools, setServerTools] = useState<McpToolInfo[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [params, setParams] = useState<string>("{\n  \n}");
   const [result, setResult] = useState<string>("");
@@ -54,10 +49,19 @@ export function ToolInvoker() {
   const addToast = useSetAtom(addToastAtom);
 
   useEffect(() => {
-    fetch("/api/v1/mcp/servers")
-      .then((res) => res.json())
-      .then((data) => {
-        setServers(Array.isArray(data) ? data : []);
+    // OBSTACK Phase E.2 — route through the shared McpClient. We
+    // project the typed McpServer[] to the local Server shape
+    // (which carries tools inline for the picker; tools are
+    // fetched lazily per-server in the second effect).
+    mcpClient
+      .list_servers()
+      .then((data: McpServer[]) => {
+        const list: Server[] = (Array.isArray(data) ? data : []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          tools: [],
+        }));
+        setServers(list);
       })
       .catch(() => {
         addToast({ type: "error", message: "Failed to load MCP servers" });
@@ -70,9 +74,12 @@ export function ToolInvoker() {
       return;
     }
     setToolsLoading(true);
-    fetch(`/api/v1/mcp/servers/${selectedServer}/tools`)
-      .then((res) => res.json())
-      .then((data) => {
+    // OBSTACK Phase E.2 — server-tools fetch via shared client
+    // (the Python ``McpClient.list_tools`` mirror returns the
+    // top-level JSON array as-is).
+    mcpClient
+      .list_tools(selectedServer)
+      .then((data: McpToolInfo[]) => {
         setServerTools(Array.isArray(data) ? data : []);
       })
       .catch(() => {
@@ -85,7 +92,10 @@ export function ToolInvoker() {
   const tool = serverTools.find((t) => t.name === selectedTool);
   const jsonError = useMemo(() => validateJson(params), [params]);
   const schemaHint = useMemo(
-    () => (tool ? formatSchemaHint(tool.input_schema) : null),
+    () =>
+      tool && typeof tool.input_schema === "object" && tool.input_schema !== null
+        ? formatSchemaHint(tool.input_schema as Record<string, unknown>)
+        : null,
     [tool],
   );
 
@@ -104,8 +114,10 @@ export function ToolInvoker() {
     setResultIsError(false);
     // Generate skeleton params from schema
     const selected = serverTools.find((t) => t.name === toolName);
-    if (selected?.input_schema) {
-      const props = selected.input_schema.properties as Record<string, Record<string, unknown>> | undefined;
+    if (selected && typeof selected.input_schema === "object" && selected.input_schema !== null) {
+      const props = (selected.input_schema as Record<string, unknown>).properties as
+        | Record<string, Record<string, unknown>>
+        | undefined;
       if (props) {
         const skeleton: Record<string, string> = {};
         for (const key of Object.keys(props)) {
@@ -128,27 +140,31 @@ export function ToolInvoker() {
     const startTime = performance.now();
 
     try {
-      const response = await fetch(`/api/v1/mcp/servers/${selectedServer}/call`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tool_name: selectedTool,
-          arguments: JSON.parse(params),
-        }),
+      // OBSTACK Phase E.2 — call_tool via shared client. The Python
+      // mirror returns 200 OK even when the tool errors at runtime
+      // — error surfaces in ``response.error``. We treat that
+      // exactly like a transport / network failure for UX.
+      const response = await mcpClient.call_tool(selectedServer, {
+        tool_name: selectedTool,
+        arguments: JSON.parse(params),
       });
       const elapsed = Math.round(performance.now() - startTime);
       setResultDurationMs(elapsed);
-
-      const data = await response.json();
-      if (!response.ok) {
+      if (response.error !== null) {
         setResultIsError(true);
       }
-      setResult(JSON.stringify(data, null, 2));
+      setResult(JSON.stringify(response, null, 2));
     } catch (err) {
       const elapsed = Math.round(performance.now() - startTime);
       setResultDurationMs(elapsed);
       setResultIsError(true);
-      setResult(JSON.stringify({ error: "Failed to call tool", details: String(err) }, null, 2));
+      setResult(
+        JSON.stringify(
+          { error: "Failed to call tool", details: err instanceof Error ? err.message : String(err) },
+          null,
+          2,
+        ),
+      );
     } finally {
       setLoading(false);
     }
