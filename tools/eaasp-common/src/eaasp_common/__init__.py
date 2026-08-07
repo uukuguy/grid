@@ -12,6 +12,17 @@ from .business_flow import (
     set_current_business_key,
 )
 from .errors import sanitize_errors
+from .mcp_client import (
+    McpClient,
+    McpClientError,
+)
+from .mcp_models import (
+    CallToolRequest,
+    CallToolResponse,
+    McpServer,
+    McpServerStatus,
+    McpToolInfo,
+)
 from .obstack_client import (
     ObstackClient,
     ObstackClientError,
@@ -48,10 +59,17 @@ __all__ = [
     "BusinessFlowListResponse",
     "BusinessFlowSummary",
     "BusinessKey",
+    "CallToolRequest",
+    "CallToolResponse",
     "EvaluationReport",
     "EvaluationResponse",
     "FlowListParams",
     "ListExecutionsParams",
+    "McpClient",
+    "McpClientError",
+    "McpServer",
+    "McpServerStatus",
+    "McpToolInfo",
     "OptimizationHint",
     "ObstackClient",
     "ObstackClientError",
