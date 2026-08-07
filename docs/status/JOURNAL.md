@@ -241,3 +241,6 @@
 
 ## 2026-08-07 (OBSTACK Phase E.3 commit 1/2 — eaasp-tasks-client extraction)
 - 09:50 Phase E.3 commit 1/2 抽出 eaasp-tasks-client:TasksClient + 8 model dataclasses (AgentTask/AgentTaskDetail/TaskExecution/SubmitTaskRequest/AgentTaskConfig/ScheduledTask/ScheduledTaskListResponse/CreateScheduledTaskRequest) + 16 tests + TS mirror。Pattern 跟 E.1 (sessions) / E.2 (mcp) / D.4 (obstack) 同:web + cli 共享同 client surface。一个 client domain 把 /api/v1/tasks (agent) + /api/v1/scheduler/tasks (cron) 一起装下,跟 E.1 cmd_session vs sessions 的反模式区分(那边是 L4 vs grid-server,surfaces 故意分离)。验证 80/80 eaasp-common tests pass + 0 web typecheck errors。Commit 2/2 待做:web Tasks.tsx + Schedule.tsx 改用 tasksClient。
+
+## 2026-08-07 (OBSTACK Phase E.3 commit 1/2 — eaasp-tasks-client shipped on main)
+- 10:15 Commit aa6d2e20 landed on main:tools/eaasp-common + web mirror atomic 7 files,1024 insertions。E.3 commit 2/2 (Tasks.tsx + Schedule.tsx wire-up,~1000 lines UI code) awaiting user sign-off before destructive rewrite per "ask first before destructive ops" rule。
