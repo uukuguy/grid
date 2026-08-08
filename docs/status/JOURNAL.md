@@ -284,3 +284,8 @@
 - 19:50 Phase E.5 commit 2/2 wire Memory.tsx (2 raw fetches → memoriesClient methods):fetchWorkingMemory → ``working_memory()`` + block-shape projection to local ``MemoryBlock`` type;fetchPersistentMemory → ``list_memories({limit: 100, session_id?})``。``WorkingMemoryBlock`` re-export from api/memories.ts (match TS mirror pattern from Sessions/Mcp/Tasks/Collaboration)。
 - 19:50 web typecheck 0 errors;40/40 vitest PASS。
 - 19:50 wire shape preservation:bearer header + form-encoded query string 全 patch from E.5 commit 1/2。Memory.tsx 的 local PersistentMemory state 表 cast-by-boundary 在 fetch 时一次,downstream code 拿到 typed narrowing(同 Sessions/Mcp/Tasks pattern)。
+
+## 2026-08-08 (Session Retrospective — OBSTACK Phase E 系列 session 终止)
+- 19:55 写 `docs/status/RETROSPECTIVE_2026-08-08-OBSTACK-PHASE-E.md`:13 KB 中文 + 英文术语 retro,记录 5 个 client family 抽取 + 1 个 security-fix audit closure + first-write security lesson + narrow-scope principle。
+- 19:55 E.6 不抽出:LogViewer SSE `EventSource` 是浏览器原生 long-lived + auto-reconnect,不能 fit `*Client` pattern。 Force-fit 是 contortion,honest 报告 user + 选 stop。
+- 19:55 main 推到 origin (10 functional commits + 3 journal commits,Phase E.1–E.5 + security fix 完全 ship 干净)。
