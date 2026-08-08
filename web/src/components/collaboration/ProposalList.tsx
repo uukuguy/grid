@@ -1,5 +1,6 @@
 import { useAtom } from "jotai";
 import { collaborationProposalsAtom } from "@/atoms/collaboration";
+import { collaborationClient } from "../../api/collaboration";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -10,10 +11,15 @@ const STATUS_COLORS: Record<string, string> = {
 
 async function castVote(proposalId: string, agentId: string, approve: boolean) {
   try {
-    await fetch(`/api/v1/collaboration/proposals/${proposalId}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agent_id: agentId, approve, reason: null }),
+    // OBSTACK Phase E.4 commit 2/2 — route through the shared
+    // collaborationClient (same surface as the Python
+    // ``CollaborationClient``). The client percent-encodes
+    // ``proposal_id`` via ``encodeURIComponent`` so attacker-
+    // supplied input can't restructure the URL.
+    await collaborationClient.vote_on_proposal(proposalId, {
+      agent_id: agentId,
+      approve,
+      reason: null,
     });
   } catch {
     // Silently fail — event stream will reflect the result

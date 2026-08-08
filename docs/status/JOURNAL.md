@@ -271,3 +271,8 @@
 
 ## 2026-08-08 (OBSTACK Phase E.4 commit 1/2 — eaasp-collaboration-client extraction)
 - 09:50 Phase E.4 commit 1/2 抽出 eaasp-collaboration-client:CollaborationClient + 9 model dataclasses (CollaborationStatus/CollaborationAgent/CollaborationEvent/Proposal/Vote/SharedStateEntry/SharedStateResponse + 2 request) + 18 tests + TS mirror。E.4 首次实现两个 security lesson(以前要靠 follow-up fix commit 解决):(1) Bearer header 在每个 transport method 都会被 inject 在 wire 上;(2) ``quote(safe='')`` 在每个 path-segment interpolation 上。验证 105/105 eaasp-common tests pass + 0 web typecheck errors + 40/40 vitest。
+
+## 2026-08-08 (OBSTACK Phase E.4 commit 2/2 — web/Collaboration.tsx + ProposalList.tsx 改用 collaborationClient)
+- 19:25 Phase E.4 commit 2/2 wire Collaboration.tsx (5 raw fetches → 5 collaborationClient methods) + ProposalList.tsx (1 raw fetch → vote_on_proposal via client)。5 秒轮询 + 2x2 panel grid 布局保留。legacy `e.event ?? e` unwrap 保留(server 用 #[serde(flatten)] event: Value,Claude Python client preserved dict verbatim → TS mirrors shape)。
+- 19:25 web typecheck 0 errors;40/40 vitest PASS。
+- 19:25 一个真 wire-shape bug 避免:vote_on_proposal 必须 percent-encode proposal_id(Path-injection 防御在 commit 1/2 已经 baked in,这次 wire-up 顺便 verify)。

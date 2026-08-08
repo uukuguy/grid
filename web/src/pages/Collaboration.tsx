@@ -8,6 +8,14 @@ import {
   collaborationSharedStateAtom,
   collaborationLoadingAtom,
 } from "@/atoms/collaboration";
+import {
+  collaborationClient,
+  type CollaborationAgent,
+  type CollaborationEvent,
+  type CollaborationStatus,
+  type Proposal,
+  type SharedStateEntry,
+} from "../api/collaboration";
 import { AgentList } from "@/components/collaboration/AgentList";
 import { EventLog } from "@/components/collaboration/EventLog";
 import { ProposalList } from "@/components/collaboration/ProposalList";
@@ -26,18 +34,37 @@ export default function Collaboration() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusRes, agentsRes, proposalsRes, eventsRes, stateRes] = await Promise.all([
-        fetch("/api/v1/collaboration/status").then((r) => r.json()),
-        fetch("/api/v1/collaboration/agents").then((r) => r.json()),
-        fetch("/api/v1/collaboration/proposals").then((r) => r.json()),
-        fetch("/api/v1/collaboration/events").then((r) => r.json()),
-        fetch("/api/v1/collaboration/shared-state").then((r) => r.json()),
+      // OBSTACK Phase E.4 commit 2/2 — all 5 endpoints routed
+      // through the shared collaborationClient (same surface as
+      // the Python ``CollaborationClient``). The Promise.all
+      // shape mirrors the legacy UI — the client handles the
+      // Bearer header per request and the dict/array wire
+      // shapes are preserved by the client's passthrough bypass.
+      const [
+        statusRes,
+        agentsRes,
+        proposalsRes,
+        eventsRes,
+        stateRes,
+      ] = await Promise.all([
+        collaborationClient.get_status() as Promise<CollaborationStatus>,
+        collaborationClient.list_agents() as Promise<CollaborationAgent[]>,
+        collaborationClient.list_proposals() as Promise<Proposal[]>,
+        collaborationClient.list_events() as Promise<CollaborationEvent[]>,
+        collaborationClient.get_shared_state() as Promise<{ entries?: SharedStateEntry[] }>,
       ]);
       setStatus(statusRes);
       setAgents(agentsRes);
       setProposals(proposalsRes);
-      setEvents(eventsRes.map((e: { event?: unknown }) => e.event ?? e));
-      setSharedState(stateRes.entries ?? []);
+      // Legacy unwrap: server uses ``#[serde(flatten)] event: Value``
+      // so each event in ``list_events`` carries every field at the
+      // top level. The Python client preserves the dict verbatim
+      // (CollaborationEvent.event) so callers can do the same
+      // ``e.event ?? e`` unwrap the UI has always done.
+      setEvents(
+        eventsRes.map((e: CollaborationEvent) => (e.event ?? (e as unknown as Record<string, unknown>))),
+      );
+      setSharedState(Array.isArray(stateRes.entries) ? stateRes.entries : []);
     } catch {
       // Silently handle — endpoints may not be available yet
     } finally {
