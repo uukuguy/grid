@@ -302,3 +302,29 @@
   - web/src/pages/Memory.tsx: setAvailableSessions 直接用 data.sessions (UUID strings)。
 - 21:30 Verification:122/122 eaasp-common tests pass (was 119);web typecheck 0 errors;40/40 vitest pass;playwright 验证 Chat tab 渲染 session pill (`7bc1a3d1`) + textarea + Chat↔Tasks roundtrip 都 zero error。
 - 21:30 更小但同样本质的一个 bug 同时发现:`wsManager.switchSession(undefined)` 在 Chat 切换时 log out — 处理同一 root cause(undefined activeId 由 stale closure 传到 wsManager.switchSession)。这个不是 separate issue — 是 SessionInfo {id: undefined} 进 atom 后 activeIdAtom 也被 set 成 undefined,然后 first render 的 useEffect 传 undefined 给 wsManager。fix 无需 separate commit (修复 wire-shape 之后 id 永远是真 UUID,activeId 永远是真 string)。
+
+## 2026-08-08 (DIAGNOSIS: Chat prompt "no response" — root cause is `.env` model name, NOT a code bug)
+- 21:50 复现 Playwright + 抓 WS 流:Chat 提交 prompt 实际 *sends* OK(WORKS!),grid-server 收 `send_message` 后 调 deepseek upstream,deepseek 返 **HTTP 400 model_not_found**:  
+  "The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed deepseek-v4-flash-0731."
+  
+  这条 upstream 错误被 grid-server 转成 `chunk_type=6`(error)的 WS chunk 推回浏览器,Playwright captured:
+  ```
+  WS RECV {"type":"chunk","session_id":"<uuid>","chunk_type":6,"payload":{"message":"OpenAI API error 400: ..."}}
+  WS RECV {"type":"done","session_id":"<uuid>"}
+  ```
+  
+  WS 层 OK。但 **UI 层面 silently swallows chunk_type=6** — 用户看到的还是 Idle,而不是 error message。 root cause = `.env` 配置 model id 错误,UI 错误显示是 second-order UX gap(后述)。
+
+- 21:50 修复:.env 里 `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` → 应改为 `'deepseek-v4-flash'` (or `'deepseek-v4-pro'`)。upstream `GET /v1/models` 仅列 2 个 valid:`deepseek-v4-flash` + `deepseek-v4-pro`。验证:
+  ```
+  curl https://api.deepseek.com/v1/models → ["deepseek-v4-flash", "deepseek-v4-pro"]
+  curl .../v1/chat/completions -d '{"model":"deepseek-v4-flash",...}' → 200 OK
+  ```
+  
+  ⚠️ **user action required**: 我的工具的 permissions 拒绝 `Edit` / `Write` on `.env` (permissions-gated + gitignored)。 用户必须:
+  1. 编辑 `.env` 把 `deepseek-v4-flash-0731` 改成 `deepseek-v4-flash`
+  2. `bash scripts/v315-web-dev.sh stop && bash scripts/v315-web-dev.sh` 重启
+
+- 21:50 secondary UX fix 机会:config 修了之后,Chat UI 还会 silently swallow `chunk_type=6`(error)WS chunk — 用户在遇到任何未来 LLM 错误时都看不到 visible error message。这是 `web/src/ws/events.ts` 和 `Chat.tsx` 的 render path bug,跟 `.env` 无关。已在 `scripts/chat-bug-repro/MODEL_NAME_FIX.md` 标出调查起点。
+
+- 21:50 Verification:Playwright scripts (repro-prompt-no-response.mjs) + fix-instruction doc (MODEL_NAME_FIX.md) 在 scripts/chat-bug-repro/。
