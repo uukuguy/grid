@@ -279,3 +279,8 @@
 
 ## 2026-08-08 (OBSTACK Phase E.5 commit 1/2 — eaasp-memories-client extraction)
 - 19:45 Phase E.5 commit 1/2 抽出 eaasp-memories-client (narrow scope: 只包 Memory.tsx 用的两个端点 — list_memories + working_memory,不比 E.2/E.4 完整 CRUD)。E.5 确认三个 security lesson(1787083e fixed + E.4 baked in first-write)于 first commit 应用:Bearer header 每 method + URL-safe query-string via urlencode (RFC 1866 form encoding for query strings) + 测试锁定 wire-shape (limit=100 永远在 URL)。验证 119/119 eaasp-common tests pass + 0 web typecheck errors + 40/40 vitest。
+
+## 2026-08-08 (OBSTACK Phase E.5 commit 2/2 — web/Memory.tsx 改用 memoriesClient)
+- 19:50 Phase E.5 commit 2/2 wire Memory.tsx (2 raw fetches → memoriesClient methods):fetchWorkingMemory → ``working_memory()`` + block-shape projection to local ``MemoryBlock`` type;fetchPersistentMemory → ``list_memories({limit: 100, session_id?})``。``WorkingMemoryBlock`` re-export from api/memories.ts (match TS mirror pattern from Sessions/Mcp/Tasks/Collaboration)。
+- 19:50 web typecheck 0 errors;40/40 vitest PASS。
+- 19:50 wire shape preservation:bearer header + form-encoded query string 全 patch from E.5 commit 1/2。Memory.tsx 的 local PersistentMemory state 表 cast-by-boundary 在 fetch 时一次,downstream code 拿到 typed narrowing(同 Sessions/Mcp/Tasks pattern)。

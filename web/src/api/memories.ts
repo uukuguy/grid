@@ -18,6 +18,7 @@ import type {
   ListMemoriesParams,
   ListMemoriesResponse,
   MemoriesClientOptions,
+  WorkingMemoryBlock,
   WorkingMemoryResponse,
 } from "./memories_types";
 
@@ -25,6 +26,7 @@ export type {
   ListMemoriesParams,
   ListMemoriesResponse,
   MemoriesClientOptions,
+  WorkingMemoryBlock,
   WorkingMemoryResponse,
 };
 

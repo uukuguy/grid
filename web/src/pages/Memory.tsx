@@ -4,6 +4,7 @@ import { Database } from "lucide-react";
 import { sessionIdAtom, recentlyAddedMemoryIdsAtom } from "@/atoms/session";
 import { cn } from "@/lib/utils";
 import { sessionsClient } from "@/api/sessions";
+import { memoriesClient, type ListMemoriesParams, type WorkingMemoryBlock } from "@/api/memories";
 
 interface MemoryBlock {
   id: string;
@@ -104,9 +105,25 @@ export default function Memory() {
   const fetchWorkingMemory = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/memories/working");
-      const data = await res.json();
-      setWorkingMemory(data.blocks || []);
+      // OBSTACK Phase E.5 commit 2/2 — route through the shared
+      // memoriesClient (same surface as the Python
+      // ``MemoriesClient``). The client wraps ``{blocks: [...]}``
+      // into a typed dataclass; we project to the local
+      // ``MemoryBlock`` shape the rest of the page already
+      // uses.
+      const data = await memoriesClient.working_memory();
+      const blocks: WorkingMemoryBlock[] = Array.isArray(data.blocks) ? data.blocks : [];
+      setWorkingMemory(
+        blocks.map((b) => ({
+          id: b.id,
+          kind: b.kind ?? "",
+          label: b.label ?? "",
+          value: b.value ?? "",
+          priority: b.priority ?? 0,
+          char_limit: b.char_limit ?? 0,
+          is_readonly: b.is_readonly ?? false,
+        })),
+      );
     } catch (error) {
       console.error("Failed to fetch working memory:", error);
     } finally {
@@ -117,12 +134,22 @@ export default function Memory() {
   const fetchPersistentMemory = async () => {
     setLoading(true);
     try {
-      const sessionParam = selectedSessionFilter
-        ? `&session_id=${encodeURIComponent(selectedSessionFilter)}`
-        : "";
-      const res = await fetch(`/api/v1/memories?limit=100${sessionParam}`);
-      const data = await res.json();
-      setPersistentMemory(data.results || []);
+      // OBSTACK Phase E.5 commit 2/2 — ``list_memories`` via
+      // the shared client. ``ListMemoriesParams`` carries the
+      // ``limit=100`` default + optional ``session_id`` filter;
+      // the client handles Bearer + form-encoded query-string.
+      const params: ListMemoriesParams = selectedSessionFilter
+        ? { limit: 100, session_id: selectedSessionFilter }
+        : { limit: 100 };
+      const data = await memoriesClient.list_memories(params);
+      // Phase E.5 commit 2/2 — the client returns ``ListMemoriesResponse``
+      // with ``results: Record<string, unknown>[]`` (the server
+      // wire is untyped per memories.rs). The local
+      // ``PersistentMemory`` interface declares the typed shape
+      // the rest of the page already expects; we cast at the
+      // boundary so downstream code keeps its narrow types.
+      const rows = Array.isArray(data.results) ? data.results : [];
+      setPersistentMemory(rows as unknown as PersistentMemory[]);
     } catch (error) {
       console.error("Failed to fetch persistent memory:", error);
     } finally {
