@@ -7,6 +7,7 @@
 import { api } from "./client";
 import type {
   AgentTask,
+  AgentTaskConfig,
   AgentTaskDetail,
   CreateScheduledTaskRequest,
   ScheduledTask,
@@ -18,6 +19,7 @@ import type {
 
 export type {
   AgentTask,
+  AgentTaskConfig,
   AgentTaskDetail,
   CreateScheduledTaskRequest,
   ScheduledTask,

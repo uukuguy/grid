@@ -1,46 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-
-// Types matching backend API
-interface AgentTaskConfig {
-  system_prompt?: string;
-  input: string;
-  max_rounds?: number;
-  timeout_secs?: number;
-  model?: string;
-}
-
-interface ScheduledTask {
-  id: string;
-  user_id?: string;
-  name: string;
-  cron: string;
-  agent_config: AgentTaskConfig;
-  enabled: boolean;
-  last_run?: string;
-  next_run?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TaskExecution {
-  id: string;
-  task_id: string;
-  started_at: string;
-  finished_at?: string;
-  status: string;
-  result?: string;
-  error?: string;
-}
-
-interface CreateTaskForm {
-  name: string;
-  cron: string;
-  system_prompt: string;
-  input: string;
-  max_rounds: number;
-  timeout_secs: number;
-  model: string;
-}
+import {
+  tasksClient,
+  type AgentTaskConfig,
+  type ScheduledTask,
+  type ScheduledTaskListResponse,
+  type TaskExecution,
+} from "../api/tasks";
 
 const DEFAULT_CRON = "0 * * * *";
 const DEFAULT_MAX_ROUNDS = 50;
@@ -54,10 +19,6 @@ const CRON_EXAMPLES = [
   { label: "Every 30 minutes", value: "*/30 * * * *" },
 ];
 
-interface ApiResponse<T> {
-  tasks?: T;
-}
-
 // Basic cron validation: 5 fields (minute, hour, day, month, weekday)
 function isValidCron(cron: string): boolean {
   const parts = cron.trim().split(/\s+/);
@@ -65,6 +26,16 @@ function isValidCron(cron: string): boolean {
   // Allow digits, *, and simple ranges like 0-5, lists like 1,2,3
   const fieldPattern = /^(\*|[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*)$/;
   return parts.every((p) => fieldPattern.test(p));
+}
+
+interface CreateTaskForm {
+  name: string;
+  cron: string;
+  system_prompt: string;
+  input: string;
+  max_rounds: number;
+  timeout_secs: number;
+  model: string;
 }
 
 export default function Schedule() {
@@ -82,19 +53,12 @@ export default function Schedule() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/v1/scheduler/tasks");
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const data: unknown = await res.json();
-      // Validate response structure
-      if (data && typeof data === "object" && "tasks" in data) {
-        const response = data as ApiResponse<ScheduledTask[]>;
-        setTasks(Array.isArray(response.tasks) ? response.tasks : []);
-      } else {
-        console.warn("Invalid response format:", data);
-        setTasks([]);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — route through the shared
+      // tasksClient (same surface as the Python ``TasksClient``).
+      // The server returns ``{tasks: [...], total: N}`` which the
+      // client unwraps into the typed dataclass.
+      const data: ScheduledTaskListResponse = await tasksClient.list_scheduled_tasks();
+      setTasks(Array.isArray(data.tasks) ? data.tasks : []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to fetch tasks";
       console.error("Failed to fetch tasks:", msg);
@@ -107,18 +71,10 @@ export default function Schedule() {
   const fetchExecutions = useCallback(async (taskId: string) => {
     setExecutionsLoading(true);
     try {
-      const res = await fetch(`/api/v1/scheduler/tasks/${taskId}/executions?limit=20`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const data: unknown = await res.json();
-      // Validate response is an array
-      if (Array.isArray(data)) {
-        setExecutions(data as TaskExecution[]);
-      } else {
-        console.warn("Invalid executions response:", data);
-        setExecutions([]);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — top-level JSON array
+      // preserved via the client. task_id is percent-encoded.
+      const data = await tasksClient.list_scheduled_executions(taskId, 20);
+      setExecutions(Array.isArray(data) ? data : []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to fetch executions";
       console.error("Failed to fetch executions:", msg);
@@ -137,10 +93,10 @@ export default function Schedule() {
     if (!confirm("Are you sure you want to delete this scheduled task?")) return;
     setDeletingTaskId(id);
     try {
-      const res = await fetch(`/api/v1/scheduler/tasks/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — DELETE
+      // /api/v1/scheduler/tasks/{id} is the real "remove the
+      // schedule" call (distinct from agent cancel_task).
+      await tasksClient.delete_scheduled_task(id);
       await fetchTasks();
       if (selectedTask?.id === id) {
         setSelectedTask(null);
@@ -159,16 +115,12 @@ export default function Schedule() {
     setRunningTaskId(id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/scheduler/tasks/${id}/run`, { method: "POST" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const data: unknown = await res.json();
-      // Validate execution response
-      if (data && typeof data === "object" && "id" in data) {
-        const execution = data as TaskExecution;
-        setExecutions((prev) => [execution, ...prev]);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — POST
+      // /api/v1/scheduler/tasks/{id}/run returns one
+      // ``TaskExecution`` row; we prepend it onto the existing
+      // executions list (per legacy UI).
+      const execution: TaskExecution = await tasksClient.run_scheduled_task(id);
+      setExecutions((prev) => [execution, ...prev]);
       await fetchTasks();
       if (selectedTask?.id === id) {
         await fetchExecutions(id);
@@ -320,7 +272,7 @@ export default function Schedule() {
           ) : (
             <div className="flex items-center justify-center h-full">
               <span className="text-muted-foreground text-sm">
-                Select a task to view details and execution history
+                Select a task to view execution history
               </span>
             </div>
           )}
@@ -443,15 +395,6 @@ function TaskDetailView({
               </span>
             </p>
           )}
-          {task.agent_config.input && (
-            <p>
-              <span className="text-muted-foreground">Input Prompt:</span>{" "}
-              <span className="block mt-1 whitespace-pre-wrap">
-                {task.agent_config.input.slice(0, 200)}
-                {task.agent_config.input.length > 200 && "..."}
-              </span>
-            </p>
-          )}
         </div>
       </div>
 
@@ -459,60 +402,51 @@ function TaskDetailView({
       <div className="space-y-2">
         <h4 className="text-sm font-medium">Execution History</h4>
         {executionsLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <span className="text-muted-foreground text-xs">Loading...</span>
-          </div>
+          <div className="text-xs text-muted-foreground">Loading executions...</div>
         ) : executions.length === 0 ? (
-          <div className="text-center py-4">
-            <span className="text-muted-foreground text-xs">No executions yet</span>
-          </div>
+          <div className="text-xs text-muted-foreground">No executions yet.</div>
         ) : (
           <div className="space-y-2">
             {executions.map((exec) => (
-              <ExecutionItem key={exec.id} execution={exec} />
+              <div key={exec.id} className="p-3 bg-secondary rounded-lg text-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-muted-foreground">
+                    {exec.id.slice(0, 8)}...
+                  </span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded ${
+                      exec.status === "success"
+                        ? "bg-green-100 text-green-800"
+                        : exec.status === "running"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {exec.status}
+                  </span>
+                </div>
+                <p className="text-muted-foreground">
+                  {new Date(exec.started_at).toLocaleString()}
+                  {exec.finished_at &&
+                    ` - ${new Date(exec.finished_at).toLocaleString()}`}
+                </p>
+                {exec.result && (
+                  <pre className="mt-2 text-xs whitespace-pre-wrap">
+                    {exec.result.slice(0, 500)}
+                    {exec.result.length > 500 && "..."}
+                  </pre>
+                )}
+                {exec.error && (
+                  <pre className="mt-2 text-xs text-destructive whitespace-pre-wrap">
+                    {exec.error.slice(0, 500)}
+                    {exec.error.length > 500 && "..."}
+                  </pre>
+                )}
+              </div>
             ))}
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function ExecutionItem({ execution }: { execution: TaskExecution }) {
-  const statusStyles: Record<string, string> = {
-    Success: "bg-green-100 text-green-800",
-    Running: "bg-blue-100 text-blue-800",
-    Failed: "bg-red-100 text-red-800",
-  };
-  const statusStyle = statusStyles[execution.status] || "bg-gray-100 text-gray-800";
-
-  return (
-    <div className="p-3 bg-secondary rounded-lg text-xs">
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-muted-foreground">
-          {execution.id.slice(0, 8)}...
-        </span>
-        <span className={`px-1.5 py-0.5 rounded ${statusStyle}`}>
-          {execution.status}
-        </span>
-      </div>
-      <p className="text-muted-foreground">
-        {new Date(execution.started_at).toLocaleString()}
-        {execution.finished_at &&
-          ` - ${new Date(execution.finished_at).toLocaleString()}`}
-      </p>
-      {execution.result && (
-        <pre className="mt-2 text-xs whitespace-pre-wrap bg-card p-2 rounded">
-          {execution.result.slice(0, 500)}
-          {execution.result.length > 500 && "..."}
-        </pre>
-      )}
-      {execution.error && (
-        <pre className="mt-2 text-xs whitespace-pre-wrap text-destructive bg-destructive/10 p-2 rounded">
-          {execution.error.slice(0, 500)}
-          {execution.error.length > 500 && "..."}
-        </pre>
-      )}
     </div>
   );
 }
@@ -532,9 +466,9 @@ function AddTaskModal({ onClose, onCreated }: AddTaskModalProps) {
     timeout_secs: DEFAULT_TIMEOUT_SECS,
     model: DEFAULT_MODEL,
   });
+  const [cronError, setCronError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cronError, setCronError] = useState<string | null>(null);
 
   const handleCronChange = (value: string) => {
     setForm({ ...form, cron: value });
@@ -573,26 +507,22 @@ function AddTaskModal({ onClose, onCreated }: AddTaskModalProps) {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/v1/scheduler/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          cron: form.cron.trim(),
-          agent_config: {
-            system_prompt: form.system_prompt.trim() || undefined,
-            input: form.input.trim(),
-            max_rounds: form.max_rounds,
-            timeout_secs: form.timeout_secs,
-            model: form.model || undefined,
-          },
-          enabled: true,
-        }),
+      // OBSTACK Phase E.3 commit 2/2 — POST /api/v1/scheduler/tasks
+      // via the shared client. The client forwards the nested
+      // ``agent_config`` as-is (per Phase E.3 wire-shape guarantee).
+      const agentConfig: AgentTaskConfig = {
+        input: form.input.trim(),
+        system_prompt: form.system_prompt.trim() || null,
+        max_rounds: form.max_rounds,
+        timeout_secs: form.timeout_secs,
+        model: form.model || null,
+      };
+      await tasksClient.create_scheduled_task({
+        name: form.name.trim(),
+        cron: form.cron.trim(),
+        agent_config: agentConfig,
+        enabled: true,
       });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errText}`);
-      }
       onCreated();
       onClose();
     } catch (err) {
@@ -640,29 +570,41 @@ function AddTaskModal({ onClose, onCreated }: AddTaskModalProps) {
               type="text"
               value={form.cron}
               onChange={(e) => handleCronChange(e.target.value)}
-              placeholder="e.g., 0 * * * *"
-              className={`w-full px-3 py-2 text-sm bg-secondary border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono ${
-                cronError ? "border-destructive" : "border-border"
-              }`}
+              placeholder="0 * * * *"
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
             />
             {cronError && (
-              <p className="mt-1 text-xs text-destructive">{cronError}</p>
+              <p className="text-xs text-destructive mt-1">{cronError}</p>
             )}
-            <div className="mt-2 flex flex-wrap gap-1">
-              {CRON_EXAMPLES.map((ex) => (
-                <button
-                  key={ex.value}
-                  type="button"
-                  onClick={() => handleCronChange(ex.value)}
-                  className="text-xs px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground"
-                >
-                  {ex.label}
-                </button>
-              ))}
-            </div>
+            <details className="text-xs text-muted-foreground mt-2">
+              <summary className="cursor-pointer hover:text-foreground">
+                Cron examples
+              </summary>
+              <ul className="mt-1 space-y-0.5 ml-4">
+                {CRON_EXAMPLES.map((ex) => (
+                  <li key={ex.value} className="font-mono">
+                    {ex.label}: <code>{ex.value}</code>
+                  </li>
+                ))}
+              </ul>
+            </details>
           </div>
 
-          {/* Input Prompt */}
+          {/* System Prompt (optional) */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              System Prompt (optional)
+            </label>
+            <textarea
+              value={form.system_prompt}
+              onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
+              placeholder="You are a helpful assistant that..."
+              rows={3}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+            />
+          </div>
+
+          {/* Input */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Input Prompt <span className="text-destructive">*</span>
@@ -672,89 +614,78 @@ function AddTaskModal({ onClose, onCreated }: AddTaskModalProps) {
               onChange={(e) => setForm({ ...form, input: e.target.value })}
               placeholder="What should the agent do?"
               rows={3}
-              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
-          {/* System Prompt (Optional) */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              System Prompt (Optional)
-            </label>
-            <textarea
-              value={form.system_prompt}
-              onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
-              placeholder="Optional system instructions for the agent"
-              rows={2}
-              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-            />
-          </div>
-
-          {/* Advanced Options */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Max Rounds + Timeout */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Max Rounds
               </label>
               <input
                 type="number"
                 value={form.max_rounds}
-                onChange={(e) => setForm({ ...form, max_rounds: parseInt(e.target.value) || DEFAULT_MAX_ROUNDS })}
+                onChange={(e) =>
+                  setForm({ ...form, max_rounds: parseInt(e.target.value, 10) || 0 })
+                }
                 min={1}
-                max={500}
-                className="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                max={100}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">
-                Timeout (sec)
+              <label className="block text-sm font-medium mb-1">
+                Timeout (s)
               </label>
               <input
                 type="number"
                 value={form.timeout_secs}
-                onChange={(e) => setForm({ ...form, timeout_secs: parseInt(e.target.value) || DEFAULT_TIMEOUT_SECS })}
-                min={10}
-                max={3600}
-                className="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    timeout_secs: parseInt(e.target.value, 10) || 0,
+                  })
+                }
+                min={60}
+                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">
-                Model
-              </label>
-              <select
-                value={form.model}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-                className="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="claude-3-5-sonnet-20241022">Sonnet 3.5</option>
-                <option value="claude-3-opus-20240229">Opus 3</option>
-                <option value="claude-3-5-haiku-20241022">Haiku 3.5</option>
-                <option value="claude-3-haiku-20240307">Haiku 3</option>
-              </select>
             </div>
           </div>
 
-          {/* Error */}
+          {/* Model */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Model (optional)
+            </label>
+            <input
+              type="text"
+              value={form.model}
+              onChange={(e) => setForm({ ...form, model: e.target.value })}
+              placeholder={DEFAULT_MODEL}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+            />
+          </div>
+
           {error && (
-            <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+            <div className="text-xs text-destructive p-2 rounded bg-destructive/10">
               {error}
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 text-sm border border-border rounded-md hover:bg-secondary"
+              className="px-4 py-2 text-sm bg-secondary hover:bg-secondary/80 rounded border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-40"
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded disabled:opacity-50"
             >
               {submitting ? "Creating..." : "Create Task"}
             </button>

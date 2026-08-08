@@ -263,3 +263,8 @@
 - 13:20 eaasp-common 87/87 PASS (was 80); web 40/40 vitest + 0 typecheck.
 
 - 13:20 Note: SessionsClient was NOT affected — its methods all go through the shared `_request` path which had Bearer injection since v3.15 commit 24. McpClient's CRUD methods (`_get` / `_post`) were NOT affected — same reason. Only `_get_array` and tasks_client's four transports needed fixing.
+
+## 2026-08-08 (OBSTACK Phase E.3 commit 2/2 — web/Tasks.tsx + Schedule.tsx 改用 tasksClient)
+- 13:25 Phase E.3 commit 2/2 wire Tasks.tsx + Schedule.tsx + tasks.ts (AgentTaskConfig re-export) through the shared tasksClient。Tasks.tsx 6 raw fetches → tasksClient methods;Schedule.tsx 5 raw fetches + local interface 声明 → tasksClient。Schedule.tsx 的 Add Task Modal / cron validation / CreateTaskForm 一并保留(未经 UX-affecting 改动)。
+- 13:25 net -189 LOC(Schedule.tsx 从 fully-bespoke interface set + raw fetches → imported shared types)。
+- 13:25 web typecheck 0 errors;40/40 vitest PASS。后端 security fix (auth-bypass + path-injection + token-lifecycle) 已经在 commit 1787083e applied —wire-up 这一边不需要再做任何安全相关改动,因为 wire-format 与 client surface 已被覆盖。

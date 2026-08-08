@@ -3,28 +3,7 @@ import { useSetAtom } from "jotai";
 import { Play, Square, ListTodo } from "lucide-react";
 import { addToastAtom } from "../atoms/ui";
 import { cn } from "@/lib/utils";
-
-interface Task {
-  id: string;
-  status: "pending" | "running" | "success" | "failed";
-  result?: string;
-  error?: string;
-}
-
-interface TaskDetail {
-  task: Task;
-  executions: TaskExecution[];
-}
-
-interface TaskExecution {
-  id: string;
-  task_id: string;
-  started_at: string;
-  finished_at?: string;
-  status: "pending" | "running" | "success" | "failed";
-  result?: string;
-  error?: string;
-}
+import { tasksClient, type AgentTask, type AgentTaskDetail } from "../api/tasks";
 
 function truncateId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
@@ -32,10 +11,10 @@ function truncateId(id: string): string {
 
 export default function Tasks() {
   const addToast = useSetAtom(addToastAtom);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
+  const [selectedTask, setSelectedTask] = useState<AgentTaskDetail | null>(null);
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Tracks which task ids have an in-flight Stop/Resume action so the
@@ -47,12 +26,12 @@ export default function Tasks() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/tasks");
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const data = await res.json();
-      setTasks(data);
+      // OBSTACK Phase E.3 commit 2/2 — route through the shared
+      // tasksClient (same surface as the Python ``TasksClient``).
+      // Returns top-level JSON array (``Json<Vec<TaskResponse>>``
+      // per grid-server::api::tasks::list_tasks) — preserved as-is.
+      const data = await tasksClient.list_tasks();
+      setTasks(Array.isArray(data) ? data : []);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to fetch tasks";
       console.error("Failed to fetch tasks:", msg);
@@ -65,11 +44,9 @@ export default function Tasks() {
   const fetchTaskDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/v1/tasks/${id}`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      const data: TaskDetail = await res.json();
+      // OBSTACK Phase E.3 commit 2/2 — task detail ({ task, executions })
+      // via the shared client. task_id is percent-encoded by the client.
+      const data = await tasksClient.get_task(id);
       setSelectedTask(data);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to fetch task detail";
@@ -84,14 +61,13 @@ export default function Tasks() {
     if (!prompt.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch("/api/v1/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, max_rounds: 10, timeout_secs: 300 }),
+      // OBSTACK Phase E.3 commit 2/2 — submit via shared client.
+      await tasksClient.submit_task({
+        prompt,
+        model: null,
+        max_rounds: 10,
+        timeout_secs: 300,
       });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
       setPrompt("");
       await fetchTasks();
     } catch (error) {
@@ -106,10 +82,11 @@ export default function Tasks() {
   const deleteTask = async (id: string) => {
     if (!confirm("Are you sure you want to delete this task?")) return;
     try {
-      const res = await fetch(`/api/v1/tasks/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — DELETE /api/v1/tasks/:id maps
+      // to cancel_task (graceful — D-08 semantics). On grid-server
+      // the row moves to a terminal state; the legacy UI also
+      // exposed this as "Delete".
+      await tasksClient.cancel_task(id);
       await fetchTasks();
       if (selectedTask?.task.id === id) {
         setSelectedTask(null);
@@ -131,12 +108,10 @@ export default function Tasks() {
     if (pendingTaskActions.has(id)) return;
     setPendingTaskActions((prev) => new Set(prev).add(id));
     try {
-      const res = await fetch(`/api/v1/tasks/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      // OBSTACK Phase E.3 commit 2/2 — same cancel_task call as
+      // deleteTask (D-08: graceful, no confirm()). Client handles
+      // task_id percent-encoding.
+      await tasksClient.cancel_task(id);
       await fetchTasks();
       if (selectedTask?.task.id === id) await fetchTaskDetail(id);
     } catch (error) {
@@ -188,7 +163,7 @@ export default function Tasks() {
           <button
             onClick={submitTask}
             disabled={submitting || !prompt.trim()}
-            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed font-normal"
+            className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed font-normal"
           >
             {submitting ? "Sending..." : "Send task"}
           </button>
@@ -218,7 +193,7 @@ export default function Tasks() {
                       {task.id.slice(0, 8)}...
                     </span>
                     <div className="flex items-center gap-2">
-                      <StatusBadge status={task.status} />
+                      <StatusBadge status={task.status as "pending" | "running" | "success" | "failed"} />
                       {/* Inline Stop (icon-only) when running — UI-SPEC §9.3 */}
                       {task.status === "running" && (
                         <button
@@ -302,7 +277,7 @@ function TaskDetailView({
   onCancel,
   isCancelling,
 }: {
-  task: TaskDetail;
+  task: AgentTaskDetail;
   onCancel: (id: string, e?: React.MouseEvent) => Promise<void>;
   isCancelling: boolean;
 }) {
@@ -319,7 +294,7 @@ function TaskDetailView({
         <div className="flex items-center justify-between">
           <h3 className="font-medium">Task Details</h3>
           <div className="flex items-center gap-2">
-            <StatusBadge status={task.status} />
+            <StatusBadge status={task.status as "pending" | "running" | "success" | "failed"} />
             {task.status === "running" && (
               <button
                 type="button"
