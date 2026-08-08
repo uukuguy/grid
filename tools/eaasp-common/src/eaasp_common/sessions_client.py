@@ -64,8 +64,22 @@ class SessionsClient:
     # ─── List / get ──────────────────────────────────────
     def list_active(self) -> ActiveSessionsResponse:
         body = self._get("/api/v1/sessions/active")
+        # OBSTACK Phase E.1 wire-shape fix — grid-server's
+        # ``/api/v1/sessions/active`` returns ``{"sessions":
+        # ["<uuid>", "<uuid>", ...], "count": N, "max": 64}``.
+        # The per-row ``created_at`` / ``status`` fields that
+        # the previous ``ActiveSessionsResponse`` model claimed
+        # exist on each row are NOT included on this endpoint
+        # (callers wanting typed rows use ``/api/v1/sessions``).
+        # The Phase E.1 commit 1/2 original code did
+        # ``SessionInfo(**s)`` on each row — which raised
+        # ``TypeError`` because each row was a UUID string,
+        # not a dict. The new shape passes through verbatim.
+        sessions_raw = body.get("sessions", []) or []
         return ActiveSessionsResponse(
-            sessions=[SessionInfo(**s) for s in body.get("sessions", [])]
+            sessions=list(sessions_raw),
+            count=body.get("count", len(sessions_raw)),
+            max=body.get("max", 64),
         )
 
     def get_session(self, session_id: str) -> SessionInfo:

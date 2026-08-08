@@ -31,9 +31,20 @@ class SessionInfo:
 
 @dataclass(frozen=True)
 class ActiveSessionsResponse:
-    """Response body of GET /api/v1/sessions/active."""
+    """Response body of GET /api/v1/sessions/active.
 
-    sessions: list[SessionInfo] = field(default_factory=list)
+    Wire shape (per ``grid-server /api/v1/sessions/active``):
+    ``{"sessions": ["<uuid>", "<uuid>", ...], "count": N, "max": 64}``.
+    Note: ``sessions`` is a list of **UUID strings**, NOT typed
+    ``SessionInfo`` objects — grid-server doesn't include the
+    per-row ``created_at`` / ``status`` on this endpoint
+    (callers who need the full shape use ``/api/v1/sessions``
+    which returns the typed objects).
+    """
+
+    sessions: list[str] = field(default_factory=list)
+    count: int = 0
+    max: int = 64
 
 
 @dataclass(frozen=True)

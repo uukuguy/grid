@@ -9,8 +9,18 @@ export interface SessionInfo {
   status: "running" | "stopped" | "completed" | "failed";
 }
 
+/**
+ * Wire shape (per ``grid-server /api/v1/sessions/active``):
+ * ``{"sessions": ["<uuid>", "<uuid>", ...], "count": N, "max": 64}``.
+ * Each entry is a UUID **string**, NOT a typed ``SessionInfo``
+ * object — grid-server doesn't include ``created_at`` /
+ * ``status`` on this endpoint. Callers needing the full shape
+ * use ``/api/v1/sessions`` (returns typed objects).
+ */
 export interface ActiveSessionsResponse {
-  sessions: SessionInfo[];
+  sessions: string[];
+  count: number;
+  max: number;
 }
 
 export interface StartSessionRequest {

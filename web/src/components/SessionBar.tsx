@@ -14,8 +14,21 @@ import { wsManager } from "@/ws/manager";
 import { sessionsClient } from "@/api/sessions";
 import { useEffect, useCallback, useRef } from "react";
 
-/** Truncate a session ID to the first 8 characters */
+/** Truncate a session ID to the first 8 characters.
+ *
+ * Defensive: returns the input verbatim when it's not a
+ * non-empty string. The Chat-tab crash on 2026-08-08 was
+ * rooted in a wire-shape lie (``/api/v1/sessions/active``
+ * returned UUID strings, not typed SessionInfo objects as
+ * Phase E.1 models claimed) and a stale closure in the
+ * call-chain pushing ``undefined`` ids into the render loop.
+ * The defensive guard makes the SessionBar robust to either
+ * regression class: a single missing field no longer crashes
+ * the whole tab — at worst the user sees a literal "undefined"
+ * placeholder until the upstream is fixed.
+ */
 function truncateId(id: string): string {
+  if (typeof id !== "string" || id.length === 0) return "";
   return id.length > 8 ? id.slice(0, 8) : id;
 }
 
@@ -188,13 +201,20 @@ export function SessionBar() {
 // ── API Helpers ──
 
 async function fetchActiveSessions(): Promise<string[]> {
-  // OBSTACK Phase E.1 — route through the shared sessions client so the
-  // web client and eaasp-cli-v2 stay in lockstep (same surface as the
-  // Python ``SessionsClient``). The default client targets grid-server
-  // :3001 via the same base-URL config the rest of the UI uses.
+  // OBSTACK Phase E.1 — route through the shared sessions client so
+  // the web client and eaasp-cli-v2 stay in lockstep (same surface
+  // as the Python ``SessionsClient``). The default client targets
+  // grid-server :3001 via the same base-URL config the rest of
+  // the UI uses.
+  //
+  // ``/api/v1/sessions/active`` returns a list of UUID strings
+  // (per the wire-shape fix — see ``docs/status/JOURNAL.md``
+  // entry for this commit). Returning them verbatim lets the
+  // caller build the local SessionInfo rows without a wrong
+  // ``s.id`` read that previously broke the Chat tab.
   try {
     const data = await sessionsClient.list_active();
-    return data.sessions.map((s) => s.id);
+    return Array.isArray(data.sessions) ? data.sessions : [];
   } catch {
     // Network / 4xx / 5xx → fall back to single-session mode (existing UX).
     return [];

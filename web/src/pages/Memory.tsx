@@ -73,13 +73,13 @@ export default function Memory() {
 
   const fetchAvailableSessions = async () => {
     try {
-      // OBSTACK Phase E.1 — route through the shared sessions client so
-      // the web client and eaasp-cli-v2 stay in lockstep (same surface
-      // as the Python ``SessionsClient``). The client returns typed
-      // ``SessionInfo`` rows; we project to the legacy ``string[]``
-      // shape this page already uses.
+      // OBSTACK Phase E.1 — route through the shared sessions client
+      // (same surface as the Python ``SessionsClient``).
+      // ``/api/v1/sessions/active`` returns ``{sessions: [uuid,
+      // uuid, ...], count, max}`` — the canonical UUID string list
+      // this page already expects.
       const data = await sessionsClient.list_active();
-      setAvailableSessions(data.sessions.map((s) => s.id));
+      setAvailableSessions(Array.isArray(data.sessions) ? data.sessions : []);
     } catch (error) {
       console.error("Failed to fetch active sessions:", error);
     }

@@ -65,12 +65,29 @@ def test_start_session_request_and_response() -> None:
 # ─── Client list_active / get_session ────────────────────────
 
 
-def test_list_active_returns_sessions() -> None:
+def test_list_active_returns_uuid_string_list() -> None:
+    """Wire shape (per ``grid-server /api/v1/sessions/active``):
+    ``{"sessions": ["<uuid>", "<uuid>", ...], "count": N,
+    "max": 64}``. The Python model declares ``sessions:
+    list[str]`` (not ``list[SessionInfo]``) — the per-row
+    ``created_at`` / ``status`` fields are NOT included on
+    this endpoint. Callers needing the full shape use
+    ``/api/v1/sessions`` which returns typed objects.
+
+    Phase E.1 commit 1/2 originally mismodelled the wire
+    shape as ``list[SessionInfo]``. The TS mirror inherited
+    the lie, the React UI then read ``s.id`` on a string
+    (always undefined) — this caused the Chat tab crash on
+    2026-08-08. This test locks the corrected UUID-string
+    contract.
+    """
     body = {
         "sessions": [
-            {"id": "s1", "created_at": "t1", "status": "running"},
-            {"id": "s2", "created_at": "t2", "status": "stopped"},
-        ]
+            "7bc1a3d1-347c-42f7-8cb8-eea2606e2219",
+            "dbb69643-6cf1-4abf-9c6b-e3d281998ae3",
+        ],
+        "count": 2,
+        "max": 64,
     }
     c = SessionsClient(
         "http://x", http_getter=_make_fake_getter(
@@ -79,8 +96,60 @@ def test_list_active_returns_sessions() -> None:
     )
     resp = c.list_active()
     assert isinstance(resp, ActiveSessionsResponse)
-    assert len(resp.sessions) == 2
-    assert resp.sessions[0].id == "s1"
+    assert resp.sessions == [
+        "7bc1a3d1-347c-42f7-8cb8-eea2606e2219",
+        "dbb69643-6cf1-4abf-9c6b-e3d281998ae3",
+    ]
+    assert resp.count == 2
+    assert resp.max == 64
+
+
+def test_list_active_empty_returns_empty_list() -> None:
+    body = {"sessions": [], "count": 0, "max": 64}
+    c = SessionsClient(
+        "http://x", http_getter=_make_fake_getter(
+            {"http://x/api/v1/sessions/active": body}
+        ),
+    )
+    resp = c.list_active()
+    assert resp.sessions == []
+
+
+def test_list_active_handles_typed_object_rows_with_defensive_fallback() -> None:
+    """Belt-and-suspenders: a future server change that
+    starts including per-row ``SessionInfo``-shaped dicts
+    would break the UUID-string assumption. The client
+    passes strings through verbatim and ignores extra
+    fields (the consumer doesn't depend on them for
+    rendering). Locked here so a future regression on the
+    wire shape surfaces loudly via this test, not via a
+    Chat tab crash.
+    """
+    body = {"sessions": ["uuid-1", "uuid-2"], "count": 2, "max": 64}
+    c = SessionsClient(
+        "http://x", http_getter=_make_fake_getter(
+            {"http://x/api/v1/sessions/active": body}
+        ),
+    )
+    resp = c.list_active()
+    # Strings pass through unchanged.
+    assert resp.sessions == ["uuid-1", "uuid-2"]
+
+
+def test_list_active_missing_sessions_field_returns_empty_list() -> None:
+    """Defensive: server accidentally drops the ``sessions``
+    key (rare, but possible during a partial migration).
+    The client must not crash — it returns an empty list
+    so the UI falls back to "single-session mode".
+    """
+    body = {"count": 0, "max": 64}
+    c = SessionsClient(
+        "http://x", http_getter=_make_fake_getter(
+            {"http://x/api/v1/sessions/active": body}
+        ),
+    )
+    resp = c.list_active()
+    assert resp.sessions == []
 
 
 def test_get_session_returns_session_info() -> None:

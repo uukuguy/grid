@@ -289,3 +289,16 @@
 - 19:55 写 `docs/status/RETROSPECTIVE_2026-08-08-OBSTACK-PHASE-E.md`:13 KB 中文 + 英文术语 retro,记录 5 个 client family 抽取 + 1 个 security-fix audit closure + first-write security lesson + narrow-scope principle。
 - 19:55 E.6 不抽出:LogViewer SSE `EventSource` 是浏览器原生 long-lived + auto-reconnect,不能 fit `*Client` pattern。 Force-fit 是 contortion,honest 报告 user + 选 stop。
 - 19:55 main 推到 origin (10 functional commits + 3 journal commits,Phase E.1–E.5 + security fix 完全 ship 干净)。
+
+## 2026-08-08 (FIX: Chat tab crash on grid-web localhost:5180 — Phase E.1 wire-shape lie)
+- 21:30 启动 grid-web (make grid-web boot L4 :18084 + grid-server :3001 + web :5180);用 playwright repro,confirm bug 重现:"Something went wrong ... Cannot read properties of undefined (reading 'length')" at SessionBar.tsx:33 truncateId。
+- 21:30 Root cause:grid-server ``/api/v1/sessions/active`` 实际返 ``{"sessions": ["<uuid>", ...], "count": N, "max": 64}``(裸 UUID string list),但 Phase E.1 commit 1/2 (commit f6ebb94a) 错误 declared model 为 ``ActiveSessionsResponse.sessions: list[SessionInfo]``(typed object list)。mirror TS + client 都继承了这个 wire-shape lie,导致 `data.sessions.map((s) => s.id)` 在每个 string 上 undefined,进而 SessionInfo {id: undefined} 进 atom,render 时 `truncateId(undefined.length)` 崩溃。
+- 21:30 修复:
+  - tools/eaasp-common/.../sessions_models.py: ``ActiveSessionsResponse.sessions: list[str]`` + count / max fields,update docstring 解释 wire 真相(other endpoint /api/v1/sessions 返 typed objects)。
+  - web/src/api/sessions_types.ts: 1:1 TS mirror 修正。
+  - tools/eaasp-common/.../sessions_client.py: list_active 现在 pass through UUID strings verbatim(不再 SessionInfo(**s) 因为 wire is plain strings)。
+  - tools/eaasp-common/tests/test_sessions_client.py: 4 个 regression test 锁 wire-shape contract(uuid list + count + max + empty list + missing sessions field fallback)。
+  - web/src/components/SessionBar.tsx: truncateId defensive guard ``typeof id !== "string" || id.length === 0 → return ""``;fetchActiveSessions 直接 return UUID strings (不再 .map((s) => s.id))。
+  - web/src/pages/Memory.tsx: setAvailableSessions 直接用 data.sessions (UUID strings)。
+- 21:30 Verification:122/122 eaasp-common tests pass (was 119);web typecheck 0 errors;40/40 vitest pass;playwright 验证 Chat tab 渲染 session pill (`7bc1a3d1`) + textarea + Chat↔Tasks roundtrip 都 zero error。
+- 21:30 更小但同样本质的一个 bug 同时发现:`wsManager.switchSession(undefined)` 在 Chat 切换时 log out — 处理同一 root cause(undefined activeId 由 stale closure 传到 wsManager.switchSession)。这个不是 separate issue — 是 SessionInfo {id: undefined} 进 atom 后 activeIdAtom 也被 set 成 undefined,然后 first render 的 useEffect 传 undefined 给 wsManager。fix 无需 separate commit (修复 wire-shape 之后 id 永远是真 UUID,activeId 永远是真 string)。
