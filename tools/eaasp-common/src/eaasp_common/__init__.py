@@ -27,6 +27,16 @@ from .collaboration_models import (
     VoteRequest,
 )
 from .errors import sanitize_errors
+from .memories_client import (
+    MemoriesClient,
+    MemoriesClientError,
+)
+from .memories_models import (
+    ListMemoriesParams,
+    ListMemoriesResponse,
+    WorkingMemoryBlock,
+    WorkingMemoryResponse,
+)
 from .mcp_client import (
     McpClient,
     McpClientError,
@@ -104,11 +114,15 @@ __all__ = [
     "EvaluationResponse",
     "FlowListParams",
     "ListExecutionsParams",
+    "ListMemoriesParams",
+    "ListMemoriesResponse",
     "McpClient",
     "McpClientError",
     "McpServer",
     "McpServerStatus",
     "McpToolInfo",
+    "MemoriesClient",
+    "MemoriesClientError",
     "OptimizationHint",
     "ObstackClient",
     "ObstackClientError",
@@ -134,6 +148,8 @@ __all__ = [
     "TimelineResponse",
     "Vote",
     "VoteRequest",
+    "WorkingMemoryBlock",
+    "WorkingMemoryResponse",
     "business_key_scope",
     "get_current_business_key",
     "iter_business_key_contexts",

@@ -276,3 +276,6 @@
 - 19:25 Phase E.4 commit 2/2 wire Collaboration.tsx (5 raw fetches → 5 collaborationClient methods) + ProposalList.tsx (1 raw fetch → vote_on_proposal via client)。5 秒轮询 + 2x2 panel grid 布局保留。legacy `e.event ?? e` unwrap 保留(server 用 #[serde(flatten)] event: Value,Claude Python client preserved dict verbatim → TS mirrors shape)。
 - 19:25 web typecheck 0 errors;40/40 vitest PASS。
 - 19:25 一个真 wire-shape bug 避免:vote_on_proposal 必须 percent-encode proposal_id(Path-injection 防御在 commit 1/2 已经 baked in,这次 wire-up 顺便 verify)。
+
+## 2026-08-08 (OBSTACK Phase E.5 commit 1/2 — eaasp-memories-client extraction)
+- 19:45 Phase E.5 commit 1/2 抽出 eaasp-memories-client (narrow scope: 只包 Memory.tsx 用的两个端点 — list_memories + working_memory,不比 E.2/E.4 完整 CRUD)。E.5 确认三个 security lesson(1787083e fixed + E.4 baked in first-write)于 first commit 应用:Bearer header 每 method + URL-safe query-string via urlencode (RFC 1866 form encoding for query strings) + 测试锁定 wire-shape (limit=100 永远在 URL)。验证 119/119 eaasp-common tests pass + 0 web typecheck errors + 40/40 vitest。
