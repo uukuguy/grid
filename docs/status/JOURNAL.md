@@ -268,3 +268,6 @@
 - 13:25 Phase E.3 commit 2/2 wire Tasks.tsx + Schedule.tsx + tasks.ts (AgentTaskConfig re-export) through the shared tasksClient。Tasks.tsx 6 raw fetches → tasksClient methods;Schedule.tsx 5 raw fetches + local interface 声明 → tasksClient。Schedule.tsx 的 Add Task Modal / cron validation / CreateTaskForm 一并保留(未经 UX-affecting 改动)。
 - 13:25 net -189 LOC(Schedule.tsx 从 fully-bespoke interface set + raw fetches → imported shared types)。
 - 13:25 web typecheck 0 errors;40/40 vitest PASS。后端 security fix (auth-bypass + path-injection + token-lifecycle) 已经在 commit 1787083e applied —wire-up 这一边不需要再做任何安全相关改动,因为 wire-format 与 client surface 已被覆盖。
+
+## 2026-08-08 (OBSTACK Phase E.4 commit 1/2 — eaasp-collaboration-client extraction)
+- 09:50 Phase E.4 commit 1/2 抽出 eaasp-collaboration-client:CollaborationClient + 9 model dataclasses (CollaborationStatus/CollaborationAgent/CollaborationEvent/Proposal/Vote/SharedStateEntry/SharedStateResponse + 2 request) + 18 tests + TS mirror。E.4 首次实现两个 security lesson(以前要靠 follow-up fix commit 解决):(1) Bearer header 在每个 transport method 都会被 inject 在 wire 上;(2) ``quote(safe='')`` 在每个 path-segment interpolation 上。验证 105/105 eaasp-common tests pass + 0 web typecheck errors + 40/40 vitest。
