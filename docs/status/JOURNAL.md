@@ -328,3 +328,12 @@
 - 21:50 secondary UX fix 机会:config 修了之后,Chat UI 还会 silently swallow `chunk_type=6`(error)WS chunk — 用户在遇到任何未来 LLM 错误时都看不到 visible error message。这是 `web/src/ws/events.ts` 和 `Chat.tsx` 的 render path bug,跟 `.env` 无关。已在 `scripts/chat-bug-repro/MODEL_NAME_FIX.md` 标出调查起点。
 
 - 21:50 Verification:Playwright scripts (repro-prompt-no-response.mjs) + fix-instruction doc (MODEL_NAME_FIX.md) 在 scripts/chat-bug-repro/。
+
+## 2026-08-08 (FIX: Chat prompt "no response" — chunk-envelope WS translator)
+- 22:40 验证 .env 修复:`bash scripts/v315-web-dev.sh restart` + Playwright 重新 send prompt。这次 WS stream 真正返 *"OK"* — 但 **仍然没有 visible chat message**。深挖发现 *第二* bug:
+- 22:40 Root cause 2 (主要 wire-protocol 不匹配): grid-server 在 `crates/grid-server/src/ws_chunk.rs:162` 把每个 streamed event 都序列化成 `{"type":"chunk", "session_id", "chunk_type": <1-9>, "payload": {...}}` envelope(`1=text_delta / 2=thinking_delta / 3=tool_start / 4=tool_result / 5=done / 6=error`)。但 `web/src/ws/types.ts` 把 `ServerMessage` discriminator 声明为 flat `type: "text_delta"` 等 — 跟 wire 实际发送的 `type: "chunk"` 不匹配。结果:`web/src/ws/manager.ts:123` 的 `JSON.parse as ServerMessage` cast 是 lie,`web/src/ws/events.ts:48` 的 `switch (msg.type)` falls through to default-no-op — every streamed frame 都被默默丢弃。 Chat tab 看起来 "no response" 即使 WS pipeline 工作。
+- 22:40 修复:
+  - `web/src/ws/types.ts`: 新增 `ChunkEnvelope` type + `mapWireMessageToServerMessage()` translator,把 wire envelope 转成现有 flat `ServerMessage` discriminator。Backward-compat 保留(legacy flat shapes 不变)。
+  - `web/src/ws/manager.ts`: `onmessage` handler 先过 translator,unknown shape 警告一次后丢弃(避免 spam log)。
+  - `web/src/ws/events.ts` `done` case hardening: 当 L4 不发 `text_complete` 时,把 `streamBuffer` 内容 commit 到 `messagesAtom`(防止 streamed text 被 silently drop)。也加 thinking-only fallback(message "(no response content; thinking only)")。
+- 22:40 verification:50/50 web vitest pass(其中 10 个新增 wire-translator regression tests 锁定每个 chunk_type 翻译 + backward-compat + unknown-shape drop + missing-session-id defensive + null/undefined/string/number/object malformed inputs);typecheck 0 errors;Playwright 端到端 PASS(visible body 包含 user prompt + "Thinking (203 chars)" + "OK" assistant reply)。

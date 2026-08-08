@@ -165,10 +165,50 @@ export function handleWsEvent(msg: ServerMessage, set: Setter, get?: Getter) {
       break;
 
     case "done":
+      // Phase E.3 commit fix (2026-08-08) — once the assistant
+      // finishes streaming, the buffered ``streamBuffer`` may
+      // or may not have been committed via a ``text_complete``
+      // event (L4 sometimes skips ``text_complete`` and just
+      // sends ``done``). To ensure the chat message is never
+      // silently dropped, commit whatever was streamed when
+      // ``done`` fires — but only if the buffer actually
+      // contains content (some models reply with empty text
+      // for tool-only turns).
+      if (streamBuffer.trim().length > 0) {
+        const text = streamBuffer.replace(
+          /^[，,、；;：:。.！!？?\s]+/,
+          "",
+        );
+        set(messagesAtom, (prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: text,
+            thinking: thinkingBuffer || undefined,
+            timestamp: Date.now(),
+          },
+        ]);
+      } else if (thinkingBuffer.trim().length > 0) {
+        // Thinking model returned only thoughts (no text
+        // payload). Surface as a separate message so the
+        // user at least sees something happened.
+        set(messagesAtom, (prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: "(no response content; thinking only)",
+            thinking: thinkingBuffer,
+            timestamp: Date.now(),
+          },
+        ]);
+      }
       streamBuffer = "";
       thinkingBuffer = "";
-      set(isStreamingAtom, false);
+      set(streamingTextAtom, "");
       set(streamingThinkingAtom, "");
+      set(isStreamingAtom, false);
       // Do NOT clear executionRecordsAtom here — Tools tab shows accumulated history
       set(toolExecutionsAtom, []);
       break;

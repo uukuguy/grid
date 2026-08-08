@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from "./types";
+import { mapWireMessageToServerMessage } from "./types";
 import { isConfigReady, getWsUrl } from "../config";
 import type { ConnectionStatus } from "@/atoms/ui";
 
@@ -122,7 +123,25 @@ class WsManager {
 
     this.ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data) as ServerMessage;
+        const raw = JSON.parse(event.data);
+        // Phase E.3 commit fix (2026-08-08) — the wire sends
+        // ``{"type":"chunk", "chunk_type": 1-9, "payload": {...}}``
+        // envelopes (per ``crates/grid-server/src/ws_chunk.rs``),
+        // but ``web/src/ws/types.ts`` historically declared a
+        // flat discriminator (``type: "text_delta"`` etc.).
+        // Translating here keeps every existing
+        // ``web/src/ws/events.ts`` switch case working.
+        const msg = mapWireMessageToServerMessage(raw);
+        if (msg === null) {
+          // Unknown wire envelope — log once (per session) so
+          // the developer notices schema drift, but don't
+          // pollute the console on every frame.
+          if (!(this as unknown as { __loggedUnknownWire: boolean }).__loggedUnknownWire) {
+            console.warn("[WS] unknown wire envelope (dropped):", raw);
+            (this as unknown as { __loggedUnknownWire: boolean }).__loggedUnknownWire = true;
+          }
+          return;
+        }
         this.handler?.(msg);
       } catch (e) {
         console.error("[WS] Parse error:", e);
