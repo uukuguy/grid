@@ -341,3 +341,13 @@
 ## 2026-08-09 (HANDOFF: Chat fix chain 完工 + baton 更新)
 - 09:30 更新 RESUME-NEXT-SESSION.md (canonical handoff baton)。截到 2026-08-09 session 收尾:HEAD=a8d7722c,main in sync with origin/main;OBSTACK v3.15 SHIPPED 100%;Phase E 5 client families + 1 security audit closure SHIPPED;Chat tab (sessions wire-shape lie + WS chunk-envelope mismatch) 双重 bug 修复完成并有 Playwright 端到端 PASS + 50 vitest PASS。给出 3 个 next-session path (continue E series / close milestone / start v3.16 data/integration)。
 - 09:30 更新 CURRENT-STATE.md — structural snapshot 加 8/9 Chat fix 状态 + Phase E retro cross-ref。
+
+## 2026-08-09 (v3.15.6a 启动 — OBSTACK 文档诚实化阶段)
+- 21:00 `725fe82c` v3.15.6a 任务系统建立(5 task #153-#157);用户拍板"OBSTACK 实战补完,不能留半拉子" → 走 v3.15.6 6 阶段(6a 文档/6b 测试/6c 死代码/6d dashboard/6e CLI/6f 收口)。
+- 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),闭环率 23/23 → 20/23 (87%);诚实化先于好大喜功 per D-50。
+- 21:45 `c7a5b50e` 6a.2 commit 入仓:DEFERRED_LEDGER.md 登记 4 项 V315-* deferred (V315-OPT-01 / V315-WALK-01 / V315-L0-PROTO-01 / V315-L1-OTEL-FULL-01),全部 owner 标记 v3.15.6 6b/6c/6e/6f;迟到 10 天的补登,PRODUCTION_USABILITY_2026-08-02.md 原列表已显式承诺。
+- 22:00 `15e9edac` 6a.3 commit 入仓:AGENTS.md 末尾追加 OBSTACK + dual-gate + 4 项 V315-* deferred items 段 (~35 行),根入口文档 0 提及 OBSTACK 修复; 跨引用 v3.15.6 plan 文件。
+- 22:30 `479f1483` 6a.4 commit 入仓:STATE.md frontmatter v3.14 → v3.15.6 active / started / last_updated 2026-08-09T22:00;session continuity 同步 6a 已 4 task;CURRENT-STATE.md "Active work package" 改 v3.15.6 + 引用新 plan + header 重写。
+- next: 6a.5 6a 收口 dual-gate + grep 自检 (make rbac-audit 134 routes + make v3.10-spec-audit 38 rows + grep 0 矛盾)。
+- 23:00 6a.5 6a 收口 dual-gate + grep 自检完成 (详见 6a.5 commit message)。
+- 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
