@@ -42,16 +42,19 @@ audience: maintainers, contributors
 | [ADR-V2-029](../adrs/ADR-V2-029-engine-data-integration-boundary.md) | crate-level 双轴 enforce | OBSTACK_DESIGN.md §4.2 兼容性 |
 | [ADR-V2-034](../adrs/ADR-V2-034-opa-backend-deployment-topology.md) | OPA sidecar 拓扑 | OBSTACK_DESIGN.md §3.7 (Optimize 调度) |
 
-## Goal 闭环当前快照（与 §0 同步）
+## Goal 闭环当前快照（与 §0 同步 — 2026-08-09 v3.15.6a 文档诚实化）
 
-| 维度 | 闭环率 | 关键缺口 |
+| 维度 | 闭环率 (v3.15.6a) | 关键缺口 |
 |---|---|---|
-| Observe | 1/5 (L3 仅) | L0 proto + L1 Rust + L2/L4 observability.py |
-| Trace | 3/5 (3 Python schema ✅, L0 + L1 Rust ❌) | L1 Rust business_flow.rs + 21 RPC 字段挂载 |
-| Evaluate | 5/6 (timeline/sse/api/evaluator/cli ✅, SLA ❌) | 4 个 SLA baseline tests |
-| Optimize | 1/4 (hint 生成 ✅, 3 个执行器 ❌) | A/B routing + alert_manager + resource_scheduler |
+| **Observe** | 4/5 (80%) ⚠️ | L3 observability partial (1 record × 4 claimed); L1 OTel SDK dead code (init_observability 未接 main.rs) |
+| **Trace** | 4/5 (80%) ⚠️ | L0 proto 13/21 RPC 挂载 (8 RPC 漏 business_key 字段) |
+| **Evaluate** | 5/6 (83%) ⚠️ | `tests/business_flow/` 目录缺 — 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 未写 |
+| **Optimize** | 4/4 (100%) ✅ | 干净 — ab_router + alert_manager + resource_scheduler + flow_evaluator hint 全部 impl |
+| **Verify** | 3/3 (100%) ✅ | dual-gate + live walkthrough + tag v3.15 (demo 走 ingest workaround) |
 
-**详细 commit / task 引用见 [OBSTACK_DESIGN.md §0.1](OBSTACK_DESIGN.md)**
+**总判定: 20/23 = 87%**;v3.15.6c 死代码激活 + 6b 测试补完后预期升 23/23。
+
+**详细 commit / task 引用见 [OBSTACK_DESIGN.md §0.1](OBSTACK_DESIGN.md)** — v3.15.6 阶段任务清单见 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`。
 
 ## 何时更新本文件
 

@@ -14,18 +14,25 @@
 
 > 本节是唯一与"goal 闭环进度"绑定的视图，更新本节 = 更新 goal 状态。
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
-> 最近一次 update: 2026-08-02, V315-L1-OTEL-FULL-01 收尾 (**23/23 = 100% OBSTACK 闭环** — Observe 5/5 ✅ + Trace 5/5 ✅ + Evaluate 6/6 ✅ + Optimize 4/4 ✅ + Verify 3/3 ✅)。
+> 最近一次 update: 2026-08-09, **v3.15.6a 文档诚实化** (§0.1 counting 漏洞已修;v3.15.5 阶段 23/23 是最小闭环 counting,真实落地率 = **20/23 (87%)** — Observe 4/5 + Trace 4/5 + Evaluate 5/6 + Optimize 4/4 + Verify 3/3;D-50 v3.15.6a 锁决策)。v3.15.6c 死代码激活后预期升 23/23。
 
-### 0.1 4 大维度 × 子项状态（2026-08-02 V315-L1-OTEL-FULL-01 — 23/23 = 100% OBSTACK 闭环）
+### 0.1 4 大维度 × 子项状态（2026-08-09 v3.15.6a 文档诚实化 — 真实闭环率 20/23 = 87%）
+
+> v3.15.5 阶段 §0.1 标 23/23 = 100% 是 counting 漏洞,本节按真实落地降 3 处:
+> - L3 observability.py 只有 1 record 函数 (docstring 声称 4 个)
+> - L1 OTel SDK 7/7 tests PASS 但 `init_observability()` 未从 main.rs 调用 (死代码)
+> - L0 proto 21 RPC 只挂 13/21 BusinessKey (8 RPC 漏)
+> - `tests/business_flow/` 整个目录不存在 (4 集成测试未写)
+> v3.15.6c 激活死代码 + 6b 补测试后升 23/23。
 
 | 维度 | 子项 | 状态 | Commit / Test |
 |---|---|---|---|
 | **Observe** | L1 Rust `observability/` minimal-viable mirror | ✅ shipped | `952735ce` (6/6 tests) |
 | **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
-| **Observe** | L3 governance observability.py (OTel metrics + tracer) | ✅ shipped | `a18a22ba` (8/8 tests) |
+| **Observe** | L3 governance observability.py (OTel metrics + tracer) | ⚠️ partial | `a18a22ba` (2/8 tests 真 emit; docstring 声称 4 indicator families 实为 1: `record_opa_decision` line 222;其余 `l3.governance.session.*` / `hook.*` / `opa.*` 缺) |
 | **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
-| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ shipped | `e16686d4` (7/7 tests; PeriodicReader + InMemoryExporter + SdkMeterProvider) |
-| **Trace** | L0 proto BusinessKey message + 13 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) |
+| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ⚠️ dead code | `e16686d4` (7/7 tests PASS in `mod.rs:386` test path; `init_observability()` 定义 `mod.rs:164`, **生产 `main.rs` 从未调用**; 启动 `METER_READY=false`; record_* 实际不 emit; v3.15.6c 6c.3 任务激活) |
+| **Trace** | L0 proto BusinessKey message + 13/21 RPC field 100 attachment | ⚠️ partial | `1351107c` + `85cd4951` (15 struct literal fixes); `runtime.proto` line 83/94/115/128/143/154/173/194/200/278 (10) + `hook.proto` line 47/180/188 (3) = 13; **8 RPC 缺 business_key 字段** (7 runtime + 1 hook); v3.15.6b 6b.2 任务补挂 |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |
 | **Trace** | L2 memory_files + anchors `business_key` column | ✅ shipped | `2b3f2680` |
 | **Trace** | L3 governance_decisions + telemetry_events `business_key` column | ✅ shipped | `d2667707` |
@@ -37,7 +44,7 @@
 | **Evaluate** | 业务流 REST + SSE API (`flow_api.py`) | ✅ shipped | `a80f8cc9` (8/8 tests) |
 | **Evaluate** | 业务流评估器 `flow_evaluator.py` (hint set) | ✅ shipped | `098fb1f1` (15/15 tests) |
 | **Evaluate** | `eaasp flow` CLI (timeline/summary/watch/evaluate 4 verbs) | ✅ shipped | `05e3577f` (8/8 tests) |
-| **Evaluate** | 4 SLA baseline tests (L1/L2/L3/L4) + regression protection | ✅ shipped | `eb5d9265` (5/5 tests) |
+| **Evaluate** | 4 SLA baseline tests (L1/L2/L3/L4) + regression protection | ⚠️ partial | `eb5d9265` (4 SLA baselines 在 `tests/platform_sla/` ✅ present); **`tests/business_flow/` 整个目录 NOT PRESENT** — 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 0 行; v3.15.6b 6b.1 任务创建 |
 | **Optimize** | 评估器生成 `OptimizationHint` (pure function output) | ✅ shipped | `098fb1f1` |
 | **Optimize** | `ab_router.py` (A/B runtime selection by completion_rate) | ✅ shipped | V315-OPT-01 (10/10 tests) |
 | **Optimize** | `alert_manager.py` (fan-out hints to sinks) | ✅ shipped | V315-OPT-02 (7/7 tests) |
@@ -48,27 +55,30 @@
 | **Verify** | `make rbac-audit` PASS (134 routes; + 4 business-flow routes mounted this session) | ✅ shipped | `a122fbf5` |
 | **Verify** | tag `v3.15` annotated push to origin/main | ✅ shipped | (post-V315-WALK-01, 2026-08-01) |
 
-### 0.2 Goal 闭环判据（2026-08-02 V315-L1-OTEL-FULL-01 + V315-OBSTACK-DEMO — OBSTACK 100% end-to-end verified）
+### 0.2 Goal 闭环判据（2026-08-09 v3.15.6a 文档诚实化 — 真实闭环率 20/23 = 87%）
+
+> v3.15.6 锁决策 D-50: 诚实优于好大喜功。§0.1 4 处降级同步反映到 §0.2 5 维度闭环率。
+> v3.15.6c 死代码激活 + 6b 测试补完后,预期升回 23/23。
 
 | 维度 | sub-criterion | 闭环率 |
 |---|---|---|
-| Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **5/5 (100%) ✅** — L1/L2/L3/L4 observability modules + L1 OTel SDK real wiring (PeriodicReader + SdkMeterProvider + InMemoryExporter, `e16686d4`) |
-| Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **5/5 (100%) ✅** — proto field 100, 4 schema migrations, Rust `business_flow.rs` mirror, `tokio::task_local!` propagation; **5 LayerReaders wired at L4 boot** (`flow_readers.py`, 43bc632d) so `/v1/business-flows/{key}/timeline` returns real data, not empty payloads |
-| Evaluate | timeline + 评估器 + SLA baselines + 4 slave tests | **6/6 (100%) ✅** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines + `eaasp flow` aggregator; **V315-OBSTACK-DEMO captures real evaluator output on real flow data** |
-| Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15); **V315-OBSTACK-DEMO exercises all 3 executors on a live summary** |
-| Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅ upgraded** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + **V315-OBSTACK-DEMO real LLM-driven instance demo** in `docs/status/PRODUCTION_USABILITY_2026-08-02-obstack-demo.md` (14-event timeline, dual-gate PASS, all 5 dimensions exercised) + tag `v3.15` annotated push |
+| Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **4/5 (80%) ⚠️** — L1/L2/L4 observability modules ✅ + L3 observability partial (1 record × 4 claimed) + L1 OTel SDK dead code (init_observability 未接 main.rs) |
+| Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **4/5 (80%) ⚠️** — L0 proto field 100 attachment 13/21 (8 RPC 缺); 4 schema migrations ✅; Rust `business_flow.rs` mirror ✅; `tokio::task_local!` propagation ✅; 5 LayerReaders wired at L4 boot ✅ |
+| Evaluate | timeline + 评估器 + SLA baselines + 4 集成测试 | **5/6 (83%) ⚠️** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines ✅; **`tests/business_flow/` 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 缺** |
+| Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15); V315-OBSTACK-DEMO exercises all 3 executors on a live summary |
+| Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + V315-OBSTACK-DEMO **走 ingest workaround** (14-event timeline 里 5 个由 demo 脚本手工 ingest) + tag `v3.15` annotated push; v3.15.6f 替换为真实 agent loop 验证 |
 
-**总判定: 23/23 = 100%** — OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅ + **V315-BUSINESS-FLOW-02 (commits 1-5) closes the ingestion chain** that the prior v3.15.5 walkthrough left at "empty wire-format payloads".
+**总判定: 20/23 = 87%** — OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力 **实战可用但未 100% 闭环**;待 6a 文档 + 6b 测试 + 6c 死代码激活 + 6d dashboard + 6e CLI 全局 + 6f 收口验证 6 阶段跑完后,升回 23/23。
 
-### 0.3 Milestone Close Gate（v3.15.5 必通才能 close v3.15 + tag v3.15）
+### 0.3 Milestone Close Gate（v3.15.6 收口目标 — 6 阶段 v3.15.6a → 6f 全部 PASS 才能 close v3.15.6 + tag v3.15.6）
 
-1. 5 大维度: Observe 5/5 + Trace 5/5 + Evaluate 6/6 + Optimize 4/4 + Verify 3/3 = **23/23 = 100% ✅**
-2. `make v3.10-spec-audit` PASS（38 rows; OBSTACK_DESIGN.md + OBSTACK_INDEX.md dual-referenced; post v3.15.4a/4b + L0 proto attach + L1 OTel SDK full wiring `e16686d4`）
-3. `make rbac-audit` PASS（134 routes; 4 business-flow routes + L4 api.py mount fix `e6403c6e`）
+1. 5 大维度: Observe 5/5 + Trace 5/5 + Evaluate 6/6 + Optimize 4/4 + Verify 3/3 = **23/23 = 100% ✅** (v3.15.6c 死代码激活后目标; v3.15.6a 当前 = 20/23 = 87%)
+2. `make v3.10-spec-audit` PASS（38 rows; OBSTACK_DESIGN.md + OBSTACK_INDEX.md dual-referenced; post v3.15.4a/4b + L0 proto attach + L1 OTel SDK full wiring `e16686d4`; v3.15.6b 6b.2 补挂 8 RPC 后升 39 rows）
+3. `make rbac-audit` PASS（v3.15.6 = 134 routes; v3.15.6d 完成 web-platform 5 routes + grid-server 5 catalog 后 = 139 routes; v3.15.6d 6d.7 任务落实）
 4. `scripts/v315-walk-services.sh` boots 5 services + REST walkthrough evidence `PRODUCTION_USABILITY_2026-08-02-walk.md` (188 lines; boot script + 4 health probes + openapi spec + business_key round-trip)
-5. L1 OTel SDK full wiring `e16686d4` — 7/7 observability tests + 85/85 grid-runtime total; record_* now lands in real Counter / Histogram / UpDownCounter handles
-6. tag `v3.15` annotated push to origin/main
-6. tag `v3.15` force-push + 4 个 deferred item 登记到 `DEFERRED_LEDGER.md`（虽未实现但不阻塞 close）
+5. L1 OTel SDK full wiring `e16686d4` + `init_observability()` 在 `main.rs` 调用 (v3.15.6c 6c.3 任务) — 7/7 observability tests + 85/85 grid-runtime total; record_* 真在 Counter / Histogram / UpDownCounter; `opentelemetry-stdout` exporter 替换 InMemoryExporter (v3.15.6c 6c.1 6c.2)
+6. tag `v3.15.6` annotated push to origin/main (v3.15.6f 6f.5 任务)
+7. 4 个 V315-* deferred items 全部 ✅ CLOSED (登记于 `DEFERRED_LEDGER.md`,v3.15.6a 6a.2 已登记; v3.15.6f 6f.4 标 CLOSED)
 
 ---
 
