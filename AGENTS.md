@@ -497,3 +497,36 @@ Do **not** duplicate global content here. If you need something project-specific
 - **What ADRs exist?** — `/adr:status` or `/adr:list`.
 - **What phase am I in?** — `/dev-phase-manager:resume-plan` or `cat docs/plans/.checkpoint.json | jq '.phase_name, .completed_tasks | length'`.
 - **Stale Django README at repo root?** — yes, that's a known cleanup item; ignore it.
+
+---
+
+## OBSTACK (EAASP 平台级 Observe / Trace / Evaluate / Optimize) — v3.15.6 实战补完
+
+> **Status (2026-08-09)**: v3.15 SHIPPED 2026-08-02 §0.1 声称 23/23 = 100%。v3.15.6a 文档诚实化后真实闭环率 = **20/23 (87%)** (`725fe82c` + `c7a5b50e`)。v3.15.6c 死代码激活后再升 23/23。
+
+OBSTACK = 跨 L0–L5 平台级业务流 (BusinessKey: session_id + skill_id + business_object_id) Observe / Trace / Evaluate / Optimize 技术栈。
+
+**关键文档**:
+- `docs/design/EAASP/OBSTACK_DESIGN.md` — 权威架构 (Goal 状态 §0.1/§0.2/§0.3 + Component Inventory §4.4)
+- `docs/design/EAASP/OBSTACK_HANDBOOK.md` — 90K 手册 (用法 + 12 文件级触点索引 + 14 路线图)
+- `docs/design/EAASP/OBSTACK_INDEX.md` — 主题索引
+- `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` — v3.15.6 6 阶段任务清单
+
+**Critical invariants** (per D-44 + v3.15.6 锁决策 D-47..D-54):
+- `make rbac-audit` 必须 PASS (v3.15.6 = 134 routes; v3.15.6d = 139 routes; v3.15.6e = 139 routes; v3.15.6f = 139 routes)
+- `make v3.10-spec-audit` 必须 PASS (v3.15.6 = 38 rows; v3.15.6b 6b.2 补挂 8 RPC 后 = 39 rows)
+- L0 proto `BusinessKey` 字段 100 attachment (v3.15.6 目标 = 21/21; v3.15.5 实际 = 13/21)
+- `crates/grid-runtime/src/main.rs` 必须调用 `init_observability()` (v3.15.6c 6c.3 激活)
+- ADR-V2-023 P1 (shared-core rule) / ADR-V2-028 (strict-by-default config) / ADR-V2-034 (OPA sidecar) / ADR-V2-035 (A2A Router credential gate) 全部保留
+
+**Deferred items** (v3.15 SHIPPED 但未闭环, v3.15.6 收口; 登记于 `DEFERRED_LEDGER.md` per D-51):
+- **V315-OPT-01** — CLI `eaasp flow list/top-failed/top-slow` (handbook Ch14.3 Phase B) 缺; grid-runtime agent loop 不主动 emit OBSTACK 事件 (owner 6c + 6e)
+- **V315-WALK-01** — `v315-obstack-demo.sh` 14-event timeline 里 5 个由 demo 脚本手工 ingest 模拟,非真实 agent loop 产出 (owner 6c + 6f)
+- **V315-L0-PROTO-01** — L0 proto 21 RPC 字段 100 attachment 只挂 13/21, 8 RPC 缺 (runtime.proto 7 + hook.proto 1) (owner 6b 6b.2)
+- **V315-L1-OTEL-FULL-01** — `init_observability()` 在 `observability/mod.rs:164` 定义但 `main.rs` 从未调用, 生产 startup `METER_READY=false`, 真 OTel 路径死代码 (owner 6c 6c.1 + 6c.2 + 6c.3)
+
+**OBSTACK scope 边界** (per D-48, v3.15.6 锁决策):
+- 不开新仓; 落地在 `tools/eaasp-*/` (模拟器级) + `crates/grid-runtime/src/observability/` + `web-platform/src/`
+- 不开新服务端口; 沿用现有 L4 端口
+- 不开新 EVOLUTION_PATH phase; v3.15.6 = OBSTACK 实战补完, 在 v3.15 内部 6 阶段闭环
+- v3.16+ 候选 (Grafana dashboard / 跨 cluster 聚合 / Auto-scaling / Cost optimization / 业务 KPI 看板) 显式 §Out of Scope per OBSTACK_DESIGN §2.2
