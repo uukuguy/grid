@@ -1,6 +1,6 @@
 # Current State
 
-> **Updated**: 2026-08-02 — **OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅ 100%** (23/23). **HEAD**: `1a1304a5` (main, in sync with origin/main). 17 commits shipped this handoff session. Working tree clean. Tag `v3.15` annotated pushed.
+> **Updated**: 2026-08-09 — **Chat tab on grid-web localhost:5180 fully restored** (commits `1644f541` + `7fbd0f7b` + `a8d7722c`). **HEAD**: `a8d7722c` (main, in sync with origin/main). Working tree clean. **OBSTACK v3.15 milestone** ✅ SHIPPED 100% (23/23) on 2026-08-02. **OBSTACK Phase E series** (5 eaasp-client families + 1 security audit closure) SHIPPED across 2026-08-05 → 2026-08-08 (retro at `45ae50a5`).
 
 ## Project Snapshot
 

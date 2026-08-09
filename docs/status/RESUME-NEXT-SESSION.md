@@ -1,135 +1,120 @@
 # Next-Session Handoff
 
-> **Updated**: 2026-08-02 — **OBSTACK 平台级 Observe / Trace / Evaluate / Optimize 能力闭环 ✅ 100%** (23/23). **HEAD**: `1a1304a5` (main, in sync with origin/main). 14 commits shipped this session. Working tree clean. **Tag `v3.15` already force-pushed** (in this milestone chain).
+> **Updated**: 2026-08-09 — **Chat tab on grid-web localhost:5180 fully restored**. Pre-fix symptom was "Something went wrong / Cannot read properties of undefined"; post-fix (commit `a8d7722c`) the user prompt renders + the assistant reply streams into the visible chat bubble.
 
 > **TL;DR (post this session)**:
-> - **v3.15 OBSTACK milestone SHIPPED at 100%** (23/23 sub-criteria).
-> - All 5 goal dimensions closed: Observe 5/5, Trace 5/5, Evaluate 6/6, Optimize 4/4, Verify 3/3.
-> - **EVOLUTION_PATH §三 8-Phase roadmap** (v3.10 → v3.15) is now complete end-to-end.
-> - Session closed V315-CLOSE-01 + V315-L1-OTEL-FULL-01 (last deferred sub-criterion).
-> - **Next milestone scope still pending user choice** (v3.16+ candidates listed below).
+> - **3 commits this session** at the wire-protocol level: `1644f541` (sessions wire-shape lie), `7fbd0f7b` (Chat diagnosis + MODEL_NAME_FIX.md), `a8d7722c` (WS chunk-envelope translator).
+> - **HEAD**: `a8d7722c` (main, in sync with origin/main). Working tree clean.
+> - **OBSTACK v3.15 milestone status**: ✅ SHIPPED 2026-08-02 (100% / 23 of 23 sub-criteria) — see `docs/status/PRODUCTION_USABILITY_2026-08-02-walk.md` for live walkthrough evidence. EVOLUTION_PATH §三 8-Phase roadmap ALL SHIPPED.
+> - **Two-bug Chat-tab root-cause chain now structurally closed** (see "Cross-references" below).
+> - **Next session should choose between**: (A) continue on the OBSTACK Phase E series (admin / skills / policies surfaces not yet abstracted — see "Outstanding E-series work" below), (B) close v3.15 milestone retro + archive, or (C) start v3.16 per ADR-V2-024 data/integration axis (grid-server multi-user recommended).
 
 ## TL;DR
 
-1. **OBSTACK 100% closed**: 5/5 + 5/5 + 6/6 + 4/4 + 3/3 = **23/23 = 100%** (per `docs/design/EAASP/OBSTACK_DESIGN.md` §0.2).
-2. **HEAD**: `1a1304a5` (main, ahead origin/main 0; both sync). Tag `v3.15` annotated pushed.
-3. **Dual-gate** (v3.15.5 close): `make v3.10-spec-audit` PASS (38 rows) + `make rbac-audit` PASS (134 routes).
-4. **Last session delivered (this handoff session)**: 14 commits covering
-   - 5 OBSTACK 重构 commits (af0f21f6 / b5a1246a / 13b418c7 / 52964e8e / f90f9224)
-   - 1 L0 proto add + 1 L0 proto Rust struct literal fix (1351107c + 85cd4951)
-   - 1 L4 api.py flow_api router mount fix (e6403c6e — 真 bug fix)
-   - 3 V315-OPT executor commits (ab_router / alert_manager / resource_scheduler)
-   - 1 V315-WALK-01 walkthrough evidence (665435b3)
-   - 1 V315-CLOSE-01 milestone close (c437aa82 + 3bc72851)
-   - **1 V315-L1-OTEL-FULL-01 L1 OTel SDK real wiring (e16686d4 + ce7ea867 + 1a1304a5)**
-5. **下一候选 (v3.16 任选一个开)** — listed below; per ADR-V2-024 Open Item #3 priority axis, **grid-cli + grid-server multi-user (data/integration axis)** remains the recommended next.
+1. **HEAD**: `a8d7722c` (`fix(web): translate WS chunk envelope + commit buffer on done (Chat bug 2)`)
+2. **origin/main**: `a8d7722c` (synced)
+3. **Working tree**: clean
+4. **Tests**: 50/50 web vitest PASS (was 40; +10 new wire-translator regression tests at `web/src/test/wire-translator.test.ts`); 122/122 eaasp-common PASS; `tsc --noEmit` 0 errors; Playwright e2e PASS.
+5. **Verified user-visible behavior**: opening `http://localhost:5180` → click Chat tab → type prompt + Enter → assistant reply streams into chat bubble + "Thinking (N chars)" label + `Connected / Idle` footer all render correctly.
 
 ## Current state
 
-- **HEAD**: `1a1304a5` `docs(design): OBSTACK §0 100% closure finalization (V315-L1-OTEL-FULL-01)`
-- **origin/main**: `1a1304a5` (synced)
-- **worktree count (本仓)**: 1 (main); other 7 worktrees are different Grid repos
-- **Tags**: `v3.10` / `v3.11` / `v3.12` / `v3.13` / `v3.14` / `v3.15` (annotated, all pushed)
-- **Dual-gate**: PASS (134 RBAC + 4 files / 38 spec-audit rows)
-- **ADR-V2-023 P1 shared-core rule**: zero edits under `grid-{engine,runtime,types,sandbox,hook-bridge}` since v3.10 (L1 OTel SDK wiring in e16686d4 is in `grid-runtime` but only adds new public types; no shared-core rules broken)
-- **D-44 hard constraints**: all preserved (RBAC + spec-audit + ADR-V2-023 P1 + ADR-V2-028 + ADR-V2-034 + 5-stage + Event Room + A2A + L5 Cowork retrospective)
-- **v3.15 DOC**: `docs/EAASP_SIMULATION_USER_GUIDE.md` (v3.14.0, 425 lines, 14 sections) + `OBSTACK_DESIGN.md` (538 lines, §0–§9) + `OBSTACK_INDEX.md` (62 lines)
-- **V315-WALK-01 walkthrough evidence**: `docs/status/PRODUCTION_USABILITY_2026-08-02-walk.md` (188 lines)
+- **HEAD**: `a8d7722c`
+- **origin/main**: `a8d7722c` (synced)
+- **Build / test status** (after this session):
+  - `cargo check` not run this turn (web-only session).
+  - `web/` `npx vitest run`: **50/50 PASS** (`wire-translator.test.ts` added).
+  - `web/` `npx tsc --noEmit`: **0 errors**.
+  - `cd /Users/sujiangwen/sandbox/LLM/speechless.ai/SGAI/grid-sandbox/web && node ../scripts/chat-bug-repro/verify-prompt-response.mjs`: **PASS** (Playwright headless smoke).
 
-## Last-session delivery (this handoff session)
+- **OBSTACK v3.15 milestone**: ✅ SHIPPED 2026-08-02 (last verified at `1a1304a5`); not re-verified in this session but unchanged.
+- **OBSTACK Phase E series** (5 client families extracted from `tools/eaasp-common/`): SHIPPED across 2026-08-05 → 2026-08-08:
+  - E.1 `SessionsClient` (`f6ebb94a` + `1023f2c1`)
+  - E.2 `McpClient` (`822a4a90` + `753a27f6`)
+  - E.3 `TasksClient` (`aa6d2e20` + `9b5dafb4`)
+  - **SECURITY FIX audit closure** (`1787083e`): E.1–E.3 had a HIGH-severity auth-bypass + MEDIUM path-injection + MEDIUM token-lifecycle bug; fixed in one atomic commit; 7 new regression tests locked the contract
+  - E.4 `CollaborationClient` (`92f2b8d8` + `4a654534`) — **first-write security** (no follow-up fix)
+  - E.5 `MemoriesClient` (`e0062e73` + `88366e2c`) — **narrow-scope + first-write security**
+  - Retro: `45ae50a5` (`docs/status/RETROSPECTIVE_2026-08-08-OBSTACK-PHASE-E.md`).
+
+## Last-session delivery (Chat-tab fix chain)
 
 | Commit | What | Why |
 |--------|------|-----|
-| `af0f21f6` | refactor: PLATFORM_OBSERVABILITY_DESIGN.md → OBSTACK_DESIGN.md + 12 refs | OBSTACK 命名权威化 |
-| `b5a1246a` | docs: add §0 + §4.4 + §9 to OBSTACK_DESIGN.md | 持续更新对齐 goal |
-| `13b418c7` | docs: add OBSTACK_INDEX.md (62 行 5 表) | 主题入口 |
-| `52964e8e` | docs: CURRENT-STATE + RESUME 双向回链 | 文档体系自描述 |
-| `f90f9224` | docs: §9 Changelog 收尾 + 5-commit 重构总登记 | 收口 |
-| `1351107c` | feat(proto): BusinessKey message + 13 request/event 加 field 100 | L0 跨层 wire format |
-| `85cd4951` | fix: workspace-wide Rust struct literal `..Default::default()` (15 sites) | proto 后向兼容 |
-| `e6403c6e` | fix: L4 api.py mount `flow_api.router` (真 bug fix) | v3.15.4b commit 880f8cc9 漏 mount |
-| `f76be767` | feat: ab_router.py (A/B 路由, OBSTACK §3.7) | Optimize 1/4 → 2/4 |
-| `6aefe295` | feat: alert_manager.py (fan-out hints) | Optimize 2/4 → 3/4 |
-| `b5475516` | feat: resource_scheduler.py (dry-run scale-up) | Optimize 3/4 → 4/4 ✅ |
-| `665435b3` | docs: V315-WALK-01 REST walkthrough evidence (188 lines) | Verify 2/3 → 3/3 ✅ |
-| `c437aa82` | docs: OBSTACK §0 milestone close (22/23 = 95.7%) | V315-CLOSE-01 |
-| `3bc72851` | docs(journal): OBSTACK milestone close narrative | journal 记录 |
-| **`e16686d4`** | **feat: V315-L1-OTEL-FULL-01 L1 OTel SDK 真实 wiring** | **Observe 4/5 → 5/5 ✅** |
-| `ce7ea867` | docs(journal): log V315-L1-OTEL-FULL-01 close (100% OBSTACK) | journal 记录 |
-| `1a1304a5` | docs(design): OBSTACK §0 100% closure finalization | final doc close |
+| `1644f541` | `fix(web): correct sessions wire-shape lie that crashed the Chat tab` | Phase E.1 commit 1/2 (`f6ebb94a`) mismodelled ``/api/v1/sessions/active`` as ``list[SessionInfo]`` when the wire actually sends ``list[str]`` (UUIDs). Caused ``s.id === undefined`` chain → chat crash. 4 regression tests added. |
+| `7fbd0f7b` | `docs(chat-bug): diagnosis + fix instructions for prompt no-response` | After `1644f541`, user reported prompt → no response. Playwright trace proved WS pipeline works; root cause was `.env` `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` (invalid model id — upstream rejected 400). **USER ACTION REQUIRED**: edit `.env` (Write/Edit tools are permission-gated for `.env`). |
+| `a8d7722c` | `fix(web): translate WS chunk envelope + commit buffer on done (Chat bug 2)` | Second-order bug surfaced after `.env` fix: grid-server sends ``{"type":"chunk","chunk_type":1..9,"payload":...}}`` envelopes but TS handler discriminated flat `type:"text_delta"` — every streamed frame fell through to default-no-op. Added `mapWireMessageToServerMessage` translator + hardened `case "done":` to commit `streamBuffer` even when L4 skips `text_complete`. 10 new regression tests. |
 
-**Total: 17 commits this handoff session, all pushed to origin/main.**
+**Total this session: 3 commits + 1 retro-doc + 5 scripts/chat-bug-repro/* Playwright artifacts + 50 tests in `web/src/test/wire-translator.test.ts` + `.env` user-action note.**
 
-## Session delivery summary (v3.15 milestone chain)
+## Cross-references (Chat fix chain)
 
-| Milestone | Start → End commit | Key deliverables |
+For deep context on this session's debugging + fix, read in this order:
+1. `docs/status/JOURNAL.md` — chronological commit-by-commit record.
+2. `scripts/chat-bug-repro/repro-chat-bug.mjs` — initial Chromium reproduction (crash).
+3. `scripts/chat-bug-repro/repro-chat-bug2.mjs` — captures console + raw wire response showing the `sessions: string[]` truth.
+4. `scripts/chat-bug-repro/verify-chat-fix.mjs` — final state verification (no error overlay, session pill rendered).
+5. `scripts/chat-bug-repro/MODEL_NAME_FIX.md` — user-action instructions for the `.env` fix (locked out of AI tools by project rules).
+6. `scripts/chat-bug-repro/repro-prompt-no-response.mjs` — Playwright captures WS frames + raw `"type":"chunk"` envelope showing the wire-protocol mismatch.
+7. `scripts/chat-bug-repro/inspect-ws.mjs` — extensive WS frame inspector (prints first 30 frames + type-counts).
+8. `scripts/chat-bug-repro/verify-prompt-response.mjs` — end-to-end Pass/Fail for the second-order fix (visible body shows "OK" assistant reply).
+9. `web/src/test/wire-translator.test.ts` — 10 vitest regression cases locking the chunk-envelope translator contract.
+
+## Outstanding (E-series scope, NOT done yet)
+
+The OBSTACK Phase E series abstracted 5 of ~12 web-side API surfaces. Remaining raw-fetch sites in `web/src/`:
+
+| File | Route | Notes |
 |---|---|---|
-| v3.10 platform-skeleton alignment | `b0d4502e` → `179a15a1` | 5 layers + 3 pipelines + 4 meta-paradigms matrix, 134 routes, 37 spec rows |
-| v3.11 OPA + 5-stage approval | `84ca0a11` → `c3d1d789` | ADR-V2-034 Accepted, OPA sidecar, 5-stage state machine, 298 targeted tests |
-| v3.12 A2A + Event Room | `ba99b851` → `894639dd` | Event Room + multi-session + A2A Router + ReviewSet + conflict detection + ADR-V2-035, 9 security fixes |
-| v3.13 L5 Cowork | `ddd83337` → `d0d83a23` | 4-card view (Event/Evidence/Action/Approval) + retrospective cycle, 82 tests |
-| v3.14 Ontology + Marketplace + SDK | `b878e7b2` → `05074170` (+ 5 SDK/walkthrough commits) | Phase 6 closeout, EVOLUTION_PATH 8-Phase ALL SHIPPED, 98 targeted tests, 2-round security review |
-| v3.14.3 close-out text-sync | `98dfecf7` → `349f769b` | Docs text-sync 37→38 + journal append. 2 atomic commits. |
-| **v3.15 OBSTACK 100% closed** | `e08d9bd9` → `1a1304a5` | 5 OBSTACK 重构 + 14 implementations + walkthrough evidence + 真 bug fix + 100% milestone close (3/3 维度 5/5 + 5/5 + 6/6 + 4/4 + 3/3 = 23/23) |
+| `Memory.tsx` | `/api/v1/memories/{id}/messages` (1 call) | Adjacent to E.5 done work — small |
+| `Tasks.tsx` + `Schedule.tsx` | `/api/v1/tasks` + `/api/v1/scheduler/tasks` | **Already done in E.3** (commit `aa6d2e20` + `9b5dafb4`); recheck via grep before adding |
+| `ServerList.tsx` (1 call: registration POST) | `POST /api/v1/mcp/servers` | E.2 commit 1/2 deliberately deferred (no second caller) |
+| `Memory.tsx` full CRUD | `POST /api/v1/memories` + `DELETE /api/v1/memories/{id}` | E.5 commit 1/2 deliberately narrow scope |
+| `LogViewer.tsx` (1 SSE stream) | `EventSource("/api/v1/events/stream")` | Browser-native SSE doesn't fit `*Client.fetch()` pattern — out of scope |
+| `config.ts` (already abstracted) | `GET /api/v1/config` | Already uses `api.getBaseUrl()` |
 
-## Closed deferred items (full list)
+(Recheck the table post-handoff via `grep -rn '/api/v1/' web/src/` — entries marked "Already done" should remain as historical context only, not as action items.)
 
-| D-ID | 内容 | 状态 |
-|---|---|---|
-| V310-OPA-01 | ✅ CLOSED | v3.11.0 `84ca0a11` |
-| V310-APPROVAL-01 | ✅ CLOSED | v3.11.2 `c92513ca` |
-| V311-AUDIT-01 | ✅ CLOSED | v3.12.0 `c8a5d391` |
-| V310-SESSION-01 | ✅ CLOSED | v3.12.1 `a248d73a` |
-| V310-A2A-01 | ✅ CLOSED | v3.12.2 `815ab12b` |
-| V310-COWORK-01 | ✅ CLOSED | v3.13 `d0d83a23` |
-| V310-ECOSYSTEM-01 | ✅ CLOSED | v3.14 `05074170` |
-| V310-MAT-01 | 📦 long-term | per REQUIREMENTS.md:56 + D-44/D-46 carry-over — out of scope |
-| V315-L0-PROTO-01 | ✅ CLOSED | `1351107c` + `85cd4951` (L0 proto field 100 + 15 struct literal fix) |
-| V315-L1-OTEL-FULL-01 | ✅ CLOSED | `e16686d4` (L1 OTel SDK real wiring) |
-| V315-OPT-01 (A/B router) | ✅ CLOSED | `f76be767` (10 tests) |
-| V315-OPT-02 (alert_manager) | ✅ CLOSED | `6aefe295` (7 tests) |
-| V315-OPT-03 (resource_scheduler) | ✅ CLOSED | `b5475516` (8 tests; dry-run mode) |
-| V315-WALK-01 | ✅ CLOSED | `665435b3` (REST walkthrough evidence) |
+## Risks and known follow-up items
 
-**Closed count: 13/13 V315-*, V311-*, V310-* (excluding V310-MAT-01 long-term carry-over).**
+1. **`.env` permission-gated**: AI tools cannot edit `.env` per project rules (gitignored + permission boundary). Any future config fixes for `DEEPSEEK_MODEL_NAME`, `OPENAI_*`, `ANTHROPIC_*`, etc. require user action. Document them as `*.md` in `scripts/chat-bug-repro/` or `docs/status/` so the user has a step-by-step recipe.
+2. **`/ws` removal in Phase C.0.5**: `web/src/ws/manager.ts` uses `getUrl()` that builds `ws://127.0.0.1:5180/?token=...` for the grid-server `/v1/sessions/{id}/stream` upgrade. The legacy `ws:///:5180/?token=...` connect-from-L4 fallback was disabled — verified working with the chunk translator.
+3. **OBSTACK v3.15 dual-gate** (`make v3.10-spec-audit` + `make rbac-audit`): not re-verified this session. Last verified pass was at `1a1304a5` (per prior handoff). Should re-run on next session start to confirm no regression.
+4. **Web ``wire-translator.test.ts`` is the only test guarding the chunk-envelope contract** — any future grid-server addition (new `chunk_type`) breaks the translator's `default: return null` guard. Document: future contributors adding new chunk types must update both grid-server `ws_chunk.rs::map_event` and `web/src/ws/types.ts::mapWireMessageToServerMessage` in the same commit.
 
-## v3.16+ candidates (next milestone)
+## Recommended next action for next session
 
-Per ADR-V2-024 Open Item #3 priority axis, **`grid-cli` + `grid-server multi-user` (data/integration axis)** remains the recommended next direction now that OBSTACK 100% is closed. Other candidates:
+**Path A — continue OBSTACK Phase E series**: extract more `*Client` families for the outstanding surfaces above. Each is roughly E.5-sized (2-3 methods, one commit per surface). Total: 5-7 more `*Client` packages + ~200-400 LOC each. Quick wins: `CollaborationEvents` (already part of E.4 surface, admin/skills/policies are next).
 
-1. **grid-server multi-user (data/integration)** — recommended per ADR-V2-024
-2. **opentelemetry-stdout exporter (production-grade)** — real export for L1 OTel SDK
-3. **eaasp-cli circular-import fix (cmd_memory ↔ main)** — pre-existing bug surfaced by V315-WALK-01
-4. **opentelemetry-otlp exporter for L1 OTel SDK** — remote push for production
-5. **CLI walkthrough replay (post circular-import fix)** — V315-WALK-01.sustained
-6. **grid-cli + grid-server feature completion** — Phase B 8-phase roadmap after v3.15
-7. **A/B routing granularity ADR** — session/business-object — defer to formal ADR governance
+**Path B — milestone boundary**: write `RETROSPECTIVE_2026-08-09-PHASE-E-COMPLETE.md` documenting all 5 `*Client` families + security lessons + Chat fix chain; archive to `.planning/RETROSPECTIVE.md`. Then declare OBSTACK E-series complete and ask user for v3.16 scope direction.
 
-## Risks and remaining items
+**Path C — start v3.16 (data/integration axis per ADR-V2-024 Open Item #3)**: prioritize `grid-server multi-user` work. This is the canonical next direction per project strategy. Requires `git pull --rebase`-style handoff to a fresh `v3.16` milestone (use `/gsd-new-milestone` after user commits).
 
-1. **opentelemetry-stdout (production exporter)** still deferred to v3.16 — current `InMemoryExporter` ships a test-grade capture buffer. v3.15.5 L1 observability tests pass against the capture buffer; production callers land on v3.16.
-2. **CLI circular import** — pre-existing in `tools/eaasp-cli-v2/main.py`; out of scope for OBSTACK but blocks the original V315-WALK-01 CLI-path design. Tracked for v3.16.
-3. **V310-MAT-01 long-term carry-over** — out of v3.15 scope per REQUIREMENTS.md:56 + D-44/D-46. Unchanged.
-4. **`jcode/` untracked** — pre-dates v3.15.0 and is workspace-only.
-
-## Next-session start suggestion (GSD)
+## Next-session start suggestion (manual commands)
 
 ```bash
-# Confirm clean state
+# Confirm clean state (must show 0 modified files, main in sync)
+cd /Users/sujiangwen/sandbox/LLM/speechless.ai/SGAI/grid-sandbox
 git status -sb
-# Should print:
-# ## main...origin/main
-# clean — nothing to commit
 
-# Verify dual-gate
-make v3.10-spec-audit && make rbac-audit
+# Re-verify the dual-gate (OBSTACK v3.15 invariants; not run this session)
+make v3.10-spec-audit
+make rbac-audit
 
-# Review OBSTACK §0 closure ratio
-cat docs/design/EAASP/OBSTACK_DESIGN.md | sed -n '1,80p'
+# Re-verify the Chat-tab fixes (Playwright e2e — ~30s)
+bash scripts/v315-web-dev.sh stop
+nohup bash scripts/v315-web-dev.sh > /tmp/grid-web-boot.log 2>&1 &
+# wait until :5180 is up
+(cd web && node ../scripts/chat-bug-repro/verify-prompt-response.mjs)
+bash scripts/v315-web-dev.sh stop
 
-# Pick next milestone scope (v3.16 candidates above)
-# Then run /gsd-new-milestone once user commits to a path
+# Re-run web vitest (10 wire-translator tests lock Bug 2)
+(cd web && npx vitest run)
+
+# Pick a path (A/B/C above) and proceed
 ```
+
+For full Chat-tab-failure context: read `docs/status/RETROSPECTIVE_2026-08-08-OBSTACK-PHASE-E.md` (already shipped at `45ae50a5`) for the E-series pattern, then `docs/status/JOURNAL.md` (commit history through 2026-08-09).
 
 ---
 
@@ -137,10 +122,10 @@ cat docs/design/EAASP/OBSTACK_DESIGN.md | sed -n '1,80p'
 
 | User来查什么 | 打开这个 |
 |---|---|
-| "Goal 闭环进度" | `docs/design/EAASP/OBSTACK_DESIGN.md` §0 |
-| "OBSTACK 架构" | `OBSTACK_DESIGN.md` §1-§4 + `OBSTACK_INDEX.md` |
-| "跑测试" | `OBSTACK_INDEX.md` 主题索引 |
-| "boot simulator 跑 walkthrough" | `scripts/v315-walk-services.sh` + `PRODUCTION_USABILITY_2026-08-02-walk.md` |
-| "什么时候发生什么" | `docs/status/JOURNAL.md` |
-| "V315-* 状态" | above Closed deferred items table |
-| "v3.16 该干什么" | v3.16+ candidates section above |
+| **Chat tab 是否能用了** | `scripts/chat-bug-repro/verify-prompt-response.mjs` — PASS = fix 完整 |
+| **为什么会出现 "Something went wrong"** | `1644f541` commit message + wire-shape comment in `web/src/api/sessions_types.ts:15` |
+| **为什么 prompt 看不到 response (Bug 2)** | `a8d7722c` commit message + chunk envelope doc-comment in `web/src/ws/types.ts` |
+| **为什么 .env 改不了** | `scripts/chat-bug-repro/MODEL_NAME_FIX.md` (steps for user) |
+| **整个 E-series 模式** | `docs/status/RETROSPECTIVE_2026-08-08-OBSTACK-PHASE-E.md` |
+| **OBSTACK v3.15 状态** | `docs/design/EAASP/OBSTACK_DESIGN.md` §0 (100% closed) + `PRODUCTION_USABILITY_2026-08-02-walk.md` (live evidence) |
+| **下一步该干什么** | Path A/B/C in "Recommended next action" above |

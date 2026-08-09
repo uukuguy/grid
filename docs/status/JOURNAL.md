@@ -337,3 +337,7 @@
   - `web/src/ws/manager.ts`: `onmessage` handler 先过 translator,unknown shape 警告一次后丢弃(避免 spam log)。
   - `web/src/ws/events.ts` `done` case hardening: 当 L4 不发 `text_complete` 时,把 `streamBuffer` 内容 commit 到 `messagesAtom`(防止 streamed text 被 silently drop)。也加 thinking-only fallback(message "(no response content; thinking only)")。
 - 22:40 verification:50/50 web vitest pass(其中 10 个新增 wire-translator regression tests 锁定每个 chunk_type 翻译 + backward-compat + unknown-shape drop + missing-session-id defensive + null/undefined/string/number/object malformed inputs);typecheck 0 errors;Playwright 端到端 PASS(visible body 包含 user prompt + "Thinking (203 chars)" + "OK" assistant reply)。
+
+## 2026-08-09 (HANDOFF: Chat fix chain 完工 + baton 更新)
+- 09:30 更新 RESUME-NEXT-SESSION.md (canonical handoff baton)。截到 2026-08-09 session 收尾:HEAD=a8d7722c,main in sync with origin/main;OBSTACK v3.15 SHIPPED 100%;Phase E 5 client families + 1 security audit closure SHIPPED;Chat tab (sessions wire-shape lie + WS chunk-envelope mismatch) 双重 bug 修复完成并有 Playwright 端到端 PASS + 50 vitest PASS。给出 3 个 next-session path (continue E series / close milestone / start v3.16 data/integration)。
+- 09:30 更新 CURRENT-STATE.md — structural snapshot 加 8/9 Chat fix 状态 + Phase E retro cross-ref。
