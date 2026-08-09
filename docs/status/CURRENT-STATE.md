@@ -1,6 +1,6 @@
 # Current State
 
-> **Updated**: 2026-08-09 — **Chat tab on grid-web localhost:5180 fully restored** (commits `1644f541` + `7fbd0f7b` + `a8d7722c`). **HEAD**: `a8d7722c` (main, in sync with origin/main). Working tree clean. **OBSTACK v3.15 milestone** ✅ SHIPPED 100% (23/23) on 2026-08-02. **OBSTACK Phase E series** (5 eaasp-client families + 1 security audit closure) SHIPPED across 2026-08-05 → 2026-08-08 (retro at `45ae50a5`).
+> **Updated**: 2026-08-09 — **v3.15.6 实战补完阶段 6a 进展** (commits `725fe82c` + `c7a5b50e` + `15e9edac` + 6a.4/6a.5 in flight). **HEAD**: 6a.5 commit landing 后 (待跑). Working tree clean. **OBSTACK v3.15 SHIPPED 100% 数字降为真实 20/23 (87%)** per v3.15.6a 文档诚实化 (D-50). **OBSTACK Phase E series** (5 eaasp-client families + 1 security audit closure) SHIPPED across 2026-08-05 → 2026-08-08 (retro at `45ae50a5`; pre-6a 历史). **Chat tab on grid-web localhost:5180 fully restored** (commits `1644f541` + `7fbd0f7b` + `a8d7722c` + 50 vitest PASS) — pre-6a 历史.
 
 ## Project Snapshot
 
@@ -10,7 +10,7 @@
 - Project route: managed (lightweight-memory + GSD state machine, both maintained)
 - Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
 - v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (538 lines; §0 Goal Status 100% closed + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引
-- Active work package: **none — milestone boundary** (v3.15 SHIPPED 100%; awaiting v3.16 scope selection)
+- Active work package: **v3.15.6 — OBSTACK 实战补完** (6 阶段 6a/6b/6c/6d/6e/6f,见 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`);v3.15 SHIPPED 100% 数字在 v3.15.6a 文档诚实化后降为 20/23 (87%);AGENTS.md + DEFERRED_LEDGER.md + OBSTACK_DESIGN.md §0.1 + OBSTACK_INDEX.md 同步刷新。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (不再扩展)。
 
 ## Project Snapshot
 

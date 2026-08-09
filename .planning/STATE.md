@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.14
-milestone_name: EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem
-status: shipped
-stopped_at: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; locked decisions D-38..D-46; 6 atomic commits: `12951d48` (03.14.0) + `88bff405` (round-1 fix) + `e2d9c116` (03.14.1) + `84433535` (round-2 fix) + `05074170` (consolidated ship) + `9c845e29` (EaaspEcosystemClient) + `ced94f33` (MARKETPLACE-03 CLI) + `de70d199` (Click ecosystem subcommand) + `31c804eb` (PRODUCTION_USABILITY_2026-07-30) + this commit; 75 eaasp-ecosystem tests + 17 SDK client tests + 6 SDK CLI tests = 98 targeted v3.14 tests PASS). V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30. EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED. tag `v3.14` force-push. Prior milestone v3.13 SHIPPED 2026-07-29 @ d0d83a23. V310-COWORK-01 ✅ CLOSED. Prior milestone v3.12 SHIPPED 2026-07-27 at commit 894639dd. V310-A2A-01 + V310-SESSION-01 + V311-AUDIT-01 ✅ CLOSED.
-last_updated: "2026-07-30T02:26:45.000Z"
-last_activity: 2026-07-30
+milestone: v3.15.6
+milestone_name: OBSTACK 实战补完 (6 阶段 v3.15.6a → 6f)
+status: started
+stopped_at: v3.15.6a 文档/状态一致性 (ABORTED 2026-08-09 21:30 before 6a.5 收口; 6a.1 + 6a.2 + 6a.3 已 commit `725fe82c` + `c7a5b50e` + `15e9edac`; 6a.4 + 6a.5 in flight). v3.15 SHIPPED 2026-08-02 §0.1 声称 23/23 = 100%; v3.15.6a 降为真实 20/23 (87%) per D-50. EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). v3.15.6 锁决策 D-47..D-54. 4 项 V315-* deferred items 登记 DEFERRED_LEDGER.md (V315-OPT-01 / V315-WALK-01 / V315-L0-PROTO-01 / V315-L1-OTEL-FULL-01). 6 阶段任务清单 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior milestone v3.14 SHIPPED 2026-07-30. V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23. V310-COWORK-01 ✅ CLOSED.
+last_updated: "2026-08-09T22:00:00.000Z"
+last_activity: 2026-08-09
 progress:
   total_phases: 4
   completed_phases: 4
@@ -283,7 +283,7 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ## Session Continuity
 
-Last session: 2026-07-28 (autonomous v3.14 bootstrap — this commit; PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md updated to reflect v3.14 active milestone with locked decisions D-38..D-46; DEFERRED_LEDGER.md marker added; no implementation work yet).
+Last session: 2026-08-09 (v3.15.6a 文档/状态一致性 阶段) — STATE.md + OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md + AGENTS.md + DEFERRED_LEDGER.md 5 项编辑已完成;6a.1 (诚实化 23/23 → 20/23) + 6a.2 (登记 V315-* 4 项) + 6a.3 (AGENTS.md 加 OBSTACK 段) + 6a.4 (本 task) + 6a.5 (dual-gate 验证) commit 入仓。User 拍板"OBSTACK 实战补完,不能留半拉子" → 6 阶段串行 (6a 文档/6b 测试/6c 死代码/6d dashboard/6e CLI/6f 收口); v3.15.6 锁决策 D-47..D-54; plan 文件 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` (756+ lines)。
 
 Stopped at: v3.14 SHIPPED 2026-07-30 — 4 phases complete (03.14.0 / 03.14.1 / 03.14.2 / 03.14.3); 23 v3.14 REQ-IDs / 5 categories closed; 98 targeted tests PASS (75 eaasp-ecosystem + 17 SDK client + 6 SDK CLI); V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30; EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED. v3.13 SHIPPED 2026-07-29 @ d0d83a23 — 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge + 03.13.1 four-card SSE fan-out + state transitions + persistence + 03.13.2 retrospective cycle trace API + 03.13.3 single-point live walkthrough + tag v3.13). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete.
 
