@@ -348,6 +348,7 @@
 - 21:45 `c7a5b50e` 6a.2 commit 入仓:DEFERRED_LEDGER.md 登记 4 项 V315-* deferred (V315-OPT-01 / V315-WALK-01 / V315-L0-PROTO-01 / V315-L1-OTEL-FULL-01),全部 owner 标记 v3.15.6 6b/6c/6e/6f;迟到 10 天的补登,PRODUCTION_USABILITY_2026-08-02.md 原列表已显式承诺。
 - 22:00 `15e9edac` 6a.3 commit 入仓:AGENTS.md 末尾追加 OBSTACK + dual-gate + 4 项 V315-* deferred items 段 (~35 行),根入口文档 0 提及 OBSTACK 修复; 跨引用 v3.15.6 plan 文件。
 - 22:30 `479f1483` 6a.4 commit 入仓:STATE.md frontmatter v3.14 → v3.15.6 active / started / last_updated 2026-08-09T22:00;session continuity 同步 6a 已 4 task;CURRENT-STATE.md "Active work package" 改 v3.15.6 + 引用新 plan + header 重写。
-- next: 6a.5 6a 收口 dual-gate + grep 自检 (make rbac-audit 134 routes + make v3.10-spec-audit 38 rows + grep 0 矛盾)。
-- 23:00 6a.5 6a 收口 dual-gate + grep 自检完成 (详见 6a.5 commit message)。
+- 23:00 `8e42f151` 6a.5 commit 入仓:5 任务 6a 阶段全部完成。dual-gate PASS (134 routes / 38 rows);grep 自检 0 矛盾 (OBSTACK_DESIGN 6 行 20/23 当前 + 1 行 23/23 v3.15.6c 目标;INDEX 3 行 4/5/5/6;DEFERRED_LEDGER 5 命中 V315-*;AGENTS.md 14 命中)。plan 文件 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` 760 行首次 commit 入仓。
+- **6a 阶段 收口**: 5 task (#153-#157) 全部 completed; 5 commits 落地 (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151`); HEAD = `8e42f151` (main); working tree clean (不含 `docs/superpowers/` 后续可能跟进)。
+- next: 6b 阶段 (测试补完) — `tests/business_flow/` 4 集成测试 + L0 proto 8 RPC 补挂 + L3 observability 补 3 record 函数。executor 报告 user 6a 收口后回到 plan refinement 阶段。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
