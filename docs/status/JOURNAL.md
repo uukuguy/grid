@@ -356,4 +356,6 @@
 - next: 6b.1b-d 写 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 复用现有 fixtures。
 - 23:45 `8932581c` 6b.1b commit 入仓:test_timeline_e2e.py 3 集成测试 (5/5 总测试 PASS / 0.07s);sync sqlite3 替代 aiosqlite 避 pytest-asyncio 1.3.0 cross-loop deadlock (120s → 0.07s);L3/L2 schema 真实: governance_decisions 无 payload_json + ts 时间戳 (非 created_at); memory_files content 列非 payload_json。
 - next: 6b.1c test_interrupted.py (use cross_layer_db_interrupted fixture) + 6b.1d sse_subscribe + 6b.1e evaluator。
+- 00:15 `883dd635` 6b.1c commit 入仓:test_interrupted.py 3 集成测试 (3/3 PASS / 0.05s);验证 L4 sessions 拓展列 last_event_layer TEXT + interrupted_at INTEGER 携带中断标记; timeline 不丢事件; last_event_layer 取最高层 (L3 即便 ts 更早); L3 governance_decisions.ts 是 TEXT ISO-8601 (生产 db.py:88 强制); helper _parse_ts 处理 INTEGER/TEXT 两种格式; 全部 conn 设 row_factory = sqlite3.Row。
+- next: 6b.1d test_sse_subscribe.py + 6b.1e test_evaluator_integration.py。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
