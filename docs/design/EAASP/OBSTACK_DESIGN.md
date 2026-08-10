@@ -29,7 +29,7 @@
 |---|---|---|---|
 | **Observe** | L1 Rust `observability/` minimal-viable mirror | ✅ shipped | `952735ce` (6/6 tests) |
 | **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
-| **Observe** | L3 governance observability.py (OTel metrics + tracer) | ⚠️ partial | `a18a22ba` (2/8 tests 真 emit; docstring 声称 4 indicator families 实为 1: `record_opa_decision` line 222;其余 `l3.governance.session.*` / `hook.*` / `opa.*` 缺) |
+| **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ✅ shipped | `a18a22ba` (OpA decision) + `6c79b255` (v3.15.6 6b.3: session + hook + opa_policy); 12/12 tests PASS |
 | **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
 | **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ⚠️ dead code | `e16686d4` (7/7 tests PASS in `mod.rs:386` test path; `init_observability()` 定义 `mod.rs:164`, **生产 `main.rs` 从未调用**; 启动 `METER_READY=false`; record_* 实际不 emit; v3.15.6c 6c.3 任务激活) |
 | **Trace** | L0 proto BusinessKey message + 13/21 RPC field 100 attachment | ⚠️ partial | `1351107c` + `85cd4951` (15 struct literal fixes); `runtime.proto` line 83/94/115/128/143/154/173/194/200/278 (10) + `hook.proto` line 47/180/188 (3) = 13; **8 RPC 缺 business_key 字段** (7 runtime + 1 hook); v3.15.6b 6b.2 任务补挂 |
