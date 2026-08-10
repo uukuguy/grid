@@ -679,6 +679,7 @@ async fn verify_resume_session(client: &mut RuntimeServiceClient<Channel>) -> Me
                 state_data: vec![],
                 state_format: "rust-serde-v2".into(),
                 created_at: chrono::Utc::now().to_rfc3339(),
+                business_key: None,
             })
             .await;
         match result {
@@ -702,6 +703,7 @@ async fn verify_restore_state(client: &mut RuntimeServiceClient<Channel>) -> Met
             runtime_id: "certifier".into(),
             created_at: chrono::Utc::now().to_rfc3339(),
             state_format: "rust-serde-v2".into(),
+            business_key: None,
         };
         let result = client.restore_state(state).await;
         match result {
