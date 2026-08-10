@@ -13,12 +13,6 @@ covers the cross-layer + multi-step + user-perspective integration
 paths that the OBSTACK demo script was hand-crafting via
 ``/v1/events/ingest``.
 
-The fixture pattern (3 ephemeral SQLite DBs + L4/L3/L2 schema + business_key
-seed) is borrowed from
-``tools/eaasp-l4-orchestration/tests/test_flow_api.py`` lines 178-280
-factored into a reusable asyncio helper so the 4 tests share the same
-seed-data shape and only diverge on the assertion surface.
-
 LOCATION: ``tests/e2e/business_flow/`` (NOT ``tests/business_flow/``)
 The .gitignore line ``/tests/*`` excludes the root-level ``tests/``
 directory from git tracking — only ``tests/contract/`` and ``tests/e2e/``
@@ -26,30 +20,38 @@ are explicitly whitelisted. The v3.15.6 6b.1 plan originally wrote
 ``tests/business_flow/`` (per OBSTACK_DESIGN §4.4), but the project's
 .gitignore comment makes it explicit: "Root-level temp tests only
 (crates/*/tests/ are real integration tests, must be committed)".
-The remaining 4 tests obey this rule by living under the existing
-``tests/e2e/`` whitelist.
 
 WHY NOT import ``eaasp_l4_orchestration`` directly?
 The 4 integration tests target the *user perspective* of OBSTACK: send
 events through the public REST/SSE surface, see them aggregate into a
 timeline, replay interrupted flows, watch live SSE. They do NOT need
-the L4 FastAPI app at runtime — pure SQLite + ``BusinessKey`` parsing
+the L4 FastAPI app at runtime — pure SQL + ``BusinessKey`` parsing
 is enough. Importing the L4 package would force these tests to depend
 on the L4 venv + ASGI transitive imports, which is precisely the
 "dependency baggage" the v3.15 demo script was avoiding. Tests here
 exercise the *data-layer* semantics; the L4 FastAPI binding is
 exercised by ``tools/eaasp-l4-orchestration/tests/test_flow_api.py``.
+
+WHY SYNC sqlite3 (NOT async aiosqlite)?
+``pytest-asyncio==1.3.0`` with ``asyncio_mode=strict`` runs each
+``@pytest.mark.asyncio`` test in its own event loop. A
+``pytest_asyncio.fixture`` runs in *its own* event loop too. When the
+test body opens a new ``aiosqlite.connect()`` it works in the test's
+loop, but the temp-file paths that the fixture hands out were
+written by the fixture's loop. Cross-loop handle passing can hang
+under 3.12. Switching to stdlib ``sqlite3`` removes the dependency
+on event-loop alignment entirely. SQL semantics are identical.
 """
 
 from __future__ import annotations
 
 import os
+import sqlite3
 import tempfile
-from collections.abc import AsyncIterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 
-import aiosqlite
-import pytest_asyncio
+import pytest
 
 from eaasp_common.business_flow import BusinessKey
 
@@ -76,14 +78,21 @@ CREATE TABLE event_room_events (
     business_key TEXT
 );
 """
+# NOTE: ``session_events`` does NOT carry business_key directly in
+# the v3.15 schema. The L4 reader joins it via ``sessions`` on
+# ``session_id`` (see
+# ``tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_readers.py``
+# read_l4_session_events at line 146-164). The schema here mirrors
+# that: the test timeline JOINs session_events to sessions and
+# filters by sessions.business_key.
 
 L3_SCHEMA = """
 CREATE TABLE governance_decisions (
     decision_id TEXT PRIMARY KEY, session_id TEXT NOT NULL,
     hook_id TEXT NOT NULL, tool_name TEXT NOT NULL,
     risk_level TEXT NOT NULL, decision TEXT NOT NULL,
-    approver TEXT, rationale TEXT, stage TEXT,
-    created_at INTEGER NOT NULL, business_key TEXT
+    approver TEXT, rationale TEXT NOT NULL, stage TEXT,
+    ts TEXT NOT NULL DEFAULT (datetime('now')), business_key TEXT
 );
 CREATE TABLE telemetry_events (
     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,12 +158,22 @@ class CrossLayerDB:
         return self.business_key.to_header()
 
 
-@pytest_asyncio.fixture
-async def cross_layer_db() -> AsyncIterator[CrossLayerDB]:
+def _build_db(schema: str, path: str) -> None:
+    """Build a SQLite DB at ``path`` with ``schema``. Sync sqlite3
+    is used (not aiosqlite) so the fixture is event-loop agnostic.
+    """
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(schema)
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def cross_layer_db() -> Iterator[CrossLayerDB]:
     """Build 3 ephemeral on-disk DBs (L4/L3/L2) seeded with the v3.15
-    business-flow schema. ``aiosqlite`` requires on-disk DBs because
-    follow-up transactions in the test body hold their own connections
-    (in-memory DBs are connection-local).
+    business-flow schema. The schema fields are typed nominally — there
+    are no rows yet.
 
     The seeded business flow matches the OBSTACK demo shape:
         session_id  = ``sess-business-flow``
@@ -178,18 +197,9 @@ async def cross_layer_db() -> AsyncIterator[CrossLayerDB]:
     for p in paths.values():
         os.chmod(p, 0o644)
 
-    l4 = await aiosqlite.connect(paths["l4"])
-    l3 = await aiosqlite.connect(paths["l3"])
-    l2 = await aiosqlite.connect(paths["l2"])
-    for conn, schema in ((l4, L4_SCHEMA), (l3, L3_SCHEMA), (l2, L2_SCHEMA)):
-        conn.row_factory = aiosqlite.Row
-        await conn.executescript(schema)
-    await l4.commit()
-    await l3.commit()
-    await l2.commit()
-    await l4.close()
-    await l3.close()
-    await l2.close()
+    _build_db(L4_SCHEMA, paths["l4"])
+    _build_db(L3_SCHEMA, paths["l3"])
+    _build_db(L2_SCHEMA, paths["l2"])
 
     yield CrossLayerDB(l4=paths["l4"], l3=paths["l3"], l2=paths["l2"], business_key=bk)
 
@@ -200,8 +210,8 @@ async def cross_layer_db() -> AsyncIterator[CrossLayerDB]:
             pass
 
 
-@pytest_asyncio.fixture
-async def cross_layer_db_interrupted() -> AsyncIterator[CrossLayerDB]:
+@pytest.fixture
+def cross_layer_db_interrupted() -> Iterator[CrossLayerDB]:
     """Same as ``cross_layer_db`` but the L4 schema carries the
     ``last_event_layer`` + ``interrupted_at`` columns used by the
     interrupted-flow integration test (#2). Other columns are identical
@@ -222,21 +232,9 @@ async def cross_layer_db_interrupted() -> AsyncIterator[CrossLayerDB]:
     for p in paths.values():
         os.chmod(p, 0o644)
 
-    l4 = await aiosqlite.connect(paths["l4"])
-    l3 = await aiosqlite.connect(paths["l3"])
-    l2 = await aiosqlite.connect(paths["l2"])
-    l4.row_factory = aiosqlite.Row
-    l3.row_factory = aiosqlite.Row
-    l2.row_factory = aiosqlite.Row
-    await l4.executescript(L4_INTERRUPTED_SCHEMA)
-    await l3.executescript(L3_SCHEMA)
-    await l2.executescript(L2_SCHEMA)
-    await l4.commit()
-    await l3.commit()
-    await l2.commit()
-    await l4.close()
-    await l3.close()
-    await l2.close()
+    _build_db(L4_INTERRUPTED_SCHEMA, paths["l4"])
+    _build_db(L3_SCHEMA, paths["l3"])
+    _build_db(L2_SCHEMA, paths["l2"])
 
     yield CrossLayerDB(l4=paths["l4"], l3=paths["l3"], l2=paths["l2"], business_key=bk)
 
@@ -247,8 +245,8 @@ async def cross_layer_db_interrupted() -> AsyncIterator[CrossLayerDB]:
             pass
 
 
-@pytest_asyncio.fixture
-async def cross_layer_db_aborted() -> AsyncIterator[CrossLayerDB]:
+@pytest.fixture
+def cross_layer_db_aborted() -> Iterator[CrossLayerDB]:
     """Same as ``cross_layer_db`` but only L4 sessions + L3 governance
     seeded. Used by the evaluator integration test (#4) which exercises
     the SLA-blocking path ("few memory writes, low completion rate")
@@ -269,21 +267,9 @@ async def cross_layer_db_aborted() -> AsyncIterator[CrossLayerDB]:
     for p in paths.values():
         os.chmod(p, 0o644)
 
-    l4 = await aiosqlite.connect(paths["l4"])
-    l3 = await aiosqlite.connect(paths["l3"])
-    l2 = await aiosqlite.connect(paths["l2"])
-    l4.row_factory = aiosqlite.Row
-    l3.row_factory = aiosqlite.Row
-    l2.row_factory = aiosqlite.Row
-    await l4.executescript(L4_ABORTED_SCHEMA)
-    await l3.executescript(L3_SCHEMA)
-    await l2.executescript(L2_SCHEMA)
-    await l4.commit()
-    await l3.commit()
-    await l2.commit()
-    await l4.close()
-    await l3.close()
-    await l2.close()
+    _build_db(L4_ABORTED_SCHEMA, paths["l4"])
+    _build_db(L3_SCHEMA, paths["l3"])
+    _build_db(L2_SCHEMA, paths["l2"])
 
     yield CrossLayerDB(l4=paths["l4"], l3=paths["l3"], l2=paths["l2"], business_key=bk)
 

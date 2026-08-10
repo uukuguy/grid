@@ -15,19 +15,16 @@ stub in subsequent commits.
 
 from __future__ import annotations
 
-import pytest
+import os
 
 
-@pytest.mark.asyncio
-async def test_cross_layer_db_yields_three_temp_dbs_with_business_key(cross_layer_db):
+def test_cross_layer_db_yields_three_temp_dbs_with_business_key(cross_layer_db):
     """The ``cross_layer_db`` fixture must yield 3 on-disk SQLite DBs
     whose file paths all exist, plus a ``BusinessKey`` whose wire-format
     round-trip preserves the 3 fields. Schema correctness is asserted
     by the 4 substantive tests; here we only validate the fixture's
     public contract.
     """
-    import os
-
     assert os.path.exists(cross_layer_db.l4)
     assert os.path.exists(cross_layer_db.l3)
     assert os.path.exists(cross_layer_db.l2)
@@ -43,17 +40,14 @@ async def test_cross_layer_db_yields_three_temp_dbs_with_business_key(cross_laye
     assert wire == parsed.to_header()
 
 
-@pytest.mark.asyncio
-async def test_cross_layer_db_isolation(cross_layer_db):
+def test_cross_layer_db_isolation(cross_layer_db):
     """Two invocations of the fixture must yield distinct DB paths so
     the tests don't share state. (The temp-dir cleanup is best-effort;
     the test asserts IDENTITY, not lifecycle.)
     """
-    import os
+    import tempfile
 
     saved = (cross_layer_db.l4, cross_layer_db.l3, cross_layer_db.l2)
-
-    import tempfile
 
     paths = {
         layer: tempfile.NamedTemporaryFile(

@@ -349,6 +349,9 @@
 - 22:00 `15e9edac` 6a.3 commit 入仓:AGENTS.md 末尾追加 OBSTACK + dual-gate + 4 项 V315-* deferred items 段 (~35 行),根入口文档 0 提及 OBSTACK 修复; 跨引用 v3.15.6 plan 文件。
 - 22:30 `479f1483` 6a.4 commit 入仓:STATE.md frontmatter v3.14 → v3.15.6 active / started / last_updated 2026-08-09T22:00;session continuity 同步 6a 已 4 task;CURRENT-STATE.md "Active work package" 改 v3.15.6 + 引用新 plan + header 重写。
 - 23:00 `8e42f151` 6a.5 commit 入仓:5 任务 6a 阶段全部完成。dual-gate PASS (134 routes / 38 rows);grep 自检 0 矛盾 (OBSTACK_DESIGN 6 行 20/23 当前 + 1 行 23/23 v3.15.6c 目标;INDEX 3 行 4/5/5/6;DEFERRED_LEDGER 5 命中 V315-*;AGENTS.md 14 命中)。plan 文件 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` 760 行首次 commit 入仓。
-- **6a 阶段 收口**: 5 task (#153-#157) 全部 completed; 5 commits 落地 (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151`); HEAD = `8e42f151` (main); working tree clean (不含 `docs/superpowers/` 后续可能跟进)。
+- 23:05 `960c7f10` 6a.5 trail commit 入仓:JOURNAL.md 3 行同步 6a.5 commit 描述(本 commit 闭合 6a 全部状态);JOURNAL 引用未 commit 状态的不一致修复。
+- **6a 阶段 收口**: 5 task (#153-#157) 全部 completed; 6 commits 落地 (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151` + `960c7f10`); HEAD = `960c7f10` (main); working tree clean。
 - next: 6b 阶段 (测试补完) — `tests/business_flow/` 4 集成测试 + L0 proto 8 RPC 补挂 + L3 observability 补 3 record 函数。executor 报告 user 6a 收口后回到 plan refinement 阶段。
+- 23:30 `(6b.1a)` 6b.1a commit 入仓:tests/e2e/business_flow/ 创建 + conftest.py 3 fixtures + test_smoke.py 2/2 PASS;路径调整 per 项目 .gitignore line 63 (排除 root-level tests/, 仅 tests/contract/ + tests/e2e/ whitelisted);OBSTACK_DESIGN §4.4 路径声明 vs 项目 .gitignore 政策冲突解决。
+- next: 6b.1b-d 写 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 复用现有 fixtures。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
