@@ -205,11 +205,13 @@ message TelemetryAck {
 
 message PolicySummaryRequest {
   string session_id = 1;
+  BusinessKey business_key = 100;
 }
 
 message PolicySummary {
   uint32 total_policies = 1;
   repeated PolicyInfo policies = 2;
+  BusinessKey business_key = 100;
 }
 
 message PolicyInfo {

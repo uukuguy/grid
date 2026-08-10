@@ -165,6 +165,7 @@ message StateResponse {
   string runtime_id = 3;
   string state_format = 4;              // "rust-serde-v2" | "python-json-v2" | ...
   string created_at = 5;                // ISO 8601
+  BusinessKey business_key = 100;
 }
 
 message ConnectMCPRequest {
@@ -210,6 +211,7 @@ message HealthResponse {
   bool healthy = 1;
   string runtime_id = 2;
   map<string, string> checks = 3;
+  BusinessKey business_key = 100;
 }
 
 // ── Capabilities ────────────────────────────────────────────
@@ -236,6 +238,7 @@ message Capabilities {
     PROXY = 1;                          // runtime calls through a platform proxy
     BRIDGE_INJECTED = 2;                // credentials injected per-session via hook bridge
   }
+  BusinessKey business_key = 100;
 }
 
 // ── 14 Lifecycle Hook Event Types ───────────────────────────
