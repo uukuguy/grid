@@ -354,4 +354,6 @@
 - next: 6b 阶段 (测试补完) — `tests/business_flow/` 4 集成测试 + L0 proto 8 RPC 补挂 + L3 observability 补 3 record 函数。executor 报告 user 6a 收口后回到 plan refinement 阶段。
 - 23:30 `(6b.1a)` 6b.1a commit 入仓:tests/e2e/business_flow/ 创建 + conftest.py 3 fixtures + test_smoke.py 2/2 PASS;路径调整 per 项目 .gitignore line 63 (排除 root-level tests/, 仅 tests/contract/ + tests/e2e/ whitelisted);OBSTACK_DESIGN §4.4 路径声明 vs 项目 .gitignore 政策冲突解决。
 - next: 6b.1b-d 写 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 复用现有 fixtures。
+- 23:45 `8932581c` 6b.1b commit 入仓:test_timeline_e2e.py 3 集成测试 (5/5 总测试 PASS / 0.07s);sync sqlite3 替代 aiosqlite 避 pytest-asyncio 1.3.0 cross-loop deadlock (120s → 0.07s);L3/L2 schema 真实: governance_decisions 无 payload_json + ts 时间戳 (非 created_at); memory_files content 列非 payload_json。
+- next: 6b.1c test_interrupted.py (use cross_layer_db_interrupted fixture) + 6b.1d sse_subscribe + 6b.1e evaluator。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87

@@ -118,8 +118,20 @@ CREATE TABLE sessions (
     session_id TEXT PRIMARY KEY, intent_id TEXT, skill_id TEXT,
     runtime_id TEXT, user_id TEXT, status TEXT NOT NULL,
     payload_json TEXT NOT NULL, created_at INTEGER NOT NULL,
-    closed_at INTEGER, business_key TEXT, last_event_layer TEXT,
-    interrupted_at INTEGER
+    closed_at INTEGER, business_key TEXT,
+    last_event_layer TEXT, interrupted_at INTEGER
+);
+CREATE TABLE session_events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL, payload_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL, event_id TEXT, source TEXT,
+    metadata_json TEXT DEFAULT '{}', cluster_id TEXT
+);
+CREATE TABLE event_room_events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL,
+    session_id TEXT NOT NULL, event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+    business_key TEXT
 );
 """
 
