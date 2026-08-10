@@ -217,6 +217,80 @@ def get_tracer() -> Any:
 
 _LABELS_DECISION = ("decision", "risk_level", "mode")
 _LABELS_DURATION = ("decision", "mode")
+_LABELS_SESSION = ("operation", "status")
+_LABELS_HOOK = ("hook_type", "status")
+_LABELS_POLICY = ("operation", "result")
+
+
+def record_session(
+    *,
+    operation: str,
+    status: str,
+    duration_seconds: float | None = None,
+) -> None:
+    """Record one L3 governance session operation (v3.13.2 RETROSPECTIVE
+    or v3.15.6 OBSTACK business-flow trace).
+
+    Called from audit.py / approval_state_machine.py after a
+    decision ledger row is written. ``operation`` is a short
+    verb like ``"append"`` / ``"read"`` / ``"migrate"``;
+    ``status`` is ``"ok"`` / ``"error"`` / ``"deny"``.
+    """
+    attrs = dict(zip(_LABELS_SESSION, (operation, status), strict=True))
+    get_meter().create_counter(
+        "l3.session.total",
+        description="Number of L3 governance session operations, by operation/status",
+    ).add(1, attributes=attrs)
+    if duration_seconds is not None:
+        get_meter().create_histogram(
+            "l3.session.duration",
+            unit="s",
+            description="L3 governance session operation wall-clock duration",
+        ).record(duration_seconds, attributes=attrs)
+
+
+def record_hook(
+    *,
+    hook_type: str,
+    status: str,
+    duration_seconds: float | None = None,
+) -> None:
+    """Record one L3 hook dispatch (PreToolUse / PostToolUse / etc.).
+
+    Called from the hook evaluation path. ``hook_type`` is the
+    event subtype (``"pre_tool_use"`` / ``"post_tool_use"`` /
+    ``"session_end"`` / ``"stop"`` / ``"policy_deploy"``);
+    ``status`` is ``"allow"`` / ``"deny"`` / ``"gate"`` / ``"error"``.
+    """
+    attrs = dict(zip(_LABELS_HOOK, (hook_type, status), strict=True))
+    get_meter().create_counter(
+        "l3.hook.total",
+        description="Number of L3 hook dispatches, by hook_type/status",
+    ).add(1, attributes=attrs)
+    if duration_seconds is not None:
+        get_meter().create_histogram(
+            "l3.hook.duration",
+            unit="s",
+            description="L3 hook dispatch wall-clock duration",
+        ).record(duration_seconds, attributes=attrs)
+
+
+def record_opa_policy(
+    *,
+    operation: str,
+    result: str,
+) -> None:
+    """Record one OPA policy lifecycle operation (deploy / revoke / load).
+
+    Called from policy_loader.py / managed_settings.py. ``operation``
+    is ``"deploy"`` / ``"revoke"`` / ``"load"`` / ``"validate"``;
+    ``result`` is ``"ok"`` / ``"error"``.
+    """
+    attrs = dict(zip(_LABELS_POLICY, (operation, result), strict=True))
+    get_meter().create_counter(
+        "l3.opa.policy.total",
+        description="Number of OPA policy lifecycle operations, by operation/result",
+    ).add(1, attributes=attrs)
 
 
 def record_opa_decision(

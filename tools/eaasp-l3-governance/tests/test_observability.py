@@ -136,3 +136,54 @@ def test_init_without_otel_graceful() -> None:
     # Re-initialize for downstream tests.
     init_observability(exporter="none")
     assert is_initialized() is True
+
+
+# ── 6b.3 V315-L1-OTEL-FULL-01: 3 new record_* helpers ────────────────────
+
+
+def test_record_session_noop_does_not_raise() -> None:
+    """V315-L1-OTEL-FULL-01 (v3.15.6 6b.3): record_session must
+    be safe in no-op mode (default) — exercised by the L3 module's
+    ``audit.py`` and ``approval_state_machine.py`` callers.
+    """
+    # No-op is the default after init_observability("none").
+    observability.record_session(
+        operation="append", status="ok", duration_seconds=0.42
+    )
+    observability.record_session(operation="read", status="error")
+    # If we reach here without raising, the no-op path is correct.
+
+
+def test_record_hook_noop_does_not_raise() -> None:
+    """V315-L1-OTEL-FULL-01: record_hook covers the hook dispatch
+    path (PreToolUse / PostToolUse / etc.). No-op safe.
+    """
+    observability.record_hook(
+        hook_type="pre_tool_use", status="allow", duration_seconds=0.03
+    )
+    observability.record_hook(hook_type="session_end", status="error")
+
+
+def test_record_opa_policy_noop_does_not_raise() -> None:
+    """V315-L1-OTEL-FULL-01: record_opa_policy covers the policy
+    lifecycle path (deploy / revoke / load). No-op safe.
+    """
+    observability.record_opa_policy(operation="deploy", result="ok")
+    observability.record_opa_policy(operation="revoke", result="error")
+
+
+def test_record_helpers_use_noop_meter_when_uninitialized() -> None:
+    """When init_observability has not been called (or was reset),
+    the 3 record_* helpers must not raise — they must fan out
+    through the no-op meter, which silently swallows ``add()`` /
+    ``record()`` calls.
+    """
+    observability._initialized = False
+    observability._meter = observability._NOOP_METER
+    observability._tracer = observability._NOOP_TRACER
+    # Each call should be a no-op that returns successfully.
+    observability.record_session(operation="seed", status="ok")
+    observability.record_hook(hook_type="bootstrap", status="allow")
+    observability.record_opa_policy(operation="validate", result="ok")
+    # Restore shared state for downstream tests.
+    init_observability(exporter="none")
