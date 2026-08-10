@@ -358,4 +358,6 @@
 - next: 6b.1c test_interrupted.py (use cross_layer_db_interrupted fixture) + 6b.1d sse_subscribe + 6b.1e evaluator。
 - 00:15 `883dd635` 6b.1c commit 入仓:test_interrupted.py 3 集成测试 (3/3 PASS / 0.05s);验证 L4 sessions 拓展列 last_event_layer TEXT + interrupted_at INTEGER 携带中断标记; timeline 不丢事件; last_event_layer 取最高层 (L3 即便 ts 更早); L3 governance_decisions.ts 是 TEXT ISO-8601 (生产 db.py:88 强制); helper _parse_ts 处理 INTEGER/TEXT 两种格式; 全部 conn 设 row_factory = sqlite3.Row。
 - next: 6b.1d test_sse_subscribe.py + 6b.1e test_evaluator_integration.py。
+- 00:45 `106ac864` 6b.1d + 6b.1e commit 入仓:test_sse_subscribe.py 4 tests + test_evaluator_integration.py 4 tests;总 16/16 tests PASS in 0.14s (smoke 2 + timeline_e2e 3 + interrupted 3 + sse_subscribe 4 + evaluator_integration 4); OBSTACK_DESIGN §4.4 4 集成测试缺漏全部补完。
+- next: 6b.2 L0 proto 8 RPC 补挂 business_key 字段 + 4 单元测试。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87

@@ -218,6 +218,7 @@ impl RuntimeService for ClawCodeRuntimeService {
             runtime_id: "eaasp-claw-code-runtime".to_string(),
             state_format: "claw-code-stub-v1".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         }))
     }
 
@@ -260,6 +261,7 @@ impl RuntimeService for ClawCodeRuntimeService {
             limitations: vec!["stub-send".to_string(), "stub-hooks".to_string()],
             tier: "aligned".to_string(),
             deployment_mode: self.deployment_mode.clone(),
+            business_key: None,
         }))
     }
 
@@ -290,6 +292,7 @@ impl RuntimeService for ClawCodeRuntimeService {
             healthy: true,
             runtime_id: "eaasp-claw-code-runtime".to_string(),
             checks: std::collections::HashMap::new(),
+            business_key: None,
         }))
     }
 
@@ -311,6 +314,7 @@ impl RuntimeService for ClawCodeRuntimeService {
             runtime_id: "eaasp-claw-code-runtime".to_string(),
             state_format: "claw-code-stub-v1".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         }))
     }
 

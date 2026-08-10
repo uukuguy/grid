@@ -222,6 +222,7 @@ impl<B: HookBridge + 'static> HookBridgeService for HookBridgeGrpcServer<B> {
         Ok(Response::new(proto::PolicySummary {
             total_policies: count as u32,
             policies: vec![],
+            business_key: None,
         }))
     }
 }

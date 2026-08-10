@@ -243,6 +243,7 @@ impl RuntimeService for GooseRuntimeService {
             runtime_id: "eaasp-goose-runtime".to_string(),
             state_format: "goose-stub-v1".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         }))
     }
 
@@ -321,6 +322,7 @@ impl RuntimeService for GooseRuntimeService {
             healthy: true,
             runtime_id: "eaasp-goose-runtime".to_string(),
             checks: std::collections::HashMap::new(),
+            business_key: None,
         }))
     }
 
@@ -345,6 +347,7 @@ impl RuntimeService for GooseRuntimeService {
             runtime_id: "eaasp-goose-runtime".to_string(),
             state_format: "goose-stub-v1".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         }))
     }
 

@@ -194,6 +194,7 @@ fn session_state_to_proto(s: contract::SessionState) -> proto::StateResponse {
         runtime_id: s.runtime_id,
         state_format: s.state_format,
         created_at: s.created_at.to_rfc3339(),
+        business_key: None,
     }
 }
 
@@ -223,6 +224,7 @@ fn capability_to_proto(c: contract::CapabilityManifest) -> proto::Capabilities {
             contract::DeploymentMode::Shared => "shared".into(),
             contract::DeploymentMode::PerSession => "per_session".into(),
         },
+        business_key: None,
     }
 }
 
@@ -231,6 +233,7 @@ fn health_to_proto(h: contract::HealthStatus) -> proto::HealthResponse {
         healthy: h.healthy,
         runtime_id: h.runtime_id,
         checks: h.checks,
+        business_key: None,
     }
 }
 

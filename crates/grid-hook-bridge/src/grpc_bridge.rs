@@ -109,6 +109,7 @@ impl HookBridge for GrpcHookBridge {
             .clone()
             .get_policy_summary(proto::PolicySummaryRequest {
                 session_id: String::new(),
+                business_key: None,
             })
             .await
         {

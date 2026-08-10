@@ -317,6 +317,7 @@ async fn test_resume_session_degrades_gracefully() {
             state_data: vec![],
             state_format: "rust-serde-v2".into(),
             created_at: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         })
         .await;
 
