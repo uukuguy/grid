@@ -360,4 +360,28 @@
 - next: 6b.1d test_sse_subscribe.py + 6b.1e test_evaluator_integration.py。
 - 00:45 `106ac864` 6b.1d + 6b.1e commit 入仓:test_sse_subscribe.py 4 tests + test_evaluator_integration.py 4 tests;总 16/16 tests PASS in 0.14s (smoke 2 + timeline_e2e 3 + interrupted 3 + sse_subscribe 4 + evaluator_integration 4); OBSTACK_DESIGN §4.4 4 集成测试缺漏全部补完。
 - next: 6b.2 L0 proto 8 RPC 补挂 business_key 字段 + 4 单元测试。
+
+## 2026-08-10 → 2026-08-11 (v3.15.6 6b 收尾 + 6c 死代码激活 — 补记)
+
+> 以下 6b.2 ~ 6c.7 当时未逐条入 JOURNAL,2026-08-11 恢复 session 时按 git log 补记。
+
+- `29378db4` 6b.2a:L0 proto 5 个 message 加 `business_key = 100` 字段。实际只需 5 unique message 即覆盖 8 处 RPC attachment(`StateResponse` / `Capabilities` / `PolicySummaryRequest` 被多 RPC 共享),RPC attachment 13/21 → **21/21**。
+- `78faa8a5` 6b.2b:9 个 caller 跨 5 crate 同步加 `business_key: None` 占位(grid-runtime / grid-hook-bridge / eaasp-claw-code / eaasp-goose / eaasp-certifier);workspace check 0 errors。
+- `0336d6d1` 6b.2c:4 单元测试钉住 BusinessKey attachment,防回退。
+- `6c79b255` 6b.3:L3 `observability.py` 补 `record_session` / `record_hook` / `record_opa_policy` 3 个 helper——原 docstring 声称 4 个 indicator family,实际只实现 1 个(`record_opa_decision`);12/12 tests PASS。
+- `31267e28` 6b.4:6b 收口,L3 observability row ⚠️→✅。6b 阶段合计 **32 tests PASS**(16 Python + 4 Rust + 12 L3)。
+- `da38e862` 6c.1:激活死代码。`init_observability()` 自 v3.15.5 起定义在 `observability/mod.rs:164` 但 `main.rs` **从未调用**,生产 startup `METER_READY=false`;且 docstring 声称 StdoutExporter 而代码实为 InMemoryExporter。本 commit 真接 `opentelemetry-stdout` 0.5 并在 main.rs 调用(exporter 用 closure 抽象绕开 `Box<dyn PushMetricsExporter>` trait bound)。
+- `ce027817` 6c.2 + 6c.3:`harness.rs` 真实 emit pre/post/flow_outcome 事件——此前 demo 脚本里 5 个事件是手工 ingest 模拟的,不是 agent loop 产出。**6 条 L1 metric series active**。
+- `40b661f8` 6c.4-6c.6:demo 加 9b + 9c L1 OTel evidence 段 + dual-gate 复核。
+- `efba6e83` 6c.7:`OBSTACK_DESIGN.md` §0.1 4 处 ⚠️→✅,闭环率由 6a 诚实化后的 20/23 回升 **23/23(真闭环)**。
+- `39e30908` close-out:`docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md` 复盘 3 阶段 19 commits + 6 个踩坑教训。
+
+## 2026-08-11 (v3.15.6 恢复 session — push + 状态刷新)
+
+- 18:45 恢复 session。发现 `.planning/` handoff 三件套全部 stale:`HANDOFF.json` + `.continue-here.md` 停在 v3.14,`STATE.md` 停在 "6a ABORTED 2026-08-09" — 而 git 实际已推进到 6c.7 + close-out。**教训**:GSD 状态文件不会因 commit 自动前进,阶段收口必须显式刷新,否则下个 session 被 stale baton 误导。
+- 18:50 `bb6ad340..39e30908` 20 commits push 到 origin/main。
+- 18:55 CI 复核(per "Check CI After Push" 铁律):`Phase 3 Contract Matrix` 与 `CI` 两条 workflow FAIL。逐条判因——前者 `make v2-phase2_5-ci-setup` 目标在 Makefile 中 grep **0 命中**(历史 8 次运行全部同因),后者 `glib-sys v0.18.1` 系统库缺失(grid-desktop/Tauri)。**均为既有缺口,与本次 20 commits 无因果**;已登记 STATE.md Blockers 与 HANDOFF.json,避免下次重复排查。
+- 19:00 `cdb38379` 状态刷新入仓:`STATE.md`(frontmatter 3/6 阶段 + Current Position 六阶段逐条 + Blockers + Session Continuity)+ `HANDOFF.json` + `.continue-here.md` + `CURRENT-STATE.md`;顺手删掉 `CURRENT-STATE.md` 里 6a.4 prepend 时遗留的重复 "Project Snapshot" 段。
+- **当前状态**:v3.15.6 **3/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅;6d + 6e 显式 deferred → v3.16(D-53 / D-54);**6f 待执行**(真实 verify + tag v3.15.6),硬前置 = 修 `.env` `DEEPSEEK_MODEL_NAME`(现值 `deepseek-v4-flash-0731` 上游 400 reject)。
+- next: 6f 收口 — 修 .env → 写 `scripts/v3156-obstack-verify.sh` 走真实 agent loop → dual-gate + 真实 event timeline → `PRODUCTION_USABILITY` 证据文档 → `git tag v3.15.6`。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
