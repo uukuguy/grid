@@ -1,17 +1,17 @@
 # Current State
 
-> **Updated**: 2026-08-12 — **v3.15.6 4/6 阶段完成;6g 在 tag 前拦下 6c 的假闭环**。**HEAD**: `75859214`+(state commit),working tree clean。6g 查出并修复 2 个问题:(1) 6c.2/6c.3 把 OBSTACK emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1(`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,**实测真实 tool-call turn 产出 `"scopeMetrics":[]`**;(2) 更底层 `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死(仅 1 个空批次)。修复后真实 deepseek turn 实测 **4/6 series 出数,批次 1 → 40+**。**OBSTACK §0.1 由 6c.7 的 23/23 诚实降为 21/23 (91%)**;`tool.total` + `requests.*` 仍缺端到端实证,demo 脚本 5 个手工 ingest 未改 → **未 tag v3.15.6**。全部改动限于 `grid-runtime`,未动 `grid-engine`,**ADR-V2-023 P1 保持,无需新 ADR**。6d + 6e 仍 deferred → v3.16(D-53/D-54)。证据:`docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
+> **Updated**: 2026-08-12 — **v3.15.6 OBSTACK 实战补完 ✅ SHIPPED,tag `v3.15.6` 已打**。5/6 阶段(6a/6b/6c/6g/6h);**6d + 6e 显式 deferred → v3.16**(D-53/D-54),不在 tag 声称范围。tag 前的验证推翻了 6c 的闭环声称并连锁查出 4 个问题:(1) 6c.2/6c.3 emit 挂在 Tier 1 永不经过的 hook RPC → 死代码(实测 `"scopeMetrics":[]`);(2) `drop(provider)` 令导出管道启动即 shutdown;(3) `requests.*` 三个 helper **自落地起从未被调用**,且 `TimeBlock` 双减 in_flight;(4) demo 脚本 4 个独立缺陷,叠加后**能在什么都没证明的情况下 exit 0**。外加一个 metric-cardinality DoS(`op` label 直取路径尾段)。全部修复,**6/6 L1 series 真跑验证 + 关键检查配负控**(喂 6g 前的日志形态会 exit 1 并列出缺失 series)。§0.1 = **23/23**。100/100 tests;dual-gate PASS(134 routes / 38 rows);改动限于 `grid-runtime`,ADR-V2-023 P1 保持。证据:`docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
 
 ## Project Snapshot
 
 - Project: Grid — agent runtime stack (engine-axis: `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge`) + Grid independent product (`grid-server` / `grid-platform` / `grid-cli` / `grid-eval` / `web/` / `web-platform/` / `grid-desktop`) + co-located EAASP v2.0 simulator reference (`tools/eaasp-*/`, no upstream EAASP project).
 - Current branch: `main`
-- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED;OBSTACK 21/23 (91%)** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability + v3.15.6 OBSTACK 实战补完). v3.16+ moves to the data/integration axis per ADR-V2-024.
+- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED;OBSTACK 23/23(真跑验证 + 负控)** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability + v3.15.6 OBSTACK 实战补完). v3.16+ moves to the data/integration axis per ADR-V2-024.
 - Project route: managed (lightweight-memory + GSD state machine, both maintained)
 - Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
-- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (§0 Goal Status **21/23** + §4.4 Component Inventory) + `OBSTACK_INDEX.md` + `OBSTACK_HANDBOOK.md`
-- Active work package: **v3.15.6 — 4/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅(经 6g 修正)/ **6g ✅**;6d + 6e ⏸ deferred → v3.16;**6f ⏳ 待执行,前置条件已扩大**(补 `tool.total` 实证 + 收敛 §0.1 剩余 2 项 + 改造 demo 脚本,之后才 tag)。
-- Known blockers: (1) `tool.total` / `requests.*` 缺端到端实证;(2) demo 脚本仍半真(手工 ingest + 30s 超时偏短 + 9b/9c 证据检查失效);(3) `.env` 影子变量陷阱(shell 旧 key 盖住 `.env`,dotenvy 不覆盖);(4) L4 `/message` 挂起(独立问题);(5) CI 两条 workflow 长期 FAIL(既有缺口)。
+- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (§0 Goal Status **23/23**) + `OBSTACK_INDEX.md` + `OBSTACK_HANDBOOK.md`
+- Active work package: **none — milestone boundary**。v3.15.6 SHIPPED + tagged;下一步是 v3.16 scope 决策(data/integration 轴)。
+- Known follow-ups: (1) **L2/L3/L4 的 `record_*` 未逐层实测** —— demo 报 L4 侧 `l4.*` 日志 0 条,L1 侧 6/6 已验证,按"定义 ≠ 调用"的教训 v3.16 应各查一遍;(2) 6d + 6e 顺延;(3) CI 两条 workflow 长期 FAIL(既有缺口);(4) `.env` 影子变量陷阱(shell 旧 key 盖住 `.env`)。
 
 ## Current Architecture
 

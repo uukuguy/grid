@@ -385,6 +385,21 @@
 - **当前状态**:v3.15.6 **3/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅;6d + 6e 显式 deferred → v3.16(D-53 / D-54);**6f 待执行**(真实 verify + tag v3.15.6),硬前置 = 修 `.env` `DEEPSEEK_MODEL_NAME`(现值 `deepseek-v4-flash-0731` 上游 400 reject)。
 - next: 6f 收口 — 修 .env → 写 `scripts/v3156-obstack-verify.sh` 走真实 agent loop → dual-gate + 真实 event timeline → `PRODUCTION_USABILITY` 证据文档 → `git tag v3.15.6`。
 
+## 2026-08-12 (v3.15.6 6h — 补齐 requests.* + demo 改造 + tag)
+
+- 03:00 接 6g 的两项 tag 前置继续。**先补 `tool.total` 端到端实证**:6g 用算术提问没触发 tool call。查 `GetCapabilities` 得知 runtime 暴露 44 个工具,改用能触发 tool 的 prompt。
+- 03:10 实测 `tool.total{tool=task_list, status=pre}` + `{status=post}` 各 =1 —— **第 5 条 series 闭环**。另一次 `file_write` 只出 `pre` 无 `post`(turn 中途 error),这是**正确行为**不是 bug:工具启动了但没完成。
+- 03:20 **发现 `requests.*` 从未被调用过** —— `record_request` / `record_request_duration` / `time_block` 三个 helper 自 OTel 模块落地起零生产调用点。这是 6 条 series 里最后一条没有证据的。
+- 03:35 `b1d3585e` 以 tower layer 接在 tonic 的 HTTP 层,19 个 RPC 一处统一计数(不逐个包 handler —— 那要在每个新方法、每条 early-return 上重复审计)。**顺带修掉潜伏 bug**:`TimeBlock::record_request` 按值收 `self` 又显式 `in_flight_dec`,函数结束 `self` 析构触发 `Drop` **再减一次** → 首次真用就会让 gauge 变负;因无人调用而从未暴露。
+- 03:50 **安全审查发现 metric-cardinality DoS**:`op` label 直取路径尾段,任何能连到 gRPC 端口的对端都能用 `/x/aaa`、`/x/aab`… 无限造 series,免认证内存耗尽。更讽刺的是模块文档**当时已写着**"unrecognised paths 记为 unknown",而代码只在空串时才这么做 —— 本 milestone 一路批判的"文档说一套代码做一套",这次出现在我自己的 commit 里。`9022b3e9` 改为对照 proto 21 个 RPC 做 allowlist,返回 `&'static str`,label 集上界 22。实测发 5 条恶意路径(含目录穿越、500 字符段),label 集保持 `{Initialize, Send}` 不变。
+- 04:10 **demo 脚本逐项排查,发现 4 个独立缺陷**,叠加后使它成为"永远成功"的仪式:(1) per-run registry 空 → L4 handshake `not_found`,但 session-create 仍返 200,失败不可见;(2) LLM 步 30s 超时短于一次 reasoning turn,且失败不致命;(3) 5 个事件手工 ingest 伪造 timeline —— **恰恰在第 3 步已死时仍显得健康**;(4) Observe 检查 grep 已不存在的日志文本且从不失败,在管道彻底死掉的运行里报 0,demo 依然 exit 0。
+- 04:40 `09c82d35` 全部修复:skill 自动 seed(失败即 abort)、`LLM_TIMEOUT` 默认 300s 且失败致命、**删除手工 ingest**、Observe 改为解析 OTel JSON 并在 series 缺失时 exit 1。
+- 04:55 **双向验证**。正向真跑 exit 0:560 chunk / 真实 `memory_search` tool call / 16-event timeline(含 PRE_TOOL_USE + POST_TOOL_USE + STOP,无合成事件)/ 4/4 required series / `in_flight` 归 0。负向喂 6g 之前的日志形态(单个空批次):**exit 1 并准确列出 4 条缺失 series** —— 证明这套检查能抓住当初那个 bug。
+- 05:00 自己也踩了两个坑并修掉:`| head` 在响应变大后触发 SIGPIPE(pipefail 下 exit 141);折叠指标用 `max()` 对 gauge 是错的(报峰值),让已归零的 `in_flight` 被误报为泄漏,改为取末次值。
+- 05:10 `41b577fc` §0.1 回到 **23/23**,但这次每项都有真跑证据、关键项有负控。`V315-WALK-01` ✅ CLOSED。100/100 tests;dual-gate PASS(134 routes / 38 rows)。
+- **教训(三次踩同一个坑换来的)**:`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;单测通过 ≠ 线上会动;**exit 0 ≠ 证明了任何事**。一个只会 PASS 的检查等于没有检查 —— 所以这次给关键检查配了负控。
+- **tag `v3.15.6`** —— 两项前置均已满足,evidence 双向可复现。范围诚实标注:6a/6b/6c/6g/6h 完成,**6d(web-platform Dashboard)+ 6e(CLI 全局接入)显式 deferred → v3.16**(D-53/D-54),不在本 tag 声称范围内。
+
 ## 2026-08-11 晚 (v3.15.6 6g — tag 前验证推翻 6c,修复后实测)
 
 - 21:45 准备 6f。tag 等于给 §0.1 "23/23 真闭环" 背书,故先验 6c 的 4 处 ⚠️→✅ 是否站得住。**结论:2 项不成立。**

@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v3.15.6
 milestone_name: OBSTACK 实战补完 (6 阶段 v3.15.6a → 6f)
-status: started
-stopped_at: v3.15.6 **6g 完成** — tag 前验证推翻 6c 的两处 claim 并已修复。6a/6b/6c 三阶段 + 6g 修复阶段完成;**6d + 6e deferred → v3.16** (D-53/D-54);**6f (tag v3.15.6) 仍未做,且新增前置条件**。6g 发现:(1) 6c.2/6c.3 把 OBSTACK emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1 (`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,实测真实 tool-call turn 产出 `"scopeMetrics":[]`;(2) 更底层 `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死(仅 1 个空批次)。均已修复 (`0318aca9` + `d39db604`),真实 deepseek turn 实测 4/6 series 出数(批次 1 → 40+)。**§0.1 由 6c.7 的 23/23 诚实降为 21/23 (91%)**。顺带修好 `cargo check --workspace`(`eaasp-goose-runtime` 缺 `business_key`,自 6b.2b 起 main 编译不过)。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). v3.15.6 锁决策 D-47..D-54. plan `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`;6g 证据 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior v3.14 SHIPPED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23.
-last_updated: "2026-08-12T00:15:00.000Z"
+status: shipped
+stopped_at: v3.15.6 **SHIPPED + tagged `v3.15.6` (2026-08-12)**。5/6 阶段完成 (6a 文档诚实化 / 6b 测试补完 / 6c 死代码激活 / 6g tag 前验证+修复 / 6h 补齐 requests.* + demo 改造);**6d web-platform Dashboard + 6e CLI 全局接入 显式 deferred → v3.16** (D-53 / D-54),不在本 tag 声称范围。6g 查出 6c 的两处假闭环并修复:(1) 6c.2/6c.3 把 emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1 (`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,实测真实 tool-call turn 产出 `"scopeMetrics":[]`;(2) `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死。6h 补齐最后一条无证据的 series (`requests.*` 自落地起从未被调用),顺带修 `TimeBlock` 双减 in_flight + metric-cardinality DoS (op label allowlist);并改造 demo 脚本 —— 它此前有 4 个独立缺陷,叠加后能在什么都没证明的情况下 exit 0。**§0.1 = 23/23,6/6 L1 series 真跑验证,关键检查配负控(喂 6g 前的日志形态会 exit 1 并列出缺失 series)**。100/100 tests;dual-gate PASS (134 routes / 38 rows)。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). 锁决策 D-47..D-54. plan `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`;证据 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior v3.14 SHIPPED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23.
+last_updated: "2026-08-12T05:15:00.000Z"
 last_activity: 2026-08-12
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   deferred_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
   prior_milestones:
     v3.14_completed_phases: 4
     v3.14_completed_plans: 4
@@ -41,14 +41,15 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.15.6 OBSTACK 实战补完 — 3/6 阶段完成 (6a ✅ / 6b ✅ / 6c ✅;6d + 6e deferred → v3.16;6f 待执行)**
+Milestone: **v3.15.6 OBSTACK 实战补完 ✅ SHIPPED + tagged 2026-08-12 — 5/6 阶段 (6a ✅ / 6b ✅ / 6c ✅ / 6g ✅ / 6h ✅;6d + 6e deferred → v3.16 per D-53/D-54)**
 Scope: 6 阶段串行 (6a 文档/状态一致性 → 6b 测试补完 → 6c 死代码激活 → 6d web-platform Dashboard → 6e CLI 全局接入 → 6f 收口 + tag)。锁决策 D-47..D-54。**不开新 milestone / 不开新 EVOLUTION_PATH phase / 不开新仓 / 不开新服务端口** (D-47 + D-48)。
 - **6a 文档诚实化 ✅** (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151` + `960c7f10`) — OBSTACK_DESIGN §0.1/§0.2/§0.3 + INDEX §Goal 表 4 处 23/23 → **20/23 (87%)** per D-50 (不掩盖 counting 漏洞);4 项 `V315-*` deferred items 登记 DEFERRED_LEDGER per D-51;AGENTS.md 加 OBSTACK 段。
 - **6b 测试补完 ✅** (`265c15b5` → `31267e28`, 9 commits) — `tests/e2e/business_flow/` 16 集成测试 (smoke 2 + timeline 3 + interrupted 3 + sse 4 + evaluator 4);L0 proto 5 message 加 `business_key = 100` → RPC attachment **13/21 → 21/21**,9 caller 跨 5 crate 同步;L3 `observability.py` 加 3 record helpers (1 → 4)。**32 tests PASS** (16 Python + 4 Rust + 12 L3)。
 - **6c 死代码激活 ✅** (`da38e862` + `ce027817` + `40b661f8` + `efba6e83`) — `init_observability()` v3.15.5 起在 `observability/mod.rs:164` 定义但 `main.rs` 从未调用 (死代码,`METER_READY=false`);6c.1 真接 `opentelemetry-stdout` 0.5 + main.rs 调用,6c.2/6c.3 `harness.rs` emit pre/post/flow_outcome。**6 L1 metric series active**;§0.1 4 处 ⚠️→✅ 回升 **23/23 (真闭环)**。
 - **6d web-platform Dashboard ⏸ deferred → v3.16** per **D-53** (双轴模型:web-platform UI 属 Grid 独立产品轴,不在 OBSTACK 闭环范围)。原计划 8 task / 5 页面 / 5 routes (dual-gate 134 → 139 routes)。
 - **6e CLI 全局接入 ⏸ deferred → v3.16** per **D-54** (data/integration 轴);功能面已由 6b.1 16 集成测试覆盖。原计划 10 task。
-- **6f 收口 + tag ⏳ 待执行,前置条件已扩大** — 原前置(修 `.env`)已解决;**新增前置**:(a) `tool.total` + `requests.*` 端到端实证(6g 验证用例未触发 tool call);(b) §0.1 剩余 2 项 ⚠️ 收敛;(c) demo 脚本 5 个手工 ingest 改为真实驱动 + 30s LLM 超时对 reasoning model 偏短。
+- **6h 补齐证据 + demo 改造 ✅ (2026-08-12)** — `b1d3585e` + `9022b3e9` + `09c82d35` + `41b577fc`。(a) 补 `tool.total` 端到端实证(6g 用例未触发 tool call;改用真触发 tool 的 prompt 后 `pre`/`post` 各 =1);(b) **`requests.*` 自 OTel 模块落地起从未被调用过** —— 以 tower layer 接在 tonic HTTP 层,19 RPC 一处统一计数;顺带修掉 `TimeBlock::record_request` 的双减 in_flight(按值收 `self` 又显式 dec,`Drop` 再减一次 → 首次真用即让 gauge 变负)与 metric-cardinality DoS(`op` label 直取路径尾段 → 任意对端可无限造 series;改为 proto 21 RPC allowlist,实测 5 条恶意路径 label 集不变);(c) **demo 脚本 4 个独立缺陷**(registry 空→handshake 静默降级 / LLM 步 30s 超时且失败不致命 / 5 事件手工 ingest / Observe 检查 grep 已不存在的文本且从不失败)全部修复。**双向验证**:真跑 exit 0(560 chunk、真实 `memory_search`、16-event timeline 含 PRE/POST_TOOL_USE+STOP、4/4 required series、`in_flight`=0);负控 exit 1(喂 6g 前的单空批次日志,准确列出 4 条缺失 series)。§0.1 = **23/23**,6/6 series 有真跑证据。100/100 tests。
+- **6f 收口 ✅ 由 6g + 6h 完成** — 原计划的独立 verify 脚本未单写;真实验证由改造后的 `scripts/v315-obstack-demo.sh` 承担(它现在会失败),tag `v3.15.6` 已打。
 - **6g 验证与修复 ✅ (2026-08-11 晚,tag 前的拦截)** — `4defa334` + `0318aca9` + `d39db604` + `75859214`。tag 前验 6c 的 4 处 ⚠️→✅,查出 **2 项不成立**:
   - **emit 挂错层**:`record_tool` / `record_business_flow_outcome` 只被 `on_tool_call/on_tool_result/on_stop` 调用,这三者全仓唯一调用者是 `service.rs:363/387/405` 的 gRPC handler —— 而该通道是 L4 给 **Tier 2/3** runtime 准备的。Grid 是 Tier 1(`native_hooks: true` / `requires_hook_bridge: false`),L4 手写代码零处调用。**实测:真实 tool-call turn 产出 `"scopeMetrics":[]`**。6g 将 emit 移到 `map_events_to_chunks` 的 `AgentEvent` 流。
   - **provider 提前 drop**:`init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`(SDK 0.24.1 源码确认),导出循环停止、instrument 静默降 no-op;症状为**仅启动时 1 个空批次**。6g 存入 `OnceCell`。
@@ -283,15 +284,15 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ### Pending Todos
 
-- **6f 收口 + tag v3.15.6** (下一步,**前置条件已扩大**) — (a) 用真实触发 tool call 的 skill 补验 `tool.total` + `requests.*` 端到端出数;(b) §0.1 剩余 2 项 ⚠️ 收敛;(c) demo 脚本 5 个手工 ingest 改真实驱动、LLM 超时从 30s 放宽、9b/9c 证据检查改为解析 `resourceMetrics` JSON 断言 series 非空;(d) 之后再 `git tag v3.15.6`。
+- **v3.16 scope 决策** (下一步) — per ADR-V2-024 data/integration 轴候选:`grid-server multi-user`(3.7.4 deferred)/ `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0` / 6d + 6e 顺延。
 - **6d web-platform Dashboard** (deferred → v3.16, D-53) — 5 页面 (FlowsOverview / FlowDetail / FlowOptimize / Alerts / Stats) + `obstackClient.ts` + App.tsx 5 routes + grid-server `rbac/catalog.rs` 5 路由;dual-gate 134 → **139 routes**。
 - **6e CLI 全局接入 + 工具生态** (deferred → v3.16, D-54) — `eaasp flow list/top-failed/top-slow` 3 verb + business_key 列贯穿 session/memory/skill/policy + grid-eval 接 OBSTACK + marketplace 健康度。
-- **v3.16 scope 决策** — per ADR-V2-024 data/integration 轴候选: `grid-server multi-user` (3.7.4 deferred) / `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0` / 6d + 6e 顺延。
 
 ### Blockers/Concerns
 
-- **`tool.total` / `requests.*` 缺端到端实证** — 6g 已修好 emit 路径并实测 4/6 series 出数,但验证用例(算术提问)未触发 tool call。映射由单元测试覆盖,**但按本次教训,单测通过 ≠ 线上会动**。tag 前应用真实触发 tool 的 skill 补验。
-- **demo 脚本仍是半真** — `scripts/v315-obstack-demo.sh` 的 5 个手工 `/v1/events/ingest` 未改;且 30s LLM 超时对 reasoning model 偏短(实测 message 步骤直接 skip)。其 9b/9c 证据检查 grep 旧日志文本行,改用 stdout exporter 后恒为 0 却不判失败 —— **证据检查本身失效**,应改为解析 `resourceMetrics` JSON 断言目标 series 非空。
+- ~~`tool.total` / `requests.*` 缺端到端实证~~ → **6h 已闭环**,6/6 series 真跑验证。
+- ~~demo 脚本仍是半真~~ → **6h 已改造**:手工 ingest 删除、LLM 步失败致命、Observe 改 JSON 断言并配负控。
+- **L4 observability log records = 0** — demo 第 9 步报 L4 侧 `l4.*` 指标日志 0 条。L1 侧 6/6 已验证,**L2/L3/L4 侧的 record 是否真被调用尚未逐层实测**;按本次教训(定义 ≠ 调用),v3.16 值得照 L1 的方式各查一遍。
 - **`.env` 影子变量陷阱** — shell 中导出的旧 `DEEPSEEK_API_KEY` 会盖住 `.env`(dotenvy 不覆盖已存在环境变量),表现为 401 且极难一眼看出。跑 live 验证前先 `unset` 或比对哈希。
 - **L4 `/v1/sessions/{id}/message` 挂起** — 240s 无响应;skill-registry 报 `threshold-calibration not found`。与 OBSTACK 改动无关,独立问题,未排期。
 - **CI 两条 workflow 长期 FAIL (非本次引入,2026-08-11 push 后复核确认)**:

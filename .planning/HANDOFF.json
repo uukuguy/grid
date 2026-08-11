@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-12T00:20:00.000Z",
+  "timestamp": "2026-08-12T05:20:00.000Z",
   "phase": "v3.15.6",
   "phase_name": "OBSTACK 实战补完 (6 阶段 6a → 6f)",
   "phase_dir": ".planning",
   "plan": "docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md",
-  "task": "6f",
+  "task": null,
   "total_tasks": 6,
-  "status": "in_progress",
+  "status": "shipped",
   "completed_tasks": [
     {
       "name": "6a 文档/状态一致性 — OBSTACK §0.1 诚实化 23/23 → 20/23 (D-50) + 4 项 V315-* 登记 DEFERRED_LEDGER (D-51) + AGENTS.md OBSTACK 段",
@@ -38,6 +38,16 @@
       "name": "6g tag 前验证 + 修复 — 查出 6c.2/6c.3 emit 挂在 Tier 1 永不经过的 hook RPC (实测 scopeMetrics 空) + init_observability drop(provider) 令导出管道启动即 shutdown; 均已修复, 真实 deepseek turn 实测 4/6 series 出数 (批次 1 → 40+)",
       "status": "done",
       "commit": "4defa334 + 0318aca9 + d39db604 + 75859214"
+    },
+    {
+      "name": "6h 补齐 requests.* (自落地起从未被调用) + 修 TimeBlock 双减 in_flight + 修 metric-cardinality DoS + demo 脚本改造 (4 缺陷) — 6/6 series 真跑验证, 关键检查配负控",
+      "status": "done",
+      "commit": "b1d3585e + 9022b3e9 + 09c82d35 + 41b577fc"
+    },
+    {
+      "name": "tag v3.15.6",
+      "status": "done",
+      "commit": "v3.15.6"
     }
   ],
   "remaining_tasks": [
@@ -50,11 +60,6 @@
       "name": "6e CLI 全局接入 + 工具生态 (eaasp flow 3 verb + business_key 贯穿)",
       "status": "deferred",
       "note": "显式 deferred → v3.16 per D-54;功能面已由 6b.1 16 集成测试覆盖"
-    },
-    {
-      "name": "6f 收口 + tag v3.15.6",
-      "status": "not_started",
-      "note": "前置已扩大: (a) tool.total + requests.* 端到端实证 (6g 用例未触发 tool call); (b) §0.1 剩余 2 项 ⚠️ 收敛; (c) demo 脚本 5 个手工 ingest 改真实驱动 + LLM 超时放宽 + 9b/9c 证据检查改为解析 resourceMetrics JSON"
     }
   ],
   "blockers": [
@@ -69,30 +74,17 @@
       "severity": "pre-existing"
     },
     {
-      "id": "TOOL-TOTAL-UNPROVEN",
-      "desc": "tool.total + requests.* 两条 series 缺端到端实证 — 6g 验证用例(算术提问)未触发 tool call。映射有单元测试覆盖, 但按本次教训单测通过 ≠ 线上会动。tag 前须用真实触发 tool 的 skill 补验。",
-      "severity": "blocking-tag"
-    },
-    {
-      "id": "DEMO-STILL-SYNTHETIC",
-      "desc": "scripts/v315-obstack-demo.sh 的 5 个手工 /v1/events/ingest 未改; 30s LLM 超时对 reasoning model 偏短; 9b/9c 证据检查 grep 旧日志文本行, 改 stdout exporter 后恒为 0 却不判失败(证据检查本身失效)。",
-      "severity": "blocking-tag"
-    },
-    {
       "id": "ENV-SHADOW",
       "desc": "shell 导出的旧 DEEPSEEK_API_KEY 会盖住 .env(dotenvy 不覆盖已存在环境变量), 表现为 401。跑 live 验证前先 unset 或比对哈希。",
       "severity": "gotcha"
     },
     {
-      "id": "L4-MESSAGE-HANG",
-      "desc": "L4 /v1/sessions/{id}/message 240s 无响应; skill-registry 报 threshold-calibration not found。独立问题, 与 OBSTACK 无关。",
-      "severity": "unrelated"
+      "id": "L2-L4-RECORD-UNVERIFIED",
+      "desc": "demo 第 9 步报 L4 侧 l4.* 指标日志 0 条。L1 侧 6/6 已实测, 但 L2/L3/L4 的 record_* 是否真被调用尚未逐层验证 —— 按本 milestone 的教训(定义 ≠ 调用), v3.16 应照 L1 的方式各查一遍。",
+      "severity": "follow-up"
     }
   ],
   "human_actions_pending": [
-    "决定是否补 tool.total 端到端实证 (tag 前置)",
-    "决定 demo 脚本是否改造为真实驱动 (tag 前置)",
-    "决定 tag v3.15.6 时机",
     "决定 v3.16 scope (data/integration 轴: grid-server multi-user / web-platform 9.0 / grid-desktop 9.0 / 6d+6e 顺延)"
   ],
   "decisions": [
@@ -130,9 +122,14 @@
       "decision": "OBSTACK emit 落在 grid-runtime 的 AgentEvent 流, 不改 grid-engine",
       "rationale": "map_events_to_chunks 是真实 turn 必经且位于 grid-runtime 内, 故 ADR-V2-023 P1 (shared-core rule) 保持, 无需新 ADR — 比原设想的 grid-engine 观测面方案代价低得多",
       "phase": "v3.15.6 6g"
+    },
+    {
+      "decision": "tag v3.15.6 — 两项前置满足后放行",
+      "rationale": "6/6 L1 series 真跑验证; 关键检查配负控(喂 6g 前日志形态会 exit 1)。tag 范围诚实标注: 6d/6e 显式 deferred → v3.16, 不在声称范围",
+      "phase": "v3.15.6 6h"
     }
   ],
   "uncommitted_files": [],
-  "next_action": "6f 前置: (1) 找/建真实触发 tool call 的 skill, 启栈跑真实 turn 确认 l1.runtime.tool.total 出数; (2) 收敛 §0.1 剩余 2 项 ⚠️; (3) 改造 demo 脚本(真实驱动 + 超时放宽 + 证据检查改 JSON 断言); (4) 之后再 git tag v3.15.6。",
-  "context_notes": "v3.15.6 4/6 阶段完成 (6a/6b/6c/6g ✅, 6d/6e deferred → v3.16, 6f 待执行)。6g 是 tag 前的拦截: 查出并修复 2 个假闭环(emit 挂错层 + provider 提前 drop), 真实 LLM 实测 4/6 series 出数。§0.1 21/23 (91%)。95/95 tests PASS; dual-gate PASS。全部改动限于 grid-runtime, ADR-V2-023 P1 保持。证据: docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md。教训: cargo check 通过 ≠ 代码可达; dual-gate PASS ≠ 闭环; 单测通过 ≠ 线上会动 —— 只有真跑一遍看计数器动才算证据。"
+  "next_action": "v3.16 scope 决策 (ADR-V2-024 data/integration 轴)。follow-up: L2/L3/L4 的 record_* 调用链照 L1 的方式逐层实测。",
+  "context_notes": "v3.15.6 SHIPPED + tagged 2026-08-12。5/6 阶段 (6a/6b/6c/6g/6h), 6d+6e deferred → v3.16 (D-53/D-54)。6g 查出并修复 6c 的两处假闭环(emit 挂在 Tier 1 永不经过的 hook RPC / provider 提前 drop 令导出管道启动即死);6h 补齐 requests.*(自落地起从未被调用)+ 修 TimeBlock 双减 + 修 metric-cardinality DoS + 改造 demo(4 个独立缺陷, 此前能在什么都没证明的情况下 exit 0)。§0.1 = 23/23, 6/6 series 真跑验证, 关键检查配负控。100/100 tests; dual-gate PASS。教训: cargo check 通过 ≠ 代码可达; dual-gate PASS ≠ 闭环; 单测通过 ≠ 线上会动; exit 0 ≠ 证明了任何事 —— 只会 PASS 的检查等于没有检查。"
 }
