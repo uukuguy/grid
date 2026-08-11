@@ -399,6 +399,10 @@
 - 05:10 `41b577fc` §0.1 回到 **23/23**,但这次每项都有真跑证据、关键项有负控。`V315-WALK-01` ✅ CLOSED。100/100 tests;dual-gate PASS(134 routes / 38 rows)。
 - **教训(三次踩同一个坑换来的)**:`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;单测通过 ≠ 线上会动;**exit 0 ≠ 证明了任何事**。一个只会 PASS 的检查等于没有检查 —— 所以这次给关键检查配了负控。
 - **tag `v3.15.6`** —— 两项前置均已满足,evidence 双向可复现。范围诚实标注:6a/6b/6c/6g/6h 完成,**6d(web-platform Dashboard)+ 6e(CLI 全局接入)显式 deferred → v3.16**(D-53/D-54),不在本 tag 声称范围内。
+- 05:30 `317aaad5` 状态文件收口(STATE/HANDOFF/.continue-here/CURRENT-STATE),annotated tag `v3.15.6` 打在 `317aaad5`,main + tag 均已 push。
+- 05:45 **CI 复核**(per "Check CI After Push" 铁律):`Release` workflow(由 tag 触发)**success**;`CI` workflow FAIL —— 原因仍是 `glib-sys v0.18.1` 构建失败(grid-desktop / Tauri 系统库在 runner 缺失),**既有缺口,与本次无关**(历史多次同因)。另一条 `Phase 3 Contract Matrix` 缺 `v2-phase2_5-ci-setup` Makefile 目标,同为既有缺口。
+- **v3.15.6 收口。遗留 follow-up**:demo 第 9 步报 L4 侧 `l4.*` 日志 0 条 —— L1 侧 6/6 已实测,但 **L2/L3/L4 的 `record_*` 是否真被调用尚未逐层验证**。按本 milestone 反复出现的发现(**定义 ≠ 调用**),v3.16 应照 L1 的方式各查一遍。
+- next: **v3.16 scope 决策**(ADR-V2-024 data/integration 轴):`grid-server multi-user`(3.7.4 deferred,Open Item #3 优先轴)/ `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0` / 6d + 6e 顺延。
 
 ## 2026-08-11 晚 (v3.15.6 6g — tag 前验证推翻 6c,修复后实测)
 
