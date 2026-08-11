@@ -288,6 +288,7 @@ impl RuntimeService for GooseRuntimeService {
             limitations: vec!["stub-send".to_string()],
             tier: "framework".to_string(),
             deployment_mode: self.deployment_mode.clone(),
+            business_key: None,
         }))
     }
 
