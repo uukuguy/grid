@@ -16,24 +16,34 @@
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
 > 最近一次 update: 2026-08-09, **v3.15.6a 文档诚实化** (§0.1 counting 漏洞已修;v3.15.5 阶段 23/23 是最小闭环 counting,真实落地率 = **20/23 (87%)** — Observe 4/5 + Trace 4/5 + Evaluate 5/6 + Optimize 4/4 + Verify 3/3;D-50 v3.15.6a 锁决策)。v3.15.6c 死代码激活后预期升 23/23。
 
-### 0.1 4 大维度 × 子项状态（2026-08-12 v3.15.6 6h — 真实闭环率 **23/23 = 100%**,双向验证）
+### 0.1 4 大维度 × 子项状态（2026-08-12 v3.15.6 6i 复核 — 真实闭环率 **20/23 = 87%**）
 
-> **2026-08-12 6h 更新**:23/23,这次每一项都有真跑证据。
+> **2026-08-12 6i 更新 —— 同一个缺陷,在 L2/L3/L4 又出现了三次。**
 >
-> 路径:v3.15.5 声称 23/23(counting 漏洞)→ 6a 诚实降 20/23 → 6c 补测试/装 SDK → **6c.7 又升回 23/23,但 tag 前实测推翻 2 项** → 6g 修复 emit 挂载层 + provider 生命周期,降 21/23 → **6h 补齐 `requests.*` 与 demo 改造,回到 23/23**。
+> 6h 结束时把 §0.1 记为 23/23,并据此打了 tag `v3.15.6`。收尾时按 6h 留下的 follow-up 去查 L2/L3/L4 的 `record_*` 调用链,结果:**三层的 observability 模块全部零生产调用点**。
 >
-> 与之前几次 "23/23" 的区别 —— **证据是双向的**:
-> - **正向**:真实 agent loop turn(560 chunk、真实 `memory_search` tool call、16-event timeline)产出全部 6 条 L1 series,`in_flight` 归 0。
-> - **负向**:把 6g 之前的日志形态(单个空批次)喂给 Observe 检查,它 exit 1 并准确列出 4 条缺失 series —— 即**这套检查能抓住当初那个 bug**。
+> | 层 | 定义 | 生产调用 | 运行时佐证 |
+> |---|---|---|---|
+> | L2 | `init_observability` + 6 个 `record_*` | **0** | — |
+> | L3 | `init_observability` + 4 个 `record_*` | **0** | — |
+> | L4 | `init_observability` + 5 个 `record_*` | **0** | 6h demo 第 9 步实测 `l4.*` 日志 **0 条** |
 >
-> 教训(三次踩同一个坑换来的):`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;单测通过 ≠ 线上会动;**exit 0 ≠ 证明了任何事** —— 一个只会 PASS 的检查等于没有检查。详见 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
+> 三层的 `main.py` 对 observability 均 0 提及,也没有中间件/装饰器间接接入;未 init 时 meter 保持 `_NoopMeter`,所以**跑再多流量指标恒为 0**。
+>
+> 各层的 4/4、12/12 测试**全都只测 helper 自身**(noop 默认 / smoke / 名称校验 / round-trip),没有一条断言生产路径会调用它们 —— 与 L1 在 6c 的失败模式**逐字相同**。L3 `record_session` 的 docstring 甚至明写 *"Called from audit.py / approval_state_machine.py"*,而那两个文件里并没有该调用:**文档写的是意图,不是事实**。
+>
+> **诚实结论**:23/23 是错的,当前 **20/23**。tag `v3.15.6` 打早了 —— 它对 L1 的声称(6/6 series 真跑 + 负控)依然成立且可复现,但对 L2/L3/L4 的 ✅ 是继承自未经验证的旧结论。tag 不撤(历史记录保留),由本节与 `DEFERRED_LEDGER` 记录更正;v3.16 收口。
+>
+> **教训升级**:6c 那次我以为是个孤立 bug,6i 证明它是**系统性的** —— 这个代码库里"写了 observability 模块 + 写了测该模块的测试"被当成了"接入了可观测性"。真正的判据只有一条:**在生产路径上 grep 到调用点,并跑一遍看计数器动**。
+>
+> (历史)v3.15.5 声称 23/23(counting 漏洞)→ 6a 诚实降 20/23 → 6c 补测试/装 SDK → 6c.7 升回 23/23 → 6g 实测推翻 2 项降 21/23 → 6h 补齐 L1 证据升 23/23 → **6i 查出 L2/L3/L4 三项同病,降 20/23**。
 
 | 维度 | 子项 | 状态 | Commit / Test |
 |---|---|---|---|
 | **Observe** | L1 Rust `observability/` minimal-viable mirror | ✅ shipped | `952735ce` (6/6 tests) |
-| **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
-| **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ✅ shipped | `a18a22ba` (OpA decision) + `6c79b255` (v3.15.6 6b.3: session + hook + opa_policy); 12/12 tests PASS |
-| **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
+| **Observe** | L2 memory_engine observability.py | ⚠️ **模块存在,但零生产调用点** | `7a5459b9` (4/4 tests)。**2026-08-12 6i 复核**:`observability.py` 定义 `init_observability` + 6 个 `record_*`,但 `grep` 全 `src/` 得 **0 处调用**(`main.py` 对 observability 0 提及,无中间件/装饰器间接接入)。未 init 时 `_meter` 保持 `_NoopMeter`,故**跑再多流量指标也恒为 0**。4/4 tests 全部只测 helper 自身(noop 默认 / smoke / 名称校验 / time_block round-trip),**没有一条断言生产路径会调用它们** —— 与 L1 6c 的失败模式完全一致 |
+| **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ⚠️ **模块存在,但零生产调用点** | `a18a22ba` + `6c79b255` (12/12 tests)。**2026-08-12 6i 复核**:同上,**0 处生产调用**。`record_session` 的 docstring 明写 *"Called from audit.py / approval_state_machine.py"* —— **但这两个文件里根本没有该调用**,文档描述的是意图而非事实 |
+| **Observe** | L4 orchestration observability.py | ⚠️ **模块存在,但零生产调用点** | `d9ea12bf` (4/4 tests)。**2026-08-12 6i 复核**:同上,**0 处生产调用**。运行时佐证:6h demo 第 9 步实测 L4 侧 `l4.*` 日志 **0 条** |
 | **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ **6/6 series 实测** | `e16686d4` (7/7 tests) + `da38e862` (6c.1 装 SDK) + **`0318aca9` (6g: provider 生命周期 —— 原 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出循环停止、instrument 静默降 no-op)** + **`d39db604` (6g: emit 从 `on_tool_call/on_tool_result/on_stop` 移到 `map_events_to_chunks` 的 AgentEvent 流 —— Grid 是 Tier 1,L4 从不调用那三个 hook RPC)** + **`b1d3585e` (6h: `requests.*` tower layer 接入 + 修 `TimeBlock` 双减 in_flight)** + **`9022b3e9` (6h: `op` label 收敛到 21 RPC allowlist,防 metric-cardinality DoS)**。**真实 agent loop 实测 6/6**:`requests.total{op=Initialize\|Send}` + `requests.duration` + `llm.total{deepseek-v4-flash}=8` + `tool.total{tool=memory_search, pre/post}` + `flow.outcome{complete}` + `in_flight{turn}=0`(批次 1 空 → 5 含数据)|
 | **Trace** | L0 proto BusinessKey message + 21/21 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) + `29378db4` (v3.15.6 6b.2a: 5 messages 加 `BusinessKey business_key = 100` 字段 — StateResponse / HealthResponse / Capabilities / PolicySummaryRequest / PolicySummary) + `78faa8a5` (6b.2b: 9 callers 同步 `business_key: None` 占位) + `0336d6d1` (6b.2c: 4 unit tests pin 21 RPC attachment); 21/21 RPC 字段 100 attachment |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |

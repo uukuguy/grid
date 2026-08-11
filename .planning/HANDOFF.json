@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-12T05:20:00.000Z",
+  "timestamp": "2026-08-12T06:30:00.000Z",
   "phase": "v3.15.6",
   "phase_name": "OBSTACK 实战补完 (6 阶段 6a → 6f)",
   "phase_dir": ".planning",
@@ -79,9 +79,9 @@
       "severity": "gotcha"
     },
     {
-      "id": "L2-L4-RECORD-UNVERIFIED",
-      "desc": "demo 第 9 步报 L4 侧 l4.* 指标日志 0 条。L1 侧 6/6 已实测, 但 L2/L3/L4 的 record_* 是否真被调用尚未逐层验证 —— 按本 milestone 的教训(定义 ≠ 调用), v3.16 应照 L1 的方式各查一遍。",
-      "severity": "follow-up"
+      "id": "V316-L2L3L4-OBS-01",
+      "desc": "6i 确认: L2/L3/L4 三层 observability.py 定义齐全但 src/ 全域 0 处生产调用, main.py 0 提及, meter 恒为 _NoopMeter -> 指标恒 0。各层 4/4 与 12/12 测试全部只测 helper 自身, 无一条断言生产路径会调用 —— 与 L1 在 6c 的失败模式逐字相同。§0.1 因此由 23/23 降为 20/23; tag v3.15.6 对 L2/L3/L4 的 ✅ 打早了(对 L1 的声称仍成立)。deferred_to_v3.16。",
+      "severity": "open-v3.16"
     }
   ],
   "human_actions_pending": [
@@ -127,9 +127,14 @@
       "decision": "tag v3.15.6 — 两项前置满足后放行",
       "rationale": "6/6 L1 series 真跑验证; 关键检查配负控(喂 6g 前日志形态会 exit 1)。tag 范围诚实标注: 6d/6e 显式 deferred → v3.16, 不在声称范围",
       "phase": "v3.15.6 6h"
+    },
+    {
+      "decision": "tag v3.15.6 不撤, 由 §0.1 + LEDGER 承载更正",
+      "rationale": "tag 对 L1 的声称(6/6 series 真跑 + 负控)可复现且成立; 对 L2/L3/L4 的 ✅ 继承自未验证旧结论。撤 tag 会丢历史, 更正记录比抹掉更有价值",
+      "phase": "v3.15.6 6i"
     }
   ],
   "uncommitted_files": [],
-  "next_action": "v3.16 scope 决策 (ADR-V2-024 data/integration 轴)。follow-up: L2/L3/L4 的 record_* 调用链照 L1 的方式逐层实测。",
-  "context_notes": "v3.15.6 SHIPPED + tagged 2026-08-12。5/6 阶段 (6a/6b/6c/6g/6h), 6d+6e deferred → v3.16 (D-53/D-54)。6g 查出并修复 6c 的两处假闭环(emit 挂在 Tier 1 永不经过的 hook RPC / provider 提前 drop 令导出管道启动即死);6h 补齐 requests.*(自落地起从未被调用)+ 修 TimeBlock 双减 + 修 metric-cardinality DoS + 改造 demo(4 个独立缺陷, 此前能在什么都没证明的情况下 exit 0)。§0.1 = 23/23, 6/6 series 真跑验证, 关键检查配负控。100/100 tests; dual-gate PASS。教训: cargo check 通过 ≠ 代码可达; dual-gate PASS ≠ 闭环; 单测通过 ≠ 线上会动; exit 0 ≠ 证明了任何事 —— 只会 PASS 的检查等于没有检查。"
+  "next_action": "v3.16 scope 决策。候选新增 V316-L2L3L4-OBS-01 (把 L1 6g/6h 的做法复制到 L2/L3/L4: 接入调用点 + 真跑看计数器动 + 配负控)。",
+  "context_notes": "v3.15.6 SHIPPED + tagged 2026-08-12。5/6 阶段 (6a/6b/6c/6g/6h), 6d+6e deferred → v3.16 (D-53/D-54)。6g 查出并修复 6c 的两处假闭环(emit 挂在 Tier 1 永不经过的 hook RPC / provider 提前 drop 令导出管道启动即死);6h 补齐 requests.*(自落地起从未被调用)+ 修 TimeBlock 双减 + 修 metric-cardinality DoS + 改造 demo(4 个独立缺陷, 此前能在什么都没证明的情况下 exit 0)。§0.1 = 23/23, 6/6 series 真跑验证, 关键检查配负控。100/100 tests; dual-gate PASS。教训: cargo check 通过 ≠ 代码可达; dual-gate PASS ≠ 闭环; 单测通过 ≠ 线上会动; exit 0 ≠ 证明了任何事 —— 只会 PASS 的检查等于没有检查。 【6i 更正】收尾复核查出 L2/L3/L4 三层 observability 零生产调用点, 与 6c 同一缺陷第 2/3/4 次出现, 属系统性问题。§0.1 23/23 → 20/23。tag v3.15.6 打早了(对 L1 的声称仍成立), 不撤, 更正由 §0.1 + LEDGER 承载, v3.16 收口。"
 }
