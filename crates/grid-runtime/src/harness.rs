@@ -29,7 +29,10 @@ use grid_types::id::{SandboxId, SessionId, UserId};
 use grid_types::{ChatMessage, ContentBlock, MessageRole};
 
 use crate::contract::*;
-use crate::observability::{record_business_flow_outcome, record_tool};
+use crate::observability::{
+    in_flight_dec, in_flight_inc, record_business_flow_outcome, record_error, record_llm,
+    record_tool,
+};
 use crate::telemetry::TelemetryCollector;
 
 /// Grid Tier 1 Harness — native RuntimeContract implementation.
@@ -37,6 +40,24 @@ use crate::telemetry::TelemetryCollector;
 /// Wraps an `AgentRuntime` and exposes it through the 16-method contract.
 /// Hooks, MCP, and skills are handled natively by grid-engine internals;
 /// `on_tool_call`, `on_tool_result`, and `on_stop` are no-ops for Grid.
+///
+/// ## Where OBSTACK metrics are emitted (v3.15.6 6g)
+///
+/// Grid is Tier 1 (`native_hooks: true`, `requires_hook_bridge: false`),
+/// so the L4 platform interceptor never calls the `OnToolCall` /
+/// `OnToolResult` / `OnStop` RPCs against us — per `contract.rs`
+/// ("Core events … are already captured by the L4 platform
+/// interceptor"). Emitting L1 OTel metrics from those three trait
+/// methods therefore produces nothing during a real agent turn; that
+/// was the v3.15.6 6c.2/6c.3 defect (verified empirically: a live
+/// tool-calling turn produced `"scopeMetrics":[]`).
+///
+/// The observable surface that a real turn *does* traverse is the
+/// `AgentEvent` broadcast stream consumed by [`Self::map_events_to_chunks`],
+/// which `send()` returns for every message. Metric emission lives
+/// there, keyed off the event variants grid-engine already publishes.
+/// This keeps the change inside `grid-runtime` — no `grid-engine`
+/// edit, so ADR-V2-023 P1 (shared-core rule) is preserved.
 pub struct GridHarness {
     runtime: Arc<AgentRuntime>,
     runtime_id: String,
@@ -83,15 +104,56 @@ impl GridHarness {
     ///
     /// The stream terminates after emitting a `Done` or `Completed` chunk,
     /// so the gRPC server-stream (and downstream SSE) closes cleanly.
+    ///
+    /// v3.15.6 6g — this is also the OBSTACK L1 emit point. Every real
+    /// agent turn flows through here (`send()` returns this stream), so
+    /// counting events as they pass yields metrics that actually move
+    /// in production. See the type-level docs on [`GridHarness`] for why
+    /// the `on_tool_call` / `on_tool_result` / `on_stop` trait methods
+    /// are the wrong place.
+    ///
+    /// `session_id` is the L1 flow label; the L4 layer folds it into the
+    /// full (session_id, skill_id, business_object_id) business key.
     fn map_events_to_chunks(
         rx: tokio::sync::broadcast::Receiver<AgentEvent>,
+        session_id: String,
+        model: String,
     ) -> Pin<Box<dyn Stream<Item = ResponseChunk> + Send>> {
         // Use Arc<AtomicBool> to signal stream termination after "done" chunk.
         let terminated = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let terminated_clone = terminated.clone();
+
+        // v3.15.6 6g — the turn is in flight from the moment the caller
+        // subscribes until a terminal event lands. `outcome_recorded`
+        // guards the flow-outcome counter so a stream carrying both
+        // `Completed` and `Done` (the documented ordering, asserted by
+        // grid-engine's `completed_then_done_ordering_invariant` test)
+        // counts exactly one outcome.
+        //
+        // The guard owns both the in-flight decrement and the
+        // abandoned-turn outcome, so a client that disconnects
+        // mid-stream (dropping the future without ever reaching a
+        // terminal event) still balances the gauge instead of leaking
+        // it upward for the life of the process.
+        let outcome_recorded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let guard = TurnMetricsGuard::new(session_id.clone(), outcome_recorded.clone());
+        let outcome_for_events = outcome_recorded.clone();
+        let outcome_for_lag = outcome_recorded.clone();
+        let session_for_events = session_id.clone();
+        let session_for_lag = session_id.clone();
+        let model_for_events = model.clone();
+
         let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
-            .filter_map(|result| match result {
-                Ok(event) => Self::event_to_chunk(event),
+            .filter_map(move |result| match result {
+                Ok(event) => {
+                    Self::record_event_metrics(
+                        &event,
+                        &session_for_events,
+                        &model_for_events,
+                        &outcome_for_events,
+                    );
+                    Self::event_to_chunk(event)
+                }
                 // Lag-fallback: if the gRPC consumer fell behind and the
                 // broadcast channel dropped events, `AgentEvent::Done`
                 // may have been among the dropped items — which would leave
@@ -105,6 +167,16 @@ impl GridHarness {
                         skipped = n,
                         "gRPC consumer lagged on AgentEvent broadcast — emitting synthetic done to terminate stream cleanly"
                     );
+                    // v3.15.6 6g — a lagged stream is a terminated turn:
+                    // the real `Done` was among the dropped events, so
+                    // nothing else will close out this flow. Record the
+                    // outcome as `lagged` (not `complete`) so the
+                    // completion-rate roll-up does not silently count a
+                    // truncated turn as a success.
+                    record_error("broadcast_lag");
+                    if !outcome_for_lag.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                        record_business_flow_outcome(&session_for_lag, "lagged");
+                    }
                     Some(ResponseChunk {
                         chunk_type: "done".into(),
                         content: format!(
@@ -126,7 +198,101 @@ impl GridHarness {
                 }
                 true
             });
-        Box::pin(stream)
+        Box::pin(TurnMetricsGuard::wrap(stream, guard))
+    }
+
+    /// v3.15.6 6g — translate one `AgentEvent` into OBSTACK L1 metrics.
+    ///
+    /// Called for every event on the real agent-loop stream. Pure
+    /// side-effect: the caller still maps the event to a chunk.
+    ///
+    /// `outcome_recorded` de-duplicates the terminal counter — the loop
+    /// emits `Completed` immediately followed by `Done`, and both are
+    /// terminal, but a turn is one outcome.
+    fn record_event_metrics(
+        event: &AgentEvent,
+        session_id: &str,
+        model: &str,
+        outcome_recorded: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) {
+        use std::sync::atomic::Ordering;
+
+        for op in Self::classify_event(event) {
+            match op {
+                MetricOp::Tool { tool, status } => record_tool(&tool, status),
+                MetricOp::Llm => record_llm(model, "ok"),
+                MetricOp::Error { kind } => record_error(kind),
+                MetricOp::Finish { status } => {
+                    // At most one terminal outcome per turn.
+                    if !outcome_recorded.swap(true, Ordering::Relaxed) {
+                        record_business_flow_outcome(session_id, status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Pure event → metric-intent mapping.
+    ///
+    /// Split out from [`Self::record_event_metrics`] so the mapping can
+    /// be asserted directly in unit tests without installing a
+    /// process-global OTel meter provider (which races across the test
+    /// runner — see the note in `observability::tests`). The 6c defect
+    /// shipped precisely because no test could observe whether an emit
+    /// happened; this seam is what makes that observable.
+    fn classify_event(event: &AgentEvent) -> Vec<MetricOp> {
+        match event {
+            // Tool lifecycle — the pair the 6c.2 attempt aimed at.
+            // `ToolStart` is the native-loop equivalent of PreToolUse;
+            // `ToolResult` of PostToolUse. Failed executions are split
+            // out by status so per-tool error rates are visible without
+            // a second metric.
+            AgentEvent::ToolStart { tool_name, .. } => vec![MetricOp::Tool {
+                tool: tool_name.clone(),
+                status: "pre",
+            }],
+            AgentEvent::ToolResult { tool_name, success, .. } => {
+                let mut ops = vec![MetricOp::Tool {
+                    tool: tool_name.clone(),
+                    status: if *success { "post" } else { "error" },
+                }];
+                if !success {
+                    ops.push(MetricOp::Error { kind: "tool_failure" });
+                }
+                ops
+            }
+
+            // LLM round-trips. `IterationEnd` fires once per completed
+            // model call in the loop, which is the unit the
+            // `l1.runtime.llm.total` series is meant to count.
+            AgentEvent::IterationEnd { .. } => vec![MetricOp::Llm],
+
+            // Terminal events. `Completed` and `Done` both arrive on a
+            // normal turn (in that order); the de-dup in the caller
+            // collapses them into one outcome.
+            AgentEvent::Completed(_) | AgentEvent::Done => {
+                vec![MetricOp::Finish { status: "complete" }]
+            }
+            AgentEvent::Error { .. } => vec![
+                MetricOp::Error { kind: "agent_error" },
+                MetricOp::Finish { status: "error" },
+            ],
+            AgentEvent::EmergencyStopped(_) => vec![
+                MetricOp::Error { kind: "emergency_stop" },
+                MetricOp::Finish { status: "emergency_stop" },
+            ],
+            AgentEvent::SecurityBlocked { .. } => vec![
+                MetricOp::Error { kind: "security_blocked" },
+                MetricOp::Finish { status: "security_blocked" },
+            ],
+
+            // Everything else (text/thinking deltas, progress, budget
+            // updates, plan updates, sub-agent passthrough) carries no
+            // OBSTACK counter today. Catch-all rather than enumerated so
+            // new grid-engine event variants do not break this build —
+            // they simply go uncounted until wired.
+            _ => Vec::new(),
+        }
     }
 
     /// Build a system-prompt preamble from P3 memory_refs.
@@ -612,6 +778,83 @@ impl GridHarness {
     }
 }
 
+/// v3.15.6 6g — a single OBSTACK metric emission, decided but not yet
+/// performed.
+///
+/// [`GridHarness::classify_event`] returns these so the event → metric
+/// decision can be unit-tested without a live meter provider;
+/// [`GridHarness::record_event_metrics`] is the only thing that turns
+/// them into actual counter increments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MetricOp {
+    /// `l1.runtime.tool.total{tool, status}`
+    Tool { tool: String, status: &'static str },
+    /// `l1.runtime.llm.total{model, status="ok"}`
+    Llm,
+    /// `l1.runtime.errors.total{kind}`
+    Error { kind: &'static str },
+    /// `l1.runtime.flow.outcome{business_key, status}` — at most once
+    /// per turn (the caller de-duplicates).
+    Finish { status: &'static str },
+}
+
+/// v3.15.6 6g — balances the `l1.runtime.in_flight{op="turn"}` gauge
+/// and guarantees a terminal outcome for every turn.
+///
+/// The gauge is incremented on construction and decremented on drop,
+/// so it stays balanced no matter how the stream ends: normal
+/// termination, consumer lag, or the client vanishing mid-turn (which
+/// drops the stream without delivering any terminal event). Without
+/// the drop half, an abandoned turn would pin the gauge up by one for
+/// the remaining life of the process and the "currently running"
+/// reading would drift monotonically upward.
+///
+/// If no terminal event was seen by drop time, the turn is counted as
+/// `abandoned` rather than left uncounted — an unreported turn is
+/// indistinguishable from one that never started, which is exactly the
+/// blind spot v3.15.6 exists to remove.
+struct TurnMetricsGuard {
+    session_id: String,
+    outcome_recorded: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl TurnMetricsGuard {
+    fn new(
+        session_id: String,
+        outcome_recorded: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Self {
+        in_flight_inc("turn");
+        Self { session_id, outcome_recorded }
+    }
+
+    /// Keep `guard` alive exactly as long as `stream`.
+    ///
+    /// `Stream::map` holds the closure — and therefore the captured
+    /// guard — until the stream itself is dropped, which is the
+    /// lifetime we want the gauge to track.
+    fn wrap<S>(stream: S, guard: Self) -> impl Stream<Item = ResponseChunk> + Send
+    where
+        S: Stream<Item = ResponseChunk> + Send,
+    {
+        stream.map(move |chunk| {
+            let _keep_alive = &guard;
+            chunk
+        })
+    }
+}
+
+impl Drop for TurnMetricsGuard {
+    fn drop(&mut self) {
+        if !self
+            .outcome_recorded
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            record_business_flow_outcome(&self.session_id, "abandoned");
+        }
+        in_flight_dec("turn");
+    }
+}
+
 #[async_trait]
 impl RuntimeContract for GridHarness {
     async fn initialize(&self, payload: SessionPayload) -> anyhow::Result<SessionHandle> {
@@ -903,7 +1146,11 @@ impl RuntimeContract for GridHarness {
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send message: {}", e))?;
 
-        Ok(Self::map_events_to_chunks(rx))
+        Ok(Self::map_events_to_chunks(
+            rx,
+            handle.session_id.clone(),
+            self.model.clone(),
+        ))
     }
 
     async fn load_skill(
@@ -955,39 +1202,40 @@ impl RuntimeContract for GridHarness {
         Ok(())
     }
 
+    // ── Hook RPCs — no-ops for Grid (Tier 1) ──────────────────────────
+    //
+    // v3.15.6 6g: these three RPCs are the L4 platform's callback path
+    // for Tier 2/3 runtimes that lack native hooks. Grid declares
+    // `native_hooks: true` / `requires_hook_bridge: false`, so L4 never
+    // calls them for our sessions — `contract.rs` states that core
+    // PRE_TOOL_USE / POST_TOOL_USE / STOP events are already captured
+    // by the platform interceptor.
+    //
+    // 6c.2/6c.3 put the OBSTACK emits here. That was wrong and shipped
+    // as dead code: a live tool-calling turn produced an empty
+    // `scopeMetrics` batch because nothing ever reaches these methods.
+    // The emits now live on the `AgentEvent` stream in
+    // `map_events_to_chunks`, which every real turn traverses. They are
+    // deliberately NOT duplicated here — if L4 ever did call these for
+    // a Grid session, emitting again would double-count the same turn.
+
     async fn on_tool_call(
         &self,
         _handle: &SessionHandle,
-        call: ToolCall,
+        _call: ToolCall,
     ) -> anyhow::Result<HookDecision> {
-        // v3.15.6 6c.2 — emit OBSTACK PreToolUse event into the
-        // L1 OTel meter (l1.runtime.tool.total{tool, status="pre"}).
-        // The AgentLoop already fires the L3 PreToolUse hook
-        // natively; this emit is the L1 observability side that
-        // aggregates per-tool call counts.
-        record_tool(&call.tool_name, "pre");
         Ok(HookDecision::Allow)
     }
 
     async fn on_tool_result(
         &self,
         _handle: &SessionHandle,
-        result: ToolResult,
+        _result: ToolResult,
     ) -> anyhow::Result<HookDecision> {
-        // v3.15.6 6c.2 — emit OBSTACK PostToolUse event
-        // (l1.runtime.tool.total{tool, status="post"}).
-        record_tool(&result.tool_name, "post");
         Ok(HookDecision::Allow)
     }
 
-    async fn on_stop(&self, handle: &SessionHandle) -> anyhow::Result<StopDecision> {
-        // v3.15.6 6c.3 — emit OBSTACK business-flow outcome event
-        // (l1.runtime.flow.outcome{business_key, status="complete"})
-        // so the OBSTACK_RETROSPECTIVE trace can roll up per-session
-        // completion rates. The session_id itself is the L1
-        // per-flow label (the L4 layer folds it into the
-        // session_id+skill_id+business_object_id tuple).
-        record_business_flow_outcome(&handle.session_id, "complete");
+    async fn on_stop(&self, _handle: &SessionHandle) -> anyhow::Result<StopDecision> {
         Ok(StopDecision::Complete)
     }
 
@@ -1202,6 +1450,153 @@ impl RuntimeContract for GridHarness {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── v3.15.6 6g — OBSTACK emit-point regression tests ───────────────
+    //
+    // These exist because 6c.2/6c.3 shipped the same emits on the
+    // `on_tool_call` / `on_tool_result` / `on_stop` trait methods, which
+    // a Tier 1 runtime never reaches, and nothing caught it: the emit
+    // was unobservable, so "cargo check passes" was mistaken for
+    // "the metric fires". `classify_event` is the seam that makes the
+    // decision assertable without a process-global meter provider.
+
+    fn tool_result(name: &str, success: bool) -> AgentEvent {
+        AgentEvent::ToolResult {
+            tool_id: "t1".into(),
+            tool_name: name.into(),
+            output: "out".into(),
+            success,
+        }
+    }
+
+    #[test]
+    fn classify_tool_start_counts_pre() {
+        let event = AgentEvent::ToolStart {
+            tool_id: "t1".into(),
+            tool_name: "scada_read".into(),
+            input: serde_json::json!({}),
+        };
+        assert_eq!(
+            GridHarness::classify_event(&event),
+            vec![MetricOp::Tool { tool: "scada_read".into(), status: "pre" }]
+        );
+    }
+
+    #[test]
+    fn classify_tool_result_success_counts_post_only() {
+        assert_eq!(
+            GridHarness::classify_event(&tool_result("scada_read", true)),
+            vec![MetricOp::Tool { tool: "scada_read".into(), status: "post" }]
+        );
+    }
+
+    #[test]
+    fn classify_tool_result_failure_counts_error_too() {
+        // A failed tool must be distinguishable from a successful one,
+        // otherwise per-tool error rate is unreadable.
+        assert_eq!(
+            GridHarness::classify_event(&tool_result("scada_write", false)),
+            vec![
+                MetricOp::Tool { tool: "scada_write".into(), status: "error" },
+                MetricOp::Error { kind: "tool_failure" },
+            ]
+        );
+    }
+
+    #[test]
+    fn classify_iteration_end_counts_llm_call() {
+        let event = AgentEvent::IterationEnd {
+            round: 1,
+            input_tokens: 100,
+            output_tokens: 50,
+        };
+        assert_eq!(GridHarness::classify_event(&event), vec![MetricOp::Llm]);
+    }
+
+    #[test]
+    fn classify_done_is_terminal() {
+        assert_eq!(
+            GridHarness::classify_event(&AgentEvent::Done),
+            vec![MetricOp::Finish { status: "complete" }]
+        );
+    }
+
+    #[test]
+    fn classify_error_counts_error_and_terminates() {
+        let event = AgentEvent::Error { message: "boom".into() };
+        assert_eq!(
+            GridHarness::classify_event(&event),
+            vec![
+                MetricOp::Error { kind: "agent_error" },
+                MetricOp::Finish { status: "error" },
+            ]
+        );
+    }
+
+    #[test]
+    fn classify_text_delta_emits_nothing() {
+        // Streaming text is high-volume and carries no OBSTACK counter;
+        // emitting per delta would swamp the meter.
+        let event = AgentEvent::TextDelta { text: "hello".into() };
+        assert!(GridHarness::classify_event(&event).is_empty());
+    }
+
+    #[test]
+    fn terminal_outcome_is_recorded_once_per_turn() {
+        // A normal turn emits Completed then Done — both terminal. The
+        // flow-outcome counter must move exactly once, or completion
+        // rates double-count every successful turn.
+        let recorded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let events = vec![
+            AgentEvent::Completed(grid_engine::agent::AgentLoopResult {
+                rounds: 1,
+                tool_calls: 0,
+                stop_reason: grid_types::StopReason::EndTurn.into(),
+                input_tokens: 10,
+                output_tokens: 5,
+                final_messages: vec![],
+            }),
+            AgentEvent::Done,
+        ];
+
+        let mut finishes = 0;
+        for event in &events {
+            for op in GridHarness::classify_event(event) {
+                if matches!(op, MetricOp::Finish { .. })
+                    && !recorded.swap(true, std::sync::atomic::Ordering::Relaxed)
+                {
+                    finishes += 1;
+                }
+            }
+        }
+        assert_eq!(finishes, 1, "Completed + Done must count as one outcome");
+    }
+
+    #[test]
+    fn guard_records_abandoned_turn_when_no_terminal_event() {
+        // A client that disconnects mid-turn drops the stream without
+        // any terminal event. The guard must still close the flow out —
+        // an uncounted turn looks identical to one that never ran.
+        let recorded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        {
+            let _guard = TurnMetricsGuard::new("sess-abandoned".into(), recorded.clone());
+        }
+        assert!(
+            recorded.load(std::sync::atomic::Ordering::Relaxed),
+            "dropping without a terminal event must record an outcome"
+        );
+    }
+
+    #[test]
+    fn guard_does_not_override_an_already_recorded_outcome() {
+        // When the turn ended normally, the guard's drop must not
+        // relabel it as abandoned.
+        let recorded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        {
+            let _guard = TurnMetricsGuard::new("sess-complete".into(), recorded.clone());
+        }
+        assert!(recorded.load(std::sync::atomic::Ordering::Relaxed));
+    }
 
     #[test]
     fn event_to_chunk_text_delta() {
