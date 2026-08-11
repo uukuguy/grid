@@ -1,22 +1,34 @@
 #!/bin/bash
-# v315-obstack-demo.sh — End-to-end OBSTACK v3.15.5 instance demo.
+# v315-obstack-demo.sh — End-to-end OBSTACK instance demo.
 #
-# Validates that EAASP v3.15.5 platform-observability stack exercises
-# all 5 dimensions (Observe / Trace / Evaluate / Optimize / Verify)
-# against real running services with REAL data flowing through (not
-# just empty wire-format round-trips like the earlier
-# PRODUCTION_USABILITY_2026-08-02-walk).
+# Exercises all 5 OBSTACK dimensions (Observe / Trace / Evaluate /
+# Optimize / Verify) against real running services.
+#
+# v3.15.6 6h — this script used to be able to "pass" without proving
+# anything: the LLM step had a 30s timeout (shorter than one
+# reasoning-model turn), its failure was non-fatal, five synthetic
+# events were hand-POSTed to /v1/events/ingest to populate the
+# timeline, and the Observe check grepped for log phrases that no
+# longer existed and never failed. A run could therefore exit 0 with a
+# dead metrics pipeline and a fabricated timeline. Fixed:
+#   - the skill is seeded into the per-run registry (step 1b)
+#   - the LLM step is load-bearing and fatal on failure (step 3)
+#   - the synthetic ingest is gone (step 4)
+#   - Observe parses the OTel JSON batches and fails on missing series
+#     (step 9)
 #
 # Pre-conditions:
-#   - Commits 1-4 of V315-BUSINESS-FLOW-02 applied (LayerReaders
-#     wired, business_key persisted on L4 sessions + L3 decisions,
-#     CLI circular-import fixed).
 #   - target/debug/grid-runtime built (`cargo build -p grid-runtime`).
-#   - LLM_PROVIDER + matching API key in `.env` (OPENAI_* or
-#     ANTHROPIC_*). If absent, the LLM-driven message step degrades
-#     gracefully (still produces L4 session_event rows for the timeline).
-#   - EAASP_DEV_DISABLE_SCOPE_BINDING=1 on L4 (already the default
-#     for dev mode; see api.py:798).
+#   - LLM_PROVIDER + matching API key in `.env`. NOTE: an API key
+#     exported in your shell SHADOWS `.env` (dotenvy does not override
+#     existing env vars) — a stale exported key surfaces as a 401 from
+#     the provider. `unset` it before running if unsure.
+#   - EAASP_DEV_DISABLE_SCOPE_BINDING=1 on L4 (default for dev mode).
+#
+# Env knobs:
+#   LLM_TIMEOUT               seconds for the agent turn (default 300)
+#   EAASP_OTEL_INTERVAL_SECS  OTel export interval; lower it (e.g. 5)
+#                             so metrics land before the run ends
 #
 # Run: bash scripts/v315-obstack-demo.sh 2>&1 | tee .logs/v315-obstack-demo/run.log
 
@@ -103,6 +115,38 @@ curl -fsS -X PUT http://127.0.0.1:18083/v1/policies/managed-hooks \
     ]
   }' | python3 -m json.tool | head -10
 
+# ─── 1b. Seed the skill into the per-run skill-registry ────────────────────
+# v3.15.6 6h: each run gets a fresh $V315_DEMO_DATA_DIR/skill-registry, so
+# the registry starts empty and L4's /v1/sessions/create handshake fails
+# with `skill-registry:not_found`. Previously that failure was invisible:
+# session-create still returned 200 (degraded), the LLM step was skipped,
+# and the demo carried on with hand-ingested events — which is precisely
+# why the timeline looked populated while nothing real had run.
+echo ""
+echo "=== 1b. Seed threshold-calibration into skill-registry ==="
+python3 - > "$LOGDIR/draft.json" <<'PYEOF'
+import json, pathlib
+raw = pathlib.Path("examples/skills/threshold-calibration/SKILL.md").read_text()
+parts = raw.split("---", 2)
+fm, prose = (parts[1], parts[2]) if len(parts) >= 3 else ("", raw)
+print(json.dumps({
+    "id": "threshold-calibration",
+    "name": "threshold-calibration",
+    "description": "Transformer threshold calibration (demo skill)",
+    "version": "0.1.0",
+    "author": "eaasp-mvp",
+    "source_dir": str(pathlib.Path("examples/skills/threshold-calibration").resolve()),
+    "tags": ["demo"],
+    "frontmatter_yaml": fm.strip(),
+    "prose": prose.strip(),
+}))
+PYEOF
+curl -fsS -X POST http://127.0.0.1:18081/skills/draft \
+  -H "Content-Type: application/json" \
+  -d @"$LOGDIR/draft.json" > "$LOGDIR/skill-seed.json" \
+  && echo "  seeded: $(python3 -c "import json;d=json.load(open('$LOGDIR/skill-seed.json'));print(d['id'], d['version'], d['status'])")" \
+  || { echo "  FATAL: skill seeding failed — the LLM step cannot run"; exit 1; }
+
 # ─── 2. Create L4 session with X-Business-Key ──────────────────────────────
 echo ""
 echo "=== 2. Create L4 session with X-Business-Key header ==="
@@ -121,37 +165,63 @@ echo "$SESSION_RESP" | python3 -m json.tool | tee "$LOGDIR/session-create.json"
 SESSION_ID=$(echo "$SESSION_RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['session_id'])")
 echo "  session_id=$SESSION_ID"
 
-# ─── 3. Send LLM-driven message (best-effort; degrades if no API key) ────
+# ─── 3. Send LLM-driven message (REAL agent loop — must succeed) ─────────
+# v3.15.6 6h: this step is now load-bearing, not best-effort.
+#
+# Two changes from the v3.15.5 version:
+#   1. Timeout 30s → $LLM_TIMEOUT (default 300s). 30s was shorter than a
+#      single reasoning-model turn, so this step silently timed out on
+#      every run and the demo fell through to hand-ingested events.
+#   2. Failure is fatal. Previously a failed turn printed a note and the
+#      demo continued, producing a "successful" run whose timeline was
+#      entirely synthetic.
+LLM_TIMEOUT="${LLM_TIMEOUT:-300}"
 echo ""
-echo "=== 3. Send LLM-driven message (via grid-runtime gRPC path; 30s timeout) ==="
-MSG_RESP=$(timeout 30 curl -fsS -X POST "http://127.0.0.1:18084/v1/sessions/$SESSION_ID/message" \
+echo "=== 3. Send LLM-driven message (real agent loop; ${LLM_TIMEOUT}s budget) ==="
+# The prompt asks for a tool call so the run exercises the PreToolUse /
+# PostToolUse path, not just text generation.
+MSG_RESP=$(timeout "$LLM_TIMEOUT" curl -fsS -X POST "http://127.0.0.1:18084/v1/sessions/$SESSION_ID/message" \
   -H "Content-Type: application/json" \
   -H "X-Session-Scope: $SCOPE" \
   -H "X-Business-Key: $KEY" \
-  -d '{"content":"Fetch recent SCADA data for Transformer-sla-1785652837 and recalibrate thresholds."}' \
+  -d '{"content":"Call the task_list tool now to list current tasks, then summarise the result in one sentence. Do not ask for confirmation."}' \
   2>"$LOGDIR/message-err.txt" || true)
-if [ -n "$MSG_RESP" ]; then
-  echo "$MSG_RESP" | python3 -m json.tool | tee "$LOGDIR/message.json" | head -30
-  echo "  (LLM-driven message produced session events; timeline aggregation below)"
-else
-  echo "  (LLM message step skipped or timed out — see $LOGDIR/message-err.txt)"
-  echo "  (Demo continues with direct ingest to populate the timeline)"
-fi
 
-# ─── 4. Ingest cross-layer events tagged with the business key ────────────
+if [ -z "$MSG_RESP" ]; then
+  echo "  FATAL: LLM-driven message produced no response."
+  echo "  This step is load-bearing — without it the timeline below would"
+  echo "  contain no real agent-loop events and the run would prove nothing."
+  echo "  See $LOGDIR/message-err.txt and .logs/v315-walk/grid-runtime.log"
+  echo "  Common cause: a stale API key exported in the shell shadows .env"
+  echo "  (dotenvy does not override existing env vars)."
+  exit 1
+fi
+echo "$MSG_RESP" > "$LOGDIR/message.json"
+# Summarise rather than `head` the JSON: a real turn streams hundreds of
+# chunks, and piping that into `head` closes the pipe early — under
+# `set -o pipefail` that surfaces as SIGPIPE (exit 141) and kills the run.
+python3 - "$LOGDIR/message.json" <<'PYEOF'
+import json, sys, collections
+d = json.load(open(sys.argv[1]))
+chunks = d.get("chunks", d if isinstance(d, list) else [])
+kinds = collections.Counter(c.get("chunk_type", "?") for c in chunks)
+print(f"  chunks: {len(chunks)}  ({', '.join(f'{k}={v}' for k, v in sorted(kinds.items()))})")
+tools = [c.get("tool_name") for c in chunks if c.get("tool_name")]
+print(f"  tool calls observed in stream: {sorted(set(tools)) or 'none'}")
+PYEOF
+echo "  (real agent loop drove L1 → L4; timeline below is its output)"
+
+# ─── 4. (removed in v3.15.6 6h — was: hand-ingest 5 synthetic events) ────
+# The v3.15.5 demo POSTed five fabricated events to /v1/events/ingest
+# (PRE_TOOL_USE, POST_TOOL_USE, APPROVAL, REQUEST, MEMORY_WRITE) so the
+# timeline below would look populated. That is what V315-WALK-01
+# tracked: the 14-event timeline was mostly theatre, and it stayed
+# convincing even when step 3 had silently timed out.
+#
+# Step 3 is now load-bearing and fatal on failure, so every event in
+# the timeline is produced by the real agent loop. Nothing to fabricate.
 echo ""
-echo "=== 4. Ingest events (L1 REST fallback) ==="
-for ET in PRE_TOOL_USE POST_TOOL_USE APPROVAL REQUEST MEMORY_WRITE; do
-  curl -fsS -X POST http://127.0.0.1:18084/v1/events/ingest \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"session_id\":\"$SESSION_ID\",
-      \"event_type\":\"$ET\",
-      \"payload\":{\"skill_id\":\"threshold-calibration\",\"step\":\"$ET\",\"value\":85},
-      \"source\":\"runtime:grid-runtime\"
-    }" > "$LOGDIR/ingest-$ET.json" 2>&1 || true
-  echo "  ingest $ET: $(cat "$LOGDIR/ingest-$ET.json" 2>/dev/null | head -c 80)"
-done
+echo "=== 4. (no synthetic ingest — timeline is real agent-loop output) ==="
 
 # ─── 5. L3 /v1/evaluate with X-Business-Key ───────────────────────────────
 echo ""
@@ -164,7 +234,26 @@ echo "  (Skipping L3 evaluate — would need OPA sidecar + managed-hooks deploy;
 echo ""
 echo "=== 6. /v1/business-flows/{key}/timeline ==="
 curl -fsS "http://127.0.0.1:18084/v1/business-flows/$ENCODED/timeline" \
-  | python3 -m json.tool | tee "$LOGDIR/timeline.json" | head -40
+  > "$LOGDIR/timeline.json"
+# Summarise instead of `head`-ing: with step 3 now driving a real turn
+# the timeline is long, and `head` closing the pipe trips SIGPIPE under
+# `set -o pipefail`. Also assert the timeline is non-empty — an empty
+# timeline after a successful turn means the L1 → L4 event path broke.
+python3 - "$LOGDIR/timeline.json" <<'PYEOF'
+import json, sys, collections
+d = json.load(open(sys.argv[1]))
+events = d.get("events", d if isinstance(d, list) else [])
+print(f"  timeline events: {len(events)}")
+by_layer = collections.Counter(e.get("layer", "?") for e in events)
+by_type = collections.Counter(e.get("event_type", "?") for e in events)
+print(f"  by layer: {dict(sorted(by_layer.items()))}")
+for t, n in sorted(by_type.items()):
+    print(f"    {t}: {n}")
+if not events:
+    print("  FAIL: timeline empty after a successful agent turn —")
+    print("  the L1 → L4 event path is broken.")
+    sys.exit(1)
+PYEOF
 
 echo ""
 echo "=== 6a. /v1/business-flows/{key}/summary ==="
@@ -190,45 +279,84 @@ timeout 5 curl -N -fsS "http://127.0.0.1:18084/v1/business-flows/$ENCODED/events
 echo "  SSE log lines: $(wc -l < "$LOGDIR/sse.log" 2>/dev/null || echo 0)"
 head -10 "$LOGDIR/sse.log" 2>/dev/null || true
 
-# ─── 9. Observe dimension (grid-runtime OTel wiring verification) ────────
-# V315-L1-OTEL-FULL-01 wired the OTel SDK (PeriodicReader + SdkMeterProvider +
-# InMemoryExporter) so record_*() calls now land in real Counter /
-# Histogram / UpDownCounter handles. The exporter is in-memory, not
-# stdout — so we can't grep the log for OTel metric records. Instead,
-# the L4 observability mirror emits l4.* metric records to its own
-# logger (logs/v315-walk/l4.log) when calls happen, and grid-runtime
-# emits the session/hook lifecycle events we already see in
-# logs/v315-walk/grid-runtime.log. Show evidence the OTel wiring is
-# live by counting the grid-runtime lifecycle events.
+# ─── 9. Observe dimension — assert the L1 OTel series actually moved ─────
+# v3.15.6 6h: this check used to grep grid-runtime.log for phrases like
+# "tool.total" and "L1 OTel SDK installed". That was worthless twice
+# over: the phrases stopped appearing once 6c.1 switched to the stdout
+# exporter, and the check printed its count without ever failing. It
+# reported 0 on a run where the metrics pipeline was completely dead
+# and the demo still exited 0.
+#
+# Now we parse the stdout exporter's JSON batches and assert that the
+# expected series are present with non-zero values. If the pipeline is
+# dead, or the emits regress to an unreachable code path, this fails
+# the run.
 echo ""
-echo "=== 9. Observe dimension ==="
-OTEL_EVENTS=$(grep -cE 'session initialized|policy_context metadata|Materialized|hook_vars resolved|capability probe|Scoped hook registered|Scoped Stop hook' \
-  "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
-echo "  grid-runtime lifecycle events captured (OTel-eligible records): $OTEL_EVENTS"
-echo "  (V315-L1-OTEL-FULL-01: record_*() now lands in real Counter/Histogram/UpDownCounter via SdkMeterProvider)"
-echo "  (evidence via grid-runtime log + the 7/7 in-crate observability tests in crates/grid-runtime/src/observability/mod.rs)"
+echo "=== 9. Observe dimension (L1 OTel series assertions) ==="
+python3 - "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" <<'PYEOF'
+import json, sys, pathlib
 
-L4_METRICS=$(grep -cE 'l4\.|flow\.|session\.|room\.|event\.' "$ROOT/$LOGDIR_OVERRIDE/l4.log" 2>/dev/null || echo 0)
-echo "  L4 observability log records: $L4_METRICS (l4.* metric names per OBSTACK §3.3)"
+log = pathlib.Path(sys.argv[1])
+if not log.exists():
+    print(f"  FAIL: {log} missing"); sys.exit(1)
 
-# ─── 9b. L1 OTel stdout exporter evidence (v3.15.6 6c.1) ────────────────
-# v3.15.6 6c.1 wired init_observability("stdout") into main.rs.
-# grid-runtime now installs opentelemetry-stdout::MetricsExporter and
-# writes each PeriodicReader batch to stdout every 30s. Verify the
-# installer is live by grepping the grid-runtime log for the
-# post-install info line emitted by record_* helpers.
-L1_OTEL_LIVE=$(grep -cE 'L1 OTel SDK installed|record_\* now lands in real Counter' \
-  "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
-echo "  L1 OTel SDK installer evidence: $L1_OTEL_LIVE (expect ≥ 1 after 6c.1 activation)"
+batches = [json.loads(l) for l in log.read_text(encoding="utf-8", errors="replace").splitlines()
+           if l.startswith('{"resourceMetrics"')]
+print(f"  OTel batches exported: {len(batches)}")
+if not batches:
+    print("  FAIL: no metric batches — the exporter never ran"); sys.exit(1)
 
-# ─── 9c. L1 OTel harness.rs emit evidence (v3.15.6 6c.2 + 6c.3) ─────────
-# Once grid-runtime goes through a tool call, harness.rs fires
-# record_tool(name, "pre"/"post") + record_business_flow_outcome.
-# Those calls require the OTel SDK to be installed (6c.1) — without
-# 6c.1 these were silent no-ops. Count the pre/post/flow_outcome log
-# traces the installer emits to confirm the wiring is hooked.
-L1_TOOL_EMITS=$(grep -cE 'tool\.total|flow\.outcome' "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
-echo "  L1 tool/flow counter emits: $L1_TOOL_EMITS (post-6c.2 + 6c.3 OTel aggregates, per-tool + per-flow)"
+# Take the last-seen value per series. Counters here are cumulative, so
+# the newest batch already holds the running total; gauges must use the
+# newest value too (folding with max would report a gauge's peak and
+# make a settled in_flight look like a leak).
+seen = {}
+for b in batches:
+    for sm in b["resourceMetrics"].get("scopeMetrics", []):
+        for m in sm.get("metrics", []):
+            data = m.get("sum") or m.get("gauge") or m.get("histogram") or {}
+            for dp in data.get("dataPoints", []):
+                attrs = {a["key"]: list(a["value"].values())[0] for a in dp.get("attributes", [])}
+                val = dp.get("value", dp.get("asInt", dp.get("count", 0)))
+                seen[(m["name"], json.dumps(attrs, sort_keys=True))] = val or 0
+
+for (name, attrs), val in sorted(seen.items()):
+    print(f"    {name} {attrs} = {val}")
+
+# A real agent-loop turn must move these. `errors.total` is deliberately
+# NOT required — a clean run has no errors, and demanding one would push
+# the demo toward manufacturing failures.
+required = [
+    "l1.runtime.requests.total",   # RPC dispatch (6h layer)
+    "l1.runtime.llm.total",        # model round-trip
+    "l1.runtime.tool.total",       # PreToolUse / PostToolUse
+    "l1.runtime.flow.outcome",     # terminal outcome
+]
+present = {name for (name, _) in seen}
+missing = [r for r in required if r not in present]
+if missing:
+    print("  FAIL: expected series absent after a real turn:")
+    for m in missing:
+        print(f"    - {m}")
+    print("  This is the V315-WALK-01 / V315-L1-OTEL-FULL-01 failure mode:")
+    print("  the run completed but the metrics it claims to prove never moved.")
+    sys.exit(1)
+
+# in_flight must return to 0 — a leak means a turn was never closed out.
+for (name, attrs), val in seen.items():
+    if name == "l1.runtime.in_flight" and val not in (0, None):
+        print(f"  WARN: in_flight did not settle to 0 ({attrs} = {val})")
+
+print(f"  PASS: {len(required)}/{len(required)} required L1 series emitted by the real agent loop")
+PYEOF
+OBSERVE_RC=$?
+if [ "$OBSERVE_RC" -ne 0 ]; then
+  echo "  === Observe dimension FAILED — see above ==="
+  exit 1
+fi
+
+L4_METRICS=$(grep -cE 'l4\.|flow\.|session\.|room\.|event\.' "$ROOT/$LOGDIR_OVERRIDE/l4.log" 2>/dev/null || true)
+echo "  L4 observability log records: ${L4_METRICS:-0} (l4.* metric names per OBSTACK §3.3)"
 
 # ─── 10. Optimize executors (programmatic) ────────────────────────────────
 echo ""
