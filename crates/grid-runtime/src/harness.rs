@@ -29,6 +29,7 @@ use grid_types::id::{SandboxId, SessionId, UserId};
 use grid_types::{ChatMessage, ContentBlock, MessageRole};
 
 use crate::contract::*;
+use crate::observability::{record_business_flow_outcome, record_tool};
 use crate::telemetry::TelemetryCollector;
 
 /// Grid Tier 1 Harness — native RuntimeContract implementation.
@@ -957,23 +958,36 @@ impl RuntimeContract for GridHarness {
     async fn on_tool_call(
         &self,
         _handle: &SessionHandle,
-        _call: ToolCall,
+        call: ToolCall,
     ) -> anyhow::Result<HookDecision> {
-        // No-op for Grid: PreToolUse hooks fire natively inside AgentLoop.
+        // v3.15.6 6c.2 — emit OBSTACK PreToolUse event into the
+        // L1 OTel meter (l1.runtime.tool.total{tool, status="pre"}).
+        // The AgentLoop already fires the L3 PreToolUse hook
+        // natively; this emit is the L1 observability side that
+        // aggregates per-tool call counts.
+        record_tool(&call.tool_name, "pre");
         Ok(HookDecision::Allow)
     }
 
     async fn on_tool_result(
         &self,
         _handle: &SessionHandle,
-        _result: ToolResult,
+        result: ToolResult,
     ) -> anyhow::Result<HookDecision> {
-        // No-op for Grid: PostToolUse hooks fire natively inside AgentLoop.
+        // v3.15.6 6c.2 — emit OBSTACK PostToolUse event
+        // (l1.runtime.tool.total{tool, status="post"}).
+        record_tool(&result.tool_name, "post");
         Ok(HookDecision::Allow)
     }
 
-    async fn on_stop(&self, _handle: &SessionHandle) -> anyhow::Result<StopDecision> {
-        // No-op for Grid: Stop hooks fire natively inside AgentLoop.
+    async fn on_stop(&self, handle: &SessionHandle) -> anyhow::Result<StopDecision> {
+        // v3.15.6 6c.3 — emit OBSTACK business-flow outcome event
+        // (l1.runtime.flow.outcome{business_key, status="complete"})
+        // so the OBSTACK_RETROSPECTIVE trace can roll up per-session
+        // completion rates. The session_id itself is the L1
+        // per-flow label (the L4 layer folds it into the
+        // session_id+skill_id+business_object_id tuple).
+        record_business_flow_outcome(&handle.session_id, "complete");
         Ok(StopDecision::Complete)
     }
 

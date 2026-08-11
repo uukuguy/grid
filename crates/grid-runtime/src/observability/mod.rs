@@ -54,6 +54,7 @@ pub const METRIC_IN_FLIGHT: &str = "l1.runtime.in_flight";
 pub const METRIC_LLM_TOTAL: &str = "l1.runtime.llm.total";
 pub const METRIC_LLM_DURATION: &str = "l1.runtime.llm.duration";
 pub const METRIC_TOOL_TOTAL: &str = "l1.runtime.tool.total";
+pub const METRIC_FLOW_OUTCOME: &str = "l1.runtime.flow.outcome";
 pub const METRIC_ERRORS_TOTAL: &str = "l1.runtime.errors.total";
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ struct Handles {
     llm_total: Counter<u64>,
     llm_duration: Histogram<f64>,
     tool_total: Counter<u64>,
+    flow_outcome: Counter<u64>,
     errors_total: Counter<u64>,
 }
 
@@ -211,6 +213,7 @@ pub fn init_observability(exporter: Option<&str>) {
             llm_total: meter.u64_counter(METRIC_LLM_TOTAL).init(),
             llm_duration: meter.f64_histogram(METRIC_LLM_DURATION).init(),
             tool_total: meter.u64_counter(METRIC_TOOL_TOTAL).init(),
+            flow_outcome: meter.u64_counter(METRIC_FLOW_OUTCOME).init(),
             errors_total: meter.u64_counter(METRIC_ERRORS_TOTAL).init(),
         });
         let _ = HANDLES.set(handles);
@@ -307,6 +310,29 @@ pub fn record_tool(tool: &str, status: &str) {
         1,
         &[
             KeyValue::new("tool", tool.to_string()),
+            KeyValue::new("status", status.to_string()),
+        ],
+    );
+}
+
+pub fn record_business_flow_outcome(business_key: &str, status: &str) {
+    // v3.15.6 6c.3 — emit OBSTACK business-flow outcome event.
+    // Counts one row per terminating session into the L1 OTel meter
+    //   l1.runtime.flow.outcome{business_key, status}
+    // so the OBSTACK_RETROSPECTIVE trace can roll up completion
+    // rates by session_id / skill_id / business_object_id. The
+    // business_key is treated as a single label (low cardinality
+    // expectation per OBSTACK_DESIGN §3.3 — the L4 layer normally
+    // owns the per-(session, skill, object) roll-up; L1 only
+    // counts the raw outcome).
+    let h = match handles() {
+        Some(h) => h,
+        None => return,
+    };
+    h.flow_outcome.add(
+        1,
+        &[
+            KeyValue::new("business_key", business_key.to_string()),
             KeyValue::new("status", status.to_string()),
         ],
     );
