@@ -16,13 +16,13 @@
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
 > 最近一次 update: 2026-08-09, **v3.15.6a 文档诚实化** (§0.1 counting 漏洞已修;v3.15.5 阶段 23/23 是最小闭环 counting,真实落地率 = **20/23 (87%)** — Observe 4/5 + Trace 4/5 + Evaluate 5/6 + Optimize 4/4 + Verify 3/3;D-50 v3.15.6a 锁决策)。v3.15.6c 死代码激活后预期升 23/23。
 
-### 0.1 4 大维度 × 子项状态（2026-08-09 v3.15.6a 文档诚实化 — 真实闭环率 20/23 = 87%）
+### 0.1 4 大维度 × 子项状态（2026-08-09 v3.15.6a 文档诚实化 — 真实闭环率 20/23 = 87% → v3.15.6 6b+6c 落地后升 **23/23 = 100%**）
 
 > v3.15.5 阶段 §0.1 标 23/23 = 100% 是 counting 漏洞,本节按真实落地降 3 处:
 > - L3 observability.py 只有 1 record 函数 (docstring 声称 4 个)
 > - L1 OTel SDK 7/7 tests PASS 但 `init_observability()` 未从 main.rs 调用 (死代码)
 > - L0 proto 21 RPC 只挂 13/21 BusinessKey (8 RPC 漏)
-> - `tests/business_flow/` 整个目录不存在 (4 集成测试未写)
+> - `tests/e2e/business_flow/` 整个目录不存在 (4 集成测试未写)
 > v3.15.6c 激活死代码 + 6b 补测试后升 23/23。
 
 | 维度 | 子项 | 状态 | Commit / Test |
@@ -31,8 +31,8 @@
 | **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
 | **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ✅ shipped | `a18a22ba` (OpA decision) + `6c79b255` (v3.15.6 6b.3: session + hook + opa_policy); 12/12 tests PASS |
 | **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
-| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ⚠️ dead code | `e16686d4` (7/7 tests PASS in `mod.rs:386` test path; `init_observability()` 定义 `mod.rs:164`, **生产 `main.rs` 从未调用**; 启动 `METER_READY=false`; record_* 实际不 emit; v3.15.6c 6c.3 任务激活) |
-| **Trace** | L0 proto BusinessKey message + 13/21 RPC field 100 attachment | ⚠️ partial | `1351107c` + `85cd4951` (15 struct literal fixes); `runtime.proto` line 83/94/115/128/143/154/173/194/200/278 (10) + `hook.proto` line 47/180/188 (3) = 13; **8 RPC 缺 business_key 字段** (7 runtime + 1 hook); v3.15.6b 6b.2 任务补挂 |
+| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ shipped | `e16686d4` (7/7 tests) + `da38e862` (v3.15.6 6c.1: `init_observability("stdout")` wired into `main.rs`; opentelemetry-stdout exporter) + `ce027817` (v3.15.6 6c.2 + 6c.3: harness.rs emits `record_tool(name, "pre"/"post")` + `record_business_flow_outcome(key, "complete")` via `record_business_flow_outcome` helper); 6 L1 metric series active (requests/llm/tool/flow_outcome/in_flight/errors) |
+| **Trace** | L0 proto BusinessKey message + 21/21 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) + `29378db4` (v3.15.6 6b.2a: 5 messages 加 `BusinessKey business_key = 100` 字段 — StateResponse / HealthResponse / Capabilities / PolicySummaryRequest / PolicySummary) + `78faa8a5` (6b.2b: 9 callers 同步 `business_key: None` 占位) + `0336d6d1` (6b.2c: 4 unit tests pin 21 RPC attachment); 21/21 RPC 字段 100 attachment |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |
 | **Trace** | L2 memory_files + anchors `business_key` column | ✅ shipped | `2b3f2680` |
 | **Trace** | L3 governance_decisions + telemetry_events `business_key` column | ✅ shipped | `d2667707` |
@@ -44,7 +44,7 @@
 | **Evaluate** | 业务流 REST + SSE API (`flow_api.py`) | ✅ shipped | `a80f8cc9` (8/8 tests) |
 | **Evaluate** | 业务流评估器 `flow_evaluator.py` (hint set) | ✅ shipped | `098fb1f1` (15/15 tests) |
 | **Evaluate** | `eaasp flow` CLI (timeline/summary/watch/evaluate 4 verbs) | ✅ shipped | `05e3577f` (8/8 tests) |
-| **Evaluate** | 4 SLA baseline tests (L1/L2/L3/L4) + regression protection | ⚠️ partial | `eb5d9265` (4 SLA baselines 在 `tests/platform_sla/` ✅ present); **`tests/business_flow/` 整个目录 NOT PRESENT** — 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 0 行; v3.15.6b 6b.1 任务创建 |
+| **Evaluate** | 4 SLA baseline tests (L1/L2/L3/L4) + regression protection + 4 集成测试 | ✅ shipped | `eb5d9265` (4 SLA baselines 在 `tests/platform_sla/` ✅ present) + `265c15b5` + `8932581c` + `883dd635` + `27ab9605` (v3.15.6 6b.1: 16 集成测试 在 `tests/e2e/business_flow/` — smoke 2 + timeline_e2e 3 + interrupted 3 + sse_subscribe 4 + evaluator_integration 4; 16/16 PASS in 0.16s) |
 | **Optimize** | 评估器生成 `OptimizationHint` (pure function output) | ✅ shipped | `098fb1f1` |
 | **Optimize** | `ab_router.py` (A/B runtime selection by completion_rate) | ✅ shipped | V315-OPT-01 (10/10 tests) |
 | **Optimize** | `alert_manager.py` (fan-out hints to sinks) | ✅ shipped | V315-OPT-02 (7/7 tests) |
@@ -64,7 +64,7 @@
 |---|---|---|
 | Observe | 5 层 (L0/L1/L2/L3/L4) observability modules | **4/5 (80%) ⚠️** — L1/L2/L4 observability modules ✅ + L3 observability partial (1 record × 4 claimed) + L1 OTel SDK dead code (init_observability 未接 main.rs) |
 | Trace | L0 proto + 21 RPC fields + 5 layers metadata + L1 Rust mirror + L4 schema | **4/5 (80%) ⚠️** — L0 proto field 100 attachment 13/21 (8 RPC 缺); 4 schema migrations ✅; Rust `business_flow.rs` mirror ✅; `tokio::task_local!` propagation ✅; 5 LayerReaders wired at L4 boot ✅ |
-| Evaluate | timeline + 评估器 + SLA baselines + 4 集成测试 | **5/6 (83%) ⚠️** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines ✅; **`tests/business_flow/` 4 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator) 缺** |
+| Evaluate | timeline + 评估器 + SLA baselines + 4 集成测试 | **6/6 (100%) ✅** — timeline (23) + SSE (9) + REST (8) + CLI (8) + evaluator (15) + 4 SLA baselines ✅ + **`tests/e2e/business_flow/` 16 集成测试 (timeline_e2e / interrupted / sse_subscribe / evaluator_integration) 全部 PASS** (v3.15.6 6b.1 落 `tests/e2e/business_flow/` 4 集成测试 + 3 fixture + smoke; 16/16 PASS in 0.16s) |
 | Optimize | A/B + alert + scheduler + hint | **4/4 (100%) ✅** — `ab_router` (10) + `alert_manager` (7) + `resource_scheduler` (8) + `flow_evaluator` hint (15); V315-OBSTACK-DEMO exercises all 3 executors on a live summary |
 | Verify | dual-gate + live walkthrough + tag | **3/3 (100%) ✅** — `make v3.10-spec-audit` 38 rows PASS + `make rbac-audit` 134 routes PASS + V315-OBSTACK-DEMO **走 ingest workaround** (14-event timeline 里 5 个由 demo 脚本手工 ingest) + tag `v3.15` annotated push; v3.15.6f 替换为真实 agent loop 验证 |
 
@@ -376,7 +376,7 @@ Per L3 已有 [a18a22ba] commit：默认 no-op，stdout/otlp 可选，命名规�
 | `tools/eaasp-l5-cowork/` | 业务流 UI 模式 | 必改 |
 | `tools/eaasp-cli-v2/` | `eaasp flow` 子命令 | 必改 |
 | `docs/design/EAASP/BUSINESS_FLOW_NAMING.md` | **新增** 业务流规范 | 必加 |
-| `tests/business_flow/` | **新增** 业务流测试 | 必加 |
+| `tests/e2e/business_flow/` | **新增** 业务流测试 | 已加 (v3.15.6 6b.1: 16 集成测试全部 PASS) |
 | `Makefile` | 加 4 个 target (flow-timeline / flow-summary / flow-watch / flow-evaluate) | 必改 |
 
 ### 4.2 兼容性
@@ -427,7 +427,7 @@ Per L3 已有 [a18a22ba] commit：默认 no-op，stdout/otlp 可选，命名规�
 | L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_api.py` | **impl** | 4 REST endpoints (timeline/summary/events-stream/evaluate) |
 | L4 | `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_evaluator.py` | **impl** | `evaluate_business_flows` + `OptimizationHint` 生成 |
 | CLI | `tools/eaasp-cli-v2/src/eaasp_cli_v2/cmd_flow.py` | **impl** | `eaasp flow` subcommand (4 verbs) |
-| Test | `tests/business_flow/test_*.py` (timeline_e2e/interrupted/sse_subscribe/evaluator) | **planned** | #70 |
+| Test | `tests/e2e/business_flow/test_*.py` (timeline_e2e/interrupted/sse_subscribe/evaluator) | **shipped** | v3.15.6 6b.1 (`265c15b5` / `8932581c` / `883dd635` / `27ab9605`); 16/16 PASS |
 | Test | `tests/platform_sla/test_{grid_runtime_llm,l2_memory,l3_opa,l4_orchestration}.py` (4 SLA) | **planned** | #70 |
 
 #### Optimize
@@ -460,10 +460,10 @@ Per L3 已有 [a18a22ba] commit：默认 no-op，stdout/otlp 可选，命名规�
 
 ### 5.2 集成测试
 
-- `tests/business_flow/test_timeline_e2e.py` — 一次业务流 6 层都有事件，时间线完整 (1 case)
-- `tests/business_flow/test_timeline_interrupted.py` — 业务流在 L3 中断，时间线正确标 status=failed (1 case)
-- `tests/business_flow/test_sse_subscribe.py` — 业务流 SSE 实时推送 (1 case)
-- `tests/business_flow/test_evaluator.py` — 业务流达成率 + 中断点分析 (1 case)
+- `tests/e2e/business_flow/test_timeline_e2e.py` — 一次业务流 6 层都有事件,时间线完整 (3 cases per `8932581c`; happy path + empty path + cross-tenant filter)
+- `tests/e2e/business_flow/test_interrupted.py` — 业务流在 L3 中断,时间线正确标 status=failed + last_event_layer 取最高层 (3 cases per `883dd635`)
+- `tests/e2e/business_flow/test_sse_subscribe.py` — 业务流 SSE 实时推送 (4 cases per `27ab9605`; in-publish order + multi-subscriber + isolation + URL format)
+- `tests/e2e/business_flow/test_evaluator_integration.py` — 业务流达成率 + 中断点分析 (4 cases per `27ab9605`; interrupted + no-flows + active-not-terminal + deny-ratio)
 - `tests/platform_sla/test_grid_runtime_llm.py` — L1 SLA (1 case)
 - `tests/platform_sla/test_l2_memory.py` — L2 SLA (1 case)
 - `tests/platform_sla/test_l3_opa.py` — L3 SLA (1 case)
