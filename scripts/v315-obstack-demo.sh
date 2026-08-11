@@ -211,6 +211,25 @@ echo "  (evidence via grid-runtime log + the 7/7 in-crate observability tests in
 L4_METRICS=$(grep -cE 'l4\.|flow\.|session\.|room\.|event\.' "$ROOT/$LOGDIR_OVERRIDE/l4.log" 2>/dev/null || echo 0)
 echo "  L4 observability log records: $L4_METRICS (l4.* metric names per OBSTACK §3.3)"
 
+# ─── 9b. L1 OTel stdout exporter evidence (v3.15.6 6c.1) ────────────────
+# v3.15.6 6c.1 wired init_observability("stdout") into main.rs.
+# grid-runtime now installs opentelemetry-stdout::MetricsExporter and
+# writes each PeriodicReader batch to stdout every 30s. Verify the
+# installer is live by grepping the grid-runtime log for the
+# post-install info line emitted by record_* helpers.
+L1_OTEL_LIVE=$(grep -cE 'L1 OTel SDK installed|record_\* now lands in real Counter' \
+  "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
+echo "  L1 OTel SDK installer evidence: $L1_OTEL_LIVE (expect ≥ 1 after 6c.1 activation)"
+
+# ─── 9c. L1 OTel harness.rs emit evidence (v3.15.6 6c.2 + 6c.3) ─────────
+# Once grid-runtime goes through a tool call, harness.rs fires
+# record_tool(name, "pre"/"post") + record_business_flow_outcome.
+# Those calls require the OTel SDK to be installed (6c.1) — without
+# 6c.1 these were silent no-ops. Count the pre/post/flow_outcome log
+# traces the installer emits to confirm the wiring is hooked.
+L1_TOOL_EMITS=$(grep -cE 'tool\.total|flow\.outcome' "$ROOT/$LOGDIR_OVERRIDE/grid-runtime.log" 2>/dev/null || echo 0)
+echo "  L1 tool/flow counter emits: $L1_TOOL_EMITS (post-6c.2 + 6c.3 OTel aggregates, per-tool + per-flow)"
+
 # ─── 10. Optimize executors (programmatic) ────────────────────────────────
 echo ""
 echo "=== 10. Optimize executors ==="
