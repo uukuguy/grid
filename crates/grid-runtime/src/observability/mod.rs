@@ -439,12 +439,18 @@ impl TimeBlock {
 
     /// Record the request as complete with the given status and emit
     /// both the counter increment and the duration histogram in one
-    /// call. Decrements the in-flight gauge.
+    /// call.
+    ///
+    /// The in-flight decrement is left to `Drop` (which runs when
+    /// `self` goes out of scope at the end of this function). v3.15.6
+    /// 6h: this used to also call `in_flight_dec` explicitly, which
+    /// double-decremented — `Drop` then fired a second time and drove
+    /// the gauge negative. The bug never surfaced because the helper
+    /// had no production caller until now.
     pub fn record_request(self, status: &'static str) -> f64 {
         let secs = self.elapsed_secs();
         record_request(self.op, status);
         record_request_duration(self.op, status, secs);
-        in_flight_dec(self.op);
         secs
     }
 

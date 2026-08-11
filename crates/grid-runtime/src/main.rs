@@ -15,6 +15,7 @@ use grid_runtime::config::RuntimeConfig;
 use grid_runtime::observability::init_observability;
 use grid_runtime::harness::GridHarness;
 use grid_runtime::proto::runtime_service_server::RuntimeServiceServer;
+use grid_runtime::request_metrics::RequestMetricsLayer;
 use grid_runtime::service::RuntimeGrpcService;
 use grid_types::id::{TenantId, UserId};
 
@@ -182,7 +183,13 @@ async fn main() -> anyhow::Result<()> {
 
     info!(addr = %config.grpc_addr, "gRPC server listening");
 
+    // v3.15.6 6h — OBSTACK `l1.runtime.requests.*`. Applied as a layer
+    // so every RPC is counted from one place; wrapping the 19 handler
+    // bodies individually would need re-auditing at each new method
+    // and each early return. See `request_metrics` for the streaming
+    // caveat on `Send`.
     Server::builder()
+        .layer(RequestMetricsLayer::new())
         .add_service(server)
         .serve(config.grpc_addr)
         .await?;

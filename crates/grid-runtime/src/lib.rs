@@ -29,6 +29,7 @@ pub mod l2_memory_client;
 pub mod memory_write_hook;
 pub mod observability;
 pub mod pre_compact_emitter;
+pub mod request_metrics;
 pub mod scoped_hook_handler;
 pub mod service;
 pub mod session_payload;
