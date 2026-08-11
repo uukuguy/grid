@@ -1,34 +1,43 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-30T00:00:00.000Z",
-  "phase": null,
-  "phase_name": "v3.14 SHIPPED — EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED (D-46 final phase)",
+  "timestamp": "2026-08-11T18:45:00.000Z",
+  "phase": "v3.15.6",
+  "phase_name": "OBSTACK 实战补完 (6 阶段 6a → 6f)",
   "phase_dir": ".planning",
-  "plan": null,
-  "task": null,
-  "total_tasks": null,
-  "status": "shipped",
+  "plan": "docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md",
+  "task": "6f",
+  "total_tasks": 6,
+  "status": "in_progress",
   "completed_tasks": [
-    {"name": "v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem SHIPPED", "status": "done", "commit": "05074170"},
-    {"name": "v3.14.2 SDK scaffolding (EaaspEcosystemClient + MARKETPLACE-03 CLI + ecosystem subcommand)", "status": "done", "commit": "9c845e29 + ced94f33 + de70d199"},
-    {"name": "v3.14.3 single-point live walkthrough + PRODUCTION_USABILITY_2026-07-30", "status": "done", "commit": "31c804eb"},
-    {"name": "v3.14 milestone close — STATE bump + DEFERRED_LEDGER V310-ECOSYSTEM-01 ✅ CLOSED + tag v3.14 force-push", "status": "done", "commit": "98dfecf7"},
-    {"name": "v3.14.3 close-out text-sync gap (37 → 38 spec rows across 5 files)", "status": "done", "commit": "690ca810"},
-    {"name": "docs/status/ handoff refresh (CURRENT-STATE.md + RESUME-NEXT-SESSION.md)", "status": "done", "commit": "df2922f7"},
-    {"name": "JOURNAL.md append — v3.14 final handoff refresh entry", "status": "done", "commit": "182ba76a"}
+    {"name": "6a 文档/状态一致性 — OBSTACK §0.1 诚实化 23/23 → 20/23 (D-50) + 4 项 V315-* 登记 DEFERRED_LEDGER (D-51) + AGENTS.md OBSTACK 段", "status": "done", "commit": "725fe82c + c7a5b50e + 15e9edac + 479f1483 + 8e42f151 + 960c7f10"},
+    {"name": "6b 测试补完 — tests/e2e/business_flow/ 16 集成测试 + L0 proto BusinessKey 13/21 → 21/21 + L3 3 record helpers (32 tests PASS)", "status": "done", "commit": "265c15b5 + 8932581c + 883dd635 + 27ab9605 + 29378db4 + 78faa8a5 + 0336d6d1 + 6c79b255 + 31267e28"},
+    {"name": "6c 死代码激活 — init_observability() 真接 main.rs + opentelemetry-stdout 0.5 + harness.rs emit (6 L1 metric series active); §0.1 4 处 ⚠️→✅ 回升 23/23", "status": "done", "commit": "da38e862 + ce027817 + 40b661f8 + efba6e83"},
+    {"name": "close-out retrospective", "status": "done", "commit": "39e30908"},
+    {"name": "push 20 commits bb6ad340..39e30908 to origin/main + CI 复核", "status": "done", "commit": "39e30908"}
   ],
   "remaining_tasks": [
-    {"name": "Choose v3.15 milestone scope (data/integration axis per ADR-V2-024 §1)", "status": "not_started"}
+    {"name": "6d web-platform Dashboard (5 页面 + 5 routes, dual-gate 134 → 139)", "status": "deferred", "note": "显式 deferred → v3.16 per D-53 (双轴模型: web-platform UI 属 Grid 独立产品轴)"},
+    {"name": "6e CLI 全局接入 + 工具生态 (eaasp flow 3 verb + business_key 贯穿)", "status": "deferred", "note": "显式 deferred → v3.16 per D-54;功能面已由 6b.1 16 集成测试覆盖"},
+    {"name": "6f 收口 + tag v3.15.6 — 真实 verify 脚本 (走真 agent loop) + PRODUCTION_USABILITY 证据 + git tag v3.15.6", "status": "not_started", "note": "硬前置: 先修 .env DEEPSEEK_MODEL_NAME"}
   ],
-  "blockers": [],
-  "human_actions_pending": [],
+  "blockers": [
+    {"id": "ENV-DEEPSEEK", "desc": ".env DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731' 无效, 上游 400 reject。6f 真实 demo 跑前必须改为 'deepseek-chat' 或 'deepseek-coder', 否则 6c.5 smoke 跑不通。", "severity": "blocking-6f"},
+    {"id": "CI-PHASE3-MATRIX", "desc": "Phase 3 Contract Matrix workflow 长期 FAIL — 'make v2-phase2_5-ci-setup' 目标在 Makefile 根本不存在 (grep 0 命中), 历史 8 次运行全部同因。既有缺口, 非 v3.15.6 引入。", "severity": "pre-existing"},
+    {"id": "CI-GLIB-SYS", "desc": "CI workflow 长期 FAIL — glib-sys v0.18.1 构建失败 (grid-desktop / Tauri 系统库在 runner 缺失)。既有缺口, 非 v3.15.6 引入。", "severity": "pre-existing"}
+  ],
+  "human_actions_pending": [
+    "决定 6f 是否本轮执行 (需先改 .env)",
+    "决定 tag v3.15.6 时机",
+    "决定 v3.16 scope (data/integration 轴: grid-server multi-user / web-platform 9.0 / grid-desktop 9.0 / 6d+6e 顺延)"
+  ],
   "decisions": [
-    {"decision": "v3.14 EAASP Phase 6 SHIPPED 2026-07-30; tag v3.14 force-push", "rationale": "4/4 phases complete, 23 REQ-IDs / 5 categories, 98 targeted tests PASS, dual-gate PASS (134 routes RBAC + 38 spec rows)", "phase": "v3.14"},
-    {"decision": "EVOLUTION_PATH §三 8-Phase 路线 declared ALL SHIPPED (D-46)", "rationale": "All 8 V310-* + V311-AUDIT-01 = 9 ✅ CLOSED. v3.14 = Phase 6 = final per roadmap", "phase": "v3.14"},
-    {"decision": "Canonical handoff lives in docs/status/, NOT .planning/", "rationale": "v3.14 close-out cascade (df2922f7) established docs/status/RESUME-NEXT-SESSION.md + docs/status/CURRENT-STATE.md as the authoritative resume baton. .planning/ files were the pre-v3.10 lightweight-memory template that referenced the GSD phase stack, which is no longer the active tracking surface.", "phase": "v3.14"},
-    {"decision": "This GSD Handoff/Continue-here/Resume file is a pointer-only rewrite, not a duplicate", "rationale": "User chose 'Refresh stale handoff files' but no duplication — the previous v3.8 content is preserved in git history at commit 0a438e7e (v3.8 archive). The .planning/ files are kept as templates; the actual resume content lives in docs/status/.", "phase": "v3.14"}
+    {"decision": "D-50 诚实化 23/23 → 20/23 再由 6c 回升真 23/23", "rationale": "v3.15.5 §0.1 的 23/23 是 counting 漏洞;先降级止血自我欺骗, 死代码激活后才配称闭环。诚实优于好大喜功", "phase": "v3.15.6a"},
+    {"decision": "D-53 6d web-platform Dashboard deferred → v3.16", "rationale": "双轴模型 (ADR-V2-024): web-platform UI 属 Grid 独立产品轴, 不在 OBSTACK 闭环范围", "phase": "v3.15.6"},
+    {"decision": "D-54 6e CLI 全局接入 deferred → v3.16", "rationale": "data/integration 轴是 v3.16 范围;OBSTACK 功能面已由 6b.1 的 16 集成测试覆盖", "phase": "v3.15.6"},
+    {"decision": "OBSTACK_DESIGN §4.4 测试路径 tests/business_flow/ → tests/e2e/business_flow/", "rationale": "项目 .gitignore line 63 排除 root-level tests/, 仅 tests/contract/ + tests/e2e/ whitelisted", "phase": "v3.15.6b"},
+    {"decision": "cargo check exit 0 ≠ 代码激活", "rationale": "init_observability() 在 mod.rs:164 定义、编译通过, 但 main.rs 从未调用 → 生产 METER_READY=false。必须 production smoke 验证", "phase": "v3.15.6c"}
   ],
   "uncommitted_files": [],
-  "next_action": "Read docs/status/RESUME-NEXT-SESSION.md for the v3.15 candidate scope list (5 options per ADR-V2-024 §1 data/integration axis). Per ADR-V2-024 Open Item #3 priority axis, recommended: grid-server multi-user (data/integration axis).",
-  "context_notes": "v3.14 EAASP Phase 6 SHIPPED 2026-07-30. 4-phase ladder (03.14.0 Ontology + 03.14.1 Marketplace + 03.14.2 SDK + 03.14.3 walkthrough) closed the entire EVOLUTION_PATH 8-Phase roadmap (D-46). v3.15+ is the data/integration axis per ADR-V2-024 §1. Working tree clean; main ↔ origin/main sync; tag v3.14 pushed. The actual resume baton is docs/status/RESUME-NEXT-SESSION.md (df2922f7), not this file."
+  "next_action": "6f 收口: (1) 修 .env DEEPSEEK_MODEL_NAME → 'deepseek-chat'; (2) 写 scripts/v3156-obstack-verify.sh 走真实 agent loop (非 demo ingest workaround); (3) 跑 dual-gate (make rbac-audit 134 routes + make v3.10-spec-audit 38 rows) + 捕真实 event timeline; (4) 写 docs/status/PRODUCTION_USABILITY_2026-08-1X-obstack6.md; (5) git tag v3.15.6。",
+  "context_notes": "v3.15.6 = OBSTACK 实战补完, 3/6 阶段完成 (6a/6b/6c ✅, 6d/6e deferred → v3.16, 6f 待执行)。HEAD 39e30908, main ↔ origin/main 同步, working tree clean。plan 文件 docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md (760 行);close-out retrospective docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md。canonical handoff 仍以 docs/status/ 为准, 本文件是 GSD 状态机镜像。"
 }

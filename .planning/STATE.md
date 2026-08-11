@@ -3,15 +3,16 @@ gsd_state_version: 1.0
 milestone: v3.15.6
 milestone_name: OBSTACK 实战补完 (6 阶段 v3.15.6a → 6f)
 status: started
-stopped_at: v3.15.6a 文档/状态一致性 (ABORTED 2026-08-09 21:30 before 6a.5 收口; 6a.1 + 6a.2 + 6a.3 已 commit `725fe82c` + `c7a5b50e` + `15e9edac`; 6a.4 + 6a.5 in flight). v3.15 SHIPPED 2026-08-02 §0.1 声称 23/23 = 100%; v3.15.6a 降为真实 20/23 (87%) per D-50. EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). v3.15.6 锁决策 D-47..D-54. 4 项 V315-* deferred items 登记 DEFERRED_LEDGER.md (V315-OPT-01 / V315-WALK-01 / V315-L0-PROTO-01 / V315-L1-OTEL-FULL-01). 6 阶段任务清单 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior milestone v3.14 SHIPPED 2026-07-30. V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23. V310-COWORK-01 ✅ CLOSED.
-last_updated: "2026-08-09T22:00:00.000Z"
-last_activity: 2026-08-09
+stopped_at: v3.15.6 三阶段完成 (6a 文档诚实化 + 6b 测试补完 + 6c 死代码激活),20 commits pushed 2026-08-11 @ `39e30908`. **6d (web-platform Dashboard) 与 6e (CLI 全局接入) 显式 deferred 到 v3.16** per D-53 / D-54;**6f (真实 verify + tag v3.15.6) 待执行**。6a → OBSTACK §0.1 诚实化 23/23 → 20/23 (87%) per D-50 + 4 项 V315-* 登记 DEFERRED_LEDGER;6b → `tests/e2e/business_flow/` 16 集成测试 + L0 proto BusinessKey attachment 13/21 → 21/21 + L3 3 record helpers (32 tests PASS);6c → `init_observability()` 真接 main.rs + opentelemetry-stdout 0.5 + harness.rs emit (6 L1 metric series active),§0.1 4 处 ⚠️→✅ 回升 23/23。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). v3.15.6 锁决策 D-47..D-54. 6 阶段任务清单 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`;close-out retrospective `docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior milestone v3.14 SHIPPED 2026-07-30. V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23. V310-COWORK-01 ✅ CLOSED.
+last_updated: "2026-08-11T18:45:00.000Z"
+last_activity: 2026-08-11
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 6
+  completed_phases: 3
+  deferred_phases: 2
+  total_plans: 6
+  completed_plans: 3
+  percent: 50
   prior_milestones:
     v3.14_completed_phases: 4
     v3.14_completed_plans: 4
@@ -40,7 +41,17 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 4/4 phases, 100% complete)**
+Milestone: **v3.15.6 OBSTACK 实战补完 — 3/6 阶段完成 (6a ✅ / 6b ✅ / 6c ✅;6d + 6e deferred → v3.16;6f 待执行)**
+Scope: 6 阶段串行 (6a 文档/状态一致性 → 6b 测试补完 → 6c 死代码激活 → 6d web-platform Dashboard → 6e CLI 全局接入 → 6f 收口 + tag)。锁决策 D-47..D-54。**不开新 milestone / 不开新 EVOLUTION_PATH phase / 不开新仓 / 不开新服务端口** (D-47 + D-48)。
+- **6a 文档诚实化 ✅** (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151` + `960c7f10`) — OBSTACK_DESIGN §0.1/§0.2/§0.3 + INDEX §Goal 表 4 处 23/23 → **20/23 (87%)** per D-50 (不掩盖 counting 漏洞);4 项 `V315-*` deferred items 登记 DEFERRED_LEDGER per D-51;AGENTS.md 加 OBSTACK 段。
+- **6b 测试补完 ✅** (`265c15b5` → `31267e28`, 9 commits) — `tests/e2e/business_flow/` 16 集成测试 (smoke 2 + timeline 3 + interrupted 3 + sse 4 + evaluator 4);L0 proto 5 message 加 `business_key = 100` → RPC attachment **13/21 → 21/21**,9 caller 跨 5 crate 同步;L3 `observability.py` 加 3 record helpers (1 → 4)。**32 tests PASS** (16 Python + 4 Rust + 12 L3)。
+- **6c 死代码激活 ✅** (`da38e862` + `ce027817` + `40b661f8` + `efba6e83`) — `init_observability()` v3.15.5 起在 `observability/mod.rs:164` 定义但 `main.rs` 从未调用 (死代码,`METER_READY=false`);6c.1 真接 `opentelemetry-stdout` 0.5 + main.rs 调用,6c.2/6c.3 `harness.rs` emit pre/post/flow_outcome。**6 L1 metric series active**;§0.1 4 处 ⚠️→✅ 回升 **23/23 (真闭环)**。
+- **6d web-platform Dashboard ⏸ deferred → v3.16** per **D-53** (双轴模型:web-platform UI 属 Grid 独立产品轴,不在 OBSTACK 闭环范围)。原计划 8 task / 5 页面 / 5 routes (dual-gate 134 → 139 routes)。
+- **6e CLI 全局接入 ⏸ deferred → v3.16** per **D-54** (data/integration 轴);功能面已由 6b.1 16 集成测试覆盖。原计划 10 task。
+- **6f 收口 + tag ⏳ 待执行** — 真实 verify 脚本 (走真 agent loop 而非 demo ingest workaround) + `PRODUCTION_USABILITY` 证据文档 + `tag v3.15.6`。**前置阻塞**: `.env` `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` 无效 (上游 400 reject),须先改 `deepseek-chat`。
+Close-out retrospective: `docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md` (`39e30908`)。20 commits pushed to origin/main 2026-08-11。
+Prior milestone: **v3.15 OBSTACK 平台级可观测 ✅ SHIPPED 2026-08-02 @ `84cc0680`** (§0.1 声称 23/23,v3.15.6a 查出 counting 漏洞实为 20/23,6c 后真闭环)。
+Prior milestone: **v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ SHIPPED 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 4/4 phases, 100% complete)**
 Scope: 4 phases (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED). 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT).
 v3.14.0 派生不复制 (D-40): Ontology 服务 from existing L2 evidence anchor + L3 governance_decisions + L4 event_room_events + L5 four-card projections via SELECT; no new tables, no new columns, no new event types. v3.14.1 Marketplace API extends v3.11.2 eaasp-skill-registry (no replacement; D-41). v3.14.2 SDK scaffolding is thin client that wraps marketplace + ontology endpoints (no business logic re-implementation; D-42). v3.14.3 closes EVOLUTION_PATH §三 8-Phase roadmap (D-46) by tagging `v3.14` and marking V310-ECOSYSTEM-01 ✅ CLOSED.
 Prior milestone: **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ SHIPPED 2026-07-29 @ d0d83a23**
@@ -266,29 +277,33 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ### Pending Todos
 
-- **None** — v3.14 SHIPPED 2026-07-30. Next milestone candidate: data/integration axis (ADR-V2-024 §1) — separate future milestone.
-- **03.14.1 plan-phase**: after 03.14.0 ships, plan Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics.
-- **03.14.2 plan-phase**: after 03.14.1 ships, plan SDK scaffolding + JSON-schema 暴露.
-- **03.14.3 plan-phase**: after 03.14.2 ships, plan single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED.
+- **6f 收口 + tag v3.15.6** (下一步) — 写 `scripts/v3156-obstack-verify.sh` 走真实 agent loop (非 demo ingest workaround) → 跑 dual-gate + 捕真实 event timeline → 写 `docs/status/PRODUCTION_USABILITY_2026-08-1X-obstack6.md` → `git tag v3.15.6`。**前置**: 先修 `.env` `DEEPSEEK_MODEL_NAME`。
+- **6d web-platform Dashboard** (deferred → v3.16, D-53) — 5 页面 (FlowsOverview / FlowDetail / FlowOptimize / Alerts / Stats) + `obstackClient.ts` + App.tsx 5 routes + grid-server `rbac/catalog.rs` 5 路由;dual-gate 134 → **139 routes**。
+- **6e CLI 全局接入 + 工具生态** (deferred → v3.16, D-54) — `eaasp flow list/top-failed/top-slow` 3 verb + business_key 列贯穿 session/memory/skill/policy + grid-eval 接 OBSTACK + marketplace 健康度。
+- **v3.16 scope 决策** — per ADR-V2-024 data/integration 轴候选: `grid-server multi-user` (3.7.4 deferred) / `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0` / 6d + 6e 顺延。
 
 ### Blockers/Concerns
 
+- **`.env` `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` 无效** — 上游 400 reject。6f 真实 demo 跑之前必须改成 `deepseek-chat` 或 `deepseek-coder`,否则 6c.5 smoke 跑不通。**这是 6f 的硬前置**。
+- **CI 两条 workflow 长期 FAIL (非本次引入,2026-08-11 push 后复核确认)**:
+  - `Phase 3 Contract Matrix` — `make v2-phase2_5-ci-setup` 目标在 Makefile 中**根本不存在** (grep 0 命中);历史 8 次运行全部同因 FAIL。即 MEMORY.md 记的 "CI Makefile tier gap"。
+  - `CI` — `glib-sys v0.18.1` 构建失败 (grid-desktop / Tauri 系统库在 runner 缺失);历史多次同因 FAIL。
+  - 二者均为**既有环境/配置缺口**,与 v3.15.6 的 20 commits 无因果关系。修复未排期。
 - **Quality gaps in shipped components**: `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) shipped with Activation but remain below the 9.0+ bar the rest of the components have hit. Need follow-on feature work (Markdown + toast + skeletons + error states for web-platform/; Icons + IPC proxy + Grid rebrand for grid-desktop).
-- **EAASP v2.0 platform-evolution gaps (explicit future work after v3.14 SHIPS)**: L1 infrastructure tier changes (V310-SANDBOX-01); V310-MAT-01 typed schema work; data/integration axis (per ADR-V2-024 §1). All Phase 6 ecosystem items close in v3.14. Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
-- **138 unpushed commits**: accumulated across v3.2–v3.5. Push decision deferred to user.
+- **EAASP v2.0 platform-evolution gaps**: L1 infrastructure tier changes (V310-SANDBOX-01); V310-MAT-01 typed schema work; data/integration axis (per ADR-V2-024 §1). Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=openai` code default.
 - **v3.9 Action vocabulary growth discipline** (D-04): extension is allowed but each new variant must map to a coherent semantic; auditor surfaces gaps; "manage everything" catch-all is forbidden.
-- **v3.13 L5 frontend dormant** (D-31 / D-37): web/ + web-platform/ remain dormant; v3.13 was a Python projection layer, not a UI milestone. UI activation deferred to a separate future milestone. **v3.14 also dormant for frontend** (D-39).
-- **v3.14 8-Phase closure dependency** (D-46): EVOLUTION_PATH §三 8-Phase roadmap closure depends on 03.14.3 SHIPPING + V310-ECOSYSTEM-01 ✅ CLOSED + tag `v3.14` pushed. Until then, 8-Phase roadmap has 7/8 SHIPPED (Phase 0 / 0.5 / 0.75 / 1 / 2 / 2.5 / 3 / 4 / 5 SHIPPED historical / current; Phase 6 = v3.14 in flight).
+- **v3.13 L5 frontend dormant** (D-31 / D-37 / D-39 / D-53): web/ + web-platform/ remain dormant through v3.15.6; UI activation deferred to v3.16.
 
 ## Session Continuity
 
-Last session: 2026-08-09 (v3.15.6a 文档/状态一致性 阶段) — STATE.md + OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md + AGENTS.md + DEFERRED_LEDGER.md 5 项编辑已完成;6a.1 (诚实化 23/23 → 20/23) + 6a.2 (登记 V315-* 4 项) + 6a.3 (AGENTS.md 加 OBSTACK 段) + 6a.4 (本 task) + 6a.5 (dual-gate 验证) commit 入仓。User 拍板"OBSTACK 实战补完,不能留半拉子" → 6 阶段串行 (6a 文档/6b 测试/6c 死代码/6d dashboard/6e CLI/6f 收口); v3.15.6 锁决策 D-47..D-54; plan 文件 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` (756+ lines)。
+Last session: 2026-08-11 (v3.15.6 恢复 + push + 状态刷新) — 上一 session 的 `.planning/` handoff 文件全部 stale (HANDOFF.json + .continue-here.md 停在 v3.14;STATE.md 停在 "6a ABORTED"),实际 git 已推进到 6c.7 + close-out retrospective。本 session: (1) 20 commits `bb6ad340..39e30908` push 到 origin/main;(2) CI 复核 — 两条 FAIL workflow 判定为既有缺口,非本次引入;(3) STATE.md + CURRENT-STATE.md + HANDOFF.json + .continue-here.md 刷新到 v3.15.6 真实进度。
 
-Stopped at: v3.14 SHIPPED 2026-07-30 — 4 phases complete (03.14.0 / 03.14.1 / 03.14.2 / 03.14.3); 23 v3.14 REQ-IDs / 5 categories closed; 98 targeted tests PASS (75 eaasp-ecosystem + 17 SDK client + 6 SDK CLI); V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30; EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED. v3.13 SHIPPED 2026-07-29 @ d0d83a23 — 4 phases complete (03.13.0 four-card data model + projection + L4 SSE bridge + 03.13.1 four-card SSE fan-out + state transitions + persistence + 03.13.2 retrospective cycle trace API + 03.13.3 single-point live walkthrough + tag v3.13). V310-COWORK-01 ✅ CLOSED. v3.12 SHIPPED 2026-07-27 @ 894639dd — 4 phases complete.
+Stopped at: **v3.15.6 3/6 阶段完成** — 6a (文档诚实化 23/23 → 20/23 → 6c 后回升真 23/23) + 6b (32 tests PASS, L0 proto 21/21, L3 4 record helpers, 16 集成测试) + 6c (init_observability 真接 main.rs + opentelemetry-stdout 0.5 + harness.rs emit, 6 L1 metric series active) 全部 ✅;6d + 6e 显式 deferred 到 v3.16 (D-53 / D-54);**6f 待执行** (真实 verify + tag v3.15.6,前置修 `.env` DEEPSEEK_MODEL_NAME)。HEAD `39e30908`,main ↔ origin/main 同步,working tree clean。
 
 Prior sessions:
 
+- 2026-08-09 → 2026-08-11 (v3.15.6 OBSTACK 实战补完 3 阶段 climb): 19 commits 跨 6a 文档 / 6b 测试 / 6c 死代码激活;retrospective `docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md`。关键发现: `cargo check` exit 0 ≠ 代码激活 (init_observability 死代码);dual-gate PASS 必要非充分;plan 不替代 exploration (路径/schema/RPC 数量三处错估)。
 - 2026-07-27 (autonomous v3.12 climb): v3.12 SHIPPED — 4 phases (03.12.0 audit.py CHECK constraint patch + 03.12.1 Event Room + multi-session + 03.12.2 A2A Router + 03.12.3 single-point live walkthrough; tag `v3.12` pushed 894639dd; then v3.13 milestone bootstrap).
 - 2026-07-27 (autonomous v3.11.2 + 03.11.3 climb): v3.11 SHIPPED — 29/29 REQ-IDs closed (4 phases: 03.11.0 OPA sidecar / 03.11.1 L3 OPA backend + Rego / 03.11.2 5-stage approval state machine / 03.11.3 single-point live walkthrough against real OPA sidecar v0.68.0).
 - 2026-07-26 (autonomous v3.9 climb): v3.9 SHIPPED — 03.9.0 catalog, 03.9.1 full RBAC, 03.9.2 CI auditor all complete; targeted gates 51 PASS.

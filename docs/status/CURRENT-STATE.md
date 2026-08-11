@@ -1,26 +1,17 @@
 # Current State
 
-> **Updated**: 2026-08-09 — **v3.15.6 实战补完阶段 6a 进展** (commits `725fe82c` + `c7a5b50e` + `15e9edac` + 6a.4/6a.5 in flight). **HEAD**: 6a.5 commit landing 后 (待跑). Working tree clean. **OBSTACK v3.15 SHIPPED 100% 数字降为真实 20/23 (87%)** per v3.15.6a 文档诚实化 (D-50). **OBSTACK Phase E series** (5 eaasp-client families + 1 security audit closure) SHIPPED across 2026-08-05 → 2026-08-08 (retro at `45ae50a5`; pre-6a 历史). **Chat tab on grid-web localhost:5180 fully restored** (commits `1644f541` + `7fbd0f7b` + `a8d7722c` + 50 vitest PASS) — pre-6a 历史.
+> **Updated**: 2026-08-11 — **v3.15.6 三阶段完成 (6a 文档诚实化 + 6b 测试补完 + 6c 死代码激活),20 commits pushed @ `39e30908`**。**HEAD**: `39e30908`,main ↔ origin/main 同步,working tree clean。OBSTACK §0.1 经 6a 诚实化降到 20/23 (87%) per D-50、再经 6c 死代码激活回升 **23/23 (真闭环)**。**6d (web-platform Dashboard) + 6e (CLI 全局接入) 显式 deferred → v3.16** per D-53 / D-54;**6f (真实 verify + tag v3.15.6) 待执行**,硬前置 = 修 `.env` `DEEPSEEK_MODEL_NAME`。close-out retrospective: `docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md`。**OBSTACK Phase E series** SHIPPED 2026-08-05 → 2026-08-08 (retro `45ae50a5`;pre-6a 历史)。
 
 ## Project Snapshot
 
 - Project: Grid — agent runtime stack (engine-axis: `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge`) + Grid independent product (`grid-server` / `grid-platform` / `grid-cli` / `grid-eval` / `web/` / `web-platform/` / `grid-desktop`) + co-located EAASP v2.0 simulator reference (`tools/eaasp-*/`, no upstream EAASP project).
-- Current branch: `main`
-- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED + OBSTACK 100% closed** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability). v3.15 = the **final OBSTACK milestone** per the 8-Phase roadmap (D-46); v3.16+ moves to the data/integration axis per ADR-V2-024.
+- Current branch: `main` (synced with origin/main @ `39e30908`)
+- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED + OBSTACK 23/23 真闭环** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability + v3.15.6 OBSTACK 实战补完). v3.16+ moves to the data/integration axis per ADR-V2-024.
 - Project route: managed (lightweight-memory + GSD state machine, both maintained)
 - Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
-- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (538 lines; §0 Goal Status 100% closed + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引
-- Active work package: **v3.15.6 — OBSTACK 实战补完** (6 阶段 6a/6b/6c/6d/6e/6f,见 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`);v3.15 SHIPPED 100% 数字在 v3.15.6a 文档诚实化后降为 20/23 (87%);AGENTS.md + DEFERRED_LEDGER.md + OBSTACK_DESIGN.md §0.1 + OBSTACK_INDEX.md 同步刷新。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (不再扩展)。
-
-## Project Snapshot
-
-- Project: Grid — agent runtime stack (engine-axis: `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge`) + Grid independent product (`grid-server` / `grid-platform` / `grid-cli` / `grid-eval` / `web/` / `web-platform/` / `grid-desktop`) + co-located EAASP v2.0 simulator reference (`tools/eaasp-*/`, no upstream EAASP project).
-- Current branch: `main`
-- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem). v3.14 is the **final phase** per D-46; v3.15+ moves to the data/integration axis per ADR-V2-024.
-- Project route: managed (lightweight-memory + GSD state machine, both maintained)
-- Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
-- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (Observe/Trace/Evaluate/Optimize 跨 L0–L5 平台级技术栈;§0 Goal Status + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引
-- Active work package: **none — milestone boundary** (v3.14 SHIPPED + closed; awaiting v3.15 scope selection)
+- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (§0 Goal Status 23/23 + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引 + `OBSTACK_HANDBOOK.md`
+- Active work package: **v3.15.6 — 3/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅;6d + 6e ⏸ deferred → v3.16;**6f ⏳ 待执行** (真实 verify 脚本 + PRODUCTION_USABILITY 证据 + `tag v3.15.6`)。plan: `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`。
+- Known blockers: (1) `.env` `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` 无效 → 6f 硬前置;(2) CI 两条 workflow 长期 FAIL (`Phase 3 Contract Matrix` 缺 `v2-phase2_5-ci-setup` Makefile 目标 / `CI` 缺 `glib-sys` 系统库),均为既有缺口,与 v3.15.6 无关。
 
 ## Current Architecture
 
