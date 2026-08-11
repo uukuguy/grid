@@ -15,9 +15,18 @@
 //! ## What `op` means
 //!
 //! The gRPC path is `/eaasp.runtime.v2.RuntimeService/Send`; `op` is
-//! the trailing method name (`Send`). Unrecognised paths are recorded
-//! as `unknown` rather than dropped, so a routing mistake shows up as
-//! a metric instead of silence.
+//! the trailing method name (`Send`), **matched against a closed
+//! allowlist** of the RPCs declared in `proto/eaasp/runtime/v2/`.
+//! Anything else is recorded as the literal `unknown`.
+//!
+//! The allowlist is a cardinality bound, not decoration. `op` becomes
+//! an OTel attribute value and the meter keeps one time series per
+//! distinct value for the life of the process. Echoing the raw path
+//! segment would let any peer that can reach the gRPC port mint
+//! unbounded series (`/x/aaa`, `/x/aab`, …) and grow the metric map
+//! without limit — memory exhaustion requiring no authentication.
+//! Collapsing to `unknown` also keeps a genuine routing mistake
+//! visible as a metric instead of silence.
 //!
 //! ## Streaming caveat (deliberate)
 //!
@@ -35,6 +44,39 @@ use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
 use crate::observability::{record_request, record_request_duration};
+
+/// Every RPC declared in `proto/eaasp/runtime/v2/{runtime,hook}.proto`.
+///
+/// Keep in sync when the proto gains a method; an unlisted method is
+/// still counted, just under [`UNKNOWN_OP`].
+const KNOWN_METHODS: &[&str] = &[
+    // runtime.proto (17)
+    "Initialize",
+    "Send",
+    "LoadSkill",
+    "OnToolCall",
+    "OnToolResult",
+    "OnStop",
+    "GetState",
+    "ConnectMCP",
+    "EmitTelemetry",
+    "GetCapabilities",
+    "Terminate",
+    "RestoreState",
+    "Health",
+    "DisconnectMcp",
+    "PauseSession",
+    "ResumeSession",
+    "EmitEvent",
+    // hook.proto (4)
+    "StreamHooks",
+    "EvaluateHook",
+    "ReportTelemetry",
+    "GetPolicySummary",
+];
+
+/// Label for any path that is not a known RPC.
+const UNKNOWN_OP: &str = "unknown";
 
 /// Tower layer that records `l1.runtime.requests.*` per gRPC call.
 #[derive(Clone, Copy, Debug, Default)]
@@ -60,19 +102,22 @@ pub struct RequestMetrics<S> {
     inner: S,
 }
 
-/// Extract the gRPC method name from a path like
-/// `/eaasp.runtime.v2.RuntimeService/Send`.
+/// Resolve a request path to a bounded `op` label.
 ///
-/// Returns `None` for paths that do not look like a gRPC call, so the
-/// caller can decide how to label them rather than having a bogus
-/// method name invented here.
-fn method_name(path: &str) -> Option<&str> {
-    let name = path.rsplit('/').next()?;
-    if name.is_empty() {
-        None
-    } else {
-        Some(name)
-    }
+/// Returns a `&'static str` drawn from [`KNOWN_METHODS`], or
+/// [`UNKNOWN_OP`]. Never returns caller-controlled text, so the label
+/// set cannot exceed `KNOWN_METHODS.len() + 1` regardless of what any
+/// peer sends.
+fn op_label(path: &str) -> &'static str {
+    let name = match path.rsplit('/').next() {
+        Some(n) if !n.is_empty() => n,
+        _ => return UNKNOWN_OP,
+    };
+    KNOWN_METHODS
+        .iter()
+        .find(|known| **known == name)
+        .copied()
+        .unwrap_or(UNKNOWN_OP)
 }
 
 impl<S, ReqBody, ResBody> Service<http::Request<ReqBody>> for RequestMetrics<S>
@@ -91,9 +136,9 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        let op = method_name(req.uri().path())
-            .unwrap_or("unknown")
-            .to_string();
+        // Bounded label — see `op_label` and the module note on
+        // cardinality. Never the raw path.
+        let op: &'static str = op_label(req.uri().path());
         let start = std::time::Instant::now();
         let fut = self.inner.call(req);
 
@@ -122,8 +167,8 @@ where
                 Err(_) => "transport_error",
             };
 
-            record_request(&op, status);
-            record_request_duration(&op, status, secs);
+            record_request(op, status);
+            record_request_duration(op, status, secs);
             result
         })
     }
@@ -134,21 +179,56 @@ mod tests {
     use super::*;
 
     #[test]
-    fn method_name_extracts_trailing_segment() {
+    fn op_label_extracts_known_methods() {
+        assert_eq!(op_label("/eaasp.runtime.v2.RuntimeService/Send"), "Send");
         assert_eq!(
-            method_name("/eaasp.runtime.v2.RuntimeService/Send"),
-            Some("Send")
+            op_label("/eaasp.runtime.v2.RuntimeService/GetCapabilities"),
+            "GetCapabilities"
         );
         assert_eq!(
-            method_name("/eaasp.runtime.v2.RuntimeService/GetCapabilities"),
-            Some("GetCapabilities")
+            op_label("/eaasp.runtime.v2.HookService/EvaluateHook"),
+            "EvaluateHook"
         );
     }
 
     #[test]
-    fn method_name_rejects_trailing_slash_and_root() {
-        // Would otherwise be recorded as an empty-string op label.
-        assert_eq!(method_name("/eaasp.runtime.v2.RuntimeService/"), None);
-        assert_eq!(method_name("/"), None);
+    fn op_label_collapses_unknown_paths() {
+        // Cardinality bound: an arbitrary path must never become its
+        // own metric label, or any peer able to reach the port could
+        // grow the meter without limit.
+        assert_eq!(op_label("/x/aaa"), UNKNOWN_OP);
+        assert_eq!(op_label("/eaasp.runtime.v2.RuntimeService/"), UNKNOWN_OP);
+        assert_eq!(op_label("/"), UNKNOWN_OP);
+        assert_eq!(op_label(""), UNKNOWN_OP);
+        assert_eq!(op_label("/../../etc/passwd"), UNKNOWN_OP);
+        assert_eq!(op_label(&format!("/svc/{}", "A".repeat(4096))), UNKNOWN_OP);
+    }
+
+    #[test]
+    fn op_label_is_case_sensitive_exact_match() {
+        // "send" is not "Send" — a near-miss must not slip through as
+        // a distinct label.
+        assert_eq!(op_label("/svc/send"), UNKNOWN_OP);
+        assert_eq!(op_label("/svc/Send "), UNKNOWN_OP);
+    }
+
+    #[test]
+    fn label_set_is_bounded() {
+        // The whole point: labels come from a closed set.
+        let paths = [
+            "/svc/Send",
+            "/svc/attacker-1",
+            "/svc/attacker-2",
+            "/svc/attacker-3",
+        ];
+        let labels: std::collections::HashSet<&str> =
+            paths.iter().map(|p| op_label(p)).collect();
+        assert_eq!(labels.len(), 2, "expected only Send + unknown");
+    }
+
+    #[test]
+    fn known_methods_cover_the_proto_surface() {
+        // 17 runtime.proto + 4 hook.proto = 21 RPCs.
+        assert_eq!(KNOWN_METHODS.len(), 21);
     }
 }
