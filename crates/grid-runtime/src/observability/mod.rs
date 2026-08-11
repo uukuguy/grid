@@ -159,8 +159,13 @@ pub fn take_recorded_for_test() -> Vec<opentelemetry_sdk::metrics::data::Resourc
 /// - ``None`` / unset → check ``EAASP_OTEL_EXPORTER`` env var
 /// - ``"none"`` → leave no-op (default)
 /// - ``"stdout"`` → install SdkMeterProvider + PeriodicReader +
-///   ``InMemoryExporter`` (test-grade capture; production exporters
-///   like ``opentelemetry-stdout`` land in v3.16).
+///   ``opentelemetry-stdout::MetricsExporter`` (production-grade
+///   JSON batches to stdout every 30s). Requires the
+///   ``opentelemetry-stdout`` crate (added in v3.15.6 6c.1).
+/// - any other value (e.g. ``"memory"`` / ``"test"``) → install
+///   SdkMeterProvider + PeriodicReader + ``InMemoryExporter``
+///   (test-grade capture; the global RECORDED buffer holds the
+///   actual data so unit tests can assert).
 pub fn init_observability(exporter: Option<&str>) {
     let chosen = exporter
         .map(|s| s.to_string())
@@ -173,41 +178,60 @@ pub fn init_observability(exporter: Option<&str>) {
         return;
     }
 
-    // Build the in-memory exporter behind a tokio-style runtime.
+    // Build the exporter. The choice depends on the requested mode:
+    // - "stdout" → opentelemetry-stdout (production-grade, JSON
+    //   formatted human-readable batches to stdout every 30s).
+    // - any other value (e.g. "memory" / "test") → InMemoryExporter
+    //   (test-grade capture; the global RECORDED buffer holds the
+    //   actual data so unit tests can assert).
+    //
     // PeriodicReader::builder takes ownership of the exporter, so we
-    // hand it a fresh InMemoryExporter (the global RECORDED capture
-    // buffer holds the actual data; the exporter is just a sink).
-    let exporter = InMemoryExporter::default();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    let provider = SdkMeterProvider::builder()
-        .with_reader(reader)
-        .with_resource(Resource::new([
-            KeyValue::new("service.name", SERVICE_NAME),
-            KeyValue::new("service.version", SERVICE_VERSION),
-        ]))
-        .build();
+    // hand it a fresh instance per init call. The exporter type
+    // differs per branch, so we can't unify into one Box<dyn>
+    // (Box<dyn PushMetricsExporter + Send + Sync> doesn't satisfy
+    // the trait bound via implicit conversion). Instead we factor
+    // the common setup into a closure that accepts any reader.
+    let install_provider = |reader: PeriodicReader| {
+        let provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_resource(Resource::new([
+                KeyValue::new("service.name", SERVICE_NAME),
+                KeyValue::new("service.version", SERVICE_VERSION),
+            ]))
+            .build();
 
-    // Pull the seven instruments off the meter into a thread-safe
-    // handle bundle. The bundle is cached in OnceCell so the
-    // record_* fast path is just an OnceCell::get().
-    let meter = provider.meter(SERVICE_NAME);
-    let handles = Arc::new(Handles {
-        requests_total: meter.u64_counter(METRIC_REQUEST_TOTAL).init(),
-        requests_duration: meter.f64_histogram(METRIC_REQUEST_DURATION).init(),
-        in_flight: meter.i64_up_down_counter(METRIC_IN_FLIGHT).init(),
-        llm_total: meter.u64_counter(METRIC_LLM_TOTAL).init(),
-        llm_duration: meter.f64_histogram(METRIC_LLM_DURATION).init(),
-        tool_total: meter.u64_counter(METRIC_TOOL_TOTAL).init(),
-        errors_total: meter.u64_counter(METRIC_ERRORS_TOTAL).init(),
-    });
-    let _ = HANDLES.set(handles);
+        // Pull the seven instruments off the meter into a thread-safe
+        // handle bundle. The bundle is cached in OnceCell so the
+        // record_* fast path is just an OnceCell::get().
+        let meter = provider.meter(SERVICE_NAME);
+        let handles = Arc::new(Handles {
+            requests_total: meter.u64_counter(METRIC_REQUEST_TOTAL).init(),
+            requests_duration: meter.f64_histogram(METRIC_REQUEST_DURATION).init(),
+            in_flight: meter.i64_up_down_counter(METRIC_IN_FLIGHT).init(),
+            llm_total: meter.u64_counter(METRIC_LLM_TOTAL).init(),
+            llm_duration: meter.f64_histogram(METRIC_LLM_DURATION).init(),
+            tool_total: meter.u64_counter(METRIC_TOOL_TOTAL).init(),
+            errors_total: meter.u64_counter(METRIC_ERRORS_TOTAL).init(),
+        });
+        let _ = HANDLES.set(handles);
 
-    // Provider is consumed by the reader (held inside the
-    // PeriodicReader internal state — the SDK keeps it alive for
-    // the lifetime of the pipeline). We don't need to register a
-    // global MeterProvider; record_* helpers look up the cached
-    // Handles directly (cheap OnceCell::get).
-    drop(provider);
+        // Provider is consumed by the reader (held inside the
+        // PeriodicReader internal state — the SDK keeps it alive for
+        // the lifetime of the pipeline). We don't need to register a
+        // global MeterProvider; record_* helpers look up the cached
+        // Handles directly (cheap OnceCell::get).
+        drop(provider);
+    };
+
+    if chosen == "stdout" {
+        let exporter = opentelemetry_stdout::MetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+        install_provider(reader);
+    } else {
+        let exporter = InMemoryExporter::default();
+        let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+        install_provider(reader);
+    }
 
     METER_READY.store(true, Ordering::Release);
     tracing::info!(

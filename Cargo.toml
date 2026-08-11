@@ -62,6 +62,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 # Python mirrors in tools/eaasp-{l2,l3,l4}-*/observability.py.
 opentelemetry = { version = "0.24", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.24", features = ["rt-tokio", "metrics", "trace"] }
+opentelemetry-stdout = { version = "0.5", features = ["metrics", "trace"] }
 # Environment variables
 dotenvy = "0.15"
 # Concurrent collections

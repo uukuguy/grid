@@ -12,6 +12,7 @@ use grid_engine::agent::ExecutionMode;
 use grid_engine::providers::{Capability, CapabilityKey, ProbeStrategy};
 use grid_engine::{AgentCatalog, AgentRuntime, AgentRuntimeConfig, ProviderConfig, TenantContext};
 use grid_runtime::config::RuntimeConfig;
+use grid_runtime::observability::init_observability;
 use grid_runtime::harness::GridHarness;
 use grid_runtime::proto::runtime_service_server::RuntimeServiceServer;
 use grid_runtime::service::RuntimeGrpcService;
@@ -39,6 +40,11 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let config = RuntimeConfig::from_env();
+    // v3.15.6 6c.1 — activate the EAASP L1 OTel SDK. Reads the
+    // EAASP_OTEL_EXPORTER env var (default "stdout" for production
+    // boot; pass "none" to disable). This was previously dead code
+    // (the function existed but was never called from main.rs).
+    init_observability(Some("stdout"));
     info!(
         addr = %config.grpc_addr,
         runtime_id = %config.runtime_id,
