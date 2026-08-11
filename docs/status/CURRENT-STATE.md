@@ -1,17 +1,17 @@
 # Current State
 
-> **Updated**: 2026-08-11 — **v3.15.6 三阶段完成 (6a 文档诚实化 + 6b 测试补完 + 6c 死代码激活),20 commits pushed @ `39e30908`**。**HEAD**: `39e30908`,main ↔ origin/main 同步,working tree clean。OBSTACK §0.1 经 6a 诚实化降到 20/23 (87%) per D-50、再经 6c 死代码激活回升 **23/23 (真闭环)**。**6d (web-platform Dashboard) + 6e (CLI 全局接入) 显式 deferred → v3.16** per D-53 / D-54;**6f (真实 verify + tag v3.15.6) 待执行**,硬前置 = 修 `.env` `DEEPSEEK_MODEL_NAME`。close-out retrospective: `docs/status/RETROSPECTIVE_2026-08-11-OBSTACK-V3-15-6.md`。**OBSTACK Phase E series** SHIPPED 2026-08-05 → 2026-08-08 (retro `45ae50a5`;pre-6a 历史)。
+> **Updated**: 2026-08-12 — **v3.15.6 4/6 阶段完成;6g 在 tag 前拦下 6c 的假闭环**。**HEAD**: `75859214`+(state commit),working tree clean。6g 查出并修复 2 个问题:(1) 6c.2/6c.3 把 OBSTACK emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1(`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,**实测真实 tool-call turn 产出 `"scopeMetrics":[]`**;(2) 更底层 `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死(仅 1 个空批次)。修复后真实 deepseek turn 实测 **4/6 series 出数,批次 1 → 40+**。**OBSTACK §0.1 由 6c.7 的 23/23 诚实降为 21/23 (91%)**;`tool.total` + `requests.*` 仍缺端到端实证,demo 脚本 5 个手工 ingest 未改 → **未 tag v3.15.6**。全部改动限于 `grid-runtime`,未动 `grid-engine`,**ADR-V2-023 P1 保持,无需新 ADR**。6d + 6e 仍 deferred → v3.16(D-53/D-54)。证据:`docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
 
 ## Project Snapshot
 
 - Project: Grid — agent runtime stack (engine-axis: `grid-engine` / `grid-runtime` / `grid-types` / `grid-sandbox` / `grid-hook-bridge`) + Grid independent product (`grid-server` / `grid-platform` / `grid-cli` / `grid-eval` / `web/` / `web-platform/` / `grid-desktop`) + co-located EAASP v2.0 simulator reference (`tools/eaasp-*/`, no upstream EAASP project).
-- Current branch: `main` (synced with origin/main @ `39e30908`)
-- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED + OBSTACK 23/23 真闭环** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability + v3.15.6 OBSTACK 实战补完). v3.16+ moves to the data/integration axis per ADR-V2-024.
+- Current branch: `main`
+- Theme-level focus: **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED;OBSTACK 21/23 (91%)** (v3.10 platform-skeleton + v3.11 OPA / 5-stage approval + v3.12 A2A / Event Room + v3.13 L5 Cowork + v3.14 Ontology / Marketplace / SDK ecosystem + v3.15 OBSTACK platform observability + v3.15.6 OBSTACK 实战补完). v3.16+ moves to the data/integration axis per ADR-V2-024.
 - Project route: managed (lightweight-memory + GSD state machine, both maintained)
 - Canonical worklists: `.planning/ROADMAP.md` (GSD) + `docs/PROJECT_PRODUCT_OVERVIEW.md` (project SSOT)
-- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (§0 Goal Status 23/23 + §4.4 Component Inventory 实现对齐) + `OBSTACK_INDEX.md` 主题索引 + `OBSTACK_HANDBOOK.md`
-- Active work package: **v3.15.6 — 3/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅;6d + 6e ⏸ deferred → v3.16;**6f ⏳ 待执行** (真实 verify 脚本 + PRODUCTION_USABILITY 证据 + `tag v3.15.6`)。plan: `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`。
-- Known blockers: (1) `.env` `DEEPSEEK_MODEL_NAME='deepseek-v4-flash-0731'` 无效 → 6f 硬前置;(2) CI 两条 workflow 长期 FAIL (`Phase 3 Contract Matrix` 缺 `v2-phase2_5-ci-setup` Makefile 目标 / `CI` 缺 `glib-sys` 系统库),均为既有缺口,与 v3.15.6 无关。
+- v3.15 主题域权威文档: `docs/design/EAASP/OBSTACK_DESIGN.md` (§0 Goal Status **21/23** + §4.4 Component Inventory) + `OBSTACK_INDEX.md` + `OBSTACK_HANDBOOK.md`
+- Active work package: **v3.15.6 — 4/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅(经 6g 修正)/ **6g ✅**;6d + 6e ⏸ deferred → v3.16;**6f ⏳ 待执行,前置条件已扩大**(补 `tool.total` 实证 + 收敛 §0.1 剩余 2 项 + 改造 demo 脚本,之后才 tag)。
+- Known blockers: (1) `tool.total` / `requests.*` 缺端到端实证;(2) demo 脚本仍半真(手工 ingest + 30s 超时偏短 + 9b/9c 证据检查失效);(3) `.env` 影子变量陷阱(shell 旧 key 盖住 `.env`,dotenvy 不覆盖);(4) L4 `/message` 挂起(独立问题);(5) CI 两条 workflow 长期 FAIL(既有缺口)。
 
 ## Current Architecture
 

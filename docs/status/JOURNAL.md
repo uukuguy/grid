@@ -384,4 +384,25 @@
 - 19:00 `cdb38379` 状态刷新入仓:`STATE.md`(frontmatter 3/6 阶段 + Current Position 六阶段逐条 + Blockers + Session Continuity)+ `HANDOFF.json` + `.continue-here.md` + `CURRENT-STATE.md`;顺手删掉 `CURRENT-STATE.md` 里 6a.4 prepend 时遗留的重复 "Project Snapshot" 段。
 - **当前状态**:v3.15.6 **3/6 阶段完成**。6a ✅ / 6b ✅ / 6c ✅;6d + 6e 显式 deferred → v3.16(D-53 / D-54);**6f 待执行**(真实 verify + tag v3.15.6),硬前置 = 修 `.env` `DEEPSEEK_MODEL_NAME`(现值 `deepseek-v4-flash-0731` 上游 400 reject)。
 - next: 6f 收口 — 修 .env → 写 `scripts/v3156-obstack-verify.sh` 走真实 agent loop → dual-gate + 真实 event timeline → `PRODUCTION_USABILITY` 证据文档 → `git tag v3.15.6`。
+
+## 2026-08-11 晚 (v3.15.6 6g — tag 前验证推翻 6c,修复后实测)
+
+- 21:45 准备 6f。tag 等于给 §0.1 "23/23 真闭环" 背书,故先验 6c 的 4 处 ⚠️→✅ 是否站得住。**结论:2 项不成立。**
+- 22:00 **缺陷一 — emit 挂错层**。`record_tool` / `record_business_flow_outcome` 只被 `GridHarness::on_tool_call/on_tool_result/on_stop` 调用,而这三个方法全仓唯一调用者是 `service.rs:363/387/405` 的 gRPC handler。这条通道是 L4 给 **Tier 2/3** runtime 准备的;Grid 是 Tier 1(`native_hooks: true` / `requires_hook_bridge: false`),`contract.rs:114-118` 明写核心事件已由 L4 interceptor 捕获,L4 手写代码零处调用。**6c.2/6c.3 的 emit 是死代码。**
+- 22:15 **实测坐实**:启 5 服务 + grid-runtime,跑出含 tool call 的真实 timeline(14 事件,含 `POST_TOOL_USE_FAILURE`),OTel 批次为 `{"resourceMetrics":{...},"scopeMetrics":[]}` —— exporter 活着,counter 一次未增。另建 session 复验同样结果。
+- 22:40 **缺陷二 — provider 提前 drop(更底层)**。`init_observability` 取走 handle 后 `drop(provider)`,注释称 PeriodicReader 会保活;实际 `SdkMeterProviderInner::drop` 调 `shutdown()`(`opentelemetry_sdk-0.24.1/.../meter_provider.rs:132`),导出循环停止、instrument 静默降 no-op。**这解释了为何只有 1 个空批次**:启动 flush 一次后管道已死。即便 counter 被正确调用也不会有输出。
+- 23:10 修复。emit 移到 `map_events_to_chunks` 的 `AgentEvent` 流(真实 turn 必经);provider 存入 `OnceCell` 绑定进程生命周期;导出间隔加 `EAASP_OTEL_INTERVAL_SECS`(按 ADR-V2-028 默认回落生产值 30s)。**全部改动在 `grid-runtime` 内,未动 `grid-engine`,ADR-V2-023 P1 保持,无需新 ADR。**
+- 23:20 `in_flight` 改用 Drop guard 而非成对 inc/dec:客户端中途断连会 drop 流且不产生终止事件,成对调用会让 gauge 永久上漂;guard 同时把该 turn 记为 `abandoned`(lag 路径记 `lagged`)。
+- 23:35 顺带修 `cargo check --workspace` —— `eaasp-goose-runtime` 缺 `business_key` 字段,自 6b.2b 起 main 就编译不过(6b.2b 却声称 "workspace check 0 errors";stash 今日改动复现确认)。
+- 23:50 **发现 `.env` 影子变量**:shell 中导出的旧 `DEEPSEEK_API_KEY` 盖住 `.env`(dotenvy 不覆盖已存在环境变量),表现为 401。unset 后重启服务解决。
+- 23:55 **真实 LLM 实测通过**。deepseek-v4-flash 完整 turn(14 chunk,模型答 "4",done 收尾):
+  - 批次数 **1 → 40+**
+  - `llm.total{model=deepseek-v4-flash, status=ok}` = **2**(2 个真实 turn)
+  - `flow.outcome{status=complete}` 两个独立 business_key 各 **1** —— `Completed`+`Done` 去重生效
+  - `in_flight{op=turn}` = **0** —— Drop guard 收支平衡
+  - 失败 turn 另测:`flow.outcome{status=error}=1` + `errors.total{agent_error}=1`
+- 00:10 `4defa334` + `0318aca9` + `d39db604` + `75859214` 入仓。95/95 tests PASS(新增 10);dual-gate PASS(134 routes / 38 rows)。
+- **诚实标记**:§0.1 由 6c.7 的 23/23 降为 **21/23 (91%)**。`tool.total` + `requests.*` 缺端到端实证(验证用例未触发 tool call);demo 脚本 5 个手工 ingest 未改。`V315-L1-OTEL-FULL-01` ✅ CLOSED;`V315-WALK-01` 🔄 PARTIALLY CLOSED。
+- **教训**:`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;单测通过 ≠ 线上会动。只有"真跑一遍看计数器动"才算证据。6c 之所以带病发布,根因是 emit 是否发生**不可观测** —— 故本次把 `classify_event` 拆为纯函数,让映射可被断言。
+- **未 tag v3.15.6**:待 `tool.total` 端到端补验 + §0.1 剩余 2 项收敛。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
