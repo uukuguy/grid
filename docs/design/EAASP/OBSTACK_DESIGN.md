@@ -16,14 +16,15 @@
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
 > 最近一次 update: 2026-08-09, **v3.15.6a 文档诚实化** (§0.1 counting 漏洞已修;v3.15.5 阶段 23/23 是最小闭环 counting,真实落地率 = **20/23 (87%)** — Observe 4/5 + Trace 4/5 + Evaluate 5/6 + Optimize 4/4 + Verify 3/3;D-50 v3.15.6a 锁决策)。v3.15.6c 死代码激活后预期升 23/23。
 
-### 0.1 4 大维度 × 子项状态（2026-08-09 v3.15.6a 文档诚实化 — 真实闭环率 20/23 = 87% → v3.15.6 6b+6c 落地后升 **23/23 = 100%**）
+### 0.1 4 大维度 × 子项状态（2026-08-11 v3.15.6 6g 实测复核 — 真实闭环率 **21/23 = 91%**）
 
-> v3.15.5 阶段 §0.1 标 23/23 = 100% 是 counting 漏洞,本节按真实落地降 3 处:
-> - L3 observability.py 只有 1 record 函数 (docstring 声称 4 个)
-> - L1 OTel SDK 7/7 tests PASS 但 `init_observability()` 未从 main.rs 调用 (死代码)
-> - L0 proto 21 RPC 只挂 13/21 BusinessKey (8 RPC 漏)
-> - `tests/e2e/business_flow/` 整个目录不存在 (4 集成测试未写)
-> v3.15.6c 激活死代码 + 6b 补测试后升 23/23。
+> **2026-08-11 6g 更新**:6c.7 曾把闭环率升到 23/23,但 tag 前的实测推翻了其中 2 项。当前 21/23,余 2 项标 ⚠️:
+> - **L1 OTel SDK wiring** — 6c 只对了一半。6c.1(装 SDK)为真;6c.2/6c.3 把 emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1(`native_hooks: true`),L4 从不调用这三个 hook RPC,故为死代码 —— 实测真实 tool-call turn 产出 `"scopeMetrics":[]`。更底层还有 `drop(provider)` 导致导出管道启动即 shutdown。6g 两处均已修复并实测 4/6 series 出数;`tool.total` + `requests.*` 仍缺端到端实证。
+> - **live demo** — demo 脚本的 5 个手工 ingest 事件**未改**,timeline 仍非真实 agent loop 产出。
+>
+> 教训:`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;**只有"真跑一遍看计数器动"才算证据**。详见 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
+>
+> (历史)v3.15.5 阶段 §0.1 标 23/23 = 100% 是 counting 漏洞,v3.15.6a 按真实落地降 3 处:L3 observability.py 只有 1 record 函数;L1 OTel `init_observability()` 未从 main.rs 调用;L0 proto 21 RPC 只挂 13/21;`tests/e2e/business_flow/` 目录不存在。这 3 处已由 6b + 6c.1 真实闭环。
 
 | 维度 | 子项 | 状态 | Commit / Test |
 |---|---|---|---|
@@ -31,7 +32,7 @@
 | **Observe** | L2 memory_engine observability.py | ✅ shipped | `7a5459b9` (4/4 tests) |
 | **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ✅ shipped | `a18a22ba` (OpA decision) + `6c79b255` (v3.15.6 6b.3: session + hook + opa_policy); 12/12 tests PASS |
 | **Observe** | L4 orchestration observability.py | ✅ shipped | `d9ea12bf` (4/4 tests) |
-| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ shipped | `e16686d4` (7/7 tests) + `da38e862` (v3.15.6 6c.1: `init_observability("stdout")` wired into `main.rs`; opentelemetry-stdout exporter) + `ce027817` (v3.15.6 6c.2 + 6c.3: harness.rs emits `record_tool(name, "pre"/"post")` + `record_business_flow_outcome(key, "complete")` via `record_business_flow_outcome` helper); 6 L1 metric series active (requests/llm/tool/flow_outcome/in_flight/errors) |
+| **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ⚠️ **4/6 series 实测** | `e16686d4` (7/7 tests) + `da38e862` (6c.1: `init_observability("stdout")` wired into `main.rs`) + **`0318aca9` (6g: provider 生命周期修复 — 原 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出循环停止、instrument 静默降 no-op;症状为仅启动时 1 个空批次 `"scopeMetrics":[]`)** + **`d39db604` (6g: emit 从 `on_tool_call/on_tool_result/on_stop` 移到 `map_events_to_chunks` 的 AgentEvent 流 —— Grid 是 Tier 1,L4 从不调用那三个 hook RPC,6c.2/6c.3 的 emit 是死代码)**。真实 deepseek turn 实测:`llm.total`=2 / `flow.outcome{complete}`×2 / `errors.total{agent_error}` / `in_flight`=0(修复前 1 空批次 → 修复后 40+ 含数据批次)。**`tool.total` + `requests.*` 尚无端到端实证**(验证用例未触发 tool call),映射仅由单元测试覆盖 |
 | **Trace** | L0 proto BusinessKey message + 21/21 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) + `29378db4` (v3.15.6 6b.2a: 5 messages 加 `BusinessKey business_key = 100` 字段 — StateResponse / HealthResponse / Capabilities / PolicySummaryRequest / PolicySummary) + `78faa8a5` (6b.2b: 9 callers 同步 `business_key: None` 占位) + `0336d6d1` (6b.2c: 4 unit tests pin 21 RPC attachment); 21/21 RPC 字段 100 attachment |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |
 | **Trace** | L2 memory_files + anchors `business_key` column | ✅ shipped | `2b3f2680` |
@@ -49,7 +50,7 @@
 | **Optimize** | `ab_router.py` (A/B runtime selection by completion_rate) | ✅ shipped | V315-OPT-01 (10/10 tests) |
 | **Optimize** | `alert_manager.py` (fan-out hints to sinks) | ✅ shipped | V315-OPT-02 (7/7 tests) |
 | **Optimize** | `resource_scheduler.py` (dry-run scale-up action selector) | ✅ shipped | V315-OPT-03 (8/8 tests) |
-| **Verify** | v3.15.5 live instance demo — real LLM-driven handshake + 14-event timeline + 5-dimension end-to-end exercise | ✅ shipped | `84cc0680` (V315-OBSTACK-DEMO, `scripts/v315-obstack-demo.sh` + `docs/status/PRODUCTION_USABILITY_2026-08-02-obstack-demo.md`) |
+| **Verify** | v3.15.5 live instance demo — real LLM-driven handshake + 14-event timeline + 5-dimension end-to-end exercise | ⚠️ **timeline 事件仍为手工 ingest** | `84cc0680` (V315-OBSTACK-DEMO, `scripts/v315-obstack-demo.sh` + `docs/status/PRODUCTION_USABILITY_2026-08-02-obstack-demo.md`)。2026-08-11 6g 复跑确认:demo 的 14-event timeline 中 5 个事件**依然**由脚本 `/v1/events/ingest` 手工模拟(脚本未改);且 demo 的 30s LLM 超时对 reasoning model 偏短,message 步骤实际 skip。真实 agent loop 的 emit 已在 6g 修复并单独验证(见 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`),但**demo 脚本本身尚未改造为真实驱动** |
 | **Verify** | v3.15 live walkthrough via REST (5 services boot + business_key round-trip) | ✅ shipped | `665435b3` (superseded by V315-OBSTACK-DEMO 2026-08-02) |
 | **Verify** | `make v3.10-spec-audit` PASS (38 rows; OBSTACK_DESIGN.md + OBSTACK_INDEX.md dual-referenced) | ✅ shipped | `a122fbf5` |
 | **Verify** | `make rbac-audit` PASS (134 routes; + 4 business-flow routes mounted this session) | ✅ shipped | `a122fbf5` |
