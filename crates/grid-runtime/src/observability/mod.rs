@@ -69,6 +69,16 @@ pub const METRIC_ERRORS_TOTAL: &str = "l1.runtime.errors.total";
 static METER_READY: AtomicBool = AtomicBool::new(false);
 static HANDLES: once_cell::sync::OnceCell<Arc<Handles>> = once_cell::sync::OnceCell::new();
 
+/// v3.15.6 6g — keeps the meter provider alive for the process
+/// lifetime.
+///
+/// `SdkMeterProvider`'s `Drop` calls `shutdown()` (see
+/// `opentelemetry_sdk::metrics::meter_provider`), which stops the
+/// `PeriodicReader` export loop and turns every instrument into a
+/// no-op. The provider must therefore outlive the instruments, not be
+/// dropped once the handles are pulled off it.
+static PROVIDER: once_cell::sync::OnceCell<SdkMeterProvider> = once_cell::sync::OnceCell::new();
+
 struct Handles {
     requests_total: Counter<u64>,
     requests_duration: Histogram<f64>,
@@ -218,21 +228,26 @@ pub fn init_observability(exporter: Option<&str>) {
         });
         let _ = HANDLES.set(handles);
 
-        // Provider is consumed by the reader (held inside the
-        // PeriodicReader internal state — the SDK keeps it alive for
-        // the lifetime of the pipeline). We don't need to register a
-        // global MeterProvider; record_* helpers look up the cached
-        // Handles directly (cheap OnceCell::get).
-        drop(provider);
+        // v3.15.6 6g — the provider MUST outlive this function.
+        //
+        // The previous code dropped it here, on the belief that the
+        // PeriodicReader kept the pipeline alive. It does not:
+        // `SdkMeterProviderInner::drop` calls `shutdown()`, which stops
+        // the export loop and makes every instrument a silent no-op.
+        // The observable symptom was a single empty
+        // `{"resourceMetrics":…,"scopeMetrics":[]}` batch at startup
+        // and nothing afterwards, no matter how much traffic ran.
+        // Parking it in a `OnceCell` ties its lifetime to the process.
+        let _ = PROVIDER.set(provider);
     };
 
     if chosen == "stdout" {
         let exporter = opentelemetry_stdout::MetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+        let reader = periodic_reader(exporter);
         install_provider(reader);
     } else {
         let exporter = InMemoryExporter::default();
-        let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+        let reader = periodic_reader(exporter);
         install_provider(reader);
     }
 
@@ -246,6 +261,33 @@ pub fn init_observability(exporter: Option<&str>) {
 
 fn handles() -> Option<&'static Arc<Handles>> {
     HANDLES.get()
+}
+
+/// Default OTel export interval. Matches the SDK default; the
+/// production value, per ADR-V2-028 (a knob's fallback is always the
+/// validated baseline, never an experiment value).
+const DEFAULT_EXPORT_INTERVAL_SECS: u64 = 30;
+
+/// Build the `PeriodicReader`, honouring `EAASP_OTEL_INTERVAL_SECS`.
+///
+/// The interval is env-tunable purely so a verification run does not
+/// have to wait a full 30s window to observe that counters move.
+/// An unset, empty, unparseable, or zero value falls back to the
+/// production default rather than silently picking a test-grade
+/// interval.
+fn periodic_reader<E>(exporter: E) -> PeriodicReader
+where
+    E: PushMetricsExporter,
+{
+    let secs = std::env::var("EAASP_OTEL_INTERVAL_SECS")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(DEFAULT_EXPORT_INTERVAL_SECS);
+
+    PeriodicReader::builder(exporter, runtime::Tokio)
+        .with_interval(std::time::Duration::from_secs(secs))
+        .build()
 }
 
 // ─── record_* helpers (no-op when not initialized; real Counter/Histogram/UpDownCounter when initialized) ───
