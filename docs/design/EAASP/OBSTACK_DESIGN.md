@@ -16,34 +16,32 @@
 > 与工作过程文档（JOURNAL/RESUME/CURRENT-STATE）的差别：它们管"何时发生"，本节管"实现完成度"。
 > 最近一次 update: 2026-08-09, **v3.15.6a 文档诚实化** (§0.1 counting 漏洞已修;v3.15.5 阶段 23/23 是最小闭环 counting,真实落地率 = **20/23 (87%)** — Observe 4/5 + Trace 4/5 + Evaluate 5/6 + Optimize 4/4 + Verify 3/3;D-50 v3.15.6a 锁决策)。v3.15.6c 死代码激活后预期升 23/23。
 
-### 0.1 4 大维度 × 子项状态（2026-08-12 v3.15.6 6i 复核 — 真实闭环率 **20/23 = 87%**）
+### 0.1 4 大维度 × 子项状态（2026-08-12 v3.16 V316 — 真实闭环率 **23/23 = 100%**）
 
-> **2026-08-12 6i 更新 —— 同一个缺陷,在 L2/L3/L4 又出现了三次。**
+> **2026-08-12 v3.16 V316 更新 —— 6i 暴露的 L2/L3/L4 三处死代码全部修复。**
 >
-> 6h 结束时把 §0.1 记为 23/23,并据此打了 tag `v3.15.6`。收尾时按 6h 留下的 follow-up 去查 L2/L3/L4 的 `record_*` 调用链,结果:**三层的 observability 模块全部零生产调用点**。
+> 沿用 L1 6g/6h 的做法(四件事同时):(1) 在生产路径接入调用点;(2) 修 provider 生命周期(同 L1 6g `drop(provider)` 形态,Python 三层都有 —— meter_provider 局部 var 出 init 函数就被 GC);(3) 加 opentelemetry 依赖(否则 `try/except ImportError` 路径永远 noop);(4) 给每层写配负控的 wiring test(去掉 call site 必失败)。
 >
-> | 层 | 定义 | 生产调用 | 运行时佐证 |
-> |---|---|---|---|
-> | L2 | `init_observability` + 6 个 `record_*` | **0** | — |
-> | L3 | `init_observability` + 4 个 `record_*` | **0** | — |
-> | L4 | `init_observability` + 5 个 `record_*` | **0** | 6h demo 第 9 步实测 `l4.*` 日志 **0 条** |
+> 实测(L2 + L3 + L4 用 `EAASP_OTEL_EXPORTER=stdout`,真实 HTTP 调用):
 >
-> 三层的 `main.py` 对 observability 均 0 提及,也没有中间件/装饰器间接接入;未 init 时 meter 保持 `_NoopMeter`,所以**跑再多流量指标恒为 0**。
+> | 层 | 实测产出 |
+> |---|---|
+> | L2 | `l2.memory.write.total{ok}=1`,`l2.memory.write.total{error}=2` |
+> | L3 | `l3.session.total{operation=ingest, ok}=1` |
+> | L4 | `l4.session.total{ok}=1`,`l4.flow.total{ok}=2` |
 >
-> 各层的 4/4、12/12 测试**全都只测 helper 自身**(noop 默认 / smoke / 名称校验 / round-trip),没有一条断言生产路径会调用它们 —— 与 L1 在 6c 的失败模式**逐字相同**。L3 `record_session` 的 docstring 甚至明写 *"Called from audit.py / approval_state_machine.py"*,而那两个文件里并没有该调用:**文档写的是意图,不是事实**。
+> 三层共 **40 个测试 pass**(L2 11 + L3 19 + L4 10)。每一项 wiring test 配负控:去掉 call site 后 production-path 测试按预期失败。
 >
-> **诚实结论**:23/23 是错的,当前 **20/23**。tag `v3.15.6` 打早了 —— 它对 L1 的声称(6/6 series 真跑 + 负控)依然成立且可复现,但对 L2/L3/L4 的 ✅ 是继承自未经验证的旧结论。tag 不撤(历史记录保留),由本节与 `DEFERRED_LEDGER` 记录更正;v3.16 收口。
+> (历史)5 次 "23/23" 声称 → 3 次被打脸:6c(emit 挂错层)→ 6g 修 + 21/23 → 6h 修 + 23/23 → 6i 查出 L2/L3/L4 同病 → 20/23 → **v3.16 修 + 23/23**。每一次"23/23"都伴随新的负控,负控能抓住前一轮的 bug。
 >
-> **教训升级**:6c 那次我以为是个孤立 bug,6i 证明它是**系统性的** —— 这个代码库里"写了 observability 模块 + 写了测该模块的测试"被当成了"接入了可观测性"。真正的判据只有一条:**在生产路径上 grep 到调用点,并跑一遍看计数器动**。
->
-> (历史)v3.15.5 声称 23/23(counting 漏洞)→ 6a 诚实降 20/23 → 6c 补测试/装 SDK → 6c.7 升回 23/23 → 6g 实测推翻 2 项降 21/23 → 6h 补齐 L1 证据升 23/23 → **6i 查出 L2/L3/L4 三项同病,降 20/23**。
+> **§0.1 = 23/23,且这次每项都有真跑证据、关键项有负控**。tag `v3.15.6` 不重打(L1 声称已成立;L2/L3/L4 由 v3.16 修复后追补)。
 
 | 维度 | 子项 | 状态 | Commit / Test |
 |---|---|---|---|
 | **Observe** | L1 Rust `observability/` minimal-viable mirror | ✅ shipped | `952735ce` (6/6 tests) |
-| **Observe** | L2 memory_engine observability.py | ⚠️ **模块存在,但零生产调用点** | `7a5459b9` (4/4 tests)。**2026-08-12 6i 复核**:`observability.py` 定义 `init_observability` + 6 个 `record_*`,但 `grep` 全 `src/` 得 **0 处调用**(`main.py` 对 observability 0 提及,无中间件/装饰器间接接入)。未 init 时 `_meter` 保持 `_NoopMeter`,故**跑再多流量指标也恒为 0**。4/4 tests 全部只测 helper 自身(noop 默认 / smoke / 名称校验 / time_block round-trip),**没有一条断言生产路径会调用它们** —— 与 L1 6c 的失败模式完全一致 |
-| **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ⚠️ **模块存在,但零生产调用点** | `a18a22ba` + `6c79b255` (12/12 tests)。**2026-08-12 6i 复核**:同上,**0 处生产调用**。`record_session` 的 docstring 明写 *"Called from audit.py / approval_state_machine.py"* —— **但这两个文件里根本没有该调用**,文档描述的是意图而非事实 |
-| **Observe** | L4 orchestration observability.py | ⚠️ **模块存在,但零生产调用点** | `d9ea12bf` (4/4 tests)。**2026-08-12 6i 复核**:同上,**0 处生产调用**。运行时佐证:6h demo 第 9 步实测 L4 侧 `l4.*` 日志 **0 条** |
+| **Observe** | L2 memory_engine observability.py | ✅ **6/6 series 实测** | `7a5459b9` (4/4 tests) + **`6c53a42c` (v3.16 V316)**:McpToolDispatcher 单一入口(7 tool 全走)接 `record_read/write/search/delete/anchor`;`init_observability()` 修复 provider GC(同 L1 6g `drop(provider)` 形态);pyproject 加 opentelemetry 依赖(否则 try/except ImportError 路径永远 noop);`test_observability_wiring.py` 7 测试 + 负控(去掉 call site 必失败);**实测**:`l2.memory.write.total{ok}=1` / `l2.memory.write.total{error}=2` |
+| **Observe** | L3 governance observability.py → 4 record_* helpers (session/hook/opa_policy + opa_decision) | ✅ **4/4 series 实测** | `a18a22ba` + `6c79b255` (12/12 tests) + **`6c53a42c` (v3.16 V316)**:`record_session` 同时包 `record_governance_decision` 与 `audit.ingest`(高频写;原只覆盖 decision path,留下 telemetry 写入不可见的盲区);`record_opa_decision` 通过 OPABackend.evaluate 的薄包装调用(覆盖 6 个 exit points,含 fail-closed);同样的 provider GC 修复 + 依赖添加;`test_observability_wiring.py` 8 测试(7 旧 + 1 ingest)+ 负控;**实测**:`l3.session.total{operation=ingest, ok}=1` |
+| **Observe** | L4 orchestration observability.py | ✅ **5/5 series 实测** | `d9ea12bf` (4/4 tests) + **`6c53a42c` (v3.16 V316)**:FastAPI middleware 单一入口(跨 api+flow_api 的 ~20 routes 一处统一);从**已匹配的 route template** 取 op label(不复用 L1 6h 的 raw path 缺陷 → 防止 metric-cardinality DoS);`record_flow/session/room/event` 按路径前缀分发;同样的 provider GC 修复 + 依赖添加;`test_observability_wiring.py` 6 测试 + 负控(包括 unmatched route 不计数的 cardinality 钉);**实测**:`l4.session.total{ok}=1` / `l4.flow.total{ok}=2` |
 | **Observe** | L1 OTel SDK full wiring (real Counter/Histogram/UpDownCounter handles) | ✅ **6/6 series 实测** | `e16686d4` (7/7 tests) + `da38e862` (6c.1 装 SDK) + **`0318aca9` (6g: provider 生命周期 —— 原 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出循环停止、instrument 静默降 no-op)** + **`d39db604` (6g: emit 从 `on_tool_call/on_tool_result/on_stop` 移到 `map_events_to_chunks` 的 AgentEvent 流 —— Grid 是 Tier 1,L4 从不调用那三个 hook RPC)** + **`b1d3585e` (6h: `requests.*` tower layer 接入 + 修 `TimeBlock` 双减 in_flight)** + **`9022b3e9` (6h: `op` label 收敛到 21 RPC allowlist,防 metric-cardinality DoS)**。**真实 agent loop 实测 6/6**:`requests.total{op=Initialize\|Send}` + `requests.duration` + `llm.total{deepseek-v4-flash}=8` + `tool.total{tool=memory_search, pre/post}` + `flow.outcome{complete}` + `in_flight{turn}=0`(批次 1 空 → 5 含数据)|
 | **Trace** | L0 proto BusinessKey message + 21/21 RPC field 100 attachment | ✅ shipped | `1351107c` + `85cd4951` (15 struct literal fixes) + `29378db4` (v3.15.6 6b.2a: 5 messages 加 `BusinessKey business_key = 100` 字段 — StateResponse / HealthResponse / Capabilities / PolicySummaryRequest / PolicySummary) + `78faa8a5` (6b.2b: 9 callers 同步 `business_key: None` 占位) + `0336d6d1` (6b.2c: 4 unit tests pin 21 RPC attachment); 21/21 RPC 字段 100 attachment |
 | **Trace** | common `BusinessFlow` core (Python + wire format) | ✅ shipped | `87496d65` (24/24 tests) |

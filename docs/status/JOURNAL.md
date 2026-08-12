@@ -415,6 +415,25 @@
 - **教训升级**:6c 那次我当成孤立 bug;6i 证明它是**系统性的** —— 这个代码库里"写了 observability 模块 + 写了测该模块的测试"被普遍当成了"接入了可观测性"。真正判据只有一条:**生产路径上 grep 到调用点,并跑一遍看计数器动**。L1 现在满足,L2/L3/L4 不满足。
 - next: **v3.16 scope 决策**,候选中新增 `V316-L2L3L4-OBS-01`(把 L1 的做法复制到 L2/L3/L4)。
 
+## 2026-08-12 (v3.16 V316 — 闭环 L2/L3/L4 observability)
+
+- 06:00 接续 6i,user 决定 6d+6e 顺延、把 V316 放在前面。按 L1 6g/6h 经验分四件事做。
+- 06:10 **L3 audit.governance_decisions** 接 `record_session`:试/finally 块包住整段 db 操作,success 进 `status=ok`,rollback 进 `status=error`。`record_opa_decision` 在 OPABackend.evaluate 外加一层薄包装,覆盖 6 个 exit points(包括 fail-closed)。
+- 06:30 **L4 FastAPI middleware** 单一入口,从 `request.scope["route"].path`(已匹配 template,不是 raw path)取 op label → 走 L1 6h 同样的 cardinality bound。按前缀分发到 `record_flow/session/room/event`。
+- 06:45 **L2 McpToolDispatcher.invoke** 单一入口,7 tool 全走。配 `_RECORDERS` map;新 tool 加进来自动有 metric(除非显式选不测)。
+- 07:00 每层写 `tests/test_observability_wiring.py`,**每个生产路径测试配负控**:把 `record_*` 调用去掉,测试必须按预期失败。这一步最关键 —— 单测通过不等于线上会动,**只 PASS 的检查等于没有检查**(6c 的核心教训)。
+- 07:30 **意外第三处缺陷** — 三层跑起来 0 batch。查 init 路径:Python 三层 `init_observability()` 把 `meter_provider`/`tracer_provider` 当局部 var 留在栈上,函数返回即 GC(同 L1 6g 的 `drop(provider)` 形态)。**这是同一个缺陷的 Python 表现**。修:模块级 `_METER_PROVIDER`/`_TRACER_PROVIDER` 强引用,绑定进程生命周期。
+- 07:45 **意外第四处缺陷** — 修完 lifecycle 还是 0 batch。查原因:三层 pyproject **都没列 opentelemetry 依赖**,所以 `try/except ImportError` 走 except,`_OTEL_AVAILABLE` 永远 False,**`init_observability` 永远 noop**。三层都补 `opentelemetry-api/sdk/exporter-otlp-proto-grpc>=1.27`。`uv sync --extra dev` 还原 pytest。
+- 08:00 L4 还有一处独立的预存 bug:**L4 pyproject 缺 eaasp-common editable dep**,flow_api 一导入就 `ModuleNotFoundError: eaasp_common`。补 `[tool.uv.sources]` + 依赖列表 + 清掉 stale build cache。
+- 08:15 **live 验证**(L2 + L3 + L4 用 `EAASP_OTEL_EXPORTER=stdout`):
+  - L2: `l2.memory.write.total{ok}=1`,`l2.memory.write.total{error}=2` — 两次写第二次参数缺字段,但 dispatcher 仍按设计记 `error`
+  - L3: `l3.session.total{operation=ingest, ok}=1` — 走 `/v1/telemetry/events` 路径
+  - L4: `l4.session.total{ok}=1`,`l4.flow.total{ok}=2` — 走 `/v1/business-flows/{key}/timeline` 与 `/summary`
+- 08:20 三层共 **40/40 tests pass**(L2 11 + L3 19 + L4 10)。每层负控都已验证。
+- 08:25 `6c53a42c` 入仓。**§0.1 = 23/23**,`V316-L2L3L4-OBS-01` ✅ CLOSED。
+- **关键经验**:本 milestone 反复撞到的"模块写了 + 测了 ≠ 接入了"在 Python 三层也成立 —— 但因为缺陷模式已知(6c + 6g 已诊断过),修起来直接照抄,**~3 小时闭环**。v3.15.6 的 tag 不重打(L1 声称已成立;L2/L3/L4 由 v3.16 修复后追补)。
+- next: v3.16 剩下的 6d(web-platform Dashboard)+ 6e(CLI 全局接入),但 user 已明示顺延 → 看是不是 v3.17 范围,或本 milestone 收口打 v3.16.0。
+
 ## 2026-08-11 晚 (v3.15.6 6g — tag 前验证推翻 6c,修复后实测)
 
 - 21:45 准备 6f。tag 等于给 §0.1 "23/23 真闭环" 背书,故先验 6c 的 4 处 ⚠️→✅ 是否站得住。**结论:2 项不成立。**
