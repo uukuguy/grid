@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 
 from .anchors import AnchorStore
 from .db import init_db
+from .observability import init_observability
 from .event_index import EventEmbeddingIndex
 from .files import MemoryFileStore
 from .index import HybridIndex
@@ -38,6 +39,15 @@ def create_app(db_path: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await init_db(db_path)
+        # v3.16 (V316-L2L3L4-OBS-01): install the OTel providers.
+        # Nothing called this before, so every record_* in this package
+        # no-oped against the module-level noop meter — l2.* metrics
+        # read zero under any load while observability.py and its tests
+        # both existed and passed.
+        #
+        # Default stays "none" per ADR-V2-028; opt in with
+        # EAASP_OTEL_EXPORTER=stdout.
+        init_observability()
         yield
 
     app = FastAPI(

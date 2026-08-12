@@ -8,6 +8,7 @@ Tools:
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -15,6 +16,13 @@ from pydantic import BaseModel, ValidationError
 from .anchors import AnchorIn, AnchorStore
 from .files import InvalidStatusTransition, MemoryFileIn, MemoryFileStore
 from .index import MAX_TOP_K, HybridIndex
+from .observability import (
+    record_anchor,
+    record_delete,
+    record_read,
+    record_search,
+    record_write,
+)
 
 MAX_LIST_LIMIT = 200
 
@@ -153,7 +161,29 @@ class McpToolDispatcher:
         handler = _HANDLERS.get(name)
         if handler is None:
             raise ToolError("unknown_tool", f"unknown MCP tool: {name}")
-        return await handler(self, args)
+
+        # v3.16 (V316-L2L3L4-OBS-01) — the single choke point for all
+        # seven memory tools. Instrumenting here rather than in each
+        # handler means a new tool is counted the moment it is added to
+        # _HANDLERS, and no early return or raise can skip the sample.
+        #
+        # `name` is safe as a metric label because the lookup above has
+        # already rejected anything outside _HANDLERS — an unknown tool
+        # raises before reaching this point, so the label set is bounded
+        # by the handler map rather than by caller input.
+        recorder = _RECORDERS.get(name)
+        started = time.perf_counter()
+        status = "error"
+        try:
+            result = await handler(self, args)
+            status = "ok"
+            return result
+        finally:
+            if recorder is not None:
+                recorder(
+                    status=status,
+                    duration_seconds=time.perf_counter() - started,
+                )
 
     async def _memory_search(self, args: dict[str, Any]) -> dict[str, Any]:
         query = _require(args, "query", str)
@@ -261,6 +291,26 @@ _HANDLERS: dict[str, Any] = {
     "memory_list": McpToolDispatcher._memory_list,
     "memory_archive": McpToolDispatcher._memory_archive,
     "memory_confirm": McpToolDispatcher._memory_confirm,
+}
+
+# v3.16 (V316-L2L3L4-OBS-01) — tool → l2.* metric family.
+#
+# Kept as a separate map rather than folded into _HANDLERS so the
+# dispatch table stays the single source of truth for what exists, and
+# a tool with no natural metric family (or one added before its family
+# is decided) simply goes uncounted instead of forcing a bad mapping.
+#
+# memory_list reuses record_read: it is a read-shaped operation, and a
+# separate family would add cardinality without telling an operator
+# anything the read counter does not.
+_RECORDERS: dict[str, Any] = {
+    "memory_search": record_search,
+    "memory_read": record_read,
+    "memory_list": record_read,
+    "memory_write_anchor": record_anchor,
+    "memory_write_file": record_write,
+    "memory_archive": record_delete,
+    "memory_confirm": record_write,
 }
 
 

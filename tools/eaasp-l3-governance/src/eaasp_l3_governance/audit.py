@@ -9,6 +9,7 @@ richer schemas without a migration.
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from typing import Any
 
@@ -16,6 +17,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from .db import connect
+from .observability import record_session
 
 # v3.12.0 — V311-AUDIT-01 / SCHEMA-01..03: ``await_human`` sentinel is the
 # 5-stage state machine's pause-on-Approve marker (v3.11.2 §6.9 / §6.10).
@@ -91,6 +93,12 @@ class AuditStore:
         even though the primary key is client-unique — WAL + SQLite still
         benefits from explicit ordering on high-churn hosts.
         """
+        # v3.16 (V316-L2L3L4-OBS-01): record every audit write, not just
+        # the governance_decision path. A telemetry insert is the higher-
+        # volume sibling and would otherwise be invisible — which is
+        # exactly the kind of operator blind spot l3.session.total covers.
+        started = time.perf_counter()
+        status = "error"
         event_id = f"tel_{uuid.uuid4().hex[:16]}"
         payload_json = json.dumps(event.payload)
 
@@ -120,11 +128,17 @@ class AuditStore:
                 )
                 row = await cur.fetchone()
                 await db.commit()
+                status = "ok"
             except Exception:
                 await db.rollback()
                 raise
         finally:
             await db.close()
+            record_session(
+                operation="ingest",
+                status=status,
+                duration_seconds=time.perf_counter() - started,
+            )
 
         assert row is not None
         return TelemetryEventOut(
@@ -311,6 +325,17 @@ class AuditStore:
             )
 
         db = await connect(self.db_path)
+        # v3.16 (V316-L2L3L4-OBS-01): record the ledger append. The
+        # helper's docstring has always claimed it is "called from
+        # audit.py / approval_state_machine.py"; until now it was not,
+        # so `l3.session.*` read zero under any load.
+        #
+        # try/finally rather than a call before `return`: a rollback path
+        # raises, and an append that failed is exactly the sample an
+        # operator needs. Uncounted failures are what make a metric
+        # look healthy while the ledger is rejecting writes.
+        started = time.perf_counter()
+        status = "error"
         try:
             await db.execute("BEGIN IMMEDIATE")
             try:
@@ -346,11 +371,17 @@ class AuditStore:
                 )
                 row = await cur.fetchone()
                 await db.commit()
+                status = "ok"
             except Exception:
                 await db.rollback()
                 raise
         finally:
             await db.close()
+            record_session(
+                operation="append",
+                status=status,
+                duration_seconds=time.perf_counter() - started,
+            )
 
         assert row is not None
         return _row_to_governance(row)

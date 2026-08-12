@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -32,6 +33,14 @@ from pydantic import BaseModel, Field, ValidationError
 from starlette.responses import JSONResponse
 
 from .db import init_db
+from .observability import (
+    init_observability,
+    is_initialized,
+    record_event,
+    record_flow,
+    record_room,
+    record_session,
+)
 from . import flow_api as _flow_api
 from .event_backend_sqlite import SqliteWalBackend
 from .event_engine import EventEngine
@@ -89,6 +98,42 @@ class EventIngestRequest(BaseModel):
 # ─── App factory ────────────────────────────────────────────────────────────
 
 
+def _record_for_route(request: Any, *, status: str, started: float) -> None:
+    """Route one request to the matching l4.* recorder.
+
+    v3.16 (V316-L2L3L4-OBS-01). The family is chosen from the matched
+    route *template* (``request.scope["route"].path``), never the raw
+    URL. That distinction is the cardinality bound: the template set is
+    fixed by the code, while raw paths are caller-controlled and would
+    let any client mint unbounded time series — the same
+    metric-cardinality issue found on the L1 tower layer in 6h.
+
+    Requests that match no route (404s, stray probes) are dropped
+    rather than assigned a family: an unmatched request is not an L4
+    operation, and inventing one for it would pollute every dashboard
+    built on these metrics.
+    """
+    route = request.scope.get("route")
+    template = getattr(route, "path", None)
+    if not template:
+        return
+
+    elapsed = time.perf_counter() - started
+
+    # Order matters: business-flows is the most specific prefix.
+    if template.startswith("/v1/business-flows"):
+        record_flow(status=status, duration_seconds=elapsed)
+    elif template.startswith("/v1/sessions"):
+        record_session(status=status, duration_seconds=elapsed)
+    elif template.startswith("/v1/rooms"):
+        record_room(status=status, duration_seconds=elapsed)
+    elif template.startswith("/v1/events"):
+        record_event(status=status, duration_seconds=elapsed)
+    # /health and /v1/intents deliberately uncounted: the former is a
+    # liveness probe that would swamp the counters, the latter has no
+    # l4.* family defined in OBSTACK §3.3.
+
+
 def create_app(
     db_path: str,
     *,
@@ -121,6 +166,20 @@ def create_app(
             level=log_level,
         )
         await init_db(db_path)
+        # v3.16 (V316-L2L3L4-OBS-01): install the OTel providers.
+        # Until now nothing called this, so every l4.* recorder no-oped
+        # against the module-level noop meter — which is why the 6h
+        # walkthrough reported zero l4.* records while the observability
+        # module and its tests both existed and passed.
+        #
+        # Default stays "none" per ADR-V2-028; opt in with
+        # EAASP_OTEL_EXPORTER=stdout.
+        init_observability()
+        logger.info(
+            "L4 observability initialized (exporter={}, active={})",
+            os.environ.get("EAASP_OTEL_EXPORTER", "none"),
+            is_initialized(),
+        )
         owned_client = False
         if http_client is None:
             # trust_env=False prevents L4 from picking up macOS system proxies
@@ -264,11 +323,40 @@ def create_app(
             ],
         )
 
+    # v3.16 (V316-L2L3L4-OBS-01) — record l4.* for every request.
+    #
+    # Applied as middleware rather than per-endpoint for the same reason
+    # the L1 side used a tower layer: L4 has ~20 routes across api.py and
+    # flow_api.py, and instrumenting each would need re-auditing at every
+    # new route and every early return / raise. One choke point covers
+    # them all, including the failure paths — which are precisely the
+    # samples an operator needs and the ones hand-written call sites
+    # forget.
+    #
+    # `op` is derived from the matched route template, never the raw
+    # path, so a caller cannot mint unbounded label values by varying
+    # path segments (the metric-cardinality DoS found on the L1 layer in
+    # 6h). Unmatched requests collapse to "unmatched".
+    @app.middleware("http")
+    async def _record_l4_request(request, call_next):  # type: ignore[no-untyped-def]
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            # An unhandled exception is still an outcome. Recording it
+            # here keeps a crashing endpoint from looking idle.
+            _record_for_route(request, status="error", started=started)
+            raise
+        status = "ok" if response.status_code < 400 else "error"
+        _record_for_route(request, status=status, started=started)
+        return response
+
     # OBSTACK §3.5 — business-flow REST + SSE endpoints
     # (`/v1/business-flows/{key}/{timeline,summary,events-stream,evaluation}`).
     # Mount the flow_api router on the live app so the v3.15.5 walkthrough
     # can hit these via curl / `eaasp flow` CLI.
     app.include_router(_flow_api.router)
+
 
     def get_orchestrator() -> SessionOrchestrator:
         return app.state.orchestrator  # type: ignore[no-any-return]

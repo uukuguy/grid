@@ -60,6 +60,14 @@ _SdkTracerProvider: Any = None
 _BatchSpanProcessor: Any = None
 _ConsoleSpanExporter: Any = None
 
+# v3.16 (V316-L2L3L4-OBS-01) — module-level strong references to the
+# providers. Without these the local vars go out of scope at the end of
+# init_observability() and the periodic reader is GC'd, so a process
+# exports at most one batch and then nothing. Same defect class as
+# grid-runtime 6g's `drop(provider)` and same fix shape.
+_METER_PROVIDER: Any = None
+_TRACER_PROVIDER: Any = None
+
 try:
     from opentelemetry import metrics as _otel_metrics
     from opentelemetry import trace as _otel_trace
@@ -186,12 +194,20 @@ def init_observability(*, exporter: str | None = None) -> None:
         tracer_provider = None
 
     if meter_provider is not None:
+        # v3.16 (V316-L2L3L4-OBS-01): hold a strong reference so the
+        # periodic reader outlives this function. Without this, the
+        # process exports one batch and the pipeline dies — the same
+        # shape as L1 6g's `drop(provider)`.
+        global _METER_PROVIDER
+        _METER_PROVIDER = meter_provider
         _otel_metrics.set_meter_provider(meter_provider)
         _meter = meter_provider.get_meter(_SERVICE_NAME, _SERVICE_VERSION)
     else:
         _meter = _NOOP_METER
 
     if tracer_provider is not None:
+        global _TRACER_PROVIDER
+        _TRACER_PROVIDER = tracer_provider
         _otel_trace.set_tracer_provider(tracer_provider)
         _tracer = tracer_provider.get_tracer(_SERVICE_NAME, _SERVICE_VERSION)
     else:

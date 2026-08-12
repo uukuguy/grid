@@ -125,6 +125,12 @@ class _NoopTracer:
 
 
 _NOOP_METER = _NoopMeter()
+
+# v3.16 (V316-L2L3L4-OBS-01) — module-level strong refs.
+# Without these the local vars go out of scope at the end of
+# init_observability() and the periodic reader is GC'd.
+_METER_PROVIDER: Any = None
+_TRACER_PROVIDER: Any = None
 _NOOP_TRACER = _NoopTracer()
 
 _meter: Any = _NOOP_METER
@@ -182,12 +188,16 @@ def init_observability(*, exporter: str | None = None) -> None:
         tracer_provider = None
 
     if meter_provider is not None:
+        global _METER_PROVIDER
+        _METER_PROVIDER = meter_provider
         _otel_metrics.set_meter_provider(meter_provider)
         _meter = meter_provider.get_meter(_SERVICE_NAME, _SERVICE_VERSION)
     else:
         _meter = _NOOP_METER
 
     if tracer_provider is not None:
+        global _TRACER_PROVIDER
+        _TRACER_PROVIDER = tracer_provider
         _otel_trace.set_tracer_provider(tracer_provider)
         _tracer = tracer_provider.get_tracer(_SERVICE_NAME, _SERVICE_VERSION)
     else:

@@ -37,12 +37,15 @@ Those concerns are deferred to 03.11.2 / 03.11.3.
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
 from loguru import logger
+
+from .observability import record_opa_decision
 
 # Security [Issue 3 / MEDIUM]: URL validator allowlist. Default keeps
 # L3 OPA traffic on a loopback-only sidecar; CI / staging may override
@@ -394,6 +397,38 @@ class OPABackend:
     # ─── Public evaluation surface ─────────────────────────────────────────
 
     async def evaluate(self, request: dict[str, Any]) -> OPADecision:
+        """Evaluate a governance decision via OPA, recording the outcome.
+
+        v3.16 (V316-L2L3L4-OBS-01): thin instrumented wrapper around
+        :meth:`_evaluate_uninstrumented`. ``record_opa_decision``'s
+        docstring has always said it is "called from OPABackend.evaluate()",
+        but no such call existed — the helper was dead code and
+        ``l3.opa.decision.*`` read zero under any load.
+
+        The wrapper exists because the real body has six exit points
+        (three transport failures, non-2xx, parse error, success). Adding
+        the record call to each would need re-auditing on every new early
+        return; measuring here covers all of them, including the
+        fail-closed paths — which are exactly the ones an operator most
+        needs counted.
+        """
+        started = time.perf_counter()
+        decision = await self._evaluate_uninstrumented(request)
+        elapsed = time.perf_counter() - started
+
+        # `mode` is the caller's enforce/shadow intent; it lives in the
+        # request payload rather than the decision, and a missing value
+        # is recorded as "unknown" rather than dropping the sample.
+        record_opa_decision(
+            decision=decision.decision,
+            risk_level=str(request.get("risk_level", "unknown")),
+            mode=str(request.get("mode", "unknown")),
+            duration_seconds=elapsed,
+            infra_cause=decision.cause,
+        )
+        return decision
+
+    async def _evaluate_uninstrumented(self, request: dict[str, Any]) -> OPADecision:
         """Evaluate a governance decision via OPA.
 
         ``request`` is the input payload — the contract here is "whatever

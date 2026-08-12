@@ -31,6 +31,7 @@ from mcp.server.sse import SseServerTransport
 
 from .audit import AuditStore, TelemetryEventIn
 from .db import init_db
+from .observability import init_observability, is_initialized
 from .managed_settings import ManagedSettings, ensure_mode, ensure_risk_level, hook_matches
 from .opa_backend import OPABackend
 from .policy_engine import GateDecision, HookNotFoundError, PolicyEngine
@@ -166,6 +167,22 @@ def create_app(db_path: str) -> FastAPI:
             level=log_level,
         )
         await init_db(db_path)
+        # v3.16 (V316-L2L3L4-OBS-01): install the OTel providers.
+        # Without this call every record_* helper silently no-ops
+        # (the module-level meter stays _NoopMeter), which is exactly
+        # why l3.* metrics read zero through v3.15.6 despite the
+        # helpers and their tests both existing.
+        #
+        # Default stays "none" per ADR-V2-028 — opt in with
+        # EAASP_OTEL_EXPORTER=stdout. Startup logs the resolved value
+        # so "are metrics on?" is answerable from the log rather than
+        # by guessing.
+        init_observability()
+        logger.info(
+            "L3 observability initialized (exporter={}, active={})",
+            os.environ.get("EAASP_OTEL_EXPORTER", "none"),
+            is_initialized(),
+        )
         yield
         # v3.11.1 — close the OPA client if we own one. Built AFTER
         # ``yield`` so it runs on FastAPI shutdown; the backend is

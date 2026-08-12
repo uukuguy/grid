@@ -11,8 +11,12 @@ dependencies = [
     "loguru>=0.7",
     "pydantic>=2.8",
     "rapidfuzz>=3.9",
+    "eaasp-common",
     "grpcio>=1.62",
     "protobuf>=5.26",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +30,9 @@ dev = [
 
 [project.scripts]
 eaasp-l4-orchestration = "eaasp_l4_orchestration.main:run"
+
+[tool.uv.sources]
+eaasp-common = { path = "../eaasp-common" }
 
 [build-system]
 requires = ["hatchling"]
