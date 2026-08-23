@@ -434,6 +434,19 @@
 - **关键经验**:本 milestone 反复撞到的"模块写了 + 测了 ≠ 接入了"在 Python 三层也成立 —— 但因为缺陷模式已知(6c + 6g 已诊断过),修起来直接照抄,**~3 小时闭环**。v3.15.6 的 tag 不重打(L1 声称已成立;L2/L3/L4 由 v3.16 修复后追补)。
 - next: v3.16 剩下的 6d(web-platform Dashboard)+ 6e(CLI 全局接入),但 user 已明示顺延 → 看是不是 v3.17 范围,或本 milestone 收口打 v3.16.0。
 
+## 2026-08-23 (v3.16 V316 收口 + 顺延 6d/6e → v3.17 scope 决策)
+
+- 19:30 user 拍 handoff。当前状态:v3.15.6 SHIPPED + tagged(8/12);v3.16 V316 收口(8/23),L2/L3/L4 observability 全实跑 + 配负控;HEAD = `9ce46e26`,main ↔ origin/main 同步,working tree clean。
+- 19:35 user 在 8/12 已明示「同意 V316 + 6d + 6e 顺延」。V316 已做;6d+6e 待 v3.17 scope。
+- 19:40 **不动代码**。把 STATE.md / HANDOFF.json / .continue-here.md / CURRENT-STATE.md 同步到 v3.16 V316 收口 + 6d/6e 顺延的状态。下一步候选写进 handoff。
+- 19:50 handoff 完成,等待下个 session 决定 v3.17 scope。
+- **总账**:
+  - 1 个 milestone tagged(`v3.15.6`)+ 1 个 deferred ledger item 收口(`V316-L2L3L4-OBS-01`)
+  - 5 次"23/23"声称 → 3 次被打脸 → 第 5 次配负控 + 实测验证,真闭环
+  - 40/40 tests (L2 + L3 + L4 全部 wiring test 配负控)
+  - 5/6 阶段完成(6d/6e 顺延 → v3.16 剩余或 v3.17 scope)
+- next: **v3.17 scope 决策**(ADR-V2-024 data/integration 轴):`grid-server multi-user`(3.7.4 deferred,Open Item #3 优先轴)/ `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0`;或回 v3.16 把 6d/6e 收口打 v3.16.0。
+
 ## 2026-08-11 晚 (v3.15.6 6g — tag 前验证推翻 6c,修复后实测)
 
 - 21:45 准备 6f。tag 等于给 §0.1 "23/23 真闭环" 背书,故先验 6c 的 4 处 ⚠️→✅ 是否站得住。**结论:2 项不成立。**

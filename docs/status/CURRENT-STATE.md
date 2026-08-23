@@ -1,6 +1,6 @@
 # Current State
 
-> **Updated**: 2026-08-12 — **v3.15.6 OBSTACK 实战补完 ✅ SHIPPED,tag `v3.15.6` 已打**。5/6 阶段(6a/6b/6c/6g/6h);**6d + 6e 显式 deferred → v3.16**(D-53/D-54),不在 tag 声称范围。tag 前的验证推翻了 6c 的闭环声称并连锁查出 4 个问题:(1) 6c.2/6c.3 emit 挂在 Tier 1 永不经过的 hook RPC → 死代码(实测 `"scopeMetrics":[]`);(2) `drop(provider)` 令导出管道启动即 shutdown;(3) `requests.*` 三个 helper **自落地起从未被调用**,且 `TimeBlock` 双减 in_flight;(4) demo 脚本 4 个独立缺陷,叠加后**能在什么都没证明的情况下 exit 0**。外加一个 metric-cardinality DoS(`op` label 直取路径尾段)。全部修复,**6/6 L1 series 真跑验证 + 关键检查配负控**(喂 6g 前的日志形态会 exit 1 并列出缺失 series)。§0.1 = **23/23**。100/100 tests;dual-gate PASS(134 routes / 38 rows);改动限于 `grid-runtime`,ADR-V2-023 P1 保持。证据:`docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`。
+> **Updated**: 2026-08-23 — **v3.16 V316 ✅ CLOSED**。L1 v3.15.6 (tag `v3.15.6` 已打) + L2/L3/L4 observability 全实跑验证 + 每层配负控。**`§0.1` = 23/23 = 100%**;40/40 tests pass(L2 11 + L3 19 + L4 10);`V316-L2L3L4-OBS-01` ✅ CLOSED,HEAD `9ce46e26`,main ↔ origin/main 同步,working tree clean,服务全停,端口干净。**6d (web-platform Dashboard)+ 6e (CLI 全局接入)** 显式顺延 v3.16 (D-53/D-54,user 已批准)。下一步候选:v3.16 剩余 6d/6e,或开 v3.17 scope 决策(ADR-V2-024 data/integration 轴:`grid-server multi-user` Open Item #3 优先轴 / `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0`)。**V316 的关键教训**:本 milestone 撞到的"模块写了 ≠ 接入了"在 Python 三层也存在 —— L1 6c 是 Tier 1 dead emit,L2/L3/L4 是 dead call sites,Python 三层是 provider GC'd + opentelemetry 没装依赖。同一形态,同一修法:**真跑一遍看计数器动 + 配负控**。
 
 ## Project Snapshot
 
