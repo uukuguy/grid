@@ -77,6 +77,32 @@ describe("ObstackClient.stream_business_flow", () => {
     );
   });
 
+  it("cleans up an established stream when it is aborted after consuming an event", async () => {
+    const controller = new AbortController();
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({
+          done: false,
+          value: encoder.encode('data: {"ts":1,"layer":"L4","component":"flow","event_type":"started","payload":{},"duration_ms":null,"error":null}\n\n'),
+        })
+        .mockRejectedValueOnce(new DOMException("Aborted", "AbortError")),
+      cancel: vi.fn().mockResolvedValue(undefined),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      body: { getReader: () => reader },
+    } as unknown as Response));
+    const client = new ObstackClient({ baseUrl: "https://l4.example" });
+
+    await expect(client.stream_business_flow("key", () => controller.abort(), controller.signal))
+      .resolves.toBeUndefined();
+
+    expect(reader.read).toHaveBeenCalledTimes(2);
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects an SSE response with a non-2xx status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("denied", { status: 403, statusText: "Forbidden" })));
     const client = new ObstackClient({ baseUrl: "https://l4.example" });

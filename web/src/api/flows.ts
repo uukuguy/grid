@@ -127,6 +127,8 @@ export class ObstackClient {
       headers.set("Authorization", `Bearer ${this.authToken}`);
     }
 
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let endedNormally = false;
     try {
       const response = await fetch(`${this.baseUrl}${path}`, { headers, signal });
       if (!response.ok) {
@@ -139,7 +141,7 @@ export class ObstackClient {
         throw new Error(`OBSTACK SSE response has no body from ${path}`);
       }
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       const emitFrames = (frames: string): string => {
@@ -164,11 +166,19 @@ export class ObstackClient {
       if (buffer.startsWith("data: ")) {
         onEvent(JSON.parse(buffer.slice("data: ".length)) as TimelineEvent);
       }
+      endedNormally = true;
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
         return;
       }
       throw error;
+    } finally {
+      if (reader) {
+        if (!endedNormally) {
+          await reader.cancel().catch(() => undefined);
+        }
+        reader.releaseLock();
+      }
     }
   }
 
