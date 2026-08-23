@@ -8,4 +8,4 @@ target_value: 100
 <!-- TARGET-END -->
 
 The score is the percentage of five independently verified acceptance groups:
-Dashboard 25, CLI 25, BusinessKey 20, ecosystem/eval 15, final verification 15.
+Dashboard 30, CLI 25, BusinessKey 20, scope integrity 10, final verification 15.

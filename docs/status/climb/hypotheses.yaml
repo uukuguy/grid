@@ -2,9 +2,9 @@
   "hypotheses": [
     {
       "id": "H-001",
-      "description": "Reuse the proven web OBSTACK contract in web-platform with authenticated list/detail/derived operator views and SSE",
+      "description": "Complete the existing web OBSTACK surface with typed SSE and evidence-derived stats, alerts, and optimization guidance",
       "parent_paradigm": "dashboard-contract-reuse",
-      "expected_lift": "+25 acceptance points",
+      "expected_lift": "+30 acceptance points",
       "cost_h": 4,
       "ranking": 0.95,
       "status": "pending",
@@ -24,8 +24,8 @@
     },
     {
       "id": "H-003",
-      "description": "Carry the canonical session|skill|object BusinessKey through runtime and CLI-visible surfaces",
-      "parent_paradigm": "business-key-propagation",
+      "description": "Expose the persisted canonical BusinessKey from L4 session reads and display it verbatim in the CLI",
+      "parent_paradigm": "business-key-read-surface",
       "expected_lift": "+20 acceptance points",
       "cost_h": 3,
       "ranking": 0.80,
@@ -35,10 +35,10 @@
     },
     {
       "id": "H-004",
-      "description": "Expose only evidence-backed OBSTACK health to grid-eval and marketplace; falsify unsupported cross-service projections",
-      "parent_paradigm": "ecosystem-evaluation",
-      "expected_lift": "+15 acceptance points",
-      "cost_h": 3,
+      "description": "Encode and negatively test the real L4/web ownership boundary while deferring unsupported cross-service projections",
+      "parent_paradigm": "scope-integrity",
+      "expected_lift": "+10 acceptance points",
+      "cost_h": 2,
       "ranking": 0.65,
       "status": "pending",
       "created_at": "2026-08-23T22:30:00+08:00",

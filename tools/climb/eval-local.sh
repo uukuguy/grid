@@ -15,11 +15,11 @@ run_gate() {
 }
 
 {
-  run_gate dashboard 25 "cd web-platform && npm test -- --run src/test/obstack.test.tsx && npm run build"
+  run_gate dashboard 30 "cd web && npx vitest run src/test/v316-obstack-contract.test.ts src/test/v316-obstack-surface.test.tsx && npm run build"
   run_gate cli 25 "cd tools/eaasp-cli-v2 && PYTHONPATH=../eaasp-common/src uv run --extra dev pytest -q tests/test_v316_flow_commands.py"
-  run_gate business_key 20 "cargo test -p grid-runtime --test v316_business_key_outcome"
-  run_gate ecosystem_eval 15 "cargo test -p grid-eval --test obstack_integration && cd tools/eaasp-ecosystem && uv run --extra dev pytest -q tests/test_v316_obstack_health.py"
-  run_gate verification 15 "scripts/v316-obstack-surface-verify.sh"
+  run_gate business_key 20 "cd tools/eaasp-l4-orchestration && uv run --extra dev pytest -q tests/test_v316_business_key_surface.py && cd ../eaasp-cli-v2 && PYTHONPATH=../eaasp-common/src uv run --extra dev pytest -q tests/test_v316_session_business_key.py"
+  run_gate scope_integrity 10 "python3 scripts/check-v316-obstack-boundaries.py"
+  run_gate verification 15 "bash scripts/v316-obstack-surface-verify.sh"
 } >"$RUN_DIR/gates.txt"
 
 python3 - "$RUN_DIR/gates.txt" "$OUT" <<'PY'

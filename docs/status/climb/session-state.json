@@ -4,9 +4,11 @@
   "last_cycle": 0,
   "next_hypothesis": "H-001",
   "in_flight": null,
-  "next_action": "Finalize the evidence-backed v3.16 design and implementation plan, then dispatch H-001",
+  "next_action": "Dispatch Task 1 for H-001 from the approved v3.16 product-surface plan",
   "falsified_routes": [
     "Do not add fake grid-server RBAC entries for frontend-only routes",
-    "Do not invent optimize/alerts/stats backend endpoints"
+    "Do not invent optimize/alerts/stats backend endpoints",
+    "Do not duplicate the existing OBSTACK UI into web-platform",
+    "Do not project health into grid-eval or marketplace without a producer contract"
   ]
 }

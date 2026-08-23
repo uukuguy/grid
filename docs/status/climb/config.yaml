@@ -1,6 +1,6 @@
 score_name: acceptance_gate_percent
 score_direction: max
-subscores: [dashboard, cli, business_key, ecosystem_eval, verification]
+subscores: [dashboard, cli, business_key, scope_integrity, verification]
 push_mode: manual-csv
 state_dir: docs/status/climb
 artifact_dir: runs/climb

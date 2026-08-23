@@ -20,10 +20,10 @@ session_path = state / "session-state.json"
 session = json.loads(session_path.read_text())
 cycle = int(session.get("last_cycle", 0)) + 1
 gate_by_hypothesis = {
-    "H-001": ("dashboard", 25),
+    "H-001": ("dashboard", 30),
     "H-002": ("cli", 25),
     "H-003": ("business_key", 20),
-    "H-004": ("ecosystem_eval", 15),
+    "H-004": ("scope_integrity", 10),
     "H-005": ("verification", 15),
 }
 gate, required = gate_by_hypothesis[hypothesis_id]
@@ -48,7 +48,7 @@ row = {
     "paradigm": item["parent_paradigm"], "parent_run": "", "pushed_at": "", "lb_landed_at": "",
     "local_score": evaluation["total"], "local_dashboard": evaluation["per_task"].get("dashboard", 0),
     "local_cli": evaluation["per_task"].get("cli", 0), "local_business_key": evaluation["per_task"].get("business_key", 0),
-    "local_ecosystem_eval": evaluation["per_task"].get("ecosystem_eval", 0), "local_verification": evaluation["per_task"].get("verification", 0),
+    "local_scope_integrity": evaluation["per_task"].get("scope_integrity", 0), "local_verification": evaluation["per_task"].get("verification", 0),
     "online_score": "", "gap": "", "push_decision": decision,
     "decision_reason": f"{gate}={gate_score}/{required}; best_before={best_before:g}",
     "verdict": verdict, "train_cost_h": item["cost_h"], "manifest_path": str(run_dir.relative_to(root) / "manifest.json"),
