@@ -4,7 +4,7 @@ milestone: v3.15.6
 milestone_name: OBSTACK 实战补完 (6 阶段 v3.15.6a → 6f)
 status: shipped
 stopped_at: v3.15.6 SHIPPED + tagged `v3.15.6` (2026-08-12),6g/6h/6i 复核;**v3.16 V316 收口(2026-08-23)**:L2/L3/L4 observability 全实跑 + 负控,`V316-L2L3L4-OBS-01` CLOSED,`§0.1` = 23/23。5/6 阶段完成 (6a 文档诚实化 / 6b 测试补完 / 6c 死代码激活 / 6g tag 前验证+修复 / 6h 补齐 requests.* + demo 改造);**6d web-platform Dashboard + 6e CLI 全局接入 显式 deferred → v3.16** (D-53 / D-54),不在本 tag 声称范围。6g 查出 6c 的两处假闭环并修复:(1) 6c.2/6c.3 把 emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1 (`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,实测真实 tool-call turn 产出 `"scopeMetrics":[]`;(2) `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死。6h 补齐最后一条无证据的 series (`requests.*` 自落地起从未被调用),顺带修 `TimeBlock` 双减 in_flight + metric-cardinality DoS (op label allowlist);并改造 demo 脚本 —— 它此前有 4 个独立缺陷,叠加后能在什么都没证明的情况下 exit 0。**L1 侧 6/6 series 真跑验证 + 关键检查配负控**。但 2026-08-12 6i 收尾复核查出 **L2/L3/L4 三层 observability 零生产调用点**(同 6c 失败模式),§0.1 由 23/23 **降为 20/23**;tag `v3.15.6` 对 L1 的声称成立,对 L2/L3/L4 的 ✅ 是继承自未验证的旧结论,**打早了**,由 `V316-L2L3L4-OBS-01` 在 v3.16 收口。100/100 tests;dual-gate PASS (134 routes / 38 rows)。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). 锁决策 D-47..D-54. plan `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`;证据 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior v3.14 SHIPPED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23.
-last_updated: "2026-08-23T19:55:00.000Z"
+last_updated: "2026-08-23T21:26:27+08:00"
 last_activity: 2026-08-23
 progress:
   total_phases: 6
@@ -308,9 +308,9 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ## Session Continuity
 
-Last session: 2026-08-11 晚 → 2026-08-12 (v3.15.6 6g — tag 前验证 + 修复) — 准备执行 6f 时先验 6c 的 4 处 ⚠️→✅ 是否站得住,查出 **2 项不成立**:6c.2/6c.3 的 emit 挂在 Tier 1 runtime 永不经过的 hook RPC 上(实测真实 tool-call turn 产出 `"scopeMetrics":[]`);更底层 `drop(provider)` 令导出管道启动即 shutdown(仅 1 个空批次)。两者均已修复,真实 deepseek turn 实测 4/6 series 出数(批次 1 → 40+)。§0.1 由 23/23 诚实降为 **21/23**。顺带修好自 6b.2b 起就断的 `cargo check --workspace`。**未 tag** —— tag 等于给"真闭环"背书,而 `tool.total` 端到端实证仍缺。本 session 早段另完成:20 commits push + CI 判因(两条 FAIL 均为既有缺口)+ 状态文件刷新 + JOURNAL 补记 6b.2~6c.7 空档。
+Last session: 2026-08-23 — v3.16 `V316-L2L3L4-OBS-01` 已闭环:L2/L3/L4 observability 全部接入生产路径,40/40 targeted tests PASS,并用负控确认能捕获上一轮“模块存在但未接线”的缺陷。OBSTACK §0.1 = **23/23**。HEAD `9ce46e26` 后完成状态交接 commit `de4ad04b`,working tree clean。
 
-Stopped at: **v3.15.6 4/6 阶段完成** — 6a ✅ / 6b ✅ / 6c ✅(经 6g 修正)/ 6g ✅;6d + 6e deferred → v3.16 (D-53/D-54);**6f 待执行且前置条件已扩大**(见 Pending Todos)。HEAD `75859214`(+ 本次 state/journal commit),working tree clean。
+Stopped at: Session resumed 2026-08-23, user selected **继续完成 v3.16 剩余 6d + 6e**。下一步先把 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` 中仅有标题骨架的 6d/6e 重整为当前可执行计划,再执行 web-platform Dashboard 与 CLI/工具生态接入。Resume file: none。
 
 Prior sessions:
 

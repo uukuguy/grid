@@ -46,6 +46,7 @@ data-platform/*.db-wal
 .claude/memory.db
 .claude/skills/
 .claude/worktrees/
+.worktrees/
 .swarm/
 eval_output/
 .octo/
