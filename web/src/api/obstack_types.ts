@@ -25,6 +25,23 @@ export interface BusinessFlowListResponse {
   total: number;
 }
 
+// ─── Operator-derived views ────────────────────────────────────────
+
+export interface FlowStats {
+  total: number;
+  failed: number;
+  active: number;
+  closed: number;
+  completionRate: number;
+}
+
+export interface FlowAlert {
+  businessKey: string;
+  severity: "critical" | "warning";
+  reason: "failed" | "stale-active";
+  message: string;
+}
+
 // ─── Timeline endpoint ────────────────────────────────────────────
 
 export interface TimelineEvent {

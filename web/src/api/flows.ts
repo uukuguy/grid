@@ -28,6 +28,8 @@ import {
   type BusinessFlowSummary,
   type EvaluationReport,
   type EvaluationResponse,
+  type FlowAlert,
+  type FlowStats,
   type OptimizationHint,
   type SessionRef,
   type SessionsResponse,
@@ -45,6 +47,8 @@ export type {
   BusinessFlowSummary,
   EvaluationReport,
   EvaluationResponse,
+  FlowAlert,
+  FlowStats,
   OptimizationHint,
   SessionRef,
   SessionsResponse,
@@ -112,6 +116,62 @@ export class ObstackClient {
     );
   }
 
+  async stream_business_flow(
+    business_key: string,
+    onEvent: (event: TimelineEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const path = `/v1/business-flows/${encodeURIComponent(business_key)}/events/stream`;
+    const headers = new Headers();
+    if (this.authToken) {
+      headers.set("Authorization", `Bearer ${this.authToken}`);
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, { headers, signal });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          `OBSTACK ${response.status} ${response.statusText || ""} from ${path}: ${text}`,
+        );
+      }
+      if (!response.body) {
+        throw new Error(`OBSTACK SSE response has no body from ${path}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const emitFrames = (frames: string): string => {
+        const completeFrames = frames.split(/\r?\n\r?\n/);
+        const remainder = completeFrames.pop() ?? "";
+        for (const frame of completeFrames) {
+          for (const line of frame.split(/\r?\n/)) {
+            if (line.startsWith("data: ")) {
+              onEvent(JSON.parse(line.slice("data: ".length)) as TimelineEvent);
+            }
+          }
+        }
+        return remainder;
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer = emitFrames(buffer + decoder.decode(value, { stream: true }));
+      }
+      buffer = emitFrames(buffer + decoder.decode());
+      if (buffer.startsWith("data: ")) {
+        onEvent(JSON.parse(buffer.slice("data: ".length)) as TimelineEvent);
+      }
+    } catch (error) {
+      if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+        return;
+      }
+      throw error;
+    }
+  }
+
   // ─── Internals ──────────────────────────────────────
   private async fetch<T>(path: string): Promise<T> {
     const headers = new Headers();
@@ -167,4 +227,9 @@ export const flowsApi = {
   summary: (key: string) => obstackClient.get_summary(key),
   sessions: (key: string) => obstackClient.get_sessions(key),
   evaluation: (key: string) => obstackClient.get_evaluation(key),
+  stream: (
+    key: string,
+    onEvent: (event: TimelineEvent) => void,
+    signal?: AbortSignal,
+  ) => obstackClient.stream_business_flow(key, onEvent, signal),
 };
