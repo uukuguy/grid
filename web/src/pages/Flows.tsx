@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BusinessFlowCard } from "@/components/dashboard/BusinessFlowCard";
 import { FlowsDetail } from "@/components/dashboard/FlowsDetail";
+import { FlowOperatorOverview } from "@/components/dashboard/FlowOperatorOverview";
 
 // ─── Window → seconds ────────────────────────────────────────────────
 
@@ -222,6 +223,8 @@ export default function Flows() {
           Failed to load flows: {error}
         </div>
       )}
+
+      <FlowOperatorOverview flows={visibleFlows} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
         {/* Left: filtered list of business flows */}

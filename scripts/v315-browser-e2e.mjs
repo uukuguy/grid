@@ -23,7 +23,12 @@
 // Run: node scripts/v315-browser-e2e.mjs
 // Exits 0 on success, non-zero on failure.
 
-import { chromium } from "/Users/sujiangwen/sandbox/LLM/speechless.ai/SGAI/grid-sandbox/web/node_modules/playwright/index.mjs";
+import { createRequire } from "node:module";
+
+// Resolve Playwright from this worktree's web package, so the smoke test
+// remains portable when the linked worktree has a different absolute path.
+const require = createRequire(new URL("../web/package.json", import.meta.url));
+const { chromium } = require("playwright");
 
 const WEB = "http://127.0.0.1:5180";
 
@@ -134,7 +139,16 @@ async function main() {
   }
   log(`✓ ${flowCards} business-flow cards rendered`);
 
-  // ─── 6. Click a card → FlowsDetail panel mounts ──────────────
+  // ─── 6. Verify derived operator stats are visible ─────────────
+  const stats = page.getByLabel("Operator flow statistics");
+  await stats.waitFor({ state: "visible", timeout: 3000 });
+  const statsText = await stats.textContent();
+  if (!statsText || !statsText.includes("total")) {
+    fail(`expected operator statistics with a total, got ${JSON.stringify(statsText)}`);
+  }
+  log("✓ derived operator statistics visible");
+
+  // ─── 7. Click a card → FlowsDetail panel mounts ──────────────
   // Use `button[aria-label^="..."]` to target the card button itself;
   // a bare `[aria-label^="..."]` matches the SECTION container too
   // (because aria-label is set on a descendant button), and clicking
@@ -161,7 +175,15 @@ async function main() {
   }
   log("✓ FlowsDetail panel mounted (Close button visible)");
 
-  // ─── 7. Sanity-check console (no JS errors) ───────────────────
+  const liveIndicator = page.getByText("Live updates connected");
+  await liveIndicator.waitFor({ state: "visible", timeout: 3000 });
+  log("✓ live-update indicator visible");
+
+  const optimizationGuidance = page.getByText("Optimization guidance");
+  await optimizationGuidance.waitFor({ state: "visible", timeout: 5000 });
+  log("✓ optimization guidance visible");
+
+  // ─── 8. Sanity-check console (no JS errors) ───────────────────
   const errors = consoleMessages.filter((m) => m.startsWith("[error]") || m.startsWith("[pageerror]"));
   if (errors.length > 0) {
     log("console errors during e2e:");

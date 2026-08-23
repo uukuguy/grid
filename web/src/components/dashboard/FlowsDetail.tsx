@@ -9,7 +9,7 @@
 // Each panel handles its own loading/error state so a slow endpoint
 // doesn't block the others.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X, Clock, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { flowsApi, type TimelineEvent, type SessionsResponse, type SummaryResponse, type EvaluationReport } from "@/api/flows";
 import { cn } from "@/lib/utils";
@@ -180,6 +180,9 @@ function EvaluationPanel({ data, loading, error }: {
   if (!data) return null;
   return (
     <div className="space-y-3 text-xs">
+      <p className="font-semibold uppercase tracking-wide text-muted-foreground">
+        Optimization guidance
+      </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field label="Total flows" value={data.total_flows} />
         <Field
@@ -220,6 +223,30 @@ function EvaluationPanel({ data, loading, error }: {
       )}
     </div>
   );
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(object[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function eventIdentity(event: TimelineEvent): string {
+  return stableJson([
+    event.ts,
+    event.layer,
+    event.component,
+    event.event_type,
+    event.payload,
+  ]);
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -263,7 +290,8 @@ function useFetcher<T>(loader: () => Promise<T>, key: string): {
     // `key` is the loader identity; re-running on tick triggers reload.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, tick]);
-  return { state, reload: () => setTick((t) => t + 1) };
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  return { state, reload };
 }
 
 export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
@@ -283,11 +311,43 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
     () => flowsApi.evaluation(businessKey).then((r) => r.report),
     `evaluation:${businessKey}`,
   );
+  const [liveStatus, setLiveStatus] = useState<"connected" | "error">("connected");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const seenEvents = new Set<string>();
+    setLiveStatus("connected");
+
+    void flowsApi.stream(
+      businessKey,
+      (event) => {
+        const identity = eventIdentity(event);
+        if (seenEvents.has(identity)) return;
+        seenEvents.add(identity);
+        summary.reload();
+        timeline.reload();
+        evaluation.reload();
+      },
+      controller.signal,
+    ).catch(() => {
+      if (!controller.signal.aborted) setLiveStatus("error");
+    });
+
+    return () => controller.abort();
+  }, [businessKey, evaluation.reload, summary.reload, timeline.reload]);
 
   return (
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-2">
-        <h2 className="truncate font-mono text-sm font-semibold">{businessKey}</h2>
+        <div className="min-w-0">
+          <h2 className="truncate font-mono text-sm font-semibold">{businessKey}</h2>
+          <p
+            className={liveStatus === "connected" ? "text-xs text-green-600 dark:text-green-400" : "text-xs text-red-600 dark:text-red-400"}
+            role="status"
+          >
+            {liveStatus === "connected" ? "Live updates connected" : "Live updates unavailable"}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onClose}
