@@ -27,6 +27,7 @@ dist/
 /outputs/
 /output/
 /tmp/
+/runs/climb/
 
 data/
 octo.db

@@ -1,0 +1,4 @@
+{
+  "schema_version": 1,
+  "generated_from": ["hypotheses.yaml", "runs.csv", "session-state.json"]
+}

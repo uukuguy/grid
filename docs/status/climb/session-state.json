@@ -1,0 +1,12 @@
+{
+  "session": "2026-08-23-v316-surface",
+  "phase": "planning",
+  "last_cycle": 0,
+  "next_hypothesis": "H-001",
+  "in_flight": null,
+  "next_action": "Finalize the evidence-backed v3.16 design and implementation plan, then dispatch H-001",
+  "falsified_routes": [
+    "Do not add fake grid-server RBAC entries for frontend-only routes",
+    "Do not invent optimize/alerts/stats backend endpoints"
+  ]
+}

@@ -15,6 +15,7 @@ Catalog of status files. The GSD planning system remains authoritative for miles
 | `EAASP_SIMULATION_USER_GUIDE.md` | 🟢 active | EAASP v2.0 simulator-level reference implementation user guide (v3.14.0). |
 | `.planning/STATE.md` | 🟢 active | Canonical GSD milestone state. |
 | `.planning/ROADMAP.md` | 🟢 active | Canonical GSD roadmap and requirements mapping. |
+| `climb/` | 🟢 active | v3.16 autonomous acceptance-gate state; resume via `research-tree.md`. |
 
 ## Decision history / evidence
 
