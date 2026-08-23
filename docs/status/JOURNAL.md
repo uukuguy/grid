@@ -468,3 +468,6 @@
 - **教训**:`cargo check` 通过 ≠ 代码可达;dual-gate PASS ≠ 闭环;单测通过 ≠ 线上会动。只有"真跑一遍看计数器动"才算证据。6c 之所以带病发布,根因是 emit 是否发生**不可观测** —— 故本次把 `classify_event` 拆为纯函数,让映射可被断言。
 - **未 tag v3.15.6**:待 `tool.total` 端到端补验 + §0.1 剩余 2 项收敛。
 - 21:30 `725fe82c` 6a.1 commit 入仓:OBSTACK_DESIGN.md §0.1/§0.2/§0.3 + OBSTACK_INDEX.md §Goal 表 4 处降级(L3 observability partial / L1 OTel SDK dead code / L0 proto 13/21 RPC / tests/business_flow 缺席),环闭环率 23/23 → 20/23 (87
+
+## 2026-08-23
+- 22:20 恢复 v3.16 6d/6e，消费交接并配置隔离工作树路径 [dd69978e]
