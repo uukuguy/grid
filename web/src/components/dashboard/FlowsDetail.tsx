@@ -266,6 +266,8 @@ type LoadState<T> =
   | { status: "ok"; data: T }
   | { status: "error"; error: string };
 
+type LiveStatus = "connecting" | "live" | "disconnected" | "error";
+
 function useFetcher<T>(loader: () => Promise<T>, key: string): {
   state: LoadState<T>;
   reload: () => void;
@@ -311,12 +313,12 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
     () => flowsApi.evaluation(businessKey).then((r) => r.report),
     `evaluation:${businessKey}`,
   );
-  const [liveStatus, setLiveStatus] = useState<"connected" | "error">("connected");
+  const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
 
   useEffect(() => {
     const controller = new AbortController();
     const seenEvents = new Set<string>();
-    setLiveStatus("connected");
+    setLiveStatus("connecting");
 
     void flowsApi.stream(
       businessKey,
@@ -324,14 +326,19 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
         const identity = eventIdentity(event);
         if (seenEvents.has(identity)) return;
         seenEvents.add(identity);
+        setLiveStatus("live");
         summary.reload();
         timeline.reload();
         evaluation.reload();
       },
       controller.signal,
-    ).catch(() => {
-      if (!controller.signal.aborted) setLiveStatus("error");
-    });
+    )
+      .then(() => {
+        if (!controller.signal.aborted) setLiveStatus("disconnected");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLiveStatus("error");
+      });
 
     return () => controller.abort();
   }, [businessKey, evaluation.reload, summary.reload, timeline.reload]);
@@ -342,10 +349,20 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
         <div className="min-w-0">
           <h2 className="truncate font-mono text-sm font-semibold">{businessKey}</h2>
           <p
-            className={liveStatus === "connected" ? "text-xs text-green-600 dark:text-green-400" : "text-xs text-red-600 dark:text-red-400"}
+            className={liveStatus === "live"
+              ? "text-xs text-green-600 dark:text-green-400"
+              : liveStatus === "error"
+                ? "text-xs text-red-600 dark:text-red-400"
+                : "text-xs text-muted-foreground"}
             role="status"
           >
-            {liveStatus === "connected" ? "Live updates connected" : "Live updates unavailable"}
+            {liveStatus === "connecting"
+              ? "Live updates connecting"
+              : liveStatus === "live"
+                ? "Live updates live"
+                : liveStatus === "disconnected"
+                  ? "Live updates disconnected"
+                  : "Live updates unavailable"}
           </p>
         </div>
         <button

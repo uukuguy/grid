@@ -22,13 +22,13 @@ export function FlowOperatorOverview({ flows }: FlowOperatorOverviewProps) {
 
   return (
     <section className="grid gap-3 rounded-lg border border-border bg-card/50 p-3 lg:grid-cols-[2fr_3fr]">
-      <div aria-label="Operator flow statistics" className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+      <dl aria-label="Operator flow statistics" className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
         <Stat label="Total" value={`${stats.total} total`} />
         <Stat label="Failed" value={stats.failed} />
         <Stat label="Active" value={stats.active} />
         <Stat label="Closed" value={stats.closed} />
         <Stat label="Completion" value={`${(stats.completionRate * 100).toFixed(0)}%`} />
-      </div>
+      </dl>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div aria-label="Operator flow alerts">

@@ -175,7 +175,7 @@ async function main() {
   }
   log("✓ FlowsDetail panel mounted (Close button visible)");
 
-  const liveIndicator = page.getByText("Live updates connected");
+  const liveIndicator = page.getByText("Live updates connecting");
   await liveIndicator.waitFor({ state: "visible", timeout: 3000 });
   log("✓ live-update indicator visible");
 

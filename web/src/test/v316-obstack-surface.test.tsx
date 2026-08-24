@@ -119,7 +119,9 @@ describe("OBSTACK operator dashboard surface", () => {
     render(<Provider><Flows /></Provider>);
 
     await screen.findByRole("button", { name: "Business flow failed" });
-    expect(screen.getByLabelText("Operator flow statistics")).toHaveTextContent("3 total");
+    const statistics = screen.getByLabelText("Operator flow statistics");
+    expect(statistics.tagName).toBe("DL");
+    expect(statistics).toHaveTextContent("3 total");
     expect(screen.getByLabelText("Operator flow alerts")).toHaveTextContent("Business flow failed");
     expect(screen.getByLabelText("Operator flow alerts")).toHaveTextContent("at least 15 minutes");
 
@@ -138,7 +140,7 @@ describe("OBSTACK operator dashboard surface", () => {
     expect(screen.getByText("Reduce prompt size")).toBeInTheDocument();
   });
 
-  it("streams each selected key once, deduplicates live events, and reloads derived detail reads", async () => {
+  it("keeps a stream connecting until an event, then deduplicates and reloads derived detail reads", async () => {
     let onEvent: ((event: TimelineEvent) => void) | undefined;
     apiMocks.stream.mockImplementation((_key: string, callback: (event: TimelineEvent) => void) => {
       onEvent = callback;
@@ -147,7 +149,7 @@ describe("OBSTACK operator dashboard surface", () => {
     const { rerender } = render(<FlowsDetail businessKey="first" onClose={vi.fn()} />);
 
     await waitFor(() => expect(apiMocks.stream).toHaveBeenCalledTimes(1));
-    expect(screen.getByText("Live updates connected")).toBeInTheDocument();
+    expect(screen.getByText("Live updates connecting")).toBeInTheDocument();
     expect(onEvent).toBeDefined();
 
     act(() => {
@@ -171,6 +173,8 @@ describe("OBSTACK operator dashboard surface", () => {
       });
     });
 
+    expect(screen.getByText("Live updates live")).toBeInTheDocument();
+
     await waitFor(() => {
       expect(apiMocks.summary).toHaveBeenCalledTimes(2);
       expect(apiMocks.timeline).toHaveBeenCalledTimes(2);
@@ -183,5 +187,23 @@ describe("OBSTACK operator dashboard surface", () => {
     await waitFor(() => expect(apiMocks.stream).toHaveBeenCalledTimes(2));
     const firstSignal = apiMocks.stream.mock.calls[0]?.[2] as AbortSignal;
     expect(firstSignal.aborted).toBe(true);
+  });
+
+  it("marks a normally completed stream as disconnected", async () => {
+    render(<FlowsDetail businessKey="complete" onClose={vi.fn()} />);
+
+    expect(await screen.findByText("Live updates disconnected")).toBeInTheDocument();
+  });
+
+  it("aborts the active stream when the detail panel unmounts", async () => {
+    apiMocks.stream.mockImplementation(() => new Promise<void>(() => undefined));
+    const { unmount } = render(<FlowsDetail businessKey="active" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(apiMocks.stream).toHaveBeenCalledTimes(1));
+    const signal = apiMocks.stream.mock.calls[0]?.[2] as AbortSignal;
+
+    unmount();
+
+    expect(signal.aborted).toBe(true);
   });
 });
