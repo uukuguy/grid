@@ -7,9 +7,17 @@
       "expected_lift": "+30 acceptance points",
       "cost_h": 4,
       "ranking": 0.95,
-      "status": "pending",
+      "status": "confirmed",
       "created_at": "2026-08-23T22:30:00+08:00",
-      "results": []
+      "results": [
+        {
+          "session": "2026-08-23-v316-surface",
+          "cycle": 1,
+          "run": "20260824-081713-h-001",
+          "local": 30,
+          "verdict": "confirmed"
+        }
+      ]
     },
     {
       "id": "H-002",
@@ -17,7 +25,7 @@
       "parent_paradigm": "cli-obstack-surface",
       "expected_lift": "+25 acceptance points",
       "cost_h": 2,
-      "ranking": 0.90,
+      "ranking": 0.9,
       "status": "pending",
       "created_at": "2026-08-23T22:30:00+08:00",
       "results": []
@@ -28,7 +36,7 @@
       "parent_paradigm": "business-key-read-surface",
       "expected_lift": "+20 acceptance points",
       "cost_h": 3,
-      "ranking": 0.80,
+      "ranking": 0.8,
       "status": "pending",
       "created_at": "2026-08-23T22:30:00+08:00",
       "results": []
@@ -50,7 +58,7 @@
       "parent_paradigm": "verification-closeout",
       "expected_lift": "+15 acceptance points",
       "cost_h": 2,
-      "ranking": 0.50,
+      "ranking": 0.5,
       "status": "pending",
       "created_at": "2026-08-23T22:30:00+08:00",
       "results": []

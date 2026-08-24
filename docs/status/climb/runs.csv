@@ -1,1 +1,2 @@
 run_id,cycle,session,hypothesis_id,paradigm,parent_run,pushed_at,lb_landed_at,local_score,local_dashboard,local_cli,local_business_key,local_scope_integrity,local_verification,online_score,gap,push_decision,decision_reason,verdict,train_cost_h,manifest_path
+20260824-081713-h-001,1,2026-08-23-v316-surface,H-001,dashboard-contract-reuse,,,,30,30,0,0,0,0,,,PUSH,dashboard=30/30; best_before=0,confirmed,4,runs/climb/20260824-081713-h-001/manifest.json
