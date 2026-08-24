@@ -662,7 +662,7 @@ class SessionOrchestrator:
             cur = await db.execute(
                 """
                 SELECT session_id, intent_id, skill_id, runtime_id, user_id,
-                       status, payload_json, created_at, closed_at
+                       status, payload_json, created_at, closed_at, business_key
                 FROM sessions
                 WHERE session_id = ?
                 """,
@@ -687,6 +687,7 @@ class SessionOrchestrator:
             "closed_at": (
                 int(row["closed_at"]) if row["closed_at"] is not None else None
             ),
+            "business_key": row["business_key"],
         }
 
     # ─── Contract 5 (partial): list_events ───────────────────────────────────
@@ -774,7 +775,7 @@ class SessionOrchestrator:
                 cur = await db.execute(
                     """
                     SELECT session_id, status, runtime_id, skill_id,
-                           created_at, closed_at
+                           created_at, closed_at, business_key
                     FROM sessions
                     WHERE status = ?
                     ORDER BY created_at DESC
@@ -786,7 +787,7 @@ class SessionOrchestrator:
                 cur = await db.execute(
                     """
                     SELECT session_id, status, runtime_id, skill_id,
-                           created_at, closed_at
+                           created_at, closed_at, business_key
                     FROM sessions
                     ORDER BY created_at DESC
                     LIMIT ?
@@ -807,6 +808,7 @@ class SessionOrchestrator:
                 "closed_at": (
                     int(row["closed_at"]) if row["closed_at"] is not None else None
                 ),
+                "business_key": row["business_key"],
             }
             for row in rows
         ]

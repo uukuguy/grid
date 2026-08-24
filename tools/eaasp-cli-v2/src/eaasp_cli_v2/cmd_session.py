@@ -293,7 +293,14 @@ def list_cmd(
     print_table(
         "Sessions",
         rows,
-        ["session_id", "status", "skill_id", "runtime_id", "created_at"],
+        [
+            "session_id",
+            "status",
+            "skill_id",
+            "runtime_id",
+            "created_at",
+            "business_key",
+        ],
     )
 
 
@@ -343,7 +350,11 @@ def show(
     meta, events = _run_async(_do())
 
     meta_row = meta if isinstance(meta, dict) else {"value": meta}
-    print_table("Session", [meta_row], ["session_id", "status", "created_at"])
+    print_table(
+        "Session",
+        [meta_row],
+        ["session_id", "status", "created_at", "business_key"],
+    )
 
     evt_rows: list[Any] = []
     if isinstance(events, dict):
