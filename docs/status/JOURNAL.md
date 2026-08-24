@@ -481,3 +481,5 @@
 - 07:47 修正实时连接状态与组件语义，避免 Dashboard 对断流作错误承诺 [9d096062]
 - 08:18 修复 Bash 3 run slug 兼容性，让 macOS Climb 验收可执行 [7bf5eb1a]
 - 08:20 H-001 Dashboard 独立门确认 30/30，Climb 推进到 CLI [37e57b06]
+- 08:35 新增 flow 查询命令，固定 200 候选窗并本地排序 [db00e407]
+- 08:43 清理 CLI 废弃导入，让新 flow 命令通过 Ruff 门 [57ceb4cd]
