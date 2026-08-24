@@ -28,7 +28,7 @@ from typing import Any
 import httpx
 import typer
 
-from eaasp_common import ObstackClient
+from eaasp_common import FlowListParams, ObstackClient, ObstackClientError
 
 from .client import CliError
 from .config import CliConfig
@@ -69,6 +69,33 @@ _KEY_ARG = typer.Option(
     callback=_key_callback,
 )
 
+_MAX_FLOW_LIMIT = 200
+
+
+def _limit_callback(value: int) -> int:
+    """Validate the bounded list window accepted by the L4 flow API."""
+    if not 1 <= value <= _MAX_FLOW_LIMIT:
+        raise typer.BadParameter("limit must be between 1 and 200")
+    return value
+
+
+_LIMIT_OPT = typer.Option(
+    20,
+    "--limit",
+    min=1,
+    max=_MAX_FLOW_LIMIT,
+    callback=_limit_callback,
+    help="Maximum number of rows to display (1-200)",
+)
+
+_FLOW_COLUMNS = [
+    "business_key",
+    "status",
+    "failed_count",
+    "last_started_at",
+    "last_duration_ms",
+]
+
 
 def _format_event_row(ev: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -79,6 +106,45 @@ def _format_event_row(ev: dict[str, Any]) -> dict[str, Any]:
         "duration_ms": ev.get("duration_ms"),
         "error": ev.get("error"),
     }
+
+
+def _format_flow_row(flow: Any) -> dict[str, Any]:
+    """Flatten a shared-client business-flow summary for table rendering."""
+    return {
+        "business_key": flow.business_key,
+        "status": flow.status,
+        "failed_count": flow.failed_count,
+        "last_started_at": flow.last_started_at,
+        "last_duration_ms": flow.last_duration_ms,
+    }
+
+
+async def _fetch_flows(
+    cfg: CliConfig,
+    params: FlowListParams,
+) -> list[Any]:
+    """Fetch flow rows through the shared OBSTACK client."""
+    from . import main as _main
+    from eaasp_common import ObstackClient as _ObstackClient
+    import asyncio
+
+    getter = getattr(_main, "_obstack_http_getter", None)
+    client = _ObstackClient(
+        base_url=cfg.l4_url,
+        auth_token=None,
+        http_getter=getter,
+    )
+    try:
+        response = await asyncio.to_thread(client.list_business_flows, params)
+    except ObstackClientError as exc:
+        if 400 <= exc.status < 500:
+            exit_code = 2
+        elif exc.status >= 500:
+            exit_code = 4
+        else:
+            exit_code = 3
+        raise CliError(exit_code, exc.message) from exc
+    return response.flows
 
 
 async def _fetch_timeline(cfg: CliConfig, key: str) -> list[dict[str, Any]]:
@@ -186,6 +252,83 @@ def evaluate(key: str = _KEY_ARG) -> None:
 
     body = _run_async(_do())
     print_json(body.get("report", {}))
+
+
+@app.command("list")
+def list_flows(
+    limit: int = _LIMIT_OPT,
+    status: str | None = typer.Option(None, "--status"),
+    business_object_id: str | None = typer.Option(None, "--business-object-id"),
+) -> None:
+    """List business flows, optionally filtering by status or object ID."""
+    cfg = CliConfig.from_env()
+
+    async def _do() -> list[Any]:
+        return await _fetch_flows(
+            cfg,
+            FlowListParams(
+                limit=limit,
+                status=status,
+                business_object_id=business_object_id,
+            ),
+        )
+
+    flows = _run_async(_do())
+    if not flows:
+        typer.echo("(no business flows)")
+        raise typer.Exit(0)
+    print_table("Business flows", [_format_flow_row(flow) for flow in flows], _FLOW_COLUMNS)
+
+
+@app.command("top-failed")
+def top_failed(limit: int = _LIMIT_OPT) -> None:
+    """Show the most failure-prone flows from the bounded candidate window."""
+    cfg = CliConfig.from_env()
+
+    async def _do() -> list[Any]:
+        return await _fetch_flows(
+            cfg,
+            FlowListParams(limit=_MAX_FLOW_LIMIT, status="failed"),
+        )
+
+    flows = _run_async(_do())
+    ranked = sorted(
+        flows,
+        key=lambda flow: (flow.failed_count, flow.last_started_at or -1),
+        reverse=True,
+    )[:limit]
+    if not ranked:
+        typer.echo("(no failed flows)")
+        raise typer.Exit(0)
+    print_table(
+        "Top failed business flows",
+        [_format_flow_row(flow) for flow in ranked],
+        _FLOW_COLUMNS,
+    )
+
+
+@app.command("top-slow")
+def top_slow(limit: int = _LIMIT_OPT) -> None:
+    """Show the slowest flows with a measured most-recent duration."""
+    cfg = CliConfig.from_env()
+
+    async def _do() -> list[Any]:
+        return await _fetch_flows(cfg, FlowListParams(limit=_MAX_FLOW_LIMIT))
+
+    flows = _run_async(_do())
+    ranked = sorted(
+        (flow for flow in flows if flow.last_duration_ms is not None),
+        key=lambda flow: flow.last_duration_ms,
+        reverse=True,
+    )[:limit]
+    if not ranked:
+        typer.echo("(no slow flows)")
+        raise typer.Exit(0)
+    print_table(
+        "Top slow business flows",
+        [_format_flow_row(flow) for flow in ranked],
+        _FLOW_COLUMNS,
+    )
 
 
 @app.command("watch")
