@@ -28,7 +28,7 @@ from typing import Any
 import httpx
 import typer
 
-from eaasp_common import FlowListParams, ObstackClient, ObstackClientError
+from eaasp_common import FlowListParams, ObstackClientError
 
 from .client import CliError
 from .config import CliConfig
