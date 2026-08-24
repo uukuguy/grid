@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT=$(git rev-parse --show-toplevel)
 HYPOTHESIS_ID=${1:?usage: train.sh H-NNN}
 STAMP=$(date +%Y%m%d-%H%M%S)
-RUN_DIR="$ROOT/runs/climb/${STAMP}-${HYPOTHESIS_ID,,}"
+HYPOTHESIS_SLUG=$(printf '%s' "$HYPOTHESIS_ID" | tr '[:upper:]' '[:lower:]')
+RUN_DIR="$ROOT/runs/climb/${STAMP}-${HYPOTHESIS_SLUG}"
 mkdir -p "$RUN_DIR"
 python3 - "$RUN_DIR/manifest.json" "$HYPOTHESIS_ID" "$(git rev-parse HEAD)" <<'PY'
 import json, sys
