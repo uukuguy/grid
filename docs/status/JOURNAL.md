@@ -484,3 +484,7 @@
 - 08:35 新增 flow 查询命令，固定 200 候选窗并本地排序 [db00e407]
 - 08:43 清理 CLI 废弃导入，让新 flow 命令通过 Ruff 门 [57ceb4cd]
 - 11:07 H-002 CLI 独立门确认 25/25，Climb 总分升至 55/100 [8818ecf4]
+- 11:16 L4 get/list 与 CLI list/show 暴露持久化 BusinessKey，不推断历史空值 [26d118d4]
+
+## 2026-08-25
+- 06:41 强化 CLI 空 BusinessKey 原值断言，防止展示层掩盖 NULL 回归 [13bbce3d]
