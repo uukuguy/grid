@@ -480,3 +480,4 @@
 - 06:03 接入实时统计告警和优化视图，让 Dashboard 只展示 L4 可证数据 [5abfe931]
 - 07:47 修正实时连接状态与组件语义，避免 Dashboard 对断流作错误承诺 [9d096062]
 - 08:18 修复 Bash 3 run slug 兼容性，让 macOS Climb 验收可执行 [7bf5eb1a]
+- 08:20 H-001 Dashboard 独立门确认 30/30，Climb 推进到 CLI [37e57b06]
