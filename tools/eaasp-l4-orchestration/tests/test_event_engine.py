@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 
 from eaasp_l4_orchestration.event_backend_sqlite import SqliteWalBackend
@@ -30,6 +31,59 @@ async def test_ingest_persists_event(tmp_db_path: str, seed_session) -> None:
         assert events[0]["event_type"] == "STOP"
     finally:
         await engine.stop()
+
+
+async def test_observer_runs_after_durable_append(
+    tmp_db_path: str, seed_session
+) -> None:
+    """The observer sees the event only after the backend has persisted it."""
+    sid = await seed_session("sess_eng_observer_order")
+    backend = SqliteWalBackend(tmp_db_path)
+    observed_event_ids: list[str] = []
+
+    async def observer(event: Event) -> None:
+        persisted = await backend.list_events(sid)
+        assert any(row["event_id"] == event.event_id for row in persisted)
+        observed_event_ids.append(event.event_id)
+
+    engine = EventEngine(backend, observer=observer)
+    event = Event(
+        session_id=sid,
+        event_type="OBSERVER_ORDER",
+        payload={"step": "persisted"},
+        metadata=EventMetadata(source="test"),
+    )
+
+    _, event_id = await engine.ingest(event)
+
+    assert observed_event_ids == [event_id]
+
+
+async def test_observer_failure_keeps_persisted_ingest_successful(
+    tmp_db_path: str, seed_session, caplog
+) -> None:
+    """A post-append observer failure is warning-only for the ingest caller."""
+    sid = await seed_session("sess_eng_observer_failure")
+    backend = SqliteWalBackend(tmp_db_path)
+
+    async def failing_observer(event: Event) -> None:
+        del event
+        raise RuntimeError("SSE fan-out unavailable")
+
+    engine = EventEngine(backend, observer=failing_observer)
+    event = Event(
+        session_id=sid,
+        event_type="OBSERVER_FAILURE",
+        payload={},
+        metadata=EventMetadata(source="test"),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        seq, event_id = await engine.ingest(event)
+
+    assert seq >= 1
+    assert (await backend.list_events(sid))[0]["event_id"] == event_id
+    assert "Event observer failed" in caplog.text
 
 
 async def test_pipeline_assigns_cluster_id(tmp_db_path: str, seed_session) -> None:

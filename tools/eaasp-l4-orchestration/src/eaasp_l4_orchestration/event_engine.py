@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from .event_backend import EventStreamBackend
@@ -24,6 +25,8 @@ from .event_handlers import (
 from .event_models import Event
 
 logger = logging.getLogger(__name__)
+
+EventObserver = Callable[[Event], Awaitable[None]]
 
 
 def _default_handlers() -> list[EventHandler]:
@@ -43,6 +46,7 @@ class EventEngine:
         backend: EventStreamBackend,
         handlers: list[EventHandler] | None = None,
         queue_size: int = 1000,
+        observer: EventObserver | None = None,
     ) -> None:
         self.backend = backend
         self.handlers: list[Any] = (
@@ -51,6 +55,7 @@ class EventEngine:
         self._queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=queue_size)
         self._running = False
         self._worker_task: asyncio.Task[None] | None = None
+        self._observer = observer
         # L4-14 / D125 — burst detection counter (per-second buckets).
         self._burst_counter: dict[float, int] = {}
 
@@ -69,6 +74,12 @@ class EventEngine:
         )
         event.seq = seq
         event.event_id = eid
+
+        if self._observer is not None:
+            try:
+                await self._observer(event)
+            except Exception as exc:
+                logger.warning("Event observer failed for event %s: %s", eid, exc)
 
         # Fire-and-forget: 队列满时丢弃
         try:

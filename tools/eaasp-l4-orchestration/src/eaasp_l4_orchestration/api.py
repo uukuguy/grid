@@ -25,6 +25,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 import httpx
+from eaasp_common.business_flow import parse_business_key_header
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -46,6 +47,8 @@ from .event_backend_sqlite import SqliteWalBackend
 from .event_engine import EventEngine
 from .event_models import Event, EventMetadata
 from .event_stream import SessionEventStream
+from .flow_sse import get_flow_event_bus
+from .flow_timeline import BusinessFlowEvent
 from .handshake import (
     L2_URL_DEFAULT,
     L3_URL_DEFAULT,
@@ -200,7 +203,41 @@ def create_app(
         app.state.mcp_resolver = McpResolver(client)
         # Phase 1: Event Engine with SqliteWalBackend.
         event_backend = SqliteWalBackend(db_path)
-        event_engine = EventEngine(event_backend)
+
+        async def publish_business_flow_event(event: Event) -> None:
+            """Fan out a durable L4 event using its persisted canonical key."""
+            db = app.state.l4_db_conn
+            async with db.execute(
+                "SELECT business_key FROM sessions WHERE session_id = ?",
+                (event.session_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+            raw_key = row["business_key"] if row is not None else None
+            if raw_key is None:
+                return
+            try:
+                business_key = parse_business_key_header(raw_key)
+            except ValueError:
+                logger.warning(
+                    "Skipping live business-flow publish for session {}: malformed business_key",
+                    event.session_id,
+                )
+                return
+            if business_key is None:
+                return
+
+            await get_flow_event_bus().publish(
+                BusinessFlowEvent(
+                    ts=event.created_at * 1000,
+                    layer="L4",
+                    component=event.metadata.source or "event_engine",
+                    event_type=event.event_type,
+                    payload=event.payload,
+                ),
+                business_key,
+            )
+
+        event_engine = EventEngine(event_backend, observer=publish_business_flow_event)
         await event_engine.start()
         app.state.event_engine = event_engine
         app.state.event_backend = event_backend
