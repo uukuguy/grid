@@ -488,3 +488,4 @@
 
 ## 2026-08-25
 - 06:41 强化 CLI 空 BusinessKey 原值断言，防止展示层掩盖 NULL 回归 [13bbce3d]
+- 09:03 H-003 BusinessKey 独立门确认 20/20，Climb 总分升至 75/100 [1cf7db80]
