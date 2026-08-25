@@ -2,3 +2,4 @@ run_id,cycle,session,hypothesis_id,paradigm,parent_run,pushed_at,lb_landed_at,lo
 20260824-081713-h-001,1,2026-08-23-v316-surface,H-001,dashboard-contract-reuse,,,,30,30,0,0,0,0,,,PUSH,dashboard=30/30; best_before=0,confirmed,4,runs/climb/20260824-081713-h-001/manifest.json
 20260824-110612-h-002,2,2026-08-23-v316-surface,H-002,cli-obstack-surface,,,,55,30,25,0,0,0,,,PUSH,cli=25/25; best_before=30,confirmed,2,runs/climb/20260824-110612-h-002/manifest.json
 20260825-074220-h-003,3,2026-08-23-v316-surface,H-003,business-key-read-surface,,,,75,30,25,20,0,0,,,PUSH,business_key=20/20; best_before=55,confirmed,3,runs/climb/20260825-074220-h-003/manifest.json
+20260825-182455-h-004,4,2026-08-23-v316-surface,H-004,scope-integrity,,,,85,30,25,20,10,0,,,PUSH,scope_integrity=10/10; best_before=75,confirmed,2,runs/climb/20260825-182455-h-004/manifest.json
