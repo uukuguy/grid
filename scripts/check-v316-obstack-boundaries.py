@@ -21,7 +21,7 @@ EXPECTED_L4_ROUTES = frozenset(
     }
 )
 HTTP_METHOD_DECORATORS = frozenset(
-    {"get", "post", "put", "patch", "delete", "options", "head"}
+    {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
 DEFERRED_IDS = (
     "V316-MULTITENANT-OBSTACK-01",
