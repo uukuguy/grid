@@ -80,6 +80,19 @@ SSE parser 只接受 `data: <json>` frame；忽略空行和非 data 行；流结
 
 兼容规则：历史行返回 JSON `null`。不改 create contract、不改 key 解析、不改数据库 schema。
 
+## L4 live SSE 生产链
+
+最终门禁复核发现：`events/stream` 已订阅进程级 `FlowEventBus`，但生产代码没有任何 `publish()` 调用，因此现状无法产生真实 SSE `data:` frame。最终验证不能用测试专用注入掩盖这个缺口。
+
+最小修复放在 L4 Event Engine 的统一入口：
+
+- `EventEngine` 接受可选异步 observer，并且只在 event 成功持久化后通知；observer 故障记录 warning，但不能回滚已经成功的 ingest；
+- L4 app wiring 的 observer 用 `event.session_id` 查询已持久化 session，读取其 canonical `business_key`；NULL 或 malformed 历史值不发布，也不推断；
+- 有效 key 转成 `BusinessFlowEvent` 后发布到现有 singleton bus。时间统一为毫秒，layer 为 `L4`，component 使用 event source（空值回落 `event_engine`），event type/payload 保持原值；
+- 这样 internal session/tool/stop ingest 与 `/v1/events/ingest` REST fallback 共用同一生产链，不新增测试专用 endpoint。
+
+最终 live probe 在临时 L4 SQLite 中 seed 一个带 key 的 session，先建立真实 HTTP SSE subscription，再通过已有 `/v1/events/ingest` 产生事件；只有网络响应包含 `data:` frame 才通过。
+
 ## 明确延期
 
 下列项目需要新的服务所有权或数据契约，登记到 `DEFERRED_LEDGER.md`，不阻塞本次真实收口：
@@ -94,6 +107,7 @@ SSE parser 只接受 `data: <json>` frame；忽略空行和非 data 行；流结
 
 - malformed business key 继续由 L4 strict parser 返回 400；客户端不改写 key。
 - fetch SSE 必须检查 status、处理缺失 body、支持 abort，并不在日志暴露 token。
+- SSE observer 是持久化后的 best-effort fan-out；订阅端断开或 observer 故障不能破坏 Event Engine durability。
 - 不新增端口、环境变量、shared-core 分支或 customer-specific integration。
 - `make rbac-audit` 必须仍为 134 routes；`make v3.10-spec-audit` 必须 PASS。
 

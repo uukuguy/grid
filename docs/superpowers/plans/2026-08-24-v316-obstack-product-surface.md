@@ -119,7 +119,25 @@
 - [ ] Implement the checker and documentation/state updates.
 - [ ] Run `python3 -m unittest scripts.tests.test_check_v316_obstack_boundaries`; commit and report.
 
-## Task 6: Run integrated closeout and update durable state
+## Task 6: Connect persisted L4 events to the live business-flow SSE bus
+
+**Files:**
+- Modify: `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/event_engine.py`
+- Modify: `tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/api.py`
+- Modify: `tools/eaasp-l4-orchestration/tests/test_event_engine.py`
+- Create: `tools/eaasp-l4-orchestration/tests/test_v316_live_flow_publish.py`
+
+**Behavior:**
+- `EventEngine` invokes an optional async observer only after durable append succeeds.
+- Observer failures are warning-only and do not turn a successful ingest into failure.
+- App wiring resolves the persisted session `business_key`, skips NULL/malformed values, converts valid events to `BusinessFlowEvent`, and publishes them to the existing singleton bus.
+- Both internal EventEngine traffic and `/v1/events/ingest` therefore drive the real SSE channel; no test-only route is added.
+
+- [ ] Write observer ordering/failure tests and app-wiring publish/filter tests first; capture RED.
+- [ ] Implement the smallest observer hook and app wiring.
+- [ ] Run focused Event Engine and live-publish tests; commit and report.
+
+## Task 7: Run integrated closeout and update durable state
 
 **Files:**
 - Create: `scripts/v316-obstack-surface-verify.sh`
@@ -144,7 +162,7 @@
 
 ## Completion Review
 
-After all six tasks have clean task reviews:
+After all seven tasks have clean task reviews:
 
 1. Generate a whole-branch review package from `5e9d49b8` to HEAD.
 2. Dispatch one final code reviewer for cross-task integration, scope, security, and test adequacy.
