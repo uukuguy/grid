@@ -683,6 +683,8 @@ EOF
 
 ## v3.15.6d — Web-platform Dashboard 入口 (Phase C)
 
+> **Superseded by active v3.16 plan:** [`2026-08-24-v316-obstack-product-surface.md`](2026-08-24-v316-obstack-product-surface.md). Retained below only as a historical 6d execution projection; do not execute it. The active plan keeps the product surface in `web/`, with L4 Python as the server owner and no invented grid-server RBAC routes.
+
 > 6c 完成后,6d 给用户看的 dashboard 入口 — 直观的业务流总览 + SSE 实时。
 
 **6d 阶段任务清单 (8 tasks)**:
@@ -700,6 +702,8 @@ EOF
 ---
 
 ## v3.15.6e — CLI 全局接入 (Phase B) + 工具生态 (Phase D)
+
+> **Superseded by active v3.16 plan:** [`2026-08-24-v316-obstack-product-surface.md`](2026-08-24-v316-obstack-product-surface.md). Retained below only as a historical 6e execution projection; do not execute it. The active plan limits CLI work to L4-backed data and defers unsupported eval and ecosystem-health projections.
 
 > 6d dashboard 上线后,6e 给 CLI/工具生态接入 OBSTACK。
 

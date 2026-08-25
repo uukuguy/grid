@@ -1,18 +1,18 @@
 """OBSTACK client models — Pydantic/dataclass shapes that mirror
 L4 ``/v1/business-flows/*`` response payloads.
 
-Phase D.2 (eaasp-obstack-client extraction). These types are the
-single source of truth for the OBSTACK API surface across:
+L4 Python is the server owner. ``web/src/api/obstack_types.ts`` is the TypeScript mirror.
 
-  - grid-server (Rust) — actual server emitting these JSON shapes
+Phase D.2 (eaasp-obstack-client extraction). These types describe the
+OBSTACK API surface for its consumers:
+
+  - L4 Python — actual server emitting these JSON shapes
   - grid-cli / eaasp-cli-v2 (Python) — consumes via ObstackClient
-  - web (TypeScript) — consumes via @/api/obstack-client.ts (Phase D.3)
+  - web (TypeScript) — consumes its mirror via @/api/obstack-client.ts
 
-When the L4 server adds a new field, every consumer sees the same
-shape because all three read from this single file (or its TS
-mirror). When the server changes a field name, this file is the
-one place to update, and the type errors surface at compile time
-in TS / type-check time in Python.
+When the L4 server adds or renames a field, update these Python models
+and the TypeScript mirror together so consumer type checks surface the
+contract change.
 """
 
 from __future__ import annotations
