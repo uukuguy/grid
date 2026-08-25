@@ -14,6 +14,7 @@ from eaasp_l4_orchestration.flow_sse import (
     get_flow_event_bus,
     reset_flow_event_bus,
 )
+from eaasp_l4_orchestration.flow_timeline import BusinessFlowEvent
 
 
 async def _set_session_business_key(
@@ -34,6 +35,7 @@ async def test_rest_ingest_publishes_persisted_session_key_to_live_bus(
     app_client: httpx.AsyncClient,
     tmp_db_path: str,
     seed_session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """REST fallback shares the post-persist observer path used by all ingress."""
     reset_flow_event_bus()
@@ -45,6 +47,16 @@ async def test_rest_ingest_publishes_persisted_session_key_to_live_bus(
     )
     await _set_session_business_key(tmp_db_path, session_id, key.to_header())
     bus = get_flow_event_bus()
+    real_publish = bus.publish
+    published_keys: list[BusinessKey] = []
+
+    async def capture_publish(
+        event: BusinessFlowEvent, published_key: BusinessKey
+    ) -> int:
+        published_keys.append(published_key)
+        return await real_publish(event, published_key)
+
+    monkeypatch.setattr(bus, "publish", capture_publish)
     sub = await bus.subscribe(key)
     before_ms = int(time.time() * 1000)
 
@@ -63,6 +75,7 @@ async def test_rest_ingest_publishes_persisted_session_key_to_live_bus(
         await bus.unsubscribe(sub)
 
     assert response.status_code == 200
+    assert published_keys == [key]
     # Event.created_at is stored as whole seconds; fan-out converts that
     # canonical source timestamp to milliseconds rather than using a new clock.
     assert event.ts >= before_ms - 1000
