@@ -20,6 +20,9 @@ EXPECTED_L4_ROUTES = frozenset(
         "GET /v1/business-flows/list",
     }
 )
+HTTP_METHOD_DECORATORS = frozenset(
+    {"get", "post", "put", "patch", "delete", "options", "head"}
+)
 DEFERRED_IDS = (
     "V316-MULTITENANT-OBSTACK-01",
     "V316-EVAL-OBSTACK-01",
@@ -92,14 +95,14 @@ def _executable_l4_routes(module: ast.Module) -> list[str]:
             function = decorator.func
             if not (
                 isinstance(function, ast.Attribute)
-                and function.attr == "get"
+                and function.attr in HTTP_METHOD_DECORATORS
                 and isinstance(function.value, ast.Name)
                 and function.value.id == "router"
             ):
                 continue
             path = _resolve_string(decorator.args[0], constants)
             if path is not None:
-                routes.append(f"GET {prefix}{path}")
+                routes.append(f"{function.attr.upper()} {prefix}{path}")
     return routes
 
 

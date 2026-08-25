@@ -103,6 +103,25 @@ class V316ObstackBoundaryCheckerTests(unittest.TestCase):
 
         self.assertIn("unexpected L4 route: GET /v1/business-flows/unexpected", failures)
 
+    def test_extra_l4_post_route_fails_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            flow_api = (
+                fixture_root
+                / "tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_api.py"
+            )
+            flow_api.write_text(
+                flow_api.read_text(encoding="utf-8")
+                + '\n@router.post("/unexpected")\nasync def unexpected_post() -> None:\n    return None\n',
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertIn("unexpected L4 route: POST /v1/business-flows/unexpected", failures)
+
     def test_missing_l4_router_mount_fails_the_audit(self) -> None:
         checker = load_checker()
         with tempfile.TemporaryDirectory() as temporary_directory:
