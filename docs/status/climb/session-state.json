@@ -1,8 +1,8 @@
 {
   "session": "2026-08-23-v316-surface",
   "phase": "executing",
-  "last_cycle": 2,
-  "next_hypothesis": "H-003",
+  "last_cycle": 3,
+  "next_hypothesis": "H-004",
   "in_flight": null,
   "next_action": "Dispatch the next ranked pending hypothesis",
   "falsified_routes": [
