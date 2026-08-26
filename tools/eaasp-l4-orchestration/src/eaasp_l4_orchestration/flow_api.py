@@ -149,10 +149,13 @@ async def stream_business_flow_events(
     disconnects by closing the connection (the generator's
     ``finally`` cleans up the bus subscription).
 
-    The endpoint is intentionally minimal — no auth, no rate limit,
-    no event filtering. Auth is added at the L4 gateway level (per
-    the existing v3.13 contract) and event filtering is a v3.16+
-    follow-on.
+    The endpoint is intentionally minimal — no Bearer validation, no
+    rate limit, and no event filtering. In the direct-L4 development
+    topology, it accepts a missing Authorization header; the browser client
+    may still forward one so it works unchanged through an authenticated
+    gateway. Production exposure MUST put this route behind the external
+    same-origin/authenticated gateway, which performs authentication and
+    authorization before L4. Event filtering is a v3.16+ follow-on.
     """
     business_key = _decode_key(key)
     bus: FlowEventBus = get_flow_event_bus()

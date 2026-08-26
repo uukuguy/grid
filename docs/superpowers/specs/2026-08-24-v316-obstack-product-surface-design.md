@@ -36,7 +36,7 @@
 L4 /v1/business-flows/{list,timeline,summary,sessions,evaluation,events/stream}
              ├── web/src/api/flows.ts
              │      ├── list/detail JSON
-             │      └── authenticated fetch-based SSE parser
+             │      └── Bearer-capable fetch-based SSE parser
              │              └── Flows / FlowsDetail operator views
              └── eaasp_common.ObstackClient
                     └── eaasp flow list/top-failed/top-slow
@@ -52,7 +52,7 @@ L4 sessions.business_key (already persisted)
 
 ### 现有契约复用
 
-保留 `ObstackClient` 和 `flowsApi` 兼容面。新增 fetch-based SSE 方法，而不是浏览器 `EventSource`，因为 fetch 能携带现有 Bearer token、支持 `AbortSignal`，并能对非 2xx 状态使用与 JSON 调用一致的错误语义。
+保留 `ObstackClient` 和 `flowsApi` 兼容面。新增 fetch-based SSE 方法，而不是浏览器 `EventSource`，因为 fetch 能携带现有 Bearer token、支持 `AbortSignal`，并能对非 2xx 状态使用与 JSON 调用一致的错误语义。这里的 Bearer 是**凭据转发能力**，不是 L4 直连开发模式自身的鉴权承诺：`L4_ENV=dev` 下 direct-L4 route 可接受缺失的 `Authorization`，以便本地运行；生产暴露必须经过外部同源、已认证 gateway，由 gateway 在请求到达 L4 前完成身份与权限校验。
 
 SSE parser 只接受 `data: <json>` frame；忽略空行和非 data 行；流结束时不把正常 EOF 当错误；取消时不显示错误。解析出的事件追加到当前 timeline，并用 `(ts, layer, component, event_type, stable-json(payload))` identity 去重。
 

@@ -143,10 +143,10 @@ async def test_rest_ingest_skips_live_publish_for_malformed_persisted_key(
     assert published == []
 
 
-async def test_live_sse_accepts_bearer_header_and_delivers_only_exact_key(
+async def test_live_sse_accepts_bearer_transport_and_delivers_only_exact_key(
     tmp_db_path: str,
 ) -> None:
-    """The live L4 SSE route accepts Bearer transport without widening keys."""
+    """The live L4 route tolerates Bearer transport without widening keys."""
     reset_flow_event_bus()
     bus = get_flow_event_bus()
     app = create_app(tmp_db_path)
@@ -196,8 +196,8 @@ async def test_live_sse_accepts_bearer_header_and_delivers_only_exact_key(
                 await asyncio.sleep(0.01)
             assert bus.subscriber_count == 1
 
-            # A partial key must not make the authenticated subscriber observe
-            # another flow, while the exact canonical key must arrive.
+            # A partial key must not make the credential-bearing subscriber
+            # observe another flow, while the exact canonical key must arrive.
             assert (
                 await bus.publish(
                     BusinessFlowEvent(
