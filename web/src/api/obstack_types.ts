@@ -140,4 +140,10 @@ export interface ObstackClientOptions {
    * the default client (see web/src/api/flows.ts).
    */
   authToken?: string;
+  /**
+   * Optional refresh-aware token supplier. When present, it is read at
+   * request/subscription start so login, refresh, and logout do not require
+   * rebuilding the client. Falls back to ``authToken`` for compatibility.
+   */
+  getToken?: () => string | null;
 }

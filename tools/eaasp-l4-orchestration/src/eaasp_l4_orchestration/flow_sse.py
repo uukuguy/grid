@@ -91,7 +91,7 @@ class FlowEventBus:
                 pass
 
     async def publish(self, event: BusinessFlowEvent, key: BusinessKey) -> int:
-        """Publish one event to every subscriber whose key matches.
+        """Publish one event to every subscriber for the exact key.
 
         Returns the number of subscribers the event was delivered to.
         Events that don't fit in a subscriber's queue are dropped
@@ -99,7 +99,11 @@ class FlowEventBus:
         """
         delivered = 0
         async with self._lock:
-            matching = [s for s in self._subs if s.key.matches(key)]
+            # This backs the public business-flow SSE route, where a partial
+            # BusinessKey must never subscribe to another canonical flow.
+            # ``BusinessKey.matches`` intentionally retains its prefix
+            # semantics for explicit internal correlation use cases only.
+            matching = [s for s in self._subs if s.key == key]
         for sub in matching:
             try:
                 sub.queue.put_nowait(event)

@@ -68,11 +68,13 @@ export type {
 export class ObstackClient {
   private baseUrl: string;
   private authToken: string | null;
+  private getToken: (() => string | null) | null;
 
   constructor(options: ObstackClientOptions) {
     // Trailing slash is stripped so path joining is uniform.
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.authToken = options.authToken ?? null;
+    this.getToken = options.getToken ?? null;
   }
 
   // ─── List ──────────────────────────────────────────────
@@ -123,8 +125,9 @@ export class ObstackClient {
   ): Promise<void> {
     const path = `/v1/business-flows/${encodeURIComponent(business_key)}/events/stream`;
     const headers = new Headers();
-    if (this.authToken) {
-      headers.set("Authorization", `Bearer ${this.authToken}`);
+    const token = this.currentToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -185,8 +188,9 @@ export class ObstackClient {
   // ─── Internals ──────────────────────────────────────
   private async fetch<T>(path: string): Promise<T> {
     const headers = new Headers();
-    if (this.authToken) {
-      headers.set("Authorization", `Bearer ${this.authToken}`);
+    const token = this.currentToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     const resp = await fetch(`${this.baseUrl}${path}`, { headers });
     if (!resp.ok) {
@@ -196,6 +200,10 @@ export class ObstackClient {
       );
     }
     return (await resp.json()) as T;
+  }
+
+  private currentToken(): string | null {
+    return this.getToken ? this.getToken() : this.authToken;
   }
 }
 
@@ -217,11 +225,9 @@ const L4_BASE_URL =
       ?.VITE_L4_BASE_URL) ||
   "http://127.0.0.1:18084";
 
-const authToken = api.getToken();
-
 export const obstackClient = new ObstackClient({
   baseUrl: L4_BASE_URL,
-  authToken: authToken ?? undefined,
+  getToken: () => api.getToken(),
 });
 
 // ─── Compatibility shim (Phase D.3) ─────────────────────────────────

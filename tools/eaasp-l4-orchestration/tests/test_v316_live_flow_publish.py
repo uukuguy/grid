@@ -15,6 +15,7 @@ from eaasp_l4_orchestration.flow_sse import (
     reset_flow_event_bus,
 )
 from eaasp_l4_orchestration.flow_timeline import BusinessFlowEvent
+from eaasp_l4_orchestration.api import create_app
 
 
 async def _set_session_business_key(
@@ -140,3 +141,97 @@ async def test_rest_ingest_skips_live_publish_for_malformed_persisted_key(
 
     assert response.status_code == 200
     assert published == []
+
+
+async def test_live_sse_accepts_bearer_header_and_delivers_only_exact_key(
+    tmp_db_path: str,
+) -> None:
+    """The live L4 SSE route accepts Bearer transport without widening keys."""
+    reset_flow_event_bus()
+    bus = get_flow_event_bus()
+    app = create_app(tmp_db_path)
+    key = BusinessKey(
+        session_id="sess_v316_sse_auth",
+        skill_id="skill.live",
+        business_object_id="transformer-001",
+    )
+    sent: list[dict[str, object]] = []
+    body_delivered = asyncio.Event()
+    disconnect = asyncio.Event()
+    request_seen = False
+
+    async def receive() -> dict[str, object]:
+        nonlocal request_seen
+        if not request_seen:
+            request_seen = True
+            return {"type": "http.request", "body": b"", "more_body": False}
+        await disconnect.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: dict[str, object]) -> None:
+        sent.append(message)
+        if message["type"] == "http.response.body" and message.get("body"):
+            body_delivered.set()
+
+    scope: dict[str, object] = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": f"/v1/business-flows/{key.to_header()}/events/stream",
+        "raw_path": f"/v1/business-flows/{key.to_header()}/events/stream".encode(),
+        "query_string": b"",
+        "headers": [(b"authorization", b"Bearer browser-token")],
+        "client": ("127.0.0.1", 5180),
+        "server": ("127.0.0.1", 18084),
+    }
+
+    async with app.router.lifespan_context(app):
+        request = asyncio.create_task(app(scope, receive, send))
+        try:
+            for _ in range(50):
+                if bus.subscriber_count == 1:
+                    break
+                await asyncio.sleep(0.01)
+            assert bus.subscriber_count == 1
+
+            # A partial key must not make the authenticated subscriber observe
+            # another flow, while the exact canonical key must arrive.
+            assert (
+                await bus.publish(
+                    BusinessFlowEvent(
+                        ts=1,
+                        layer="L4",
+                        component="test",
+                        event_type="partial",
+                        payload={},
+                    ),
+                    BusinessKey(session_id=key.session_id),
+                )
+                == 0
+            )
+            assert (
+                await bus.publish(
+                    BusinessFlowEvent(
+                        ts=2,
+                        layer="L4",
+                        component="test",
+                        event_type="exact",
+                        payload={},
+                    ),
+                    key,
+                )
+                == 1
+            )
+            await asyncio.wait_for(body_delivered.wait(), timeout=1.0)
+        finally:
+            disconnect.set()
+            await asyncio.wait_for(request, timeout=1.0)
+
+    assert sent[0]["type"] == "http.response.start"
+    assert sent[0]["status"] == 200
+    body = next(
+        message["body"] for message in sent if message["type"] == "http.response.body"
+    )
+    assert b'"event_type": "exact"' in body

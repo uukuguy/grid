@@ -70,13 +70,42 @@ async def test_publish_skips_non_matching() -> None:
     await bus.unsubscribe(sub)
 
 
-async def test_publish_prefix_match() -> None:
-    """A subscriber with empty skill_id matches any skill in the published key."""
+async def test_publish_delivers_only_to_exact_canonical_key() -> None:
+    """The public SSE bus never widens a partial key into another flow."""
     bus = FlowEventBus()
-    sub = await bus.subscribe(BusinessKey(session_id="s1"))
-    n = await bus.publish(_ev(), BusinessKey(session_id="s1", skill_id="k1"))
+    canonical = BusinessKey(
+        session_id="s1", skill_id="skill-1", business_object_id="object-1"
+    )
+    sub = await bus.subscribe(canonical)
+    n = await bus.publish(_ev(), canonical)
     assert n == 1
+    assert sub.queue.qsize() == 1
     await bus.unsubscribe(sub)
+
+
+async def test_publish_rejects_partial_and_adjacent_canonical_keys() -> None:
+    """Partial or adjacent keys must not cross the public SSE boundary."""
+    bus = FlowEventBus()
+    canonical = BusinessKey(
+        session_id="s1", skill_id="skill-1", business_object_id="object-1"
+    )
+    sub = await bus.subscribe(canonical)
+    try:
+        assert await bus.publish(_ev(), BusinessKey(session_id="s1")) == 0
+        assert (
+            await bus.publish(
+                _ev(),
+                BusinessKey(
+                    session_id="s1",
+                    skill_id="skill-1",
+                    business_object_id="object-2",
+                ),
+            )
+            == 0
+        )
+        assert sub.queue.empty()
+    finally:
+        await bus.unsubscribe(sub)
 
 
 # ─── backpressure ───────────────────────────────────────────────────────────

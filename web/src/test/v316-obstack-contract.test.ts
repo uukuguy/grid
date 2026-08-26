@@ -109,6 +109,55 @@ describe("ObstackClient.stream_business_flow", () => {
 
     await expect(client.stream_business_flow("key", vi.fn())).rejects.toThrow("OBSTACK 403 Forbidden");
   });
+
+  it("reads the current Bearer token when a subscription starts", async () => {
+    let token: string | null = "token-before-refresh";
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse([
+        'data: {"ts":1,"layer":"L4","component":"flow","event_type":"started","payload":{},"duration_ms":null,"error":null}\n\n',
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ObstackClient({
+      baseUrl: "https://l4.example",
+      getToken: () => token,
+    });
+
+    token = "token-after-refresh";
+    await client.stream_business_flow("session|skill|object", vi.fn());
+
+    const requestOptions = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(requestOptions.headers).get("Authorization")).toBe(
+      "Bearer token-after-refresh",
+    );
+  });
+});
+
+describe("ObstackClient token lifecycle", () => {
+  it("reads the current Bearer token for each JSON request", async () => {
+    let token: string | null = "token-before-refresh";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{"flows":[],"total":0}', {
+        headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response('{"business_key":"session|skill|object","events":[],"count":0}', {
+        headers: { "content-type": "application/json" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ObstackClient({
+      baseUrl: "https://l4.example",
+      getToken: () => token,
+    });
+
+    await client.list_business_flows();
+    token = "token-after-refresh";
+    await client.get_timeline("session|skill|object");
+
+    expect(new Headers((fetchMock.mock.calls[0]?.[1] as RequestInit).headers).get("Authorization"))
+      .toBe("Bearer token-before-refresh");
+    expect(new Headers((fetchMock.mock.calls[1]?.[1] as RequestInit).headers).get("Authorization"))
+      .toBe("Bearer token-after-refresh");
+  });
 });
 
 describe("operator flow derivations", () => {

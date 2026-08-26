@@ -337,7 +337,7 @@ def create_app(
     #   - `allow_credentials=False`: L4 auth is header-based
     #     (X-Session-Scope, X-Business-Key), not cookie-based, so
     #     credentials are never sent.
-    #   - `allow_headers` is the explicit list L4 actually reads;
+    #   - `allow_headers` is the explicit list the browser transport sends;
     #     deny any future default-open by listing only what's used.
     #
     # Phase D (multi-tenant) re-routes through grid-server with JWT;
@@ -355,6 +355,7 @@ def create_app(
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=[
                 "Content-Type",
+                "Authorization",
                 "X-Session-Scope",
                 "X-Business-Key",
             ],
