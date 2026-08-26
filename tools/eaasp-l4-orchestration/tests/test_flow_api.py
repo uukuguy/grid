@@ -208,12 +208,13 @@ def test_timeline_aggregates_across_all_layers_via_real_readers() -> None:
         hook_id TEXT NOT NULL, tool_name TEXT NOT NULL,
         risk_level TEXT NOT NULL, decision TEXT NOT NULL,
         approver TEXT, rationale TEXT, stage TEXT,
-        created_at INTEGER NOT NULL, business_key TEXT
+        ts TEXT NOT NULL, business_key TEXT
     );
     CREATE TABLE telemetry_events (
         event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_type TEXT NOT NULL, payload_json TEXT NOT NULL,
-        created_at INTEGER NOT NULL, source TEXT,
+        session_id TEXT NOT NULL, agent_id TEXT NOT NULL,
+        hook_id TEXT NOT NULL, phase TEXT NOT NULL,
+        payload_json TEXT NOT NULL, received_at TEXT NOT NULL,
         tiebreaker INTEGER NOT NULL DEFAULT 0, business_key TEXT
     );
     """
@@ -257,8 +258,8 @@ def test_timeline_aggregates_across_all_layers_via_real_readers() -> None:
         )
         await l3.execute(
             "INSERT INTO governance_decisions "
-            "(decision_id, session_id, hook_id, tool_name, risk_level, decision, created_at, business_key) "
-            "VALUES ('d1','sess-end-to-end','h','t','low','allow',1100,?)",
+            "(decision_id, session_id, hook_id, tool_name, risk_level, decision, ts, business_key) "
+            "VALUES ('d1','sess-end-to-end','h','t','low','allow','1970-01-01 00:18:20',?)",
             (wire,),
         )
         await l2.execute(
