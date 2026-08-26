@@ -96,6 +96,23 @@ def _get_layer_readers(request: Request) -> dict[str, LayerReader]:
     return dict(readers)
 
 
+def _business_object_suffix_pattern(business_object_id: str) -> str:
+    """Return an escaped SQLite ``LIKE`` pattern for the key's final field.
+
+    ``business_key`` is the canonical three-segment wire format and its final
+    segment is the business object id.  A suffix match is exact for that field
+    because ``BusinessKey`` disallows ``|`` inside individual fields.  Escape
+    the three special characters so object ids such as ``%_\\needle`` retain
+    their literal meaning.
+    """
+    escaped = (
+        business_object_id.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    return f"%|{escaped}"
+
+
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 
@@ -285,30 +302,71 @@ async def list_business_flows(
         # No DB wired (e.g. test app without lifespan). Return empty.
         return {"flows": [], "total": 0}
 
-    # Build WHERE clauses dynamically (parameterized).
-    where_clauses: list[str] = ["business_key IS NOT NULL"]
+    # Rank every session first, then choose precisely one latest row per
+    # business key.  The rollup CTE is deliberately separate: counts describe
+    # all historical sessions, while status and timestamps describe that one
+    # latest session.  This avoids mixing MAX(closed_at) from an older session
+    # with MAX(created_at) from a newer one (and therefore negative durations).
+    #
+    # A stable session_id tie-break makes equal timestamps deterministic.
+    session_where = ["business_key IS NOT NULL"]
     params: list[Any] = []
-    # Note: business_object_id filter is applied in Python (after the
-    # SQL fetch) because SQLite's INSTR() doesn't accept a 3rd arg for
-    # the second-separator offset. Dataset is bounded by ``limit`` <= 200
-    # so the Python-side filter is fast enough for dashboard use.
-    if status is not None:
-        where_clauses.append("status = ?")
-        params.append(status)
+    if business_object_id is not None:
+        session_where.append("business_key LIKE ? ESCAPE '\\'")
+        params.append(_business_object_suffix_pattern(business_object_id))
 
-    where_sql = " AND ".join(where_clauses)
-    sql = (
-        "SELECT business_key, "
-        "COUNT(*) AS session_count, "
-        "MAX(created_at) AS last_started_at, "
-        "MAX(closed_at) AS last_completed_at, "
-        "SUM(CASE WHEN status IN ('closed', 'failed') THEN 1 ELSE 0 END) AS finished_count, "
-        "SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count "
-        f"FROM sessions WHERE {where_sql} "
-        "GROUP BY business_key "
-        "ORDER BY last_started_at DESC "
-        "LIMIT ?"
-    )
+    latest_where = ["ranked.row_number = 1"]
+    if status is not None:
+        # ``created`` is presented to callers as ``active`` by the public
+        # three-state contract, while accepting its raw spelling for backwards
+        # compatibility with the endpoint's original query description.
+        latest_where.append(
+            "(ranked.latest_status = ? "
+            "OR (? = 'active' AND ranked.latest_status = 'created'))"
+        )
+        params.extend((status, status))
+
+    sql = f"""
+        WITH filtered_sessions AS (
+            SELECT business_key, session_id, status, created_at, closed_at
+            FROM sessions
+            WHERE {' AND '.join(session_where)}
+        ), ranked AS (
+            SELECT
+                business_key,
+                session_id,
+                status AS latest_status,
+                created_at AS last_started_at,
+                closed_at AS last_completed_at,
+                ROW_NUMBER() OVER (
+                    PARTITION BY business_key
+                    ORDER BY created_at DESC, session_id ASC
+                ) AS row_number
+            FROM filtered_sessions
+        ), rollups AS (
+            SELECT
+                business_key,
+                COUNT(*) AS session_count,
+                SUM(CASE WHEN status IN ('closed', 'failed') THEN 1 ELSE 0 END)
+                    AS finished_count,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count
+            FROM filtered_sessions
+            GROUP BY business_key
+        )
+        SELECT
+            ranked.business_key,
+            ranked.latest_status,
+            ranked.last_started_at,
+            ranked.last_completed_at,
+            rollups.session_count,
+            rollups.finished_count,
+            rollups.failed_count
+        FROM ranked
+        INNER JOIN rollups ON rollups.business_key = ranked.business_key
+        WHERE {' AND '.join(latest_where)}
+        ORDER BY ranked.last_started_at DESC, ranked.session_id ASC
+        LIMIT ?
+    """
     params.append(limit)
 
     try:
@@ -328,12 +386,6 @@ async def list_business_flows(
         parts = bk.split("|", 2) if bk else ["", "", ""]
         row_object_id = parts[2] if len(parts) >= 3 else ""
 
-        # Python-side filter on business_object_id (avoids the SQLite
-        # INSTR 3-arg limitation; dataset is bounded by ``limit`` <= 200
-        # so this is fast enough for the dashboard use case).
-        if business_object_id is not None and row_object_id != business_object_id:
-            continue
-
         flows.append({
             "business_key": bk,
             "business_object_id": row_object_id,
@@ -345,17 +397,15 @@ async def list_business_flows(
             "last_started_at": last_started,
             "last_completed_at": last_completed,
             "last_duration_ms": (
-                (last_completed - last_started) * 1000
+                max(0, (last_completed - last_started) * 1000)
                 if last_started is not None and last_completed is not None
                 else None
             ),
-            # Per-row status: dominant status across all sessions for
-            # this business_key (simplified — clients can drill into
-            # /sessions for exact per-session status).
+            # This is the normalized state of exactly one latest session, not
+            # a dominant status across historical sessions.
             "status": (
-                "failed" if r["failed_count"] > 0
-                else "closed" if r["finished_count"] > 0
-                else "active"
+                "active" if r["latest_status"] == "created"
+                else r["latest_status"]
             ),
         })
 

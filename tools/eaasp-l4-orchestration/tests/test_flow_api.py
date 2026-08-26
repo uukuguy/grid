@@ -12,13 +12,11 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from eaasp_common.business_flow import BusinessKey
 from eaasp_l4_orchestration.flow_api import router
-from eaasp_l4_orchestration.flow_sse import reset_flow_event_bus
 from eaasp_l4_orchestration.flow_timeline import BusinessFlowEvent
 
 
@@ -404,3 +402,114 @@ def test_business_flow_sessions_endpoint_no_l4_conn_returns_empty() -> None:
     body = resp.json()
     assert body["count"] == 0
     assert body["session_ids"] == []
+
+
+# ─── V3.16 list endpoint — latest-row rollup correctness ─────────────────
+
+
+def test_list_business_flows_uses_latest_row_and_filters_before_limit() -> None:
+    """List summaries use one deterministic latest row per flow.
+
+    In particular, aggregate counts are historical, while status and timing
+    belong to the latest session only.  Object filtering happens in SQL before
+    LIMIT so an older matching flow cannot disappear behind newer non-matches.
+    """
+    import asyncio
+    import os
+    import tempfile
+
+    import aiosqlite
+
+    async def _run() -> tuple[dict, dict, dict]:
+        path = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
+        conn = await aiosqlite.connect(path)
+        conn.row_factory = aiosqlite.Row
+        try:
+            await conn.executescript(
+                """
+                CREATE TABLE sessions (
+                    session_id TEXT PRIMARY KEY, intent_id TEXT, skill_id TEXT,
+                    runtime_id TEXT, user_id TEXT, status TEXT NOT NULL,
+                    payload_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+                    closed_at INTEGER, business_key TEXT
+                );
+                """
+            )
+            main_key = "flow|skill|target"
+            rows = [
+                # Historical outcomes must affect counts, but not latest fields.
+                ("older-closed", "closed", 100, 200, main_key),
+                ("older-failed", "failed", 300, 400, main_key),
+                ("newer-active", "active", 500, None, main_key),
+                # Equal timestamps choose the stable ascending session_id.
+                ("z-tie", "failed", 700, 710, "tie|skill|tie-object"),
+                ("a-tie", "closed", 700, 720, "tie|skill|tie-object"),
+                # Newer non-matches come before the exact wildcard-like object.
+                ("newer-1", "active", 1000, None, "one|skill|other"),
+                ("newer-2", "active", 990, None, "two|skill|other_thing"),
+                ("needle", "closed", 980, 985, "needle|skill|%_\\needle"),
+                ("near", "closed", 970, 975, "near|skill|%Xneedle"),
+            ]
+            await conn.executemany(
+                "INSERT INTO sessions "
+                "(session_id, intent_id, skill_id, runtime_id, user_id, status, "
+                "payload_json, created_at, closed_at, business_key) "
+                "VALUES (?, 'i', 'skill', 'rt', 'u', ?, '{}', ?, ?, ?)",
+                rows,
+            )
+            await conn.commit()
+
+            app = FastAPI()
+            app.state.l4_db_conn = conn
+            app.include_router(router)
+            with TestClient(app) as client:
+                all_flows = client.get("/v1/business-flows/list?limit=20")
+                active_only = client.get("/v1/business-flows/list?status=active")
+                exact_object = client.get(
+                    "/v1/business-flows/list",
+                    params={"limit": 1, "business_object_id": "%_\\needle"},
+                )
+                assert all_flows.status_code == 200, all_flows.text
+                assert active_only.status_code == 200, active_only.text
+                assert exact_object.status_code == 200, exact_object.text
+                return all_flows.json(), active_only.json(), exact_object.json()
+        finally:
+            await conn.close()
+            os.unlink(path)
+
+    all_flows, active_only, exact_object = asyncio.run(_run())
+    by_key = {flow["business_key"]: flow for flow in all_flows["flows"]}
+
+    main = by_key["flow|skill|target"]
+    assert main == {
+        "business_key": "flow|skill|target",
+        "business_object_id": "target",
+        "skill_id": "skill",
+        "session_id": "flow",
+        "session_count": 3,
+        "finished_count": 2,
+        "failed_count": 1,
+        "last_started_at": 500,
+        "last_completed_at": None,
+        "last_duration_ms": None,
+        "status": "active",
+    }
+    # Status filtering is based on the latest row, not historical failures.
+    assert {flow["business_key"] for flow in active_only["flows"]} >= {
+        "flow|skill|target",
+        "one|skill|other",
+        "two|skill|other_thing",
+    }
+    assert "tie|skill|tie-object" not in {
+        flow["business_key"] for flow in active_only["flows"]
+    }
+
+    tie = by_key["tie|skill|tie-object"]
+    assert tie["status"] == "closed"
+    assert tie["last_completed_at"] == 720
+    assert tie["last_duration_ms"] == 20_000
+
+    assert exact_object["total"] == 1
+    assert [flow["business_key"] for flow in exact_object["flows"]] == [
+        "needle|skill|%_\\needle"
+    ]
