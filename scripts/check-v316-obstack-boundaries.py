@@ -30,8 +30,16 @@ DEFERRED_IDS = (
 )
 HISTORICAL_PLAN = "docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md"
 ACTIVE_PLAN_NAME = "2026-08-24-v316-obstack-product-surface.md"
+RUST_STRING_LITERAL = re.compile(
+    r'"(?P<quoted>(?:\\.|[^"\\])*)"|r(?P<hashes>#{0,16})"(?P<raw>.*?)"(?P=hashes)',
+    flags=re.DOTALL,
+)
 RUST_ROUTE_REGISTRATION = re.compile(
-    r'\.\s*(?:route|nest|route_service)\s*\(\s*(?:"(?P<quoted>(?:\\.|[^"\\])*)"|r(?P<hashes>#{0,16})"(?P<raw>.*?)"(?P=hashes))',
+    r'\.\s*(?:route|nest|route_service)\s*\(\s*(?P<argument>concat!\s*\([^)]*\)|[A-Za-z_]\w*|"(?:\\.|[^"\\])*"|r#{0,16}".*?"#{0,16})',
+    flags=re.DOTALL,
+)
+RUST_STRING_BINDING = re.compile(
+    r'\b(?:(?:const|static(?:\s+mut)?)\s+(?P<item_name>[A-Za-z_]\w*)(?:\s*:\s*[^=;]+)?|let\s+(?:mut\s+)?(?P<local_name>[A-Za-z_]\w*)(?:\s*:\s*[^=;]+)?)\s*=\s*(?P<value>[^;]+);',
     flags=re.DOTALL,
 )
 BUSINESS_FLOW_PATH = re.compile(r"business[-_ ]?flows?", flags=re.IGNORECASE)
@@ -178,6 +186,37 @@ def _rbac_entries(catalog: str) -> list[tuple[str, str]]:
     return [(match["method"], match["path"]) for match in pattern.finditer(initializer)]
 
 
+def _rust_literal_path(expression: str) -> str | None:
+    """Resolve a string literal or a literal-only ``concat!`` expression."""
+    expression = expression.strip()
+    if expression.startswith("concat!"):
+        opening = expression.find("(")
+        if opening == -1 or not expression.endswith(")"):
+            return None
+        arguments = expression[opening + 1 : -1]
+        matches = list(RUST_STRING_LITERAL.finditer(arguments))
+        if not matches or RUST_STRING_LITERAL.sub("", arguments).replace(",", "").strip():
+            return None
+        return "".join(
+            match["quoted"] if match["quoted"] is not None else match["raw"]
+            for match in matches
+        )
+    match = RUST_STRING_LITERAL.fullmatch(expression)
+    if match is None:
+        return None
+    return match["quoted"] if match["quoted"] is not None else match["raw"]
+
+
+def _rust_string_bindings(source: str) -> dict[str, str]:
+    """Resolve simple const/static/local string bindings without a Rust parser."""
+    bindings: dict[str, str] = {}
+    for match in RUST_STRING_BINDING.finditer(source):
+        path = _rust_literal_path(match["value"])
+        if path is not None:
+            bindings[match["item_name"] or match["local_name"]] = path
+    return bindings
+
+
 def _grid_server_business_flow_routes(root: Path, failures: list[str]) -> list[str]:
     """Locate executable Axum route registrations that expose business flows.
 
@@ -192,8 +231,10 @@ def _grid_server_business_flow_routes(root: Path, failures: list[str]) -> list[s
     locations: list[str] = []
     for path in sorted(source_root.rglob("*.rs")):
         source = _strip_rust_comments(path.read_text(encoding="utf-8"))
+        bindings = _rust_string_bindings(source)
         for match in RUST_ROUTE_REGISTRATION.finditer(source):
-            route_path = match["quoted"] if match["quoted"] is not None else match["raw"]
+            argument = match["argument"]
+            route_path = bindings.get(argument, _rust_literal_path(argument))
             if route_path is None or not BUSINESS_FLOW_PATH.search(route_path):
                 continue
             line = source.count("\n", 0, match.start()) + 1

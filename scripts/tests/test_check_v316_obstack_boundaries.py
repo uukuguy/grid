@@ -298,6 +298,70 @@ fn routes() -> Router {
 
         self.assertEqual(failures, [])
 
+    def test_grid_server_constant_route_path_fails_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            proxy = fixture_root / "crates/grid-server/src/obstack_const_proxy.rs"
+            proxy.write_text(
+                """use axum::{routing::get, Router};
+
+const FLOW_LIST: &str = "/v1/business-flows/list";
+
+fn routes() -> Router {
+    Router::new().route(FLOW_LIST, get(proxy))
+}
+""",
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertIn(
+            "grid-server must not register business-flow routes (found obstack_const_proxy.rs:6)",
+            failures,
+        )
+
+    def test_grid_server_concat_nest_path_fails_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            proxy = fixture_root / "crates/grid-server/src/obstack_nest_proxy.rs"
+            proxy.write_text(
+                """use axum::Router;
+
+fn routes() -> Router {
+    let prefix = concat!("/v1/", "business-flows");
+    Router::new().nest(prefix, Router::new())
+}
+""",
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertIn(
+            "grid-server must not register business-flow routes (found obstack_nest_proxy.rs:5)",
+            failures,
+        )
+
+    def test_grid_server_unused_business_flow_constant_does_not_fail_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            ordinary = fixture_root / "crates/grid-server/src/obstack_unused_constant.rs"
+            ordinary.write_text(
+                'const HISTORICAL_PATH: &str = "/v1/business-flows/list";\n',
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertEqual(failures, [])
+
     def test_each_historical_section_requires_its_own_supersession_marker(self) -> None:
         checker = load_checker()
         with tempfile.TemporaryDirectory() as temporary_directory:
