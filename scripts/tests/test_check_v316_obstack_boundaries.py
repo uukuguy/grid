@@ -25,6 +25,10 @@ def load_checker() -> ModuleType:
 
 def copy_boundary_fixture(destination: Path) -> None:
     """Copy only the inputs examined by the checker into a disposable repo."""
+    shutil.copytree(
+        REPO_ROOT / "crates/grid-server/src",
+        destination / "crates/grid-server/src",
+    )
     for relative_path in (
         "tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/flow_api.py",
         "tools/eaasp-l4-orchestration/src/eaasp_l4_orchestration/api.py",
@@ -255,6 +259,44 @@ class V316ObstackBoundaryCheckerTests(unittest.TestCase):
             failures = checker.check(fixture_root)
 
         self.assertIn("grid-server RBAC catalog must contain exactly 134 entries (found 133)", failures)
+
+    def test_grid_server_business_flow_proxy_route_fails_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            proxy = fixture_root / "crates/grid-server/src/obstack_proxy.rs"
+            proxy.write_text(
+                """use axum::{routing::get, Router};
+
+fn routes() -> Router {
+    Router::new().route(\"/v1/business-flows/list\", get(proxy))
+}
+""",
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertIn(
+            "grid-server must not register business-flow routes (found obstack_proxy.rs:4)",
+            failures,
+        )
+
+    def test_grid_server_business_flow_comment_does_not_fail_the_audit(self) -> None:
+        checker = load_checker()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            fixture_root = Path(temporary_directory) / "fixture"
+            copy_boundary_fixture(fixture_root)
+            comment = fixture_root / "crates/grid-server/src/obstack_comment.rs"
+            comment.write_text(
+                "// Router::new().route(\"/v1/business-flows/list\", get(proxy))\n",
+                encoding="utf-8",
+            )
+
+            failures = checker.check(fixture_root)
+
+        self.assertEqual(failures, [])
 
     def test_each_historical_section_requires_its_own_supersession_marker(self) -> None:
         checker = load_checker()

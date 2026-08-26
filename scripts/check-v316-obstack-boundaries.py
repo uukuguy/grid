@@ -30,6 +30,11 @@ DEFERRED_IDS = (
 )
 HISTORICAL_PLAN = "docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md"
 ACTIVE_PLAN_NAME = "2026-08-24-v316-obstack-product-surface.md"
+RUST_ROUTE_REGISTRATION = re.compile(
+    r'\.\s*(?:route|nest|route_service)\s*\(\s*(?:"(?P<quoted>(?:\\.|[^"\\])*)"|r(?P<hashes>#{0,16})"(?P<raw>.*?)"(?P=hashes))',
+    flags=re.DOTALL,
+)
+BUSINESS_FLOW_PATH = re.compile(r"business[-_ ]?flows?", flags=re.IGNORECASE)
 
 
 def _read(root: Path, relative_path: str, failures: list[str]) -> str:
@@ -173,6 +178,29 @@ def _rbac_entries(catalog: str) -> list[tuple[str, str]]:
     return [(match["method"], match["path"]) for match in pattern.finditer(initializer)]
 
 
+def _grid_server_business_flow_routes(root: Path, failures: list[str]) -> list[str]:
+    """Locate executable Axum route registrations that expose business flows.
+
+    The RBAC catalog is an inventory, not the router implementation; audit every
+    Rust source file so an unlisted proxy cannot evade the product boundary.
+    """
+    source_root = root / "crates/grid-server/src"
+    if not source_root.is_dir():
+        failures.append("missing audit input: crates/grid-server/src")
+        return []
+
+    locations: list[str] = []
+    for path in sorted(source_root.rglob("*.rs")):
+        source = _strip_rust_comments(path.read_text(encoding="utf-8"))
+        for match in RUST_ROUTE_REGISTRATION.finditer(source):
+            route_path = match["quoted"] if match["quoted"] is not None else match["raw"]
+            if route_path is None or not BUSINESS_FLOW_PATH.search(route_path):
+                continue
+            line = source.count("\n", 0, match.start()) + 1
+            locations.append(f"{path.relative_to(source_root).as_posix()}:{line}")
+    return locations
+
+
 def _meaningful(value: str) -> bool:
     return any(character.isalnum() for character in value)
 
@@ -230,6 +258,9 @@ def check(root: Path) -> list[str]:
         failures.append(f"grid-server RBAC catalog must contain exactly 134 entries (found {len(entries)})")
     if any(re.search(r"business[-_ ]?flows?", path, flags=re.IGNORECASE) for _, path in entries):
         failures.append("grid-server RBAC must not contain a business-flow entry")
+
+    for location in _grid_server_business_flow_routes(root, failures):
+        failures.append(f"grid-server must not register business-flow routes (found {location})")
 
     for deferred_id in DEFERRED_IDS:
         row = next((line for line in ledger.splitlines() if deferred_id in line), None)

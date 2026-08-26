@@ -1,7 +1,7 @@
 # v3.16 OBSTACK 产品面收口设计
 
-**状态:** Approved for autonomous execution  
-**日期:** 2026-08-24  
+**状态:** Approved for autonomous execution
+**日期:** 2026-08-24
 **替代范围:** `2026-08-09-obstack-v3-15-6-completion.md` 中尚未执行的 6d/6e 骨架
 
 ## 目标

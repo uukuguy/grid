@@ -54,7 +54,7 @@ row = {
     "verdict": verdict, "train_cost_h": item["cost_h"], "manifest_path": str(run_dir.relative_to(root) / "manifest.json"),
 }
 with (state / "runs.csv").open("a", newline="") as handle:
-    writer = csv.DictWriter(handle, fieldnames=row.keys())
+    writer = csv.DictWriter(handle, fieldnames=row.keys(), lineterminator="\n")
     writer.writerow(row)
 (run_dir / "decision.txt").write_text(decision + "\n")
 PY
