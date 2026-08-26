@@ -1,12 +1,12 @@
 # Research Tree — v3.16 OBSTACK product surface
 
-> Deterministic summary; 4 cycles logged. Do not edit manually.
+> Deterministic summary; 6 cycles logged. Do not edit manually.
 
-**Best local acceptance score:** 85/100
-**Phase:** executing
-**Last cycle:** 4
-**Next hypothesis:** H-005
-**Next action:** Dispatch the next ranked pending hypothesis
+**Best local acceptance score:** 100/100
+**Phase:** complete
+**Last cycle:** 6
+**Next hypothesis:** None
+**Next action:** Target met; await branch integration decision
 
 ## Active hypotheses
 
@@ -14,7 +14,7 @@
 - **H-002** [confirmed] (cli-obstack-surface): Add flow list/top-failed/top-slow CLI verbs over the existing L4 list endpoint
 - **H-003** [confirmed] (business-key-read-surface): Expose the persisted canonical BusinessKey from L4 session reads and display it verbatim in the CLI
 - **H-004** [confirmed] (scope-integrity): Encode and negatively test the real L4/web ownership boundary while deferring unsupported cross-service projections
-- **H-005** [pending] (verification-closeout): Run integrated positive and negative controls plus dual-gates and close v3.16 truthfully
+- **H-005** [confirmed] (verification-closeout): Run integrated positive and negative controls plus dual-gates and close v3.16 truthfully
 
 ## Cycle ladder
 
@@ -24,6 +24,8 @@
 | 20260824-110612-h-002 | H-002 | 55 | PUSH | confirmed |
 | 20260825-074220-h-003 | H-003 | 75 | PUSH | confirmed |
 | 20260825-182455-h-004 | H-004 | 85 | PUSH | confirmed |
+| 20260826-055011-h-005 | H-005 | 100 | PUSH | confirmed |
+| 20260826-211242-h-005 | H-005 | 100 | SKIP | confirmed |
 
 ## Negative cache
 

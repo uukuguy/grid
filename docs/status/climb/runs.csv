@@ -3,3 +3,5 @@ run_id,cycle,session,hypothesis_id,paradigm,parent_run,pushed_at,lb_landed_at,lo
 20260824-110612-h-002,2,2026-08-23-v316-surface,H-002,cli-obstack-surface,,,,55,30,25,0,0,0,,,PUSH,cli=25/25; best_before=30,confirmed,2,runs/climb/20260824-110612-h-002/manifest.json
 20260825-074220-h-003,3,2026-08-23-v316-surface,H-003,business-key-read-surface,,,,75,30,25,20,0,0,,,PUSH,business_key=20/20; best_before=55,confirmed,3,runs/climb/20260825-074220-h-003/manifest.json
 20260825-182455-h-004,4,2026-08-23-v316-surface,H-004,scope-integrity,,,,85,30,25,20,10,0,,,PUSH,scope_integrity=10/10; best_before=75,confirmed,2,runs/climb/20260825-182455-h-004/manifest.json
+20260826-055011-h-005,5,2026-08-23-v316-surface,H-005,verification-closeout,,,,100,30,25,20,10,15,,,PUSH,verification=15/15; best_before=85,confirmed,2,runs/climb/20260826-055011-h-005/manifest.json
+20260826-211242-h-005,6,2026-08-23-v316-surface,H-005,verification-closeout,,,,100,30,25,20,10,15,,,SKIP,verification=15/15; best_before=100,confirmed,2,runs/climb/20260826-211242-h-005/manifest.json
