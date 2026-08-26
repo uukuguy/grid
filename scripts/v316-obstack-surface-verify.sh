@@ -20,6 +20,7 @@ FLOW_API_CONTROL_NODES=(
   tests/test_flow_api.py::test_timeline_empty_session_id_returns_400
   tests/test_flow_api.py::test_sse_stream_returns_streaming_response
   tests/test_flow_api.py::test_sse_stream_malformed_key_returns_400
+  tests/test_flow_api.py::test_list_business_flows_uses_latest_row_and_filters_before_limit
 )
 
 usage() {

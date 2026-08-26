@@ -25,7 +25,8 @@ for node in \
   'tests/test_flow_api.py::test_timeline_malformed_key_returns_400' \
   'tests/test_flow_api.py::test_timeline_empty_session_id_returns_400' \
   'tests/test_flow_api.py::test_sse_stream_returns_streaming_response' \
-  'tests/test_flow_api.py::test_sse_stream_malformed_key_returns_400'; do
+  'tests/test_flow_api.py::test_sse_stream_malformed_key_returns_400' \
+  'tests/test_flow_api.py::test_list_business_flows_uses_latest_row_and_filters_before_limit'; do
   grep -Fq "$node" "$manifest" || fail "dry-run manifest omits flow API node $node"
 done
 if grep -Eq '(^|[[:space:]])make[[:space:]]+test($|[[:space:]])|cargo[[:space:]]+test[[:space:]]+--workspace|pytest[[:space:]]+-q[[:space:]]+tests/?($|[[:space:]])' "$manifest"; then
