@@ -16,7 +16,11 @@
 
 > ✅ ADR-V2-024(2026-04-28 Accepted, supersedes ADR-V2-023)已重新框定为双轴模型(engine vs data/integration);ADR-V2-023 字面表述 "Leg A primary / Leg B dormant" (原 Leg A / Leg B, see ADR-V2-024 supersedes ADR-V2-023) 保留作历史快照。详见 ADR-V2-024 §1 双轴模型。
 
-## Latest Shipped Milestone: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; `tools/eaasp-ecosystem/` FastAPI + `sdk/python/src/eaasp/{client,cli}/` thin client + Click CLI; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED; **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED**; tag `v3.14` force-push).
+## Latest Shipped Milestone: v3.16 OBSTACK product surface ✅ 2026-08-27
+
+v3.16 closes the truthful operator product surface in `web/ + tools/eaasp-l4-orchestration + tools/eaasp-cli-v2`: live business-flow dashboard views, L4-backed `list/top-failed/top-slow` CLI queries, session BusinessKey exposure, durable authenticated SSE, truthful flow summaries, and an integrated positive/negative verifier. The active scope is defined by `docs/superpowers/plans/2026-08-24-v316-obstack-product-surface.md`; the older v3.15.6d/6e projections are historical and superseded.
+
+## Historical milestone detail retained below
 
 **Goal:** Begin EAASP v2.0 EVOLUTION_PATH §三 Phase 5 by delivering the **L5 Cowork UI substrate** as a four-card projection layer (Event / Evidence / Action / Approval) plus a **retrospective cycle** (回溯闭环) that lets any four-card record trace back to its full Event → Evidence → Action → Approval chain by `session_id`. v3.13.0 establishes the four-card data model + projection + L4 SSE bridge; v3.13.1 wires four-card SSE fan-out + state transitions + persistence; v3.13.2 builds the retrospective cycle (trace API); v3.13.3 is a single-point live walkthrough that demonstrates the full Phase 5 surface and pushes tag `v3.13`.
 
@@ -84,7 +88,11 @@
 - Priority axis (ADR-V2-024 Open Item #3): grid-cli + grid-server first; platform/desktop/web follow-on.
 - All code must work for both engine 接入面 (EAASP) and Grid independent product (shared core rule per ADR-V2-023 P1).
 
-## Current Milestone: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem (bootstrapping 2026-07-28)
+## Current Position: milestone boundary after v3.16
+
+No v3.16 implementation remains. The next action is to select v3.17 scope under ADR-V2-024's data/integration axis. Multi-tenant OBSTACK, grid-eval OBSTACK projection, and ecosystem-health projection remain deferred until producer contracts exist.
+
+## Historical Milestone: v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem (bootstrapped 2026-07-28)
 
 **Goal:** Close the EAASP v2.0 **EVOLUTION_PATH §三 8-Phase 路线** by delivering **Phase 6 — Ecosystem expansion**. v3.14 lands (a) an **Ontology 服务** that derives taxonomy + cross-domain links from the existing L2 evidence anchor + L3 governance_decisions + L4 event_room + L5 four-card projections (per D-40 "派生不复制" principle), (b) a **Skill Marketplace API** layered on top of the v3.11 `eaasp-skill-registry` that supports third-party submissions, a 4-stage promotion lifecycle (`draft → review → certified → published`), full ACL (per-tenant + per-role), and analytics (per D-41 — extends, does not replace, the existing registry), and (c) an **SDK scaffolding** (`sdk/python/` thin client + `tools/eaasp-ecosystem-sdk/` wrapper + JSON-schema exposition) that exposes the EAASP v2.0 surface as machine-readable JSON-schema. v3.14 is the **final phase** of the 8-Phase roadmap; once it ships, `V310-ECOSYSTEM-01` → ✅ CLOSED and the EVOLUTION_PATH 8-Phase roadmap is declared ALL SHIPPED. v3.14.0 lands the Ontology service + taxonomy paths + cross-domain link + JSON-schema derivation; v3.14.1 lands the Marketplace API + third-party submission lifecycle; v3.14.2 lands the SDK scaffolding + JSON-schema exposure; v3.14.3 is a single-point live walkthrough that demonstrates the full Phase 6 surface and pushes tag `v3.14`, closing the 8-Phase roadmap.
 

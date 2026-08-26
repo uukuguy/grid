@@ -123,7 +123,8 @@ export default function Flows() {
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Business Flows</h1>
           <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {visibleFlows.length} / {total} flow{total === 1 ? "" : "s"}
+            {visibleFlows.length} visible flow{visibleFlows.length === 1 ? "" : "s"}
+            {" · "}{total} session{total === 1 ? "" : "s"}
           </span>
         </div>
         <button

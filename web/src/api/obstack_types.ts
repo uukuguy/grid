@@ -22,6 +22,7 @@ export interface BusinessFlowSummary {
 
 export interface BusinessFlowListResponse {
   flows: BusinessFlowSummary[];
+  /** Session instances represented by the returned flow rows. */
   total: number;
 }
 
@@ -45,6 +46,7 @@ export interface FlowAlert {
 // ─── Timeline endpoint ────────────────────────────────────────────
 
 export interface TimelineEvent {
+  /** Unix epoch milliseconds. */
   ts: number;
   layer: string;
   component: string;

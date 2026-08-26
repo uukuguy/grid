@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.15.6
-milestone_name: OBSTACK 实战补完 (6 阶段 v3.15.6a → 6f)
+milestone: v3.16
+milestone_name: OBSTACK product surface closeout
 status: shipped
-stopped_at: v3.15.6 SHIPPED + tagged `v3.15.6` (2026-08-12),6g/6h/6i 复核;**v3.16 V316 收口(2026-08-23)**:L2/L3/L4 observability 全实跑 + 负控,`V316-L2L3L4-OBS-01` CLOSED,`§0.1` = 23/23。5/6 阶段完成 (6a 文档诚实化 / 6b 测试补完 / 6c 死代码激活 / 6g tag 前验证+修复 / 6h 补齐 requests.* + demo 改造);**6d web-platform Dashboard + 6e CLI 全局接入 显式 deferred → v3.16** (D-53 / D-54),不在本 tag 声称范围。6g 查出 6c 的两处假闭环并修复:(1) 6c.2/6c.3 把 emit 挂在 `on_tool_call/on_tool_result/on_stop`,而 Grid 是 Tier 1 (`native_hooks: true`),L4 从不调用这三个 hook RPC → 死代码,实测真实 tool-call turn 产出 `"scopeMetrics":[]`;(2) `init_observability` 的 `drop(provider)` 触发 `SdkMeterProviderInner::drop` → `shutdown()`,导出管道启动即死。6h 补齐最后一条无证据的 series (`requests.*` 自落地起从未被调用),顺带修 `TimeBlock` 双减 in_flight + metric-cardinality DoS (op label allowlist);并改造 demo 脚本 —— 它此前有 4 个独立缺陷,叠加后能在什么都没证明的情况下 exit 0。**L1 侧 6/6 series 真跑验证 + 关键检查配负控**。但 2026-08-12 6i 收尾复核查出 **L2/L3/L4 三层 observability 零生产调用点**(同 6c 失败模式),§0.1 由 23/23 **降为 20/23**;tag `v3.15.6` 对 L1 的声称成立,对 L2/L3/L4 的 ✅ 是继承自未验证的旧结论,**打早了**,由 `V316-L2L3L4-OBS-01` 在 v3.16 收口。100/100 tests;dual-gate PASS (134 routes / 38 rows)。EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED (v3.10/11/12/13/14). 锁决策 D-47..D-54. plan `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md`;证据 `docs/status/PRODUCTION_USABILITY_2026-08-11-obstack6g.md`. Prior milestone v3.15 SHIPPED 2026-08-02 @ `84cc0680`. Prior v3.14 SHIPPED 2026-07-30. Prior v3.13 SHIPPED 2026-07-29 @ d0d83a23.
-last_updated: "2026-08-23T21:26:27+08:00"
-last_activity: 2026-08-23
+stopped_at: v3.16 OBSTACK product surface complete; next action is v3.17 scope selection.
+last_updated: "2026-08-27T06:12:36+08:00"
+last_activity: 2026-08-27
 progress:
-  total_phases: 6
-  completed_phases: 5
-  deferred_phases: 2
-  total_plans: 6
-  completed_plans: 5
-  percent: 83
+  total_phases: 2
+  completed_phases: 2
+  deferred_phases: 0
+  total_plans: 2
+  completed_plans: 2
+  percent: 100
   prior_milestones:
     v3.14_completed_phases: 4
     v3.14_completed_plans: 4
@@ -32,7 +32,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。`contract-v1.1.0` 是 Phase 3 sign-off 历史契约版本(2026-04-18,42 PASS / 22 XFAIL × 7 runtime)。
-**Current focus:** Milestone v3.14 (EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem) ✅ SHIPPED 2026-07-30. 4 phases planned (03.14.0 Ontology 服务 + taxonomy 路径 + cross-domain link + JSON-schema 派生 → 03.14.1 Skill Marketplace API + 第三方提交 / 4 阶段 promotion / 完整 ACL / analytics → 03.14.2 SDK scaffolding + JSON-schema 暴露 → 03.14.3 single-point live walkthrough + tag v3.14 + EVOLUTION_PATH 8-Phase 路线 ALL SHIPPED), 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT). Locked decisions D-38..D-46. 23 REQ-IDs / 5 categories closed; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED 2026-07-30; tag `v3.14` force-push.
+**Current focus:** Milestone v3.16 OBSTACK product surface ✅ SHIPPED 2026-08-27. The active implementation follows `docs/superpowers/plans/2026-08-24-v316-obstack-product-surface.md`: `web/` owns the operator UI, L4 Python owns six business-flow routes and live SSE, and `eaasp-cli-v2` exposes the supported L4-backed query surface. Unsupported multi-tenant, eval, and ecosystem-health projections remain deferred until producer contracts exist.
 
 Canonical product-status sources:
 
@@ -41,8 +41,15 @@ Canonical product-status sources:
 
 ## Current Position
 
-Milestone: **v3.15.6 OBSTACK 实战补完 ✅ SHIPPED + tagged 2026-08-12 — 5/6 阶段 (6a ✅ / 6b ✅ / 6c ✅ / 6g ✅ / 6h ✅;6d + 6e deferred → v3.16 per D-53/D-54)**
-Scope: 6 阶段串行 (6a 文档/状态一致性 → 6b 测试补完 → 6c 死代码激活 → 6d web-platform Dashboard → 6e CLI 全局接入 → 6f 收口 + tag)。锁决策 D-47..D-54。**不开新 milestone / 不开新 EVOLUTION_PATH phase / 不开新仓 / 不开新服务端口** (D-47 + D-48)。
+Milestone: **v3.16 OBSTACK product surface ✅ SHIPPED 2026-08-27**
+Scope: closed the truthful product surface in `web/ + tools/eaasp-l4-orchestration + tools/eaasp-cli-v2`, including live operator flow views, list/top-failed/top-slow CLI queries, session BusinessKey exposure, durable and authenticated SSE publication, canonical flow summary semantics, and an integrated positive/negative closeout verifier. The old v3.15.6d/6e projections are retained as history only and superseded by the active v3.16 plan.
+
+- **Observability closure ✅** — `V316-L2L3L4-OBS-01` remains closed with L2/L3/L4 production call sites, live counters, and negative controls; OBSTACK §0.1 remains 23/23.
+- **Product surface ✅** — climb H-001..H-005 confirmed; scope boundary audit, RBAC audit (134 routes), spec audit (38 rows), browser E2E, targeted Python/TypeScript tests, and workspace build/check gates pass.
+- **Review closure ✅** — live SSE events are appended immediately with bounded deduplication and coalesced refresh; cross-layer timeline timestamps are normalized to epoch milliseconds; list totals/status wording is truthful.
+- **Next milestone** — no active v3.16 work remains. Select v3.17 scope under ADR-V2-024's data/integration axis.
+
+Prior milestone details: **v3.15.6 OBSTACK 实战补完 ✅ SHIPPED + tagged 2026-08-12**
 - **6a 文档诚实化 ✅** (`725fe82c` + `c7a5b50e` + `15e9edac` + `479f1483` + `8e42f151` + `960c7f10`) — OBSTACK_DESIGN §0.1/§0.2/§0.3 + INDEX §Goal 表 4 处 23/23 → **20/23 (87%)** per D-50 (不掩盖 counting 漏洞);4 项 `V315-*` deferred items 登记 DEFERRED_LEDGER per D-51;AGENTS.md 加 OBSTACK 段。
 - **6b 测试补完 ✅** (`265c15b5` → `31267e28`, 9 commits) — `tests/e2e/business_flow/` 16 集成测试 (smoke 2 + timeline 3 + interrupted 3 + sse 4 + evaluator 4);L0 proto 5 message 加 `business_key = 100` → RPC attachment **13/21 → 21/21**,9 caller 跨 5 crate 同步;L3 `observability.py` 加 3 record helpers (1 → 4)。**32 tests PASS** (16 Python + 4 Rust + 12 L3)。
 - **6c 死代码激活 ✅** (`da38e862` + `ce027817` + `40b661f8` + `efba6e83`) — `init_observability()` v3.15.5 起在 `observability/mod.rs:164` 定义但 `main.rs` 从未调用 (死代码,`METER_READY=false`);6c.1 真接 `opentelemetry-stdout` 0.5 + main.rs 调用,6c.2/6c.3 `harness.rs` emit pre/post/flow_outcome。**6 L1 metric series active**;§0.1 4 处 ⚠️→✅ 回升 **23/23 (真闭环)**。
@@ -284,16 +291,14 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ### Pending Todos
 
-- **`V316-L2L3L4-OBS-01`(6i 新发现,建议优先)** — L2/L3/L4 三层 `observability.py` 定义齐全但 **0 处生产调用**,meter 恒为 noop;各层测试只测 helper 自身,无一条断言生产路径会调用。修复判据沿用 L1 6g/6h:接入调用点 + 真跑看计数器动 + 配负控。
-- **v3.16 剩余:6d + 6e,或开 v3.17 scope 决策** (下一步) — 6d/6e 已被 user 同意顺延;替代选项按 ADR-V2-024 data/integration 轴:`grid-server multi-user`(3.7.4 deferred,Open Item #3 优先轴)/ `web-platform 7.5 → 9.0` / `grid-desktop 6.5 → 9.0`。
-- **6d web-platform Dashboard** (deferred → v3.16, D-53) — 5 页面 (FlowsOverview / FlowDetail / FlowOptimize / Alerts / Stats) + `obstackClient.ts` + App.tsx 5 routes + grid-server `rbac/catalog.rs` 5 路由;dual-gate 134 → **139 routes**。
-- **6e CLI 全局接入 + 工具生态** (deferred → v3.16, D-54) — `eaasp flow list/top-failed/top-slow` 3 verb + business_key 列贯穿 session/memory/skill/policy + grid-eval 接 OBSTACK + marketplace 健康度。
+- **Choose v3.17 scope** — v3.16 has no remaining implementation task. Candidates remain `grid-server` multi-user follow-on, `web-platform` 7.5 → 9.0, or `grid-desktop` 6.5 → 9.0 under ADR-V2-024's data/integration axis.
+- **Deferred producer-contract work** — multi-tenant OBSTACK, grid-eval OBSTACK projection, and ecosystem-health projection remain explicitly deferred by the v3.16 scope adjudication; do not implement them until their producer contracts exist.
 
 ### Blockers/Concerns
 
 - ~~`tool.total` / `requests.*` 缺端到端实证~~ → **6h 已闭环**,6/6 series 真跑验证。
 - ~~demo 脚本仍是半真~~ → **6h 已改造**:手工 ingest 删除、LLM 步失败致命、Observe 改 JSON 断言并配负控。
-- **L2/L3/L4 observability 是死代码(6i 已确认,登记 `V316-L2L3L4-OBS-01`)** — 三层 `record_*` 定义齐全但 `src/` 全域 0 处生产调用,`main.py` 0 提及,meter 恒为 `_NoopMeter`。**这是 6c 同一缺陷的第 2/3/4 次出现,属系统性问题**:本仓把"写了 observability 模块 + 测了该模块"当成了"接入了可观测性"。
+- ~~L2/L3/L4 observability dead call sites~~ → **closed by `V316-L2L3L4-OBS-01`** with production-path tests and negative controls.
 - **`.env` 影子变量陷阱** — shell 中导出的旧 `DEEPSEEK_API_KEY` 会盖住 `.env`(dotenvy 不覆盖已存在环境变量),表现为 401 且极难一眼看出。跑 live 验证前先 `unset` 或比对哈希。
 - **L4 `/v1/sessions/{id}/message` 挂起** — 240s 无响应;skill-registry 报 `threshold-calibration not found`。与 OBSTACK 改动无关,独立问题,未排期。
 - **CI 两条 workflow 长期 FAIL (非本次引入,2026-08-11 push 后复核确认)**:
@@ -304,13 +309,13 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 - **EAASP v2.0 platform-evolution gaps**: L1 infrastructure tier changes (V310-SANDBOX-01); V310-MAT-01 typed schema work; data/integration axis (per ADR-V2-024 §1). Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=deepseek`,model `deepseek-v4-flash`(reasoning model,`reasoning_content` 会吃掉小 max_tokens 预算)。
 - **v3.9 Action vocabulary growth discipline** (D-04): extension is allowed but each new variant must map to a coherent semantic; auditor surfaces gaps; "manage everything" catch-all is forbidden.
-- **v3.13 L5 frontend dormant** (D-31 / D-37 / D-39 / D-53): web/ + web-platform/ remain dormant through v3.15.6; UI activation deferred to v3.16.
+- **Grid product follow-ons**: `web-platform/` and `grid-desktop` remain below the 9.0 quality target; v3.16 activated the supported OBSTACK operator surface in `web/`, not the superseded five-route `web-platform/` projection.
 
 ## Session Continuity
 
-Last session: 2026-08-23 — v3.16 `V316-L2L3L4-OBS-01` 已闭环:L2/L3/L4 observability 全部接入生产路径,40/40 targeted tests PASS,并用负控确认能捕获上一轮“模块存在但未接线”的缺陷。OBSTACK §0.1 = **23/23**。HEAD `9ce46e26` 后完成状态交接 commit `de4ad04b`,working tree clean。
+Last session: 2026-08-27 — resumed the v3.16 closeout, reviewed all 44 local commits, fixed the live timeline/timestamp findings with regression tests, and reran the focused verification ladder.
 
-Stopped at: Session resumed 2026-08-23, user selected **继续完成 v3.16 剩余 6d + 6e**。下一步先把 `docs/superpowers/plans/2026-08-09-obstack-v3-15-6-completion.md` 中仅有标题骨架的 6d/6e 重整为当前可执行计划,再执行 web-platform Dashboard 与 CLI/工具生态接入。Resume file: none。
+Stopped at: **v3.16 complete; no resume marker.** Next action is a user-selected v3.17 scope. Resume file: none.
 
 Prior sessions:
 

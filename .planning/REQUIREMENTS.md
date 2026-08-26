@@ -1,12 +1,12 @@
 # Requirements: Grid
 
 **Defined:** 2026-07-25
-**Last updated:** 2026-07-28
-**Active milestone:** v3.14 (EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem, bootstrapping 2026-07-28)
-**Milestone:** v3.9 (route-catalog RBAC wiring + authorization auditor) [closed 2026-07-26]; v3.10 / v3.11 / v3.12 / v3.13 SHIPPED; v3.14 active
+**Last updated:** 2026-08-27
+**Active milestone:** none — v3.16 OBSTACK product surface SHIPPED 2026-08-27
+**Milestone:** v3.9 through v3.16 SHIPPED; next milestone intentionally unselected
 **Core Value:** Grid 作为 substitutable L1 runtime,通过 gRPC contract 被 EAASP L2-L4 调用,且任何符合 `contract-v1.2.0` 的对比 runtime 都能替换它。
 
-> **Read first.** This file is the **active** requirements ledger. v3.8 (2026-07-24) and earlier milestones are archived to `.planning/milestones/v3.{X}-REQUIREMENTS.md`. Locked decisions from the v3.9 / v3.10 / v3.11 / v3.12 / v3.13 / v3.14 discussion are NOT negotiated below — they are normative for their respective milestones.
+> **Read first.** This file retains the last formal requirements ledger as history. v3.16's executable scope and acceptance contract live in `docs/superpowers/plans/2026-08-24-v316-obstack-product-surface.md` and are complete. Do not infer a v3.17 scope until the user selects one.
 
 ---
 
@@ -258,4 +258,4 @@
 
 ---
 
-*Last updated: 2026-07-28 — v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem bootstrapped. 13–16 REQ-IDs across 5 categories (ONTOLOGY / MARKETPLACE / SDK / ECOSYSTEM-LIFECYCLE / COMPAT). Locked decisions D-38..D-46. v3.13 EAASP Phase 5 — L5 Cowork 四卡 + 回溯闭环 ✅ SHIPPED 2026-07-29 @ d0d83a23 (V310-COWORK-01 ✅ CLOSED). v3.12 EAASP Phase 4 ✅ SHIPPED 2026-07-27 @ 894639dd. v3.11 EAASP Phase 3 ✅ SHIPPED 2026-07-27 (V310-OPA-01 / V310-APPROVAL-01 ✅ CLOSED). v3.10 EAASP v2.0 platform-skeleton alignment ✅ SHIPPED 2026-07-26. v3.9 route-catalog RBAC + authorization auditor ✅ SHIPPED 2026-07-26. v3.8 grid-server multi-user login ✅ SHIPPED 2026-07-24. v3.7 实战可用性补全 ✅ SHIPPED 2026-07-23. v3.6 Post-Activation Docs Sync ✅ SHIPPED 2026-07-19. Grid 独立产品 Activation ✅ SHIPPED 2026-06-17. v3.5/v3.4/v3.3/v3.2/v3.1/v3.0 ✅ CLOSED.*
+*Last updated: 2026-08-27 — v3.16 OBSTACK product surface SHIPPED; no active milestone. Historical v3.14 requirements below remain closed and normative for that milestone.*

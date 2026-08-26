@@ -34,15 +34,17 @@ from .flow_timeline import BusinessFlowEvent, _row_to_event
 
 
 def _to_epoch_ms(raw: Any) -> int:
-    """Best-effort convert L3 string timestamps (datetime('now')) to ms.
+    """Best-effort normalize a timestamp to epoch milliseconds.
 
     L3 stores ``ts TEXT DEFAULT (datetime('now'))`` which is
-    ``"YYYY-MM-DD HH:MM:SS"`` in UTC. L4 stores epoch-ms. The timeline
-    aggregator sorts by ts (ms), so L3 strings need conversion.
+    ``"YYYY-MM-DD HH:MM:SS"`` in UTC. L4 stores epoch seconds, while
+    the timeline contract uses epoch milliseconds, so numeric values
+    below the epoch-ms range are scaled before aggregation.
     Falls back to int(time.time() * 1000) for any unparseable input.
     """
     if isinstance(raw, (int, float)):
-        return int(raw)
+        value = int(raw)
+        return value * 1000 if abs(value) < 100_000_000_000 else value
     if not isinstance(raw, str) or not raw:
         import time
         return int(time.time() * 1000)
@@ -94,9 +96,11 @@ async def read_l4_sessions(
         (wire, wire),
     ) as cur:
         async for row in cur:
+            data = dict(row)
+            data["ts"] = _to_epoch_ms(data.get("ts"))
             events.append(
                 _row_to_event(
-                    dict(row),
+                    data,
                     layer="L4",
                     component="session",
                     ts_field="ts",
@@ -129,6 +133,7 @@ async def read_l4_event_room_events(
     ) as cur:
         async for row in cur:
             d = dict(row)
+            d["created_at"] = _to_epoch_ms(d.get("created_at"))
             # Prefix the event_type so the timeline aggregator can
             # distinguish event_room events from session events.
             d["event_type"] = f"event_room.{d['event_type']}"
@@ -167,9 +172,11 @@ async def read_l4_session_events(
         (wire,),
     ) as cur:
         async for row in cur:
+            data = dict(row)
+            data["created_at"] = _to_epoch_ms(data.get("created_at"))
             events.append(
                 _row_to_event(
-                    dict(row),
+                    data,
                     layer="L4",
                     component="session_event",
                     ts_field="created_at",
@@ -192,7 +199,7 @@ async def read_l3_governance_decisions(
 
     Note: the L3 ledger stores the timestamp in a ``ts`` TEXT column
     (datetime('now') string), not a ``created_at`` epoch-ms integer —
-    which is the opposite convention from L4. We convert via
+    which is the opposite storage convention from L4. We convert via
     ``_to_epoch_ms`` so the timeline aggregator's ``ORDER BY ts`` sort
     produces a meaningful chronological order across layers.
     """

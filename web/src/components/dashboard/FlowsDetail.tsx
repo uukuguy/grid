@@ -9,7 +9,7 @@
 // Each panel handles its own loading/error state so a slow endpoint
 // doesn't block the others.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Clock, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { flowsApi, type TimelineEvent, type SessionsResponse, type SummaryResponse, type EvaluationReport } from "@/api/flows";
 import { cn } from "@/lib/utils";
@@ -19,9 +19,14 @@ interface FlowsDetailProps {
   onClose: () => void;
 }
 
-function formatTimestamp(ts: number | null): string {
+function formatEpochSeconds(ts: number | null): string {
   if (ts === null) return "—";
   return new Date(ts * 1000).toLocaleString();
+}
+
+function formatEpochMilliseconds(ts: number | null): string {
+  if (ts === null) return "—";
+  return new Date(ts).toLocaleString();
 }
 
 function formatDuration(ms: number | null): string {
@@ -89,8 +94,8 @@ function SummaryPanel({ data, loading, error }: {
           .map(([k, v]) => `${k}=${v}`)
           .join(" ") || "—"}
       />
-      <Field label="Started" value={formatTimestamp(data.started_at)} />
-      <Field label="Completed" value={formatTimestamp(data.completed_at)} />
+      <Field label="Started" value={formatEpochMilliseconds(data.started_at)} />
+      <Field label="Completed" value={formatEpochMilliseconds(data.completed_at)} />
       <Field
         label="Interrupted at"
         value={data.interrupted_layer ?? "—"}
@@ -116,7 +121,7 @@ function SessionsPanel({ data, loading, error }: {
         >
           <span className="truncate">{s.session_id}</span>
           <span className="ml-2 shrink-0 text-muted-foreground">
-            {s.status} · {formatTimestamp(s.created_at)}
+            {s.status} · {formatEpochSeconds(s.created_at)}
           </span>
         </li>
       ))}
@@ -137,7 +142,7 @@ function TimelinePanel({ data, loading, error }: {
   if (!data) return null;
   return (
     <ol className="space-y-1 text-xs">
-      {data.slice(0, 30).map((ev, idx) => (
+      {data.slice(-30).map((ev, idx) => (
         <li
           key={`${ev.ts}-${idx}`}
           className="flex items-start gap-2 rounded-md bg-secondary/40 px-2 py-1"
@@ -154,7 +159,7 @@ function TimelinePanel({ data, loading, error }: {
             )}
           </span>
           <time className="shrink-0 text-muted-foreground">
-            {formatTimestamp(ev.ts)}
+            {formatEpochMilliseconds(ev.ts)}
           </time>
         </li>
       ))}
@@ -163,7 +168,7 @@ function TimelinePanel({ data, loading, error }: {
       )}
       {data.length > 30 && (
         <li className="text-center text-muted-foreground">
-          … {data.length - 30} more (timeline truncated to 30 events)
+          … {data.length - 30} older (showing the latest 30 events)
         </li>
       )}
     </ol>
@@ -249,6 +254,30 @@ function eventIdentity(event: TimelineEvent): string {
   ]);
 }
 
+const MAX_RECENT_LIVE_EVENTS = 512;
+const RELOAD_DEBOUNCE_MS = 250;
+
+function rememberEvent(seen: Set<string>, identity: string): boolean {
+  if (seen.has(identity)) return false;
+  if (seen.size >= MAX_RECENT_LIVE_EVENTS) {
+    const oldest = seen.values().next().value as string | undefined;
+    if (oldest !== undefined) seen.delete(oldest);
+  }
+  seen.add(identity);
+  return true;
+}
+
+function mergeTimelineEvents(
+  fetched: TimelineEvent[],
+  live: TimelineEvent[],
+): TimelineEvent[] {
+  const merged = new Map<string, TimelineEvent>();
+  for (const event of [...fetched, ...live]) {
+    merged.set(eventIdentity(event), event);
+  }
+  return [...merged.values()].sort((a, b) => a.ts - b.ts);
+}
+
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
@@ -314,22 +343,45 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
     `evaluation:${businessKey}`,
   );
   const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
+  const [liveEvents, setLiveEvents] = useState<TimelineEvent[]>([]);
+  const displayedTimeline = useMemo(
+    () => mergeTimelineEvents(
+      timeline.state.status === "ok" ? timeline.state.data : [],
+      liveEvents,
+    ),
+    [liveEvents, timeline.state],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
     const seenEvents = new Set<string>();
+    let reloadTimer: ReturnType<typeof setTimeout> | undefined;
     setLiveStatus("connecting");
+    setLiveEvents([]);
+
+    const scheduleReload = () => {
+      if (reloadTimer !== undefined) return;
+      reloadTimer = setTimeout(() => {
+        reloadTimer = undefined;
+        summary.reload();
+        timeline.reload();
+        evaluation.reload();
+      }, RELOAD_DEBOUNCE_MS);
+    };
 
     void flowsApi.stream(
       businessKey,
       (event) => {
         const identity = eventIdentity(event);
-        if (seenEvents.has(identity)) return;
-        seenEvents.add(identity);
+        if (!rememberEvent(seenEvents, identity)) return;
         setLiveStatus("live");
-        summary.reload();
-        timeline.reload();
-        evaluation.reload();
+        setLiveEvents((current) => {
+          const next = [...current, event];
+          return next.length > MAX_RECENT_LIVE_EVENTS
+            ? next.slice(-MAX_RECENT_LIVE_EVENTS)
+            : next;
+        });
+        scheduleReload();
       },
       controller.signal,
     )
@@ -340,7 +392,10 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
         if (!controller.signal.aborted) setLiveStatus("error");
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (reloadTimer !== undefined) clearTimeout(reloadTimer);
+    };
   }, [businessKey, evaluation.reload, summary.reload, timeline.reload]);
 
   return (
@@ -393,8 +448,10 @@ export function FlowsDetail({ businessKey, onClose }: FlowsDetailProps) {
 
       <Section title="Timeline">
         <TimelinePanel
-          data={timeline.state.status === "ok" ? timeline.state.data : null}
-          loading={timeline.state.status === "loading"}
+          data={timeline.state.status === "ok" || liveEvents.length > 0
+            ? displayedTimeline
+            : null}
+          loading={timeline.state.status === "loading" && liveEvents.length === 0}
           error={timeline.state.status === "error" ? timeline.state.error : null}
         />
       </Section>

@@ -42,15 +42,18 @@ class BusinessFlowSummary:
     last_started_at: int | None
     last_completed_at: int | None
     last_duration_ms: int | None
-    # Per-row status aggregated from the most recent session.
-    # Possible values: "failed" (any session failed), "active" (any
-    # session is still open), "closed" (all sessions finished).
+    # Per-row status normalized from exactly the most recent session.
+    # Possible values: "failed", "active" (raw "created"), or "closed".
     status: str
 
 
 @dataclass(frozen=True)
 class BusinessFlowListResponse:
-    """Response body of GET /v1/business-flows/list."""
+    """Response body of GET /v1/business-flows/list.
+
+    ``total`` is the number of session instances represented by the
+    returned flow rows, not the number of distinct business keys.
+    """
 
     flows: list[BusinessFlowSummary] = field(default_factory=list)
     total: int = 0

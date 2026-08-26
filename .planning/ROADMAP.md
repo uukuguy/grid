@@ -6,8 +6,10 @@
 > **Latest shipped milestone:** v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调 ✅ 2026-07-27
 > **Latest shipped milestone:** v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle) ✅ 2026-07-29 @ d0d83a23
 > **Latest shipped milestone:** v3.14 EAASP Phase 6 — Ontology / Marketplace / Skill ecosystem ✅ 2026-07-30 (4-phase ladder 03.14.0 / 03.14.1 / 03.14.2 / 03.14.3; 23 REQ-IDs / 5 categories; `tools/eaasp-ecosystem/` + `sdk/python/src/eaasp/{client,cli}/`; 98 targeted tests PASS; V310-ECOSYSTEM-01 ✅ CLOSED; **EVOLUTION_PATH §三 8-Phase 路线 ALL SHIPPED**).
+> **Latest shipped milestone:** v3.15.6 OBSTACK 实战补完 ✅ 2026-08-12 (tag `v3.15.6`; production metrics + truthful verification).
+> **Latest shipped milestone:** v3.16 OBSTACK product surface ✅ 2026-08-27 (`web/` operator dashboard + L4 live SSE + L4-backed CLI + closeout verifier).
 > **Archive:** `milestones/v3.4-ROADMAP.md`, `milestones/v3.5-ROADMAP.md`, `milestones/v3.7-ROADMAP.md`, `milestones/v3.8-ROADMAP.md`, `milestones/v3.9-ROADMAP.md`, `milestones/v3.13-ROADMAP.md`
-> **Current project root:** details in `.planning/PROJECT.md` §Current Milestone + `.planning/REQUIREMENTS.md` v3.14 section.
+> **Current project root:** details in `.planning/PROJECT.md` §Current Position; next milestone intentionally unselected.
 
 ## Milestones
 
@@ -26,6 +28,18 @@
 - ✅ **v3.11 EAASP Phase 3 — production OPA backend + 5-stage approval chain** — SHIPPED 2026-07-27. Four phases (03.11.0 / 03.11.1 / 03.11.2 / 03.11.3), 29/29 REQ-IDs in 11 categories (OPA + INSTALL + OPA-BACKEND + REGO + FAIL-CLOSED + DISABLED + STAGE + SSE + AUDIT + DENY + LIVE). ADR-V2-034 Accepted; `make opa-install` reproducible; 5-stage approval state machine (Plan → Check → Draft → Approve → Execute) with deny-always-wins + human-in-the-loop pause; 57 + targeted regression tests PASS. Live walkthrough against real OPA sidecar v0.68.0 captured at `docs/status/PRODUCTION_USABILITY_2026-07-27.md`. `V310-OPA-01` + `V310-APPROVAL-01` CLOSED. v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 shared-core all preserved.
 - ✅ **v3.12 EAASP Phase 4 — A2A Router + Event Room + multi-session 协调** — SHIPPED 2026-07-27 @ 894639dd. Four phases (03.12.0 / 03.12.1 / 03.12.2 / 03.12.3), 13–16 REQ-IDs in 5 categories (SCHEMA / EVENT-ROOM / A2A / SESSION / COMPAT + TRACE). `audit.py` CHECK constraint patched to include `await_human` via idempotent `ALTER TABLE` migration (V311-AUDIT-01 CLOSED); `EventRoom` + `EventRoom.fan_out_event(...)` landed in `tools/eaasp-l4-orchestration/event_room.py`; `A2ARouter.dispatch(...)` landed in `tools/eaasp-l4-orchestration/a2a_router.py` running through v3.7.3 governance gate + v3.11.2 5-stage approval chain with `await_human` paused-state audit evidence; new `governance.session.cross` event family added to L4 SSE (V310-SESSION-01 CLOSED); cross-tenant A2A dispatch rejected with 403 (D-28). Live walkthrough captured at `docs/status/PRODUCTION_USABILITY_2026-07-28.md` (V310-A2A-01 CLOSED). v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 + ADR-V2-034 OPA sidecar all preserved. Tag `v3.12` pushed.
 - ✅ **v3.13 EAASP Phase 5 — L5 Cowork 四卡 (Event / Evidence / Action / Approval) + 回溯闭环 (retrospective cycle)** — SHIPPED 2026-07-29 @ d0d83a23. Four phases (03.13.0 / 03.13.1 / 03.13.2 / 03.13.3), 13+ REQ-IDs in 5 categories (CARD-EVENT / CARD-EVIDENCE / CARD-ACTION / CARD-APPROVAL / RETROSPECTIVE + COMPAT + TRACE). `EventCard` / `EvidenceCard` / `ActionCard` / `ApprovalCard` projection types in `tools/eaasp-l5-cowork/src/eaasp_l5_cowork/cards.py`; each card derives fields via SELECT from existing L2 / L3 / L4 / A2A tables (D-32); L4 SSE bridge emits `cowork.card.<type>.<event>` events mirroring underlying envelopes; state machine `pending → confirmed → acted` with `await_human` paused-state support; `RETROSPECTIVE` trace API (`trace_session(session_id) -> RetrospectiveChain`) with `cross_refs` linking each card to upstream causes (D-33); `L5 /v1/cowork/trace/{session_id}` endpoint + `eaasp cowork trace {session_id}` CLI command. Live walkthrough captured at `docs/status/PRODUCTION_USABILITY_2026-07-29.md` (V310-COWORK-01 CLOSED). v3.9 RBAC + v3.10 spec-audit + ADR-V2-023 P1 + ADR-V2-034 OPA sidecar + v3.12 Event Room + A2A Router all preserved. Tag `v3.13` annotated.
+- ✅ **v3.15.6 OBSTACK 实战补完** — SHIPPED + tagged 2026-08-12. L1/L2/L3/L4 observability closure, production-path evidence, and negative controls; OBSTACK §0.1 = 23/23.
+- ✅ **v3.16 OBSTACK product surface** — SHIPPED 2026-08-27. Truthful `web/` operator surface, six L4 business-flow routes with durable authenticated SSE, supported CLI queries, BusinessKey exposure, scope audits, and integrated closeout verification.
+
+---
+
+## Milestone: v3.16 OBSTACK product surface ✅ SHIPPED 2026-08-27
+
+**Goal:** expose only the OBSTACK product surface backed by real producer contracts. `web/` owns the operator UI, L4 Python owns business-flow REST/SSE, and `eaasp-cli-v2` owns the supported CLI queries.
+
+**Delivered:** live flow dashboard and detail panels; list/top-failed/top-slow CLI commands; session BusinessKey surface; durable and authenticated live events; truthful latest-session flow summaries; positive/negative scope audits; browser E2E and closeout verifier. Multi-tenant, eval, and ecosystem-health projections remain deferred pending producer contracts.
+
+**Status:** complete. Next milestone is intentionally unselected.
 
 ---
 

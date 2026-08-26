@@ -16,9 +16,6 @@ Per the OBSTACK §3.5 contract:
 
 from __future__ import annotations
 
-import asyncio
-import json
-
 import aiosqlite
 import pytest
 
@@ -87,15 +84,17 @@ CREATE TABLE governance_decisions (
     approver     TEXT,
     rationale    TEXT,
     stage        TEXT,
-    created_at   INTEGER NOT NULL,
+    ts           TEXT NOT NULL,
     business_key TEXT
 );
 CREATE TABLE telemetry_events (
-    event_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_type   TEXT NOT NULL,
+    event_id     TEXT PRIMARY KEY,
+    session_id   TEXT NOT NULL,
+    agent_id     TEXT,
+    hook_id      TEXT,
+    phase        TEXT,
     payload_json TEXT NOT NULL,
-    created_at   INTEGER NOT NULL,
-    source       TEXT,
+    received_at  TEXT NOT NULL,
     tiebreaker   INTEGER NOT NULL DEFAULT 0,
     business_key TEXT
 );
@@ -170,6 +169,7 @@ async def test_read_l4_sessions_returns_created_and_closed_events() -> None:
     assert types == ["session.closed", "session.created"]
     assert all(e.layer == "L4" for e in events)
     assert all(e.component == "session" for e in events)
+    assert sorted(e.ts for e in events) == [1_000_000, 2_000_000]
 
 
 @pytest.mark.asyncio
@@ -219,6 +219,7 @@ async def test_read_l4_event_room_events_prefixes_event_type() -> None:
     assert events[0].event_type == "event_room.A2A_REQUEST"
     assert events[0].layer == "L4"
     assert events[0].component == "event_room"
+    assert events[0].ts == 1_500_000
 
 
 # ─── read_l4_session_events ─────────────────────────────────────────────────
@@ -244,6 +245,7 @@ async def test_read_l4_session_events_joins_via_sessions() -> None:
     assert len(events) == 1
     assert events[0].event_type == "PRE_TOOL_USE"
     assert events[0].payload.get("tool_name") == "scada_read"
+    assert events[0].ts == 1_100_000
 
 
 # ─── read_l3_governance_decisions ───────────────────────────────────────────
@@ -257,9 +259,9 @@ async def test_read_l3_governance_decisions_maps_decision_field() -> None:
         """
         INSERT INTO governance_decisions
             (decision_id, session_id, hook_id, tool_name, risk_level,
-             decision, approver, rationale, stage, created_at, business_key)
+             decision, approver, rationale, stage, ts, business_key)
         VALUES ('dec-1','sess-001','PreToolUse:scada_read','scada_read','medium',
-                'allow','system','safe read','plan',1200,?)
+                'allow','system','safe read','plan','1970-01-01 00:00:01',?)
         """,
         (wire,),
     )
@@ -269,6 +271,7 @@ async def test_read_l3_governance_decisions_maps_decision_field() -> None:
     assert events[0].event_type == "allow"
     assert events[0].layer == "L3"
     assert events[0].component == "governance"
+    assert events[0].ts == 1_000
 
 
 # ─── read_l3_telemetry_events ────────────────────────────────────────────────
@@ -281,8 +284,11 @@ async def test_read_l3_telemetry_events_prefixes_with_telemetry() -> None:
     await conn.execute(
         """
         INSERT INTO telemetry_events
-            (event_type, payload_json, created_at, source, tiebreaker, business_key)
-        VALUES ('skill.usage','{"skill_id":"threshold-calibration"}',1300,'runtime',0,?)
+            (event_id, session_id, phase, payload_json, received_at,
+             tiebreaker, business_key)
+        VALUES ('event-1','sess-001','skill.usage',
+                '{"skill_id":"threshold-calibration"}',
+                '1970-01-01 00:00:02',0,?)
         """,
         (wire,),
     )
@@ -291,6 +297,7 @@ async def test_read_l3_telemetry_events_prefixes_with_telemetry() -> None:
     assert len(events) == 1
     assert events[0].event_type == "telemetry.skill.usage"
     assert events[0].layer == "L3"
+    assert events[0].ts == 2_000
 
 
 # ─── read_l2_memory_files ────────────────────────────────────────────────────
@@ -315,6 +322,7 @@ async def test_read_l2_memory_files_emits_one_event_per_status() -> None:
     assert events[0].event_type == "memory.write_file.confirmed"
     assert events[0].layer == "L2"
     assert events[0].component == "memory"
+    assert events[0].ts == 1400
 
 
 # ─── build_default_layer_readers ─────────────────────────────────────────────
@@ -382,13 +390,14 @@ async def test_build_default_layer_readers_with_real_data_aggregates_correctly()
     # L3 governance decision + telemetry event
     await l3.execute(
         "INSERT INTO governance_decisions "
-        "(decision_id, session_id, hook_id, tool_name, risk_level, decision, created_at, business_key) "
-        "VALUES ('d1','sess-001','h','t','low','allow',1200,?)",
+        "(decision_id, session_id, hook_id, tool_name, risk_level, decision, rationale, ts, business_key) "
+        "VALUES ('d1','sess-001','h','t','read','allow','ok','1970-01-01 00:00:02',?)",
         (wire,),
     )
     await l3.execute(
-        "INSERT INTO telemetry_events (event_type, payload_json, created_at, tiebreaker, business_key) "
-        "VALUES ('skill.usage','{}',1250,0,?)",
+        "INSERT INTO telemetry_events "
+        "(event_id, session_id, phase, payload_json, received_at, tiebreaker, business_key) "
+        "VALUES ('event-1','sess-001','skill.usage','{}','1970-01-01 00:00:03',0,?)",
         (wire,),
     )
     # L2 memory

@@ -52,8 +52,8 @@ const summaryResponse: SummaryResponse = {
   summary: {
     status: "closed",
     started_at: 1_000,
-    completed_at: 1_100,
-    total_duration_ms: 100,
+    completed_at: 61_000,
+    total_duration_ms: 60_000,
     event_count: 1,
     layer_counts: { L4: 1 },
     interrupted_layer: null,
@@ -119,6 +119,7 @@ describe("OBSTACK operator dashboard surface", () => {
     render(<Provider><Flows /></Provider>);
 
     await screen.findByRole("button", { name: "Business flow failed" });
+    expect(screen.getByText("3 visible flows · 3 sessions")).toBeInTheDocument();
     const statistics = screen.getByLabelText("Operator flow statistics");
     expect(statistics.tagName).toBe("DL");
     expect(statistics).toHaveTextContent("3 total");
@@ -138,10 +139,25 @@ describe("OBSTACK operator dashboard surface", () => {
 
     expect(await screen.findByText("Optimization guidance")).toBeInTheDocument();
     expect(screen.getByText("Reduce prompt size")).toBeInTheDocument();
+    expect(screen.getByText(new Date(1_000).toLocaleString())).toBeInTheDocument();
+    expect(screen.getByText(new Date(61_000).toLocaleString())).toBeInTheDocument();
   });
 
-  it("keeps a stream connecting until an event, then deduplicates and reloads derived detail reads", async () => {
+  it("appends live events, deduplicates them, and coalesces derived detail reloads", async () => {
     let onEvent: ((event: TimelineEvent) => void) | undefined;
+    apiMocks.timeline.mockResolvedValue({
+      ...timelineResponse,
+      events: Array.from({ length: 30 }, (_, index) => ({
+        ts: index,
+        layer: "L4",
+        component: "history",
+        event_type: `historic.${index}`,
+        payload: {},
+        duration_ms: null,
+        error: null,
+      })),
+      count: 30,
+    });
     apiMocks.stream.mockImplementation((_key: string, callback: (event: TimelineEvent) => void) => {
       onEvent = callback;
       return new Promise<void>(() => undefined);
@@ -149,31 +165,44 @@ describe("OBSTACK operator dashboard surface", () => {
     const { rerender } = render(<FlowsDetail businessKey="first" onClose={vi.fn()} />);
 
     await waitFor(() => expect(apiMocks.stream).toHaveBeenCalledTimes(1));
+    await screen.findByText("historic.0");
     expect(screen.getByText("Live updates connecting")).toBeInTheDocument();
     expect(onEvent).toBeDefined();
 
     act(() => {
       onEvent?.({
-        ts: 2,
+        ts: 2_000,
         layer: "L4",
         component: "flow",
-        event_type: "completed",
+        event_type: "live.completed",
         payload: { z: 1, a: "same" },
         duration_ms: 4,
         error: null,
       });
       onEvent?.({
-        ts: 2,
+        ts: 2_000,
         layer: "L4",
         component: "flow",
-        event_type: "completed",
+        event_type: "live.completed",
         payload: { a: "same", z: 1 },
         duration_ms: 4,
+        error: null,
+      });
+      onEvent?.({
+        ts: 61_000,
+        layer: "L4",
+        component: "flow",
+        event_type: "live.progress",
+        payload: {},
+        duration_ms: null,
         error: null,
       });
     });
 
     expect(screen.getByText("Live updates live")).toBeInTheDocument();
+    expect(screen.getAllByText("live.completed")).toHaveLength(1);
+    expect(screen.getByText("live.progress")).toBeInTheDocument();
+    expect(screen.getByText(new Date(2_000).toLocaleString())).toBeInTheDocument();
 
     await waitFor(() => {
       expect(apiMocks.summary).toHaveBeenCalledTimes(2);
