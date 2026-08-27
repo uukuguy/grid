@@ -4,7 +4,7 @@ fn crate_compiles() {
 }
 
 #[test]
-fn server_type_exists() {
-    use eaasp_scoped_hook_mcp::Server;
-    assert!(std::any::type_name::<Server>().contains("Server"));
+fn proxy_server_type_exists() {
+    use eaasp_scoped_hook_mcp::ProxyServer;
+    assert!(std::any::type_name::<ProxyServer>().contains("ProxyServer"));
 }
