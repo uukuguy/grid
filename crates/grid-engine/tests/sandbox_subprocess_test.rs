@@ -27,7 +27,10 @@ async fn test_subprocess_create_and_execute() {
     let id = adapter.create(&config).await.unwrap();
 
     // Execute command
-    let result = adapter.execute(&id, "echo 'hello'", "bash").await.unwrap();
+    let result = adapter
+        .execute(&id, "sleep 0.01; echo 'hello'", "bash")
+        .await
+        .unwrap();
 
     assert_eq!(result.stdout.trim(), "hello");
     assert_eq!(result.exit_code, 0);
