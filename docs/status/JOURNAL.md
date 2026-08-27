@@ -515,3 +515,4 @@
 - 16:03 隔离通用 CI 的桌面系统依赖，让非桌面 workspace 门禁恢复可执行 [21e4ae96]
 - 16:07 为通用 CI 配置 protoc，解除 Rust runtime 构建脚本的 runner 阻塞 [bae1ee62]
 - 16:21 补齐 gRPC integration 的可选 BusinessKey fixture，恢复 workspace tests 编译 [79e5cd2a]
+- 16:33 补齐 deployment gate 的 BusinessKey fixture，让全部 grid-runtime 测试目标可编译 [f8d2b0e5]
