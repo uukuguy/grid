@@ -12,6 +12,10 @@ tls = ["grid-engine/tls", "dep:axum-server"]
 # integration tests. Production binaries never enable this.
 testing = []
 
+[[test]]
+name = "ws_chunk_envelope"
+required-features = ["testing"]
+
 [dependencies]
 grid-types = { workspace = true }
 grid-engine = { workspace = true }
