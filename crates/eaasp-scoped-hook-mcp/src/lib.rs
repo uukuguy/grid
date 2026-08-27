@@ -294,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn test_dispatch_hook_allow_on_exit_0() {
         let dir = tempfile::tempdir().unwrap();
-        let script = make_script(dir.path(), "allow.sh", "#!/bin/sh\nexit 0\n");
+        let script = make_script(dir.path(), "allow.sh", "#!/bin/sh\ncat >/dev/null\nexit 0\n");
         let envelope = HookEnvelope {
             hook_id: "h1".into(),
             event: "PRE_TOOL_USE".into(),
@@ -313,7 +313,7 @@ mod tests {
         let script = make_script(
             dir.path(),
             "deny.sh",
-            "#!/bin/sh\necho '{\"decision\":\"deny\",\"reason\":\"blocked\"}'\nexit 2\n",
+            "#!/bin/sh\ncat >/dev/null\necho '{\"decision\":\"deny\",\"reason\":\"blocked\"}'\nexit 2\n",
         );
         let envelope = HookEnvelope {
             hook_id: "h2".into(),
