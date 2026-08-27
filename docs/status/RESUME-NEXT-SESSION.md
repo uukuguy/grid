@@ -1,17 +1,17 @@
 # Live Session Checkpoint
 
-> Updated: 2026-08-27 16:47. **Session remains active — not a final handoff.**
+> Updated: 2026-08-27 17:30. **Session remains active — not a final handoff.**
 
 ## TL;DR
 
 - v3.16 is shipped; the generic CI repair is in active verification.
 - Generic CI excludes `grid-desktop` and provisions `protoc`; dedicated Desktop CI remains the desktop system-dependency owner.
-- Runtime and Goose test fixtures now explicitly preserve absent optional `BusinessKey` values after the contract upgrade.
+- Newly reachable workspace tests have been repaired through runtime fixtures, Goose fixtures, hook smoke coverage, and WebSocket feature wiring.
 
 ## In-flight work
 
-- CI run `33054612963` passed install, workspace check, RBAC, and spec audits, then found two stale Goose fixtures.
-- Fix `4e61029e` is locally committed and `eaasp-goose-runtime` all-test-target compilation passes.
+- CI run `33057727325` passed install, workspace check, both audits, and the WebSocket feature compile point, then found a stale skill-scope assertion.
+- Fix `4ac45ec6` aligns the assertion with the namespace-isolated scope introduced by `a6d75300`; its 10-test target passes locally.
 - `main` is one code commit plus this checkpoint update ahead of `origin/main` until the next push.
 
 ## Immediate next action
@@ -25,3 +25,4 @@
 - Do not install the complete GTK/WebKit desktop stack in generic CI; `desktop-ci.yml` already provisions and tests it on Linux, macOS, and Windows.
 - Do not exclude Rust runtime crates requiring protobuf; they are core workspace coverage and must receive `protoc` instead.
 - Do not make optional `BusinessKey` fixtures synthetic; `None` is the compatibility-preserving value for these tests.
+- Do not revert threshold calibration to the shared scope; its isolated scope prevents the D11 namespace collision.

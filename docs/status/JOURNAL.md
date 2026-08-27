@@ -519,3 +519,4 @@
 - 16:47 对齐 Goose 技能提取 fixture，恢复契约升级后的 workspace tests 编译 [4e61029e]
 - 17:00 将 hook smoke test 对齐真实 ProxyServer，移除失效 scaffold 类型断言 [9dd43075]
 - 17:15 显式接通 WebSocket 测试 feature，兼顾默认生产隔离与 CI 覆盖 [5fe78231]
+- 17:30 对齐 threshold skill 隔离 scope 断言，保留 D11 命名空间修复 [4ac45ec6]
