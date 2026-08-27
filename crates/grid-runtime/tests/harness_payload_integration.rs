@@ -384,12 +384,20 @@ async fn initialize_with_scoped_hooks_registers_handlers() {
 
     let registry = harness.runtime().hook_registry();
 
-    // Unchanged: PreToolUse hooks still land in HookRegistry.
+    // Unchanged: PreToolUse hooks still land in HookRegistry. Execute the
+    // registered hook instead of relying on `has_handlers`: builtin handler
+    // registration happens on a spawned task and can otherwise mask a missing
+    // scoped hook locally or expose it as a CI scheduling race.
+    let action = registry
+        .execute(
+            grid_engine::HookPoint::PreToolUse,
+            &grid_engine::hooks::HookContext::new()
+                .with_tool("scada_write", serde_json::json!({"value": 75.0})),
+        )
+        .await;
     assert!(
-        registry
-            .has_handlers(grid_engine::HookPoint::PreToolUse)
-            .await,
-        "PreToolUse must have handlers after scoped hook registration"
+        matches!(action, grid_engine::hooks::HookAction::Block(_)),
+        "scoped PreToolUse hook must block scada_write, got {action:?}"
     );
 
     // New (S3.T5 G7): Stop hooks are routed via the typed StopHook
@@ -516,4 +524,3 @@ async fn block_write_scada_hook_allows_non_scada_tools() {
         action
     );
 }
-

@@ -439,22 +439,33 @@ impl GridHarness {
         let mut stop_bridges: Vec<Arc<dyn StopHook>> = Vec::new();
 
         for hook in hooks {
-            // Proto mapping: condition = scope (PreToolUse/PostToolUse/Stop),
-            //                hook_type = execution type (command/prompt).
-            // Determine HookPoint from condition (scope), not hook_type.
-            let scope_str = if !hook.condition.is_empty() {
-                hook.condition.as_str()
-            } else {
-                hook.hook_type.as_str()
+            // Current L4 mapping stores scope in `condition` and execution
+            // type (command/prompt) in `hook_type`. Older direct L1 clients
+            // stored scope in `hook_type` and the tool matcher in `condition`.
+            // Accept both wire shapes so contract-compatible clients are not
+            // silently skipped during migration.
+            let parse_scope = |value: &str| match value {
+                "pre_tool_call" | "PreToolUse" => Some(HookPoint::PreToolUse),
+                "post_tool_result" | "PostToolUse" => Some(HookPoint::PostToolUse),
+                "stop" | "Stop" => Some(HookPoint::Stop),
+                _ => None,
             };
-            let hook_point = match scope_str {
-                "pre_tool_call" | "PreToolUse" => HookPoint::PreToolUse,
-                "post_tool_result" | "PostToolUse" => HookPoint::PostToolUse,
-                "stop" | "Stop" => HookPoint::Stop,
-                other => {
-                    warn!(scope = %other, "Unknown scoped hook scope, skipping");
+            let condition_scope = parse_scope(&hook.condition);
+            let hook_point = match condition_scope.or_else(|| parse_scope(&hook.hook_type)) {
+                Some(point) => point,
+                None => {
+                    warn!(
+                        hook_type = %hook.hook_type,
+                        condition = %hook.condition,
+                        "Unknown scoped hook scope, skipping"
+                    );
                     continue;
                 }
+            };
+            let tool_matcher = if condition_scope.is_some() {
+                String::new()
+            } else {
+                hook.condition.clone()
             };
 
             // S3.T5 (G1): resolve ${SKILL_DIR} / ${SESSION_DIR} / ${RUNTIME_DIR}
@@ -497,7 +508,7 @@ impl GridHarness {
             let handler = ScopedHookHandler::new(
                 hook.hook_id.clone(),
                 resolved_command,
-                hook.condition.clone(),
+                tool_matcher,
                 hook.precedence,
             );
 
