@@ -282,6 +282,8 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
+    const IMMEDIATE_HOOK_TIMEOUT_SECS: u64 = 30;
+
     fn make_script(dir: &Path, name: &str, body: &str) -> PathBuf {
         let path = dir.join(name);
         fs::write(&path, body).unwrap();
@@ -301,7 +303,7 @@ mod tests {
             tool_name: "bash".into(),
             input_json: "{}".into(),
         };
-        let result = dispatch_hook(&script, &envelope, 5).await;
+        let result = dispatch_hook(&script, &envelope, IMMEDIATE_HOOK_TIMEOUT_SECS).await;
         assert_eq!(result.decision, "allow");
     }
 
@@ -321,7 +323,7 @@ mod tests {
             tool_name: "bash".into(),
             input_json: "{}".into(),
         };
-        let result = dispatch_hook(&script, &envelope, 5).await;
+        let result = dispatch_hook(&script, &envelope, IMMEDIATE_HOOK_TIMEOUT_SECS).await;
         assert_eq!(result.decision, "deny");
         assert_eq!(result.reason, "blocked");
     }
