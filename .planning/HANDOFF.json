@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-08-27T12:56:21Z",
+  "phase": "v3.16",
+  "phase_name": "milestone boundary after v3.16",
+  "phase_dir": "",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Restore CI and contract matrix runner infrastructure",
+      "status": "done",
+      "commit": "7c2f4884"
+    },
+    {
+      "id": 2,
+      "name": "Close Grid runtime contract execution gaps",
+      "status": "done",
+      "commit": "b8980481"
+    },
+    {
+      "id": 3,
+      "name": "Make Python runtimes reproducible on clean runners",
+      "status": "done",
+      "commit": "0136fb49"
+    },
+    {
+      "id": 4,
+      "name": "Verify final CI and persist recovery state",
+      "status": "done",
+      "commit": "59b0944c"
+    }
+  ],
+  "remaining_tasks": [],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Generic CI excludes grid-desktop; dedicated Desktop CI owns GTK, WebKit, and glib dependencies.",
+      "rationale": "This preserves generic workspace coverage without duplicating desktop-only system provisioning.",
+      "phase": "v3.16-closeout"
+    },
+    {
+      "decision": "Runner startup and infrastructure gaps are fixed immediately rather than retained as known gaps.",
+      "rationale": "Missing targets, packages, system dependencies, and startup compatibility must not be hidden by local machine state.",
+      "phase": "v3.16-closeout"
+    },
+    {
+      "decision": "ADR-V2-025 sample and reference hook capability gaps remain non-blocking capability outcomes.",
+      "rationale": "They are not missing runner infrastructure; the primary Grid and Claude jobs remain blocking and pass.",
+      "phase": "v3.16-closeout"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Select and bootstrap the v3.17 scope under ADR-V2-024's data/integration axis.",
+  "context_notes": "v3.16 and CI recovery are complete. Generic CI run 33073147718 and Phase 3 Contract Matrix run 33072602355 succeeded. Resume at milestone scope selection, not CI repair."
+}
