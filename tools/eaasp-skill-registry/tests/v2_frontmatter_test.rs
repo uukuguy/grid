@@ -121,7 +121,10 @@ fn parse_threshold_calibration_example_skill() {
         .runtime_affinity
         .compatible
         .contains(&"claude-code-runtime".to_string()));
-    assert_eq!(fm.access_scope.as_deref(), Some("org:eaasp-mvp"));
+    assert_eq!(
+        fm.access_scope.as_deref(),
+        Some("org:eaasp-verify-2026-07-30")
+    );
 
     // Scoped hooks: 1 pre + 1 post + 1 stop
     assert_eq!(fm.scoped_hooks.pre_tool_use.len(), 1);
