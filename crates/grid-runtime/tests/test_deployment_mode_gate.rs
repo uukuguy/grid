@@ -52,6 +52,7 @@ fn init_request_for_user(user: &str) -> Request<proto::InitializeRequest> {
             allow_trim_p5: true,
             ..Default::default()
         }),
+        business_key: None,
     })
 }
 
