@@ -161,6 +161,24 @@ async def _sse_delta_response(
         }
         yield f"data: {json.dumps(finish_chunk)}\n\n".encode("utf-8")
 
+    # OpenAI emits usage in a final choices=[] chunk when
+    # stream_options.include_usage=true. grid-engine consumes this to drive
+    # context-pressure compaction, so the mock must preserve scenario usage.
+    usage_chunk = {
+        "id": f"chatcmpl-mock-{idx}",
+        "object": "chat.completion.chunk",
+        "created": 0,
+        "model": model,
+        "choices": [],
+        "usage": {
+            "prompt_tokens": shape.get("prompt_tokens", 0),
+            "completion_tokens": shape.get("completion_tokens", 2),
+            "total_tokens": shape.get("prompt_tokens", 0)
+            + shape.get("completion_tokens", 2),
+        },
+    }
+    yield f"data: {json.dumps(usage_chunk)}\n\n".encode("utf-8")
+
     # Terminator — closes the SSE stream per OpenAI spec.
     yield b"data: [DONE]\n\n"
 
@@ -272,6 +290,7 @@ def build_app(
     # scripted tool-call sequence deterministically.
     counter_lock = threading.Lock()
     counter = {"n": 0}
+    scenario_counters: dict[str, int] = {}
     script = list(tool_script or [])
     scenarios: dict[str, dict[str, Any]] = dict(scenario_responses or {})
     # T04 (CONTRACT-02 / D138): per-request capture of `tool_choice`.
@@ -296,8 +315,36 @@ def build_app(
             request.headers.get("x-test-scenario")
             or request.headers.get("X-Test-Scenario")
         )
-        if scenario and scenario in scenarios:
-            shape = dict(scenarios[scenario])
+        scenario_key = scenario.split(":", 1)[0] if scenario else None
+        if scenario and scenario_key in scenarios:
+            configured_shape = scenarios[scenario_key]
+            required_tool = configured_shape.get("tool_name")
+            available_tools = {
+                tool.get("function", {}).get("name")
+                for tool in (req.tools or [])
+            }
+            if configured_shape.get("requires_tool") and required_tool not in available_tools:
+                # Background summarizers inherit the process-scoped scenario
+                # header but have no tools. They must not consume the probe's
+                # one-shot counter before the agent request arrives.
+                shape = {"kind": "stop", "content": "mock response"}
+            else:
+                with counter_lock:
+                    scenario_idx = scenario_counters.get(scenario, 0)
+                    scenario_counters[scenario] = scenario_idx + 1
+                tool_calls_count = configured_shape.get(
+                    "tool_calls_count",
+                    1 if configured_shape.get("once") else None,
+                )
+                if tool_calls_count is not None and scenario_idx >= tool_calls_count:
+                    shape = {"kind": "stop", "content": "mock response"}
+                else:
+                    shape = dict(configured_shape)
+                    arguments_by_call = configured_shape.get("arguments_by_call")
+                    if arguments_by_call:
+                        shape["arguments"] = arguments_by_call[
+                            min(scenario_idx, len(arguments_by_call) - 1)
+                        ]
             # Backfill tool_id when absent so the SSE emitter has a
             # stable id to thread through chunks.
             shape.setdefault("tool_id", f"call_scn_{idx}")

@@ -696,6 +696,9 @@ struct OpenAISseStream<S> {
     message_id: Option<String>,
     /// Final usage
     final_usage: Option<TokenUsage>,
+    /// Finish reason observed before the trailing usage chunk. OpenAI sends
+    /// usage after `finish_reason`, so MessageStop is deferred until [DONE].
+    pending_stop_reason: Option<StopReason>,
     /// Whether we've sent MessageStart
     started: bool,
     /// Whether we've already sent MessageStop (avoid duplicates)
@@ -721,6 +724,7 @@ impl<S> OpenAISseStream<S> {
             tool_calls: Vec::new(),
             message_id: None,
             final_usage: None,
+            pending_stop_reason: None,
             started: false,
             stopped: false,
             finished: false,
@@ -790,7 +794,9 @@ impl<S> OpenAISseStream<S> {
                     let stop_reason = if has_pending_tools {
                         StopReason::ToolUse
                     } else {
-                        StopReason::EndTurn
+                        self.pending_stop_reason
+                            .clone()
+                            .unwrap_or(StopReason::EndTurn)
                     };
 
                     events.push(Ok(StreamEvent::MessageStop {
@@ -953,26 +959,12 @@ impl<S> OpenAISseStream<S> {
                 // Handle finish_reason in the chunk
                 if let Some(reason) = finish_reason {
                     debug!("finish_reason: {reason}");
-                    if reason == "tool_calls" {
-                        // Tool calls will be finalized on [DONE]
-                    } else if !self.stopped {
-                        // Normal stop — emit pending tool uses if any, then MessageStop
-                        let pending: Vec<ToolCallAccum> = self.tool_calls.drain(..).collect();
-                        for tc in pending {
-                            let input: Value = serde_json::from_str(&tc.arguments)
-                                .unwrap_or(Value::Object(serde_json::Map::new()));
-                            events.push(Ok(StreamEvent::ToolUseComplete {
-                                index: tc.index,
-                                id: tc.id,
-                                name: tc.name,
-                                input,
-                            }));
-                        }
-                        events.push(Ok(StreamEvent::MessageStop {
-                            stop_reason: parse_finish_reason(reason),
-                            usage: self.final_usage.clone().unwrap_or_default(),
-                        }));
-                        self.stopped = true;
+                    if reason != "tool_calls" {
+                        // Do not emit MessageStop yet. With
+                        // stream_options.include_usage, OpenAI places the
+                        // authoritative usage chunk after finish_reason and
+                        // before [DONE]. Emitting here permanently loses it.
+                        self.pending_stop_reason = Some(parse_finish_reason(reason));
                     }
                 }
             }
@@ -1057,7 +1049,9 @@ where
                         let stop_reason = if has_pending_tools {
                             StopReason::ToolUse
                         } else {
-                            StopReason::EndTurn
+                            this.pending_stop_reason
+                                .clone()
+                                .unwrap_or(StopReason::EndTurn)
                         };
                         this.pending_events.push_back(Ok(StreamEvent::MessageStop {
                             stop_reason,
@@ -1095,5 +1089,36 @@ pub fn create_openai_provider(api_key: String, base_url: Option<String>) -> Box<
     match base_url {
         Some(url) => Box::new(OpenAIProvider::with_base_url(api_key, url)),
         None => Box::new(OpenAIProvider::new(api_key)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures_util::StreamExt;
+
+    #[tokio::test]
+    async fn streaming_usage_after_finish_reason_reaches_message_stop() {
+        let payload = concat!(
+            "data: {\"id\":\"x\",\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"x\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+            "data: {\"id\":\"x\",\"choices\":[],\"usage\":{\"prompt_tokens\":321,\"completion_tokens\":7}}\n\n",
+            "data: [DONE]\n\n"
+        );
+        let inner = futures_util::stream::iter(vec![Ok::<_, reqwest::Error>(
+            bytes::Bytes::from_static(payload.as_bytes()),
+        )]);
+        let mut stream = OpenAISseStream::new(inner, Quirks::default());
+        let mut stop_usage = None;
+
+        while let Some(event) = stream.next().await {
+            if let StreamEvent::MessageStop { usage, .. } = event.unwrap() {
+                stop_usage = Some(usage);
+            }
+        }
+
+        let usage = stop_usage.expect("stream must emit MessageStop");
+        assert_eq!(usage.input_tokens, 321);
+        assert_eq!(usage.output_tokens, 7);
     }
 }

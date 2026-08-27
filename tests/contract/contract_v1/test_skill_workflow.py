@@ -72,10 +72,10 @@ def test_required_tools_enforced_at_send(runtime_grpc_stub):
     # Contract obligation: an ERROR chunk MUST appear, OR the runtime
     # MUST refuse the tool dispatch without producing a successful
     # TOOL_RESULT for the offending tool name.
-    error_present = runtime_pb2.ChunkType.CHUNK_TYPE_ERROR in types
+    error_present = common_pb2.ChunkType.CHUNK_TYPE_ERROR in types
     tool_results_for_evil = [
         c for c in per_turn[0]
-        if c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
+        if c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
         and c.tool_name == "evil_tool" and not c.is_error
     ]
     assert error_present or not tool_results_for_evil, (
@@ -123,7 +123,7 @@ def test_tool_order_is_free_within_required_set(runtime_grpc_stub):
         types = [c.chunk_type for c in turn]
         in_set_tool_results = [
             c for c in turn
-            if c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
+            if c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
             and c.tool_name in {"file_write", "file_read"}
             and c.is_error
         ]
@@ -164,10 +164,10 @@ def test_unknown_tool_rejects_with_error_event(runtime_grpc_stub):
     assert per_turn, "expected at least one Send turn observed"
     chunks = per_turn[0]
     error_present = any(
-        c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_ERROR for c in chunks
+        c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_ERROR for c in chunks
     )
     successful_tool_result = any(
-        c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
+        c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
         and c.tool_name == "nonexistent_tool"
         and not c.is_error
         for c in chunks

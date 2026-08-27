@@ -102,7 +102,7 @@ def test_mcp_call_round_trips_tool_arguments(
 
     # Round-trip via DisconnectMCP — the contract obligation is that
     # the runtime accepts the request without raising.
-    runtime_grpc_stub.DisconnectMCP(
+    runtime_grpc_stub.DisconnectMcp(
         runtime_pb2.DisconnectMcpRequest(
             session_id=init_resp.session_id,
             server_name="echo",
@@ -197,7 +197,7 @@ def test_mcp_disconnect_releases_server_slot(
     )
     assert resp1.success or "echo" in list(resp1.connected)
 
-    runtime_grpc_stub.DisconnectMCP(
+    runtime_grpc_stub.DisconnectMcp(
         runtime_pb2.DisconnectMcpRequest(
             session_id=init_resp.session_id, server_name="echo",
         )

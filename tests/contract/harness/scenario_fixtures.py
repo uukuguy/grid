@@ -29,6 +29,32 @@ from typing import Any
 
 
 OPENAI_DENY_SCENARIOS: dict[str, dict[str, Any]] = {
+    "hook-probe": {
+        "kind": "tool_calls",
+        "tool_name": "file_read",
+        "arguments": {
+            "path": "pyproject.toml",
+        },
+        "tool_id": "call_probe_0",
+        "once": True,
+        "requires_tool": True,
+    },
+    "precompact-threshold": {
+        "kind": "tool_calls",
+        "tool_name": "file_read",
+        "arguments_by_call": [
+            {"path": "pyproject.toml"},
+            {"path": "conftest.py"},
+            {"path": "harness/event_log.py"},
+            {"path": "contract_v1/test_event_type.py"},
+        ],
+        "tool_calls_count": 4,
+        "requires_tool": True,
+        # OpenAI streaming reports usage in a final choices=[] chunk. This
+        # value models the ~60 KB prompt used by the contract test.
+        "prompt_tokens": 15_000,
+        "completion_tokens": 2,
+    },
     "deny-non-required-tool": {
         "kind": "tool_calls",
         "tool_name": "evil_tool",

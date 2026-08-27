@@ -9,7 +9,7 @@ use grid_types::{ChatMessage, PathValidator, SandboxId, SessionId, ToolContext, 
 
 use crate::agent::{AgentConfig, AgentEvent, AgentLoopConfig};
 use crate::agent::catalog::AgentCatalog;
-use crate::context::{ContextBudgetManager, ContextPruner};
+use crate::context::{CompactionPipeline, ContextBudgetManager, ContextPruner};
 use crate::agent::subagent::SubAgentManager;
 use crate::memory::store_traits::MemoryStore;
 use crate::memory::{EventExtractor, ProceduralExtractor, SessionSummarizer, SessionSummaryStore, WorkingMemory};
@@ -587,6 +587,9 @@ impl AgentExecutor {
                         // AgentRuntimeConfig → AgentRuntime →
                         // AgentExecutor) into the per-round loop config so
                         // the harness honors user-authored thresholds.
+                        compaction_pipeline: self.compaction_config.clone().map(|cfg| {
+                            Arc::new(CompactionPipeline::new(cfg))
+                        }),
                         compaction_config: self.compaction_config.clone(),
                         // S3.T5 (G7): forward Stop hooks (e.g. bash hooks
                         // bridged by `ScopedStopHookBridge`) into the

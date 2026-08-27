@@ -130,7 +130,7 @@ def test_events_stream_emits_stop_at_turn_end(runtime_grpc_stub):
     )
     assert len(per_turn) == 1
     assert per_turn[0], "expected at least one SendResponse chunk"
-    assert per_turn[0][-1].chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_DONE, (
+    assert per_turn[0][-1].chunk_type == common_pb2.ChunkType.CHUNK_TYPE_DONE, (
         f"final chunk must be DONE; got {per_turn[0][-1].chunk_type}"
     )
 

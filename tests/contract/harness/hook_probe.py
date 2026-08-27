@@ -27,8 +27,8 @@ So the probe:
     honors skill_instructions on Initialize when present, but calling
     LoadSkill explicitly matches the contract's documented flow and also
     covers the case where the runtime gates hook registration on LoadSkill.
- 3. Send(UserMessage{"probe"}) → mock LLM returns tool_use for file_write,
-    engine dispatches file_write, PreToolUse + PostToolUse fire inline,
+ 3. Send(UserMessage{"probe"}) → mock LLM returns tool_use for file_read,
+    engine dispatches file_read, PreToolUse + PostToolUse fire inline,
     second LLM round returns plain text + finish=stop, Stop hook fires.
  4. Read back the three dump files.
  5. Terminate().
@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -132,7 +133,7 @@ class HookProbe:
             # are invoked verbatim by the materialized commands.
             content="",
             frontmatter_hooks=scoped_hooks,
-            required_tools=["file_write"],
+            required_tools=["file_read"],
         )
 
         payload = self._common_pb2.SessionPayload(
@@ -202,7 +203,14 @@ class HookProbe:
         """
         assert self._session_id, "call setup() first"
 
-        message = self._runtime_pb2.UserMessage(content=prompt, message_type="text")
+        message = self._runtime_pb2.UserMessage(
+            content=prompt,
+            message_type="text",
+            # A unique suffix gives each probe its own one-shot counter in
+            # the session-scoped mock server while still routing through the
+            # shared ``hook-probe`` scenario definition.
+            metadata={"x-test-scenario": f"hook-probe:{uuid.uuid4().hex}"},
+        )
         send_stream = self._stub.Send(
             self._runtime_pb2.SendRequest(
                 session_id=self._session_id, message=message
@@ -225,7 +233,7 @@ class HookProbe:
         # handlers are noops; necessary on claude-code-runtime whose
         # scoped-hook dispatch lives ONLY in the On* RPCs. The tool
         # name + args shape matches the probe-skill's
-        # ``required_tools=["file_write"]`` declaration so a future
+        # ``required_tools=["file_read"]`` declaration so a future
         # runtime that gates dispatch on declared tools still fires.
         self._drive_on_rpcs()
 
@@ -248,9 +256,9 @@ class HookProbe:
             self._stub.OnToolCall(
                 self._runtime_pb2.ToolCallEvent(
                     session_id=sid,
-                    tool_name="file_write",
+                    tool_name="file_read",
                     tool_id="call_probe_0",
-                    input_json='{"path": "/tmp/contract-probe.txt", "content": "probe"}',
+                    input_json='{"path": "pyproject.toml"}',
                 )
             )
         except Exception:
@@ -259,7 +267,7 @@ class HookProbe:
             self._stub.OnToolResult(
                 self._runtime_pb2.ToolResultEvent(
                     session_id=sid,
-                    tool_name="file_write",
+                    tool_name="file_read",
                     tool_id="call_probe_0",
                     output="ok",
                     is_error=False,

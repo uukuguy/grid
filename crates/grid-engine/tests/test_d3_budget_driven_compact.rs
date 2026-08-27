@@ -1,9 +1,8 @@
 /// D3 (ENGINE-02): budget-driven proactive compaction tests.
 ///
-/// Validates that the harness proactive compaction gate correctly skips
-/// compaction when sufficient token budget remains (`task_budget_remaining
-/// >= MIN_TURN_BUDGET`) and proceeds when budget is tight
-/// (`task_budget_remaining < MIN_TURN_BUDGET`).
+/// Validates cross-compaction task-budget accounting. Context-pressure
+/// compaction is independently covered by the compaction pipeline and L1
+/// contract tests, per ADR-V2-018 D4/D5.
 use grid_engine::agent::harness;
 
 // ── Budget arithmetic helpers (pure functions, testable without runtime) ──
@@ -42,35 +41,6 @@ fn budget_can_continue_false_when_below_min() {
     assert!(
         !harness::budget_can_continue(100),
         "budget below MIN_TURN_BUDGET should NOT allow continuation"
-    );
-}
-
-// ── Budget-tight gate tests ──
-
-#[test]
-fn budget_tight_is_true_when_remaining_lt_min_turn_budget() {
-    // 100 < 4096 → budget is tight → should compact
-    assert!(
-        harness::is_budget_tight(100),
-        "budget 100 < MIN_TURN_BUDGET should be tight"
-    );
-}
-
-#[test]
-fn budget_tight_is_false_when_remaining_gte_min_turn_budget() {
-    // 5000 >= 4096 → budget is not tight → skip compaction
-    assert!(
-        !harness::is_budget_tight(5000),
-        "budget 5000 >= MIN_TURN_BUDGET should NOT be tight"
-    );
-}
-
-#[test]
-fn budget_tight_is_false_at_exact_min_turn_budget() {
-    // 4096 >= 4096 → not tight (boundary case)
-    assert!(
-        !harness::is_budget_tight(harness::MIN_TURN_BUDGET),
-        "budget exactly at MIN_TURN_BUDGET should NOT be tight"
     );
 }
 

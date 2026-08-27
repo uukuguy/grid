@@ -162,6 +162,11 @@ impl SecurityPolicy {
             } else {
                 path.to_path_buf()
             }
+        } else if path.is_relative() {
+            // Tool paths are workspace-relative by contract. Resolving them
+            // against the runtime process cwd rejects valid paths whenever
+            // the session workspace differs from that cwd.
+            self.working_dir.join(path)
         } else {
             path.to_path_buf()
         };
@@ -348,6 +353,17 @@ mod tests {
         // Forbidden paths
         assert!(policy.check_path(Path::new("/etc/passwd")).is_err());
         assert!(policy.check_path(Path::new("/root/.ssh")).is_err());
+    }
+
+    #[test]
+    fn test_relative_path_resolves_against_workspace() {
+        let workspace = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+        std::fs::write(workspace.path().join("inside.txt"), "ok").unwrap();
+        let policy = SecurityPolicy::new().with_working_dir(workspace.path().to_path_buf());
+
+        policy
+            .check_path(Path::new("inside.txt"))
+            .unwrap_or_else(|err| panic!("workspace-relative path should pass: {err}"));
     }
 
     #[test]

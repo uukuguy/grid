@@ -116,6 +116,42 @@ def test_openai_mock_routes_scenario_header():
     ), f"expected `evil_tool` tool_call in response; got: {body}"
 
 
+def test_openai_mock_once_scenario_falls_back_to_stop():
+    """A one-shot scenario must not repeat a tool call forever.
+
+    Hook probes run after unrelated contract cases have consumed the global
+    script counter, so they use a named scenario. The first provider round
+    emits the tool call; the follow-up round must terminate with text.
+    """
+    from fastapi.testclient import TestClient
+
+    from tests.contract.harness.mock_openai_server import build_app
+
+    app = build_app(
+        scenario_responses={
+            "hook-probe": {
+                "kind": "tool_calls",
+                "tool_name": "file_write",
+                "arguments": {"path": "/tmp/probe"},
+                "once": True,
+            }
+        }
+    )
+    client = TestClient(app)
+    request = {
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": "x"}],
+        "stream": False,
+    }
+    headers = {"X-Test-Scenario": "hook-probe"}
+
+    first = client.post("/v1/chat/completions", json=request, headers=headers).json()
+    second = client.post("/v1/chat/completions", json=request, headers=headers).json()
+
+    assert first["choices"][0]["finish_reason"] == "tool_calls"
+    assert second["choices"][0]["finish_reason"] == "stop"
+
+
 def test_openai_mock_captures_tool_choice():
     """Phase 7.1 T04 (CONTRACT-02 / D138): the OpenAI mock MUST capture
     inbound `tool_choice` so tests can assert the runtime forwarded the

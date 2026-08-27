@@ -119,10 +119,6 @@ impl GridHarness {
         session_id: String,
         model: String,
     ) -> Pin<Box<dyn Stream<Item = ResponseChunk> + Send>> {
-        // Use Arc<AtomicBool> to signal stream termination after "done" chunk.
-        let terminated = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let terminated_clone = terminated.clone();
-
         // v3.15.6 6g — the turn is in flight from the moment the caller
         // subscribes until a terminal event lands. `outcome_recorded`
         // guards the flow-outcome counter so a stream carrying both
@@ -143,61 +139,54 @@ impl GridHarness {
         let session_for_lag = session_id.clone();
         let model_for_events = model.clone();
 
-        let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
-            .filter_map(move |result| match result {
-                Ok(event) => {
-                    Self::record_event_metrics(
-                        &event,
-                        &session_for_events,
-                        &model_for_events,
-                        &outcome_for_events,
-                    );
-                    Self::event_to_chunk(event)
-                }
-                // Lag-fallback: if the gRPC consumer fell behind and the
-                // broadcast channel dropped events, `AgentEvent::Done`
-                // may have been among the dropped items — which would leave
-                // the CLI hanging forever (4d9e0c6 precedent). We surface a
-                // synthetic "error" chunk marking the lag; the take_while
-                // below will emit it and then terminate on the next synthetic
-                // "done" chunk. This is defense-in-depth — the primary fix
-                // is a larger BROADCAST_CAPACITY in grid-engine.
-                Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
-                    tracing::warn!(
-                        skipped = n,
-                        "gRPC consumer lagged on AgentEvent broadcast — emitting synthetic done to terminate stream cleanly"
-                    );
-                    // v3.15.6 6g — a lagged stream is a terminated turn:
-                    // the real `Done` was among the dropped events, so
-                    // nothing else will close out this flow. Record the
-                    // outcome as `lagged` (not `complete`) so the
-                    // completion-rate roll-up does not silently count a
-                    // truncated turn as a success.
-                    record_error("broadcast_lag");
-                    if !outcome_for_lag.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                        record_business_flow_outcome(&session_for_lag, "lagged");
+        let mut events = tokio_stream::wrappers::BroadcastStream::new(rx);
+        let stream = async_stream::stream! {
+            while let Some(result) = events.next().await {
+                let chunk = match result {
+                    Ok(event) => {
+                        Self::record_event_metrics(
+                            &event,
+                            &session_for_events,
+                            &model_for_events,
+                            &outcome_for_events,
+                        );
+                        match Self::event_to_chunk(event) {
+                            Some(chunk) => chunk,
+                            None => continue,
+                        }
                     }
-                    Some(ResponseChunk {
-                        chunk_type: "done".into(),
-                        content: format!(
-                            "[grid-runtime] stream terminated early: consumer lag, {n} events dropped"
-                        ),
-                        tool_name: None,
-                        tool_id: None,
-                        is_error: true,
-                    })
+                    // Lag-fallback: if the gRPC consumer fell behind and the
+                    // broadcast channel dropped events, `AgentEvent::Done`
+                    // may have been among the dropped items. Emit one terminal
+                    // error chunk and close immediately.
+                    Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            skipped = n,
+                            "gRPC consumer lagged on AgentEvent broadcast — emitting synthetic done to terminate stream cleanly"
+                        );
+                        record_error("broadcast_lag");
+                        if !outcome_for_lag.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                            record_business_flow_outcome(&session_for_lag, "lagged");
+                        }
+                        ResponseChunk {
+                            chunk_type: "done".into(),
+                            content: format!(
+                                "[grid-runtime] stream terminated early: consumer lag, {n} events dropped"
+                            ),
+                            tool_name: None,
+                            tool_id: None,
+                            is_error: true,
+                        }
+                    }
+                };
+
+                let is_terminal = chunk.chunk_type == "done";
+                yield chunk;
+                if is_terminal {
+                    break;
                 }
-            })
-            .take_while(move |chunk| {
-                if terminated_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                    return false;
-                }
-                if chunk.chunk_type == "done" {
-                    // Emit this chunk, then terminate on the next poll.
-                    terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
-                }
-                true
-            });
+            }
+        };
         Box::pin(TurnMetricsGuard::wrap(stream, guard))
     }
 
@@ -1461,6 +1450,8 @@ impl RuntimeContract for GridHarness {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+    use tokio_stream::StreamExt;
 
     // ── v3.15.6 6g — OBSTACK emit-point regression tests ───────────────
     //
@@ -1470,6 +1461,33 @@ mod tests {
     // was unobservable, so "cargo check passes" was mistaken for
     // "the metric fires". `classify_event` is the seam that makes the
     // decision assertable without a process-global meter provider.
+
+    #[tokio::test]
+    async fn done_closes_stream_without_waiting_for_another_event() {
+        let (tx, rx) = tokio::sync::broadcast::channel(8);
+        let mut stream = GridHarness::map_events_to_chunks(
+            rx,
+            "terminal-stream-test".into(),
+            "test-model".into(),
+        );
+
+        tx.send(AgentEvent::TextDelta { text: "hello".into() })
+            .expect("text event receiver must remain live");
+        tx.send(AgentEvent::Done)
+            .expect("done event receiver must remain live");
+
+        assert_eq!(stream.next().await.unwrap().chunk_type, "text_delta");
+        assert_eq!(stream.next().await.unwrap().chunk_type, "done");
+
+        let terminal = tokio::time::timeout(Duration::from_millis(100), stream.next())
+            .await
+            .expect("stream must close immediately after DONE");
+        assert!(terminal.is_none());
+
+        // Keep the sender alive through the assertion: closure must be driven
+        // by DONE, not by the broadcast channel being dropped.
+        drop(tx);
+    }
 
     fn tool_result(name: &str, success: bool) -> AgentEvent {
         AgentEvent::ToolResult {

@@ -302,7 +302,10 @@ def runtime_config(
                 # can trip PRE_COMPACT EventStreamEntry emission on modest
                 # synthetic payloads (no large-context fixtures needed).
                 "GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT": "5",
-                "RUST_LOG": "grid_runtime=warn,grid_engine=warn",
+                "RUST_LOG": os.environ.get(
+                    "GRID_CONTRACT_RUST_LOG",
+                    "grid_runtime=warn,grid_engine=warn",
+                ),
                 # Scoped-hook wiring: EAASP_SKILL_CACHE_DIR + the
                 # per-skill subdirectory under it resolve ${SKILL_DIR}.
                 "EAASP_SKILL_CACHE_DIR": str(fixtures_root),

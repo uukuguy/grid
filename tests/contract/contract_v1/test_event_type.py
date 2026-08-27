@@ -75,16 +75,16 @@ def test_chunk_event_is_emitted_for_assistant_text(runtime_grpc_stub):
     # dictates the exact mix, but the chunk stream MUST observably
     # carry contract-v1 chunk types.
     expected_any = {
-        runtime_pb2.ChunkType.CHUNK_TYPE_TEXT_DELTA,
-        runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_START,
-        runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT,
-        runtime_pb2.ChunkType.CHUNK_TYPE_DONE,
+        common_pb2.ChunkType.CHUNK_TYPE_TEXT_DELTA,
+        common_pb2.ChunkType.CHUNK_TYPE_TOOL_START,
+        common_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT,
+        common_pb2.ChunkType.CHUNK_TYPE_DONE,
     }
     assert any(t in expected_any for t in types), (
         f"observed chunk_types={types}, expected at least one of {expected_any}"
     )
     # Terminal DONE must close the stream.
-    assert types[-1] == runtime_pb2.ChunkType.CHUNK_TYPE_DONE, (
+    assert types[-1] == common_pb2.ChunkType.CHUNK_TYPE_DONE, (
         f"final chunk must be DONE; observed types: {types}"
     )
 
@@ -131,11 +131,11 @@ def test_tool_call_event_precedes_tool_result(runtime_grpc_stub):
     all_chunks = [c for turn in per_turn for c in turn]
     indexed_starts = [
         i for i, c in enumerate(all_chunks)
-        if c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_START
+        if c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_TOOL_START
     ]
     indexed_results = [
         i for i, c in enumerate(all_chunks)
-        if c.chunk_type == runtime_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
+        if c.chunk_type == common_pb2.ChunkType.CHUNK_TYPE_TOOL_RESULT
     ]
     if indexed_starts and indexed_results:
         # If both types appear, the first TOOL_START MUST appear before
@@ -150,7 +150,7 @@ def test_tool_call_event_precedes_tool_result(runtime_grpc_stub):
         # observed no tool round-trip in the drained window.
         assert per_turn[-1], "expected non-empty terminal turn"
         assert per_turn[-1][-1].chunk_type == \
-            runtime_pb2.ChunkType.CHUNK_TYPE_DONE, (
+            common_pb2.ChunkType.CHUNK_TYPE_DONE, (
                 f"final chunk must be DONE; got {per_turn[-1][-1].chunk_type}"
             )
 
@@ -200,17 +200,24 @@ def test_unknown_event_type_not_emitted(runtime_grpc_stub, probe_out_dir):
 
 
 def test_pre_compact_event_emitted_over_threshold(
-    runtime_grpc_stub, probe_out_dir,
+    runtime_grpc_stub, probe_out_dir, runtime_name,
 ):
     """Per ADR-V2-018, PRE_COMPACT fires when context usage exceeds threshold.
 
-    CONTRACT-01 (D137 part 2, T02): with
+    CONTRACT-01 (D137 part 2, T02): on grid-runtime, with
     ``GRID_COMPACTION_PROACTIVE_THRESHOLD_PCT=5`` injected via conftest,
-    drive a 2-turn session with a bulky user message (~60 KB), then
+    drive one multi-round tool session with a bulky user message (~60 KB), then
     fetch captured events. The PreCompactEmitter file sink records the
     firing as ``event_type=PRE_COMPACT`` so the test can observe the
     threshold trip without an in-runtime gRPC sniff path.
+
+    ADR-V2-018 explicitly keeps this compaction implementation Rust-only;
+    comparison runtimes expose the enum but do not own grid-engine's
+    threshold or file-sink implementation.
     """
+    if runtime_name != "grid":
+        pytest.skip("ADR-V2-018 PRE_COMPACT threshold implementation is grid-runtime-only")
+
     from tests.contract.harness.event_log import (
         clear_captured_events,
         fetch_captured_events,
@@ -228,11 +235,11 @@ def test_pre_compact_event_emitted_over_threshold(
     clear_captured_events(probe_out_dir)
     big_text = "x" * 60_000  # ~15k tokens; trips 5% of 200k window
     fixture = MultiTurnFixture(
-        script=[
-            TurnScript(kind="text", content="ack-1"),
-            TurnScript(kind="text", content="ack-2"),
-        ],
-        user_messages=[big_text, "follow-up"],
+        # The named mock scenario supplies four safe file_read rounds before
+        # stopping. This grows enough same-loop history to leave a non-empty
+        # middle after the pipeline's protected head/tail regions.
+        script=[TurnScript(kind="text", content="ack")],
+        user_messages=[big_text],
     )
     drive_session(
         runtime_grpc_stub,
@@ -240,6 +247,7 @@ def test_pre_compact_event_emitted_over_threshold(
         common_pb2,
         fixture,
         session_id="t02-pre-compact-threshold",
+        metadata_per_turn=[{"x-test-scenario": "precompact-threshold"}],
     )
 
     events = fetch_captured_events(probe_out_dir)
