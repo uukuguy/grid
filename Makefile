@@ -13,7 +13,14 @@
         runtime-build runtime-build-binary runtime-run test-engine test-sandbox \
         test-server test-types timings web-build web-check web-lint \
         web-dev web-test web-e2e web-clean quickstart-s7 web-install rbac-audit \
-        v3.10-spec-audit opa-install opa-clean dev-eaasp dev-eaasp-stop
+        v3.10-spec-audit opa-install opa-clean dev-eaasp dev-eaasp-stop \
+        v2-phase2_5-ci-setup v2-phase2_5-contract-grid \
+        v2-phase2_5-contract-cc v2-phase2_5-contract-goose \
+        v2-phase2_5-contract-nanobot v2-phase2_5-e2e \
+        v2-phase3-contract-grid v2-phase3-contract-claude-code \
+        v2-phase3-contract-goose v2-phase3-contract-nanobot \
+        v2-phase3-contract-pydantic-ai v2-phase3-contract-ccb \
+        v2-phase3-contract-claw-code v2-phase3-contract-all
 
 # Default test project for CLI commands
 TEST_PROJECT ?= $(PWD)/examples/demo-project
@@ -98,6 +105,50 @@ dev-eaasp:
 
 dev-eaasp-stop:
 	@echo "Use Ctrl+C in the foreground make dev-eaasp terminal; the script cleanup trap stops every child."
+
+# Contract matrix targets remain live because the Phase 2.5 and Phase 3
+# GitHub Actions workflows invoke them directly.
+v2-phase2_5-ci-setup:
+	$${PYTHON:-python3} -m pip install grpcio grpcio-tools pytest pytest-asyncio httpx uvicorn fastapi
+
+v2-phase2_5-contract-grid:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ --runtime=grid -v
+
+v2-phase2_5-contract-cc:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ --runtime=claude-code -v
+
+v2-phase2_5-contract-goose:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ --runtime=goose -v
+
+v2-phase2_5-contract-nanobot:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ --runtime=nanobot -v
+
+v2-phase2_5-e2e: v2-phase2_5-contract-grid v2-phase2_5-contract-cc v2-phase2_5-contract-goose v2-phase2_5-contract-nanobot
+	@echo "Phase 2.5 automated gate PASS (4 runtimes x contract v1)"
+
+v2-phase3-contract-grid:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=grid -v
+
+v2-phase3-contract-claude-code:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=claude-code -v
+
+v2-phase3-contract-goose:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=goose -v
+
+v2-phase3-contract-nanobot:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=nanobot -v
+
+v2-phase3-contract-pydantic-ai:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=pydantic-ai -v
+
+v2-phase3-contract-ccb:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=ccb -v
+
+v2-phase3-contract-claw-code:
+	cd tests/contract && $${PYTHON:-python3} -m pytest contract_v1/ cases/test_chunk_type_contract.py --runtime=claw-code -v
+
+v2-phase3-contract-all: v2-phase3-contract-grid v2-phase3-contract-claude-code v2-phase3-contract-goose v2-phase3-contract-nanobot v2-phase3-contract-pydantic-ai v2-phase3-contract-ccb v2-phase3-contract-claw-code
+	@echo "Phase 3 contract gate PASS (7 runtimes x contract v1.1 + chunk_type)"
 
 # 完整构建 (后端 + 前端)
 all: build web-build
