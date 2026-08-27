@@ -526,3 +526,4 @@
 - 18:36 修正 audit 可选 JWT 提取，恢复无认证模式请求并保留租户隔离 [d6f995c9]
 - 18:55 对齐安全策略 PUT 测试与已实现契约，移除过时的 501 预期 [97a97828]
 - 19:08 让 hook fixture 先消费 envelope，消除 broken-pipe fail-open 竞争 [1534c8b8]
+- 19:25 通用 CI workspace check、双审计与全量测试全部通过 [e39b5d68]
