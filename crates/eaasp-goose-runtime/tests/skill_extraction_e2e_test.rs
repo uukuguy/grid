@@ -62,6 +62,7 @@ async fn skill_extraction_e2e_smoke() {
                 allow_trim_p5: true,
                 ..Default::default()
             }),
+            business_key: None,
         })
         .await
         .expect("Initialize should succeed");
@@ -78,6 +79,7 @@ async fn skill_extraction_e2e_smoke() {
                 message_type: "text".to_string(),
                 metadata: Default::default(),
             }),
+            business_key: None,
         })
         .await
         .expect("Send should succeed")
