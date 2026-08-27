@@ -21,7 +21,7 @@ async fn security_policy_returns_current_config() {
 }
 
 #[tokio::test]
-async fn security_policy_update_returns_not_implemented() {
+async fn security_policy_update_applies_runtime_override() {
     let app = common::TestApp::new().await;
     let (status, body) = app
         .put_json(
@@ -29,8 +29,15 @@ async fn security_policy_update_returns_not_implemented() {
             serde_json::json!({"autonomy_level": "Full"}),
         )
         .await;
-    assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
-    assert!(body["error"].is_string());
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["updated_fields"],
+        serde_json::json!(["autonomy_level"])
+    );
+
+    let (status, body) = app.get("/api/v1/security/policy").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["autonomy_level"], "Full");
 }
 
 #[tokio::test]
