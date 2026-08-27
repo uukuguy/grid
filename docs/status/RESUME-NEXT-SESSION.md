@@ -1,18 +1,18 @@
 # Live Session Checkpoint
 
-> Updated: 2026-08-27 19:33. **Session remains active — not a final handoff.**
+> Updated: 2026-08-27 19:39. **Session remains active — not a final handoff.**
 
 ## TL;DR
 
-- v3.16 is shipped; the generic CI repair has a green baseline and one final flake fix pending remote verification.
+- v3.16 is shipped; the generic CI repair has a green baseline and the latest deterministic timing fix pending remote verification.
 - Generic CI excludes `grid-desktop` and provisions `protoc`; dedicated Desktop CI remains the desktop system-dependency owner.
 - Newly reachable workspace tests were repaired through runtime fixtures, hook wiring, WebSocket feature coverage, environment isolation, and stale API assertions.
 
 ## In-flight work
 
 - CI run `33066127865` completed successfully: workspace check, RBAC audit, EAASP spec audit, and all workspace tests passed.
-- Cached rerun `33067332722` exposed a `GRID_SANDBOXED` test race after all pre-test gates passed.
-- Fix `99b65cb9` serializes the five environment-mutating run-mode tests; 9 focused tests passed 30 consecutive 16-thread runs and `grid-engine` checks cleanly.
+- Cached run `33067332722` exposed and fix `99b65cb9` closed a `GRID_SANDBOXED` test race.
+- Cached run `33067931336` then exposed a valid zero-millisecond result for an instant subprocess; fix `164083ab` gives the timing assertion a deliberate 10ms workload. The focused test passed 50 consecutive runs, the suite passes 9/9, and `grid-engine` checks cleanly.
 - The separate Phase 3 Contract Matrix Makefile target gap remains unchanged.
 
 ## Immediate next action

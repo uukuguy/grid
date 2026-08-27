@@ -528,3 +528,4 @@
 - 19:08 让 hook fixture 先消费 envelope，消除 broken-pipe fail-open 竞争 [1534c8b8]
 - 19:25 通用 CI workspace check、双审计与全量测试全部通过 [e39b5d68]
 - 19:33 串行化 run-mode 环境测试，消除缓存并发下的变量覆盖 [99b65cb9]
+- 19:39 为 subprocess 计时断言加入可测延迟，消除亚毫秒截断假失败 [164083ab]
