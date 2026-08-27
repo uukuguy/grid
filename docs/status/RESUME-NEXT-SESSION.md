@@ -1,26 +1,26 @@
 # Live Session Checkpoint
 
-> Updated: 2026-08-27 19:47. **Session remains active — not a final handoff.**
+> Updated: 2026-08-27 20:31. **Session remains active — not a final handoff.**
 
 ## TL;DR
 
-- v3.16 is shipped; the generic CI repair is verified green at the final repair HEAD.
-- Generic CI excludes `grid-desktop` and provisions `protoc`; dedicated Desktop CI remains the desktop system-dependency owner.
-- Newly reachable workspace tests were repaired through runtime fixtures, hook wiring, WebSocket feature coverage, environment isolation, and stale API assertions.
+- v3.16 is shipped; generic CI remains green and the Phase 3 contract matrix repair is locally complete.
+- All workflow-referenced Make targets exist; Grid and Claude primary contract suites pass locally.
+- Runtime closure now includes immediate DONE termination, configured compaction wiring, OpenAI streaming usage, and workspace-relative path handling.
 
 ## In-flight work
 
-- CI runs `33066127865` and `33068401739` completed successfully: workspace check, RBAC audit, EAASP spec audit, and all workspace tests passed.
-- Cached run `33067332722` exposed and fix `99b65cb9` closed a `GRID_SANDBOXED` test race.
-- Cached run `33067931336` then exposed a valid zero-millisecond result for an instant subprocess; fix `164083ab` gives the timing assertion a deliberate 10ms workload. The focused test passed 50 consecutive runs, the suite passes 9/9, and `grid-engine` checks cleanly.
-- No generic CI repair remains in flight after `33068401739`; only the independent Phase 3 Contract Matrix target gap remains.
-- The separate Phase 3 Contract Matrix Makefile target gap remains unchanged.
+- Generic CI run `33068401739` remains the verified green baseline.
+- Phase 3 run `33070031124` was cancelled because its Grid job contained the pre-fix terminal-stream hang.
+- Make target restoration landed at `7c2f4884`; runtime/contract closure landed at `b8980481`.
+- Local gates pass: Grid 44/6/2, Claude 43/7/2, mock harness 10/10, targeted Rust regressions, and `grid-runtime` build.
+- Remote Phase 3 matrix verification is the only in-flight boundary.
 
 ## Immediate next action
 
-1. Commit and push this verified-state update.
-2. Confirm the docs-only HEAD receives a green generic CI run without creating another status commit.
-3. Return to user-selected v3.17 scope; treat the Phase 3 Contract Matrix target gap as separate follow-on work.
+1. Commit the event-21 checkpoint and push `b8980481` plus state commits.
+2. Monitor the new Phase 3 Contract Matrix run to completion; fix any non-expected primary failure immediately.
+3. After remote green, remove the stale matrix-gap note from `.planning/STATE.md` and close this repair boundary.
 
 ## Ruled-out paths
 
