@@ -520,3 +520,4 @@
 - 17:00 将 hook smoke test 对齐真实 ProxyServer，移除失效 scaffold 类型断言 [9dd43075]
 - 17:15 显式接通 WebSocket 测试 feature，兼顾默认生产隔离与 CI 覆盖 [5fe78231]
 - 17:30 对齐 threshold skill 隔离 scope 断言，保留 D11 命名空间修复 [4ac45ec6]
+- 17:45 放宽即时 hook 单测预算，消除共享 runner 调度导致的伪 fail-open [4df2fd7b]
