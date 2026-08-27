@@ -300,6 +300,13 @@ pub fn encode_project_key(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, MutexGuard};
+
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+    fn lock_env() -> MutexGuard<'static, ()> {
+        ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     #[test]
     fn test_encode_project_key_basic() {
@@ -326,6 +333,7 @@ mod tests {
 
     #[test]
     fn test_discover_with_env_override() {
+        let _guard = lock_env();
         // Save original values
         let orig_global = std::env::var("GRID_GLOBAL_ROOT").ok();
         let orig_project = std::env::var("GRID_PROJECT_ROOT").ok();
@@ -354,6 +362,7 @@ mod tests {
 
     #[test]
     fn test_ensure_dirs_and_meta() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         let global = tmp.path().join("global");
         let project = tmp.path().join("project");
@@ -388,6 +397,7 @@ mod tests {
 
     #[test]
     fn test_resolve_db_path_env_override() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         let custom = tmp.path().join("custom.db");
 
@@ -403,6 +413,7 @@ mod tests {
 
     #[test]
     fn test_resolve_db_path_new_default() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         let working = tmp.path().join("work");
         std::fs::create_dir_all(&working).unwrap();
@@ -424,6 +435,7 @@ mod tests {
 
     #[test]
     fn test_project_local_config() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_GLOBAL_ROOT", tmp.path().join("global"));
         std::env::set_var("GRID_PROJECT_ROOT", tmp.path().join("project"));
@@ -438,6 +450,7 @@ mod tests {
 
     #[test]
     fn test_credentials_path() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_GLOBAL_ROOT", tmp.path().join("global"));
         let root = GridRoot::with_working_dir(tmp.path()).unwrap();
@@ -450,6 +463,7 @@ mod tests {
 
     #[test]
     fn test_tls_dir() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_GLOBAL_ROOT", tmp.path().join("global"));
         let root = GridRoot::with_working_dir(tmp.path()).unwrap();
@@ -459,6 +473,7 @@ mod tests {
 
     #[test]
     fn test_mcp_dirs() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_GLOBAL_ROOT", tmp.path().join("global"));
         std::env::set_var("GRID_PROJECT_ROOT", tmp.path().join("project"));
@@ -477,6 +492,7 @@ mod tests {
 
     #[test]
     fn test_eval_config() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_PROJECT_ROOT", tmp.path().join("project"));
         let root = GridRoot::with_working_dir(tmp.path()).unwrap();
@@ -489,6 +505,7 @@ mod tests {
 
     #[test]
     fn test_with_project_dir_existing() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("myproject");
         std::fs::create_dir_all(&project).unwrap();
@@ -516,6 +533,7 @@ mod tests {
 
     #[test]
     fn test_skills_dirs() {
+        let _guard = lock_env();
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("GRID_GLOBAL_ROOT", tmp.path().join("global"));
         std::env::set_var("GRID_PROJECT_ROOT", tmp.path().join("project"));
