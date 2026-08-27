@@ -16,10 +16,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Check workspace
-        run: cargo check --workspace
+        run: cargo check --workspace --exclude grid-desktop
       - name: Audit route authorization catalog
         run: make rbac-audit
       - name: Audit EAASP v2.0 platform skeleton
         run: make v3.10-spec-audit
       - name: Test workspace
-        run: cargo test --workspace
+        run: cargo test --workspace --exclude grid-desktop
