@@ -139,7 +139,7 @@ async fn audit_returns_empty_logs() {
     let app = common::TestApp::new().await;
     let (status, body) = app.get("/api/v1/audit").await;
 
-    assert_eq!(status, StatusCode::OK);
+    assert_eq!(status, StatusCode::OK, "unexpected response: {body}");
     assert!(body["logs"].is_array(), "should have logs array");
     assert!(body["total"].is_number(), "should have total count");
 }

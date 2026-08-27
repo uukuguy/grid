@@ -64,7 +64,7 @@ impl From<grid_engine::audit::AuditRecord> for AuditRecordResponse {
 
 pub async fn list_audit(
     State(state): State<Arc<AppState>>,
-    Extension(claims): Extension<Option<JwtClaims>>,
+    claims: Option<Extension<JwtClaims>>,
     Query(query): Query<AuditQuery>,
 ) -> Result<Json<AuditResponse>, (StatusCode, Json<serde_json::Value>)> {
     let limit = query.limit.unwrap_or(50).min(100);
@@ -85,7 +85,7 @@ pub async fn list_audit(
     // ApiKey; the tenant identity is implicit and we fall back to
     // the unscoped existing path (preserved for single-user mode per
     // D-08 of the v3.8.1 plan).
-    let (role, tenant_id, user_id) = match claims.as_ref() {
+    let (role, tenant_id, user_id) = match claims.as_ref().map(|Extension(claims)| claims) {
         Some(c) => (Some(c.role.clone()), Some(c.tenant_id.clone()), Some(c.sub.clone())),
         None => (None, None, None),
     };
