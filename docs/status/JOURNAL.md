@@ -523,3 +523,4 @@
 - 17:45 放宽即时 hook 单测预算，消除共享 runner 调度导致的伪 fail-open [4df2fd7b]
 - 18:02 兼容新旧 scoped-hook 字段映射，消除异步 builtin 掩盖的注册缺口 [96c023fe]
 - 18:20 串行化 GridRoot 环境测试，消除并行临时目录互相污染 [1af9e59a]
+- 18:36 修正 audit 可选 JWT 提取，恢复无认证模式请求并保留租户隔离 [d6f995c9]
