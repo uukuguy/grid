@@ -89,6 +89,9 @@ impl GridRunMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_default_is_host() {
@@ -109,6 +112,7 @@ mod tests {
 
     #[test]
     fn test_detect_explicit_env_true() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         std::env::set_var("GRID_SANDBOXED", "1");
         assert_eq!(GridRunMode::detect(), GridRunMode::Sandboxed);
         std::env::remove_var("GRID_SANDBOXED");
@@ -116,6 +120,7 @@ mod tests {
 
     #[test]
     fn test_detect_explicit_env_false() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         std::env::set_var("GRID_SANDBOXED", "0");
         // Remove K8s indicator if present
         let k8s_val = std::env::var("KUBERNETES_SERVICE_HOST").ok();
@@ -131,6 +136,7 @@ mod tests {
 
     #[test]
     fn test_detect_explicit_env_true_variants() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         for val in &["true", "True", "TRUE", "yes", "1"] {
             std::env::set_var("GRID_SANDBOXED", val);
             assert_eq!(
@@ -145,6 +151,7 @@ mod tests {
 
     #[test]
     fn test_detect_k8s_env() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         // Ensure no explicit GRID_SANDBOXED
         std::env::remove_var("GRID_SANDBOXED");
         std::env::set_var("KUBERNETES_SERVICE_HOST", "10.0.0.1");
@@ -154,6 +161,7 @@ mod tests {
 
     #[test]
     fn test_detect_default_host() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
         // Clear all indicators
         std::env::remove_var("GRID_SANDBOXED");
         let k8s_val = std::env::var("KUBERNETES_SERVICE_HOST").ok();
