@@ -14,7 +14,11 @@ import os
 from typing import Any
 
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+try:
+    # pydantic-ai 2.x renamed the model while keeping the constructor contract.
+    from pydantic_ai.models.openai import OpenAIChatModel as OpenAIModel
+except ImportError:  # pragma: no cover - compatibility with pydantic-ai < 2
+    from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 
@@ -35,7 +39,13 @@ class PydanticAiProvider:
         root = base_url.rstrip("/")
         if root.endswith("/v1"):
             root = root[: -len("/v1")]
-        provider = OpenAIProvider(base_url=f"{root}/v1", api_key=api_key)
+        # Newer OpenAI clients validate credentials during construction.  The
+        # runtime must still boot against an unauthenticated local mock, so use
+        # a non-secret placeholder only when no key was configured.
+        provider = OpenAIProvider(
+            base_url=f"{root}/v1",
+            api_key=api_key or "not-required",
+        )
         self._oai_model = OpenAIModel(model, provider=provider)
         self._model_name = model
 
