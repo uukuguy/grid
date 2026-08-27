@@ -114,6 +114,7 @@ async fn test_initialize_and_terminate() {
     let response = client
         .initialize(proto::InitializeRequest {
             payload: Some(v2_payload_for_user("test-user")),
+            business_key: None,
         })
         .await
         .expect("initialize failed");
@@ -140,6 +141,7 @@ async fn test_on_tool_call_allows() {
             tool_name: "bash".into(),
             tool_id: "t1".into(),
             input_json: "{}".into(),
+            business_key: None,
         })
         .await
         .expect("on_tool_call failed");
@@ -155,6 +157,7 @@ async fn test_on_stop_completes() {
         .on_stop(proto::StopEvent {
             session_id: "test".into(),
             reason: "done".into(),
+            business_key: None,
         })
         .await
         .expect("on_stop failed");
@@ -174,6 +177,7 @@ async fn test_on_tool_result_allows() {
             tool_id: "t2".into(),
             output: "file1.rs\nfile2.rs".into(),
             is_error: false,
+            business_key: None,
         })
         .await
         .expect("on_tool_result failed");
@@ -189,6 +193,7 @@ async fn test_session_lifecycle_get_state() {
     let init_resp = client
         .initialize(proto::InitializeRequest {
             payload: Some(v2_payload_for_user("certifier-user")),
+            business_key: None,
         })
         .await
         .expect("initialize failed");
@@ -223,6 +228,7 @@ async fn test_emit_telemetry_is_fire_and_forget() {
     let init_resp = client
         .initialize(proto::InitializeRequest {
             payload: Some(v2_payload_for_user("telem-user")),
+            business_key: None,
         })
         .await
         .expect("initialize failed");
@@ -234,6 +240,7 @@ async fn test_emit_telemetry_is_fire_and_forget() {
         .emit_telemetry(proto::TelemetryRequest {
             session_id: session_id.clone(),
             events: vec![],
+            business_key: None,
         })
         .await
         .expect("emit_telemetry failed");
@@ -258,6 +265,7 @@ async fn test_load_skill_succeeds() {
                 dependencies: vec![],
                 required_tools: vec![],
             }),
+            business_key: None,
         })
         .await
         .expect("load_skill failed");
@@ -276,6 +284,7 @@ async fn test_disconnect_mcp_succeeds() {
         .disconnect_mcp(proto::DisconnectMcpRequest {
             session_id: "test".into(),
             server_name: "nonexistent-mcp".into(),
+            business_key: None,
         })
         .await
         .expect("disconnect_mcp failed");
@@ -289,6 +298,7 @@ async fn test_pause_session_returns_state() {
     client
         .initialize(proto::InitializeRequest {
             payload: Some(v2_payload_for_user("pause-user")),
+            business_key: None,
         })
         .await
         .expect("initialize failed");
@@ -344,6 +354,7 @@ async fn test_emit_event_returns_ok() {
             event_type: proto::HookEventType::PreToolUse as i32,
             payload_json: "{}".into(),
             timestamp: chrono::Utc::now().to_rfc3339(),
+            business_key: None,
         })
         .await;
 
