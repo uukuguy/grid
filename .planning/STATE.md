@@ -301,7 +301,6 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 - ~~L2/L3/L4 observability dead call sites~~ → **closed by `V316-L2L3L4-OBS-01`** with production-path tests and negative controls.
 - **`.env` 影子变量陷阱** — shell 中导出的旧 `DEEPSEEK_API_KEY` 会盖住 `.env`(dotenvy 不覆盖已存在环境变量),表现为 401 且极难一眼看出。跑 live 验证前先 `unset` 或比对哈希。
 - **L4 `/v1/sessions/{id}/message` 挂起** — 240s 无响应;skill-registry 报 `threshold-calibration not found`。与 OBSTACK 改动无关,独立问题,未排期。
-- **`Phase 3 Contract Matrix` workflow 长期 FAIL (2026-08-27 复核仍存在)** — `make v2-phase2_5-ci-setup` 目标在 Makefile 中**根本不存在** (grep 0 命中);历史运行全部同因 FAIL。即 MEMORY.md 记的 "CI Makefile tier gap"。独立于通用 `CI`;后者的 desktop 系统依赖隔离、`protoc` 配置及后续 workspace 回归已修复，并由 run `33066127865` 全绿验证。
 - **Quality gaps in shipped components**: `web-platform/` (Quality 7.5) and `grid-desktop` (Quality 6.5) shipped with Activation but remain below the 9.0+ bar the rest of the components have hit. Need follow-on feature work (Markdown + toast + skeletons + error states for web-platform/; Icons + IPC proxy + Grid rebrand for grid-desktop).
 - **EAASP v2.0 platform-evolution gaps**: L1 infrastructure tier changes (V310-SANDBOX-01); V310-MAT-01 typed schema work; data/integration axis (per ADR-V2-024 §1). Per `docs/design/EAASP/EAASP_v2_0_EVOLUTION_PATH.md`.
 - **Local environment**: `.env` has `OPENAI_NO_PROXY=1` for Clash. `LLM_PROVIDER=deepseek`,model `deepseek-v4-flash`(reasoning model,`reasoning_content` 会吃掉小 max_tokens 预算)。
@@ -310,9 +309,9 @@ Prior-prior-prior verification: 57 + targeted regression tests PASS; real OPA si
 
 ## Session Continuity
 
-Last session: 2026-08-27 — resumed the v3.16 closeout, reviewed all 44 local commits, fixed the live timeline/timestamp findings with regression tests, and reran the focused verification ladder.
+Last session: 2026-08-27 — closed the generic CI and Phase 3 Contract Matrix runner gaps; final matrix run `33072602355` succeeded on both primary runtimes.
 
-Stopped at: **v3.16 complete; no resume marker.** Next action is a user-selected v3.17 scope. Resume file: none.
+Stopped at: **v3.16 and CI recovery complete; no resume marker.** Next action is a user-selected v3.17 scope. Resume file: none.
 
 Prior sessions:
 
