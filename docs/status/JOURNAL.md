@@ -525,3 +525,4 @@
 - 18:20 串行化 GridRoot 环境测试，消除并行临时目录互相污染 [1af9e59a]
 - 18:36 修正 audit 可选 JWT 提取，恢复无认证模式请求并保留租户隔离 [d6f995c9]
 - 18:55 对齐安全策略 PUT 测试与已实现契约，移除过时的 501 预期 [97a97828]
+- 19:08 让 hook fixture 先消费 envelope，消除 broken-pipe fail-open 竞争 [1534c8b8]
